@@ -5823,6 +5823,93 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("shop_warehouses", "shop");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.SystemConfig.BackgroundTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Errors")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("errors");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_count");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<DateTimeOffset?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<byte[]>("Input")
+                        .HasColumnType("bytea")
+                        .HasColumnName("input");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("message");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<int>("Processed")
+                        .HasColumnType("integer")
+                        .HasColumnName("processed");
+
+                    b.Property<Guid?>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Succeeded")
+                        .HasColumnType("integer")
+                        .HasColumnName("succeeded");
+
+                    b.Property<int>("Total")
+                        .HasColumnType("integer")
+                        .HasColumnName("total");
+
+                    b.HasKey("Id")
+                        .HasName("pk_background_tasks");
+
+                    b.HasIndex("ShopId", "CreatedAt")
+                        .HasDatabaseName("ix_background_tasks_shop");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("ix_background_tasks_status");
+
+                    b.ToTable("background_tasks", "sys");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.SystemConfig.CmsPage", b =>
                 {
                     b.Property<Guid>("Id")

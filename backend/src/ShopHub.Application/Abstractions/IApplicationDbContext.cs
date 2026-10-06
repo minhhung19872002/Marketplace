@@ -77,6 +77,7 @@ public interface IApplicationDbContext
     DbSet<Domain.Catalog.ProductReport> ProductReports { get; }
     DbSet<Domain.SystemConfig.CmsPage> CmsPages { get; }
     DbSet<Domain.SystemConfig.MessageTemplate> MessageTemplates { get; }
+    DbSet<Domain.SystemConfig.BackgroundTask> BackgroundTasks { get; }
     DbSet<Review> Reviews { get; }
     DbSet<ReviewMedia> ReviewMedia { get; }
     DbSet<ReviewReport> ReviewReports { get; }

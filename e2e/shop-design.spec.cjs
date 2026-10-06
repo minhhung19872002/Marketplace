@@ -1,6 +1,7 @@
 // III.9 / II.5 on the full stack: sub-accounts with a permission-filtered menu, shop categories and decoration
 // (Kênh Người Bán) → the shop page tabs a buyer sees. Needs an admin to approve the test shop:
 //   SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=... SH_E2E_ADMIN_PASSWORD=... npx playwright test shop-design.spec.cjs
+const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
 const { BASE, apiAs, apiLogin, registerViaApi, shopWithProduct } = require('./helpers.cjs');
@@ -128,5 +129,27 @@ test.describe('Thiết lập & trang trí shop', () => {
     await expect(preview).toBeVisible();
     // Private files have no public URL: the local preview must actually render (a blob: image is blocked by the CSP)
     await expect.poll(() => preview.evaluate((img) => img.complete && img.naturalWidth > 0)).toBe(true);
+  });
+
+  test('Excel hàng loạt: tệp mẫu theo ngành, tệp giá & tồn kho chạy nền (Hangfire thật) và báo kết quả', async ({ browser, request }) => {
+    const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
+    const shop = await shopWithProduct(request, admin);
+    const seller = await sellerLogin(browser, shop.seller);
+    await seller.getByRole('menuitem', { name: 'Excel hàng loạt' }).click();
+
+    await seller.getByTestId('bulk-category').locator('input').fill('Áo Thun');
+    await seller.locator('.ant-cascader-menu-item').filter({ hasText: /Áo Thun$/ }).first().click();
+    const [template] = await Promise.all([seller.waitForEvent('download'), seller.getByTestId('bulk-template').click()]);
+    const bytes = fs.readFileSync(await template.path());
+    expect(bytes.subarray(0, 2).toString()).toBe('PK');   // an .xlsx (zip) file
+
+    const [sheet] = await Promise.all([seller.waitForEvent('download'), seller.getByTestId('bulk-price-download').click()]);
+    const sheetPath = await sheet.path();
+    await seller.getByTestId('bulk-price-upload').locator('..').locator('input[type=file]').setInputFiles({
+      name: 'gia-ton-kho.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: fs.readFileSync(sheetPath),
+    });
+    // The work runs in a Hangfire worker of the stack; the page follows it until it is done
+    await expect(seller.getByTestId('bulk-status').first()).toHaveText('Xong', { timeout: 90_000 });
+    await expect(seller.getByTestId('bulk-message').first()).toHaveText('Đã cập nhật 0 SKU.');
   });
 });

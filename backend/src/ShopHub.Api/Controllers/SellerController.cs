@@ -5,6 +5,7 @@ using ShopHub.Api.Security;
 using ShopHub.Application.Common;
 using ShopHub.Application.Features.Seller;
 using ShopHub.Domain.Shops;
+using ShopHub.Domain.SystemConfig;
 
 namespace ShopHub.Api.Controllers;
 
@@ -137,6 +138,51 @@ public sealed class SellerController : ApiControllerBase
         await Sender.Send(new SaveShopDecorationCommand(shopId, body.Blocks), ct);
         return OkData<object?>(null, "Đã đăng trang trí shop.");
     }
+
+    // ---------- Excel hàng loạt (đăng sản phẩm, cập nhật giá / tồn) ----------
+
+    private const string Xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private const long MaxSheetBytes = 5 * 1024 * 1024;
+
+    /// <summary>Import template of one leaf category (columns from its attributes, dropdowns for choices).</summary>
+    [HttpGet("shops/{shopId:guid}/bulk/template")]
+    [Produces(Xlsx, "application/json")]
+    public async Task<IActionResult> BulkTemplate(Guid shopId, [FromQuery] Guid categoryId, CancellationToken ct)
+    {
+        var (name, content) = await Sender.Send(new ImportTemplateQuery(shopId, categoryId), ct);
+        return File(content, Xlsx, name);
+    }
+
+    /// <summary>The shop's active SKUs with price and stock, to edit and upload back.</summary>
+    [HttpGet("shops/{shopId:guid}/bulk/price-stock")]
+    [Produces(Xlsx, "application/json")]
+    public async Task<IActionResult> BulkPriceStock(Guid shopId, CancellationToken ct)
+    {
+        var (name, content) = await Sender.Send(new PriceStockExportQuery(shopId), ct);
+        return File(content, Xlsx, name);
+    }
+
+    /// <summary>Upload a filled sheet (multipart "file"); the work runs in the background — follow it with GET …/bulk/tasks/{id}.</summary>
+    [HttpPost("shops/{shopId:guid}/bulk/{kind}")]
+    [RequestSizeLimit(MaxSheetBytes + 64 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxSheetBytes + 64 * 1024)]
+    [ProducesResponseType<ApiResponse<BackgroundTaskDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkStart(Guid shopId, BackgroundTaskKind kind, IFormFile? file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(ApiResponse.Fail("Vui lòng chọn tệp Excel.", [new ApiError("file", "Vui lòng chọn tệp Excel.")]));
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        return OkData(await Sender.Send(new StartBulkTaskCommand(shopId, kind, file.FileName, ms.ToArray()), ct), "Đã nhận tệp, đang xử lý.");
+    }
+
+    [HttpGet("shops/{shopId:guid}/bulk/tasks")]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<BackgroundTaskDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkTasks(Guid shopId, CancellationToken ct) => OkData(await Sender.Send(new BulkTasksQuery(shopId), ct));
+
+    [HttpGet("shops/{shopId:guid}/bulk/tasks/{taskId:guid}")]
+    [ProducesResponseType<ApiResponse<BackgroundTaskDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkTask(Guid shopId, Guid taskId, CancellationToken ct) => OkData(await Sender.Send(new BulkTaskQuery(shopId, taskId), ct));
 
     // ---------- Products ----------
 

@@ -23,6 +23,7 @@ import AnalyticsPage from './pages/AnalyticsPage'
 import StaffPage from './pages/StaffPage'
 import ShopCategoriesPage from './pages/ShopCategoriesPage'
 import DecorationPage from './pages/DecorationPage'
+import BulkPage from './pages/BulkPage'
 import { stopRealtime } from './lib/realtime'
 import './App.css'
 
@@ -39,6 +40,7 @@ const MENU: { path: string; label: string; perm?: string }[] = [
   { path: '/phan-tich', label: 'Dữ liệu & phân tích', perm: 'ORDER.VIEW' },
   { path: '/san-pham', label: 'Sản phẩm', perm: 'PRODUCT.VIEW' },
   { path: '/san-pham/moi', label: 'Thêm sản phẩm', perm: 'PRODUCT.MANAGE' },
+  { path: '/san-pham/hang-loat', label: 'Excel hàng loạt', perm: 'PRODUCT.VIEW' },
   { path: '/ma-giam-gia', label: 'Mã giảm giá', perm: 'MARKETING.MANAGE' },
   { path: '/marketing', label: 'Kênh Marketing', perm: 'MARKETING.MANAGE' },
   { path: '/thiet-lap', label: 'Thiết lập shop', perm: 'SETTINGS.MANAGE' },
@@ -115,6 +117,7 @@ const Shell = () => {
               <Route path="/tai-chinh" element={<FinancePage shopId={shop.id} />} />
               <Route path="/phan-tich" element={<AnalyticsPage key={shop.id} shopId={shop.id} />} />
               <Route path="/san-pham" element={<ProductsPage shopId={shop.id} />} />
+              <Route path="/san-pham/hang-loat" element={<BulkPage key={shop.id} shopId={shop.id} />} />
               <Route path="/san-pham/:id" element={<ProductEditorPage key={location.pathname} shopId={shop.id} />} />
               <Route path="/ma-giam-gia" element={<VouchersPage shopId={shop.id} />} />
               <Route path="/marketing" element={<MarketingPage shopId={shop.id} />} />

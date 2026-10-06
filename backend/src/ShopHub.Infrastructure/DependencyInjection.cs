@@ -150,6 +150,15 @@ public static class DependencyInjection
             }));
         if (settings.JobsEnabled) services.AddHangfireServer(o => o.ServerName = $"shophub-{Environment.MachineName}");
         services.AddScoped<IJobScheduler, HangfireJobScheduler>();
+        services.AddScoped<IBackgroundTasks, HangfireBackgroundTasks>();
+        services.AddScoped<BulkTaskJob>();
+        services.AddHttpClient(Media.RemoteImageFetcher.HttpClientName, c =>
+            {
+                c.Timeout = TimeSpan.FromSeconds(10);
+                c.DefaultRequestHeaders.UserAgent.ParseAdd("ShopHub-ImageImport/1.0");
+            })
+            .ConfigurePrimaryHttpMessageHandler(Media.RemoteImageFetcher.CreateHandler);
+        services.AddScoped<IRemoteImageFetcher, Media.RemoteImageFetcher>();
 
         services.AddHttpClient("health", c => c.Timeout = TimeSpan.FromSeconds(3));
         services.AddHealthChecks()

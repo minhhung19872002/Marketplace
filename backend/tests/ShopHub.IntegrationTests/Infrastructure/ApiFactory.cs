@@ -73,6 +73,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.AddSingleton<ShopHub.Infrastructure.Notifications.IEmailSender>(Emails);
             foreach (var name in new[] { "vnpay", "momo", "ghn", "ghtk" })
                 services.AddHttpClient(name).ConfigurePrimaryHttpMessageHandler(() => new FakeProvidersHandler(Providers));
+            // Image links of Excel imports: https://img.test/… serves a PNG, https://big.test/… is over the size limit
+            services.AddHttpClient(ShopHub.Infrastructure.Media.RemoteImageFetcher.HttpClientName)
+                .ConfigurePrimaryHttpMessageHandler(() => new FakeImageHostHandler());
         });
 
     public string ConnectionString => _postgres.GetConnectionString();

@@ -49,6 +49,7 @@ builder.Services
     .AddSingleton<ShopHub.Application.Abstractions.IShippingDocuments, ShopHub.Reporting.ShippingDocuments>()
     .AddSingleton<ShopHub.Application.Abstractions.IFinanceDocuments, ShopHub.Reporting.FinanceDocuments>()
     .AddSingleton<ShopHub.Application.Abstractions.IReportDocuments, ShopHub.Reporting.ReportDocuments>()
+    .AddSingleton<ShopHub.Application.Abstractions.IProductSheets, ShopHub.Reporting.ProductSheets>()
     .AddApi(builder.Configuration);
 
 var app = builder.Build();

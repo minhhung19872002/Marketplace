@@ -61,14 +61,15 @@ public static class PermissionClaims
         user.FindAll(Permissions.ClaimType).Any(c => c.Value == permission || c.Value == Permissions.All);
 }
 
-public sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
+public sealed class HttpCurrentUser(IHttpContextAccessor accessor, ActingUser acting) : ICurrentUser
 {
     private HttpContext? Context => accessor.HttpContext;
 
+    // Outside a request (a background task) the user is the one the job acts for; no admin permission is carried over
     public Guid? UserId =>
         Guid.TryParse(Context?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? Context?.User.FindFirstValue("sub"), out var id)
             ? id
-            : null;
+            : Context is null ? acting.UserId : null;
 
     public Guid? SessionId => Guid.TryParse(Context?.User.FindFirstValue("sid"), out var sid) ? sid : null;
 

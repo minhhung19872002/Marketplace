@@ -25,6 +25,8 @@ public static class DependencyInjection
 
         services.AddScoped<Features.Cart.CartStore>();
         services.AddScoped<Features.Cart.PurchaseLimits>();
+        services.AddScoped<Abstractions.ActingUser>();
+        services.AddScoped<Features.Seller.BulkTaskRunner>();
         services.AddScoped<Features.Checkout.ShippingCalculator>();
         services.AddScoped<Features.Checkout.VoucherEvaluator>();
         services.AddScoped<Features.Checkout.VoucherLedger>();

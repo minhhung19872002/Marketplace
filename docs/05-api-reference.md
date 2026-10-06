@@ -538,6 +538,15 @@ Ngày là ngày Việt Nam `YYYY-MM-DD`, tính cả hai đầu (mặc định 30
 `GET /api/shops/{slug}` trả thêm `categories` (tab danh mục) và `hasDecoration`; `GET /api/seller/shops` trả thêm
 `description`, `coverUrl`. `POST /api/media/shop` nhận cả video MP4.
 
+## Excel hàng loạt (Phase 13)
+
+| Phương thức | Đường dẫn | Quyền shop | Mô tả |
+|---|---|---|---|
+| GET | `/api/seller/shops/{shopId}/bulk/template?categoryId=` | `PRODUCT.MANAGE` | Tệp mẫu đăng hàng loạt của một ngành hàng cấp cuối (.xlsx) |
+| GET | `/api/seller/shops/{shopId}/bulk/price-stock` | `INVENTORY.MANAGE` | Mọi SKU đang bán với giá / giá gốc / tồn (.xlsx, ≤ 5.000 dòng) |
+| POST | `/api/seller/shops/{shopId}/bulk/{ProductImport\|PriceStockUpdate}` | `PRODUCT.MANAGE` / `INVENTORY.MANAGE` | multipart `file` (≤ 5 MB) → việc nền `{ id, status: Queued, … }`; sai loại tệp / tệp của shop khác → 409 |
+| GET | `/api/seller/shops/{shopId}/bulk/tasks` · `/bulk/tasks/{id}` | `PRODUCT.VIEW` | 20 việc gần nhất · một việc: `status`, `total`, `processed`, `succeeded`, `failed`, `errors[{ row, column, message }]`, `message` |
+
 ## Chat bị báo cáo (Phase 13)
 
 | Phương thức | Đường dẫn | Quyền | Mô tả |

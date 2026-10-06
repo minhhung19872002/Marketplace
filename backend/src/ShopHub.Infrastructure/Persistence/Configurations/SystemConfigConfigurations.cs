@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using ShopHub.Domain.Iam;
 using ShopHub.Domain.SystemConfig;
@@ -83,5 +85,28 @@ internal sealed class MessageTemplateConfiguration : IEntityTypeConfiguration<Me
         b.Property(t => t.Body).HasMaxLength(4000).IsRequired();
         b.Property(t => t.Placeholders).HasMaxLength(300);
         b.HasIndex(t => new { t.Key, t.Channel }).IsUnique().HasDatabaseName("ux_message_templates_key");
+    }
+}
+
+internal sealed class BackgroundTaskConfiguration : IEntityTypeConfiguration<BackgroundTask>
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    public void Configure(EntityTypeBuilder<BackgroundTask> b)
+    {
+        b.ToTable("background_tasks", "sys");
+        b.HasKey(t => t.Id);
+        b.Property(t => t.Kind).HasConversion<string>().HasMaxLength(30);
+        b.Property(t => t.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(t => t.FileName).HasMaxLength(255).IsRequired();
+        b.Property(t => t.Message).HasMaxLength(1000);
+        b.Property(t => t.Input).HasColumnType("bytea");
+        b.Property(t => t.Errors).HasColumnType("jsonb").HasConversion(
+            v => JsonSerializer.Serialize(v, Json),
+            v => JsonSerializer.Deserialize<List<TaskRowError>>(v, Json) ?? new List<TaskRowError>(),
+            new ValueComparer<List<TaskRowError>>((a, c) => JsonSerializer.Serialize(a, Json) == JsonSerializer.Serialize(c, Json),
+                v => JsonSerializer.Serialize(v, Json).GetHashCode(), v => v.ToList()));
+        b.HasIndex(t => new { t.ShopId, t.CreatedAt }).HasDatabaseName("ix_background_tasks_shop");
+        b.HasIndex(t => new { t.Status, t.CreatedAt }).HasDatabaseName("ix_background_tasks_status");
     }
 }

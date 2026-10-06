@@ -44,7 +44,8 @@ public sealed class SaveRoleValidator : AbstractValidator<SaveRoleCommand>
 {
     public SaveRoleValidator()
     {
-        RuleFor(x => x.Code).Matches("^[A-Z][A-Z0-9_]{2,49}$").WithMessage("Mã vai trò gồm 3–50 ký tự IN HOA, số hoặc gạch dưới.");
+        RuleFor(x => x.Code).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Vui lòng nhập mã vai trò.")
+            .Matches("^[A-Z][A-Z0-9_]{2,49}$").WithMessage("Mã vai trò gồm 3–50 ký tự IN HOA, số hoặc gạch dưới.");
         RuleFor(x => x.Name).NotEmpty().WithMessage("Vui lòng nhập tên vai trò.").MaximumLength(100).WithMessage("Tên tối đa 100 ký tự.");
         RuleFor(x => x.Description).MaximumLength(500).WithMessage("Mô tả tối đa 500 ký tự.");
         RuleFor(x => x.Permissions).NotNull().WithMessage("Thiếu danh sách quyền.");

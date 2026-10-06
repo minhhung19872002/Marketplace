@@ -199,7 +199,8 @@ public sealed class ConfirmContactChangeValidator : AbstractValidator<ConfirmCon
     {
         RuleFor(x => x.NewValue).Must(v => Identifiers.NormaliseOtpTarget(v) is not null)
             .WithMessage("Số điện thoại hoặc email không hợp lệ.");
-        RuleFor(x => x.Code).Matches(@"^\d{6}$").WithMessage("Mã xác thực gồm 6 chữ số.");
+        RuleFor(x => x.Code).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Vui lòng nhập mã xác thực.")
+            .Matches(@"^\d{6}$").WithMessage("Mã xác thực gồm 6 chữ số.");
     }
 }
 

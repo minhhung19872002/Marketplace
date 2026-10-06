@@ -31,9 +31,23 @@ public sealed class OutboxDispatcher(
 {
     private readonly Dictionary<string, List<IOutboxHandler>> _handlers = handlers.GroupBy(h => h.Type).ToDictionary(g => g.Key, g => g.ToList());
 
+    // Codes, password resets and session cut-offs go first: a backlog of ordinary notifications must never delay them
+    private static readonly string[] Urgent = [OutboxTypes.NotifySms, OutboxTypes.NotifyEmail, OutboxTypes.SessionsChanged];
+
+    /// <summary>The recurring job: batch after batch until the outbox is empty or ~45 s have passed (the next run continues).</summary>
     [DisableConcurrentExecution(timeoutInSeconds: 300)]
     [AutomaticRetry(Attempts = 0)]
-    public Task RunJobAsync() => DispatchAsync(CancellationToken.None);
+    public async Task RunJobAsync()
+    {
+        var batchSize = (int)await parameters.GetIntAsync(ParameterKeys.JobOutboxBatchSize, CancellationToken.None);
+        var until = DateTime.UtcNow.AddSeconds(45);
+        while (DateTime.UtcNow < until)
+        {
+            var result = await DispatchAsync(CancellationToken.None);
+            db.ChangeTracker.Clear();
+            if (result.Processed + result.Failed < batchSize) break;
+        }
+    }
 
     public async Task<OutboxDispatchResult> DispatchAsync(CancellationToken ct)
     {
@@ -45,7 +59,7 @@ public sealed class OutboxDispatcher(
             .FromSqlInterpolated($"""
                 SELECT * FROM sys.outbox_messages
                 WHERE processed_at IS NULL AND attempts < {maxAttempts}
-                ORDER BY occurred_at, id
+                ORDER BY CASE WHEN type = ANY({Urgent}) THEN 0 ELSE 1 END, occurred_at, id
                 LIMIT {batchSize}
                 FOR UPDATE SKIP LOCKED
                 """)

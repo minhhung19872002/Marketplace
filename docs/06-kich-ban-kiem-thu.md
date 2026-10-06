@@ -10,8 +10,8 @@ cd e2e && SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=… SH_E2E_AD
 
 (gateway e2e nên nâng giới hạn: `SH_GATEWAY_RATE=100r/s SH_GATEWAY_BURST=200`, mọi trình duyệt cùng một IP.)
 
-Lần chạy gần nhất: **2026-10-07**, 51 kịch bản, 51 đạt. Phần phụ trợ: backend `dotnet test` 127 unit + 156 tích hợp
-đạt; vitest web 10, seller 8, admin 8 đạt.
+Lần chạy gần nhất: **2026-10-07**, 61 kịch bản, 61 đạt (trên dữ liệu mẫu đầy đủ: ~600 đơn, 800 đánh giá). Phần phụ trợ: backend
+`dotnet test` 151 unit + 174 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
 
 ## A. Mục 9 của đặc tả (bắt buộc)
 
@@ -64,6 +64,15 @@ Lần chạy gần nhất: **2026-10-07**, 51 kịch bản, 51 đạt. Phần ph
 | KB35 | SEO | Bot mở trang sản phẩm, đường cũ, sitemap, robots (`seo.spec.cjs`) | HTML render sẵn có JSON-LD; 301; sitemap chia tệp; người thật nhận SPA | Như mong đợi | ✔ |
 | KB36 | Tiếp cận (WCAG AA) | axe trên trang người mua, đăng nhập seller/admin; Tab tới ô tìm kiếm (`a11y.spec.cjs`) | Không lỗi nghiêm trọng; viền focus rõ | Lần đầu đỏ (L044), sau sửa đạt | ✔ |
 | KB37 | Stack | Seller, admin mở được; gateway chuyển `/health` (`stack-smoke.spec.cjs`) | 200 | Như mong đợi | ✔ |
+| KB43 | Tài khoản phụ | Chủ shop thêm CSKH → nhân viên đăng nhập → gỡ (`shop-design.spec.cjs`) | Nhân viên chỉ thấy mục được cấp; gỡ thì gọi API kế tiếp 404 | Như mong đợi | ✔ |
+| KB44 | Trang trí & danh mục shop | Lưu hồ sơ chỉ đổi logo; tạo danh mục, trang trí 3 khối, đổi thứ tự (`shop-design.spec.cjs`) | Giới thiệu không mất; người mua thấy tab Dạo theo đúng thứ tự, tab danh mục, Hồ sơ shop | Lần đầu đỏ (L047), sau sửa đạt | ✔ |
+| KB45 | Ảnh CCCD khi đăng ký bán | Tải ảnh CCCD (`shop-design.spec.cjs`) | Ảnh xem trước hiện được | Lần đầu đỏ (L050), sau sửa đạt | ✔ |
+| KB46 | Excel hàng loạt | Tải tệp mẫu theo ngành; tải tệp giá & tồn rồi đưa lên (`shop-design.spec.cjs`) | Tệp .xlsx; việc nền Hangfire xong, báo kết quả | Như mong đợi | ✔ |
+| KB47 | Freeship Xtra | Shop bật / tắt (`shop-design.spec.cjs`) | Thấy mức phí; trạng thái lưu đúng | Lần đầu đỏ (L051), sau sửa đạt | ✔ |
+| KB48 | Ảnh đại diện, quyền riêng tư | Cắt & lưu ảnh; tải dữ liệu; xoá tài khoản (`account.spec.cjs`) | Ảnh hiện ở header; tệp JSON đúng người; đăng nhập lại 401 | Như mong đợi | ✔ |
+| KB49 | Giới hạn mua, sản phẩm tương tự | Giới hạn 2; thêm cái thứ 3; shop hết hàng (`cart-rules.spec.cjs`) | Ô số lượng dừng ở 2; giỏ 409; dòng hết hàng mở được sản phẩm tương tự | Như mong đợi | ✔ |
+| KB50 | Chặn / báo cáo shop | Người mua chặn + báo cáo; quản trị phạt (`chat.spec.cjs`) | Shop không gửi được tin (409); 2 điểm phạt | Như mong đợi | ✔ |
+| KB51 | Liên hệ shop | Đơn mua → Liên hệ shop (`orders.spec.cjs`) | Chat mở đúng shop kèm thẻ đơn | Lần đầu thiếu chức năng (L052), sau bổ sung đạt | ✔ |
 
 ## D. Kiểm bằng công cụ khác / tay
 

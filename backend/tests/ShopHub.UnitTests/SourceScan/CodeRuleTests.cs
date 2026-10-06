@@ -205,3 +205,20 @@ public class ReservedRouteTokenTests
         offenders.Should().BeEmpty("tên tham số route dành riêng của MVC không bao giờ nhận giá trị");
     }
 }
+
+public class ValidatorNullTests
+{
+    // FluentValidation skips Matches / EmailAddress / Length on null: a rule that starts with one of them lets null reach the handler (L055)
+    private static readonly Regex StartsWithNullTolerant = new(@"RuleFor\(\w+\s*=>\s*[\w.!]+\)\s*\.(Matches|EmailAddress|Length)\(");
+
+    [Fact]
+    public void No_validation_rule_starts_with_a_check_that_lets_null_through()
+    {
+        var offenders = RepoFiles.AllSourceFiles()
+            .Where(f => StartsWithNullTolerant.IsMatch(RepoFiles.WithoutComments(File.ReadAllText(f))))
+            .Select(RepoFiles.Relative)
+            .ToList();
+
+        offenders.Should().BeEmpty("Matches / EmailAddress / Length bỏ qua null — đặt NotEmpty (hoặc When) trước, kèm Cascade(CascadeMode.Stop)");
+    }
+}

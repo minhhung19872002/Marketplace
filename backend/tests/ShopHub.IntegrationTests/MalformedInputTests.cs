@@ -57,4 +57,31 @@ public class MalformedInputTests(ApiFactory factory)
 
         failures.Should().BeEmpty(string.Join(" | ", failures));
     }
+
+    [Fact]
+    public async Task A_null_code_with_an_otherwise_valid_body_is_a_400_not_a_500()
+    {
+        var user = await factory.CreateUserAsync(Permissions.All);
+        // A code exists for each target, so the handler would reach the comparison with the (missing) code
+        var newcomer = ApiFactory.NewPhone();
+        var newContact = ApiFactory.NewPhone();
+        (await factory.CreateClient().PostAsJsonAsync("/api/auth/otp/send", new { target = newcomer, purpose = "Register" })).EnsureSuccessStatusCode();
+        (await factory.CreateClient().PostAsJsonAsync("/api/auth/otp/send", new { target = user.Phone, purpose = "Login" })).EnsureSuccessStatusCode();
+        (await user.Client.PostAsJsonAsync("/api/account/contact/otp", new { newValue = newContact })).EnsureSuccessStatusCode();
+        (HttpMethod Method, string Path, string Body, bool Signed)[] cases =
+        [
+            (HttpMethod.Post, "/api/auth/otp/verify", $$"""{"target":"{{newcomer}}","purpose":"Register","code":null}""", false),
+            (HttpMethod.Post, "/api/auth/login-otp", $$"""{"phone":"{{user.Phone}}","code":null}""", false),
+            (HttpMethod.Put, "/api/account/contact", $$"""{"newValue":"{{newContact}}","code":null}""", true),
+            (HttpMethod.Post, "/api/admin/roles", """{"code":null,"name":"Vai trò thử","description":"x","permissions":[]}""", true),
+        ];
+        var failures = new List<string>();
+        foreach (var (method, path, body, signed) in cases)
+        {
+            var msg = new HttpRequestMessage(method, path) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+            var res = await (signed ? user.Client : factory.CreateClient()).SendAsync(msg);
+            if (res.StatusCode != System.Net.HttpStatusCode.BadRequest) failures.Add($"{method} {path} → {(int)res.StatusCode}");
+        }
+        failures.Should().BeEmpty(string.Join(" | ", failures));
+    }
 }

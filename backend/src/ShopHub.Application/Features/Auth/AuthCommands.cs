@@ -55,7 +55,8 @@ public sealed class VerifyOtpValidator : AbstractValidator<VerifyOtpCommand>
     {
         RuleFor(x => x.Target).Must(t => Identifiers.NormaliseOtpTarget(t) is not null)
             .WithMessage("Số điện thoại hoặc email không hợp lệ.");
-        RuleFor(x => x.Code).Matches(@"^\d{6}$").WithMessage("Mã xác thực gồm 6 chữ số.");
+        RuleFor(x => x.Code).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Vui lòng nhập mã xác thực.")
+            .Matches(@"^\d{6}$").WithMessage("Mã xác thực gồm 6 chữ số.");
         RuleFor(x => x.Purpose).Must(p => p is OtpPurpose.Register or OtpPurpose.ResetPassword)
             .WithMessage("Mục đích xác thực không hợp lệ.");
     }
@@ -198,7 +199,8 @@ public sealed class LoginWithOtpValidator : AbstractValidator<LoginWithOtpComman
     public LoginWithOtpValidator()
     {
         RuleFor(x => x.Phone).Must(p => Identifiers.NormalisePhone(p) is not null).WithMessage("Số điện thoại không hợp lệ.");
-        RuleFor(x => x.Code).Matches(@"^\d{6}$").WithMessage("Mã xác thực gồm 6 chữ số.");
+        RuleFor(x => x.Code).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Vui lòng nhập mã xác thực.")
+            .Matches(@"^\d{6}$").WithMessage("Mã xác thực gồm 6 chữ số.");
     }
 }
 

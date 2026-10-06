@@ -6,13 +6,14 @@ Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** 
 Đặc tả và lộ trình: [`PROMPT-BUILD-SHOPHUB.md`](PROMPT-BUILD-SHOPHUB.md). Tiến độ từng phase:
 [`docs/07-bang-doi-chieu-chuc-nang.md`](docs/07-bang-doi-chieu-chuc-nang.md).
 
-> **Trạng thái hiện tại: xong Phase 0–12** (chuyển đổi repo, nền móng backend, tài khoản, danh mục & sản phẩm, tìm kiếm & trang người mua, giỏ hàng & thanh toán, đơn hàng & vận chuyển, đánh giá & trả hàng / khiếu nại, tài chính: sổ cái, giải ngân, rút tiền, Ví ShopHub, marketing: Flash Sale, combo, mua kèm, quà tặng, banner, chiến dịch, hạng thành viên, điểm danh xu, chat người mua ↔ shop thời gian thực (SignalR), thông báo đa kênh, thông báo hàng loạt, cổng VNPay / MoMo và hãng GHN / GHTK bật bằng khoá trong `.env`, quản trị đủ phân hệ VI: tổng quan, 11 báo cáo có biểu đồ + Excel/PDF, điểm phạt, can thiệp đơn, nội dung & mẫu tin; phân tích cho shop).
-> **Phase 13 (hoàn thiện) đang làm:** đã có SEO cho máy thu thập (HTML render sẵn, JSON-LD, sitemap), đo 1 triệu sản phẩm đạt ngưỡng, giao diện 375 px / 1366 px, WCAG AA, `docker-compose.prod.yml` (HTTPS, sao lưu / phục hồi); còn tài liệu hướng dẫn 01–03, 06 và các mục dời lại ghi ở `docs/07`.
-> Kênh Người Bán (đăng ký shop, đăng/sửa sản phẩm, tồn kho) và quản trị (duyệt shop/sản phẩm, ngành hàng) chạy thật.
-> Trang người mua đọc dữ liệu thật: tìm kiếm không dấu có facet (Meilisearch, dự phòng PostgreSQL), trang danh mục / sản phẩm / shop,
-> yêu thích, theo dõi shop, ~1.000 sản phẩm mẫu. Giỏ hàng trên máy chủ, thanh toán tách đơn theo shop với voucher sàn/shop, xu, phí vận
-> chuyển giả lập, COD và cổng thanh toán giả lập (`SH_PAYMENT_SIMULATED=true`, chỉ cho demo/kiểm thử). Shop xử lý đơn, in phiếu giao
-> PDF; hãng vận chuyển giả lập đẩy hành trình; huỷ / yêu cầu huỷ, tự hoàn thành, thông báo trong ứng dụng.
+> **Trạng thái hiện tại: xong Phase 0–13.** Ba phía người mua / Kênh Người Bán / quản trị sàn chạy trên dữ liệu thật: tìm kiếm không dấu có facet,
+> giỏ theo shop, PricingEngine, voucher sàn / shop, xu, Flash Sale, checkout tách đơn có idempotency, COD + cổng giả lập (VNPay / MoMo,
+> GHN / GHTK bật bằng khoá), máy trạng thái đơn, vận đơn giả lập, đánh giá, trả hàng & khiếu nại, sổ cái kép, giải ngân, Ví ShopHub,
+> chat thời gian thực, thông báo đa kênh, quản trị & báo cáo; tài khoản phụ, trang trí & danh mục shop, Excel hàng loạt, Freeship / Voucher
+> Xtra, đăng nhập Google (tuỳ chọn); SEO cho máy thu thập, 1 triệu sản phẩm đạt ngưỡng, 375 px / 1366 px, WCAG AA, production HTTPS +
+> sao lưu. `docker compose up -d` có sẵn dữ liệu mẫu: ~1.000 sản phẩm, ~600 đơn trải 90 ngày qua đúng các lệnh nghiệp vụ, 800 đánh giá.
+> Hướng dẫn: [người mua](docs/01-huong-dan-nguoi-mua.md) · [người bán](docs/02-huong-dan-nguoi-ban.md) · [quản trị](docs/03-huong-dan-quan-tri.md);
+> kịch bản kiểm thử: [`docs/06`](docs/06-kich-ban-kiem-thu.md); chưa làm / ngoài phạm vi: `docs/07` và mục 12 của đặc tả.
 > Tài liệu API: [`docs/05-api-reference.md`](docs/05-api-reference.md).
 
 ## Cấu trúc

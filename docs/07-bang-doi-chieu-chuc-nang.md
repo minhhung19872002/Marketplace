@@ -9,17 +9,17 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 0 | Chuyển đổi repo | **Xong** | Xem bảng Phase 0 dưới đây |
 | 1 | Nền móng backend | **Xong** | Xem bảng Phase 1 dưới đây |
 | 2 | Tài khoản | **Xong** | Xem bảng Phase 2 dưới đây |
-| 3 | Danh mục & sản phẩm | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 3 dưới đây |
+| 3 | Danh mục & sản phẩm | **Xong** | Xem bảng Phase 3 dưới đây |
 | 4 | Tìm kiếm & trang người mua | **Xong** | Xem bảng Phase 4 dưới đây |
-| 5 | Giỏ hàng & thanh toán | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 5 dưới đây |
-| 6 | Đơn hàng & vận chuyển | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 6 dưới đây |
-| 7 | Đánh giá, trả hàng, khiếu nại | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 7 dưới đây |
-| 8 | Tài chính | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 8 dưới đây |
-| 9 | Marketing | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 9 dưới đây |
-| 10 | Chat & thông báo thời gian thực | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 10 dưới đây |
-| 11 | Cổng thật | **Xong** (chưa kiểm với sandbox thật — ghi ở cuối bảng) | Xem bảng Phase 11 dưới đây |
-| 12 | Quản trị & báo cáo | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 12 dưới đây |
-| 13 | Hoàn thiện | Đang làm — xem bảng Phase 13 | Xem bảng Phase 13 dưới đây |
+| 5 | Giỏ hàng & thanh toán | **Xong** | Xem bảng Phase 5 dưới đây |
+| 6 | Đơn hàng & vận chuyển | **Xong** | Xem bảng Phase 6 dưới đây |
+| 7 | Đánh giá, trả hàng, khiếu nại | **Xong** | Xem bảng Phase 7 dưới đây |
+| 8 | Tài chính | **Xong** | Xem bảng Phase 8 dưới đây |
+| 9 | Marketing | **Xong** | Xem bảng Phase 9 dưới đây |
+| 10 | Chat & thông báo thời gian thực | **Xong** | Xem bảng Phase 10 dưới đây |
+| 11 | Cổng thật | **Xong** (chưa chạy với sandbox thật — cần tài khoản thử, xem cuối bảng) | Xem bảng Phase 11 dưới đây |
+| 12 | Quản trị & báo cáo | **Xong** | Xem bảng Phase 12 dưới đây |
+| 13 | Hoàn thiện | **Xong** (đa kho không bật — 00 #135; cổng / hãng thật chờ tài khoản sandbox) | Xem bảng Phase 13 dưới đây |
 
 ## Phase 0 — Chuyển đổi repo
 
@@ -73,7 +73,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Quản trị buộc đổi mật khẩu lần đầu | claim `pcr` + `PasswordChangeGateMiddleware` | `Seeded_admin_must_change_password_before_doing_anything_else` |
 | Khung `admin` có đăng nhập, menu theo quyền | `admin/src/App.tsx` (menu lọc theo `permissions`), trang Người dùng / Vai trò & quyền / Tham số / Nhật ký | e2e `admin.spec.cjs`; kiểm thủ công 1366×768 (đăng nhập → buộc đổi mật khẩu → menu đủ 5 mục → khoá/mở khoá → nhật ký) |
 | Thay `AuthContext` giả | `web/src/context/AuthContext.tsx` + `stores/auth.ts` (Zustand) + `api/http.ts` (tự làm mới 401, gộp một lượt) | 21 e2e xanh trên dev, 26 trên stack |
-| Chưa làm trong Phase 2 (xem 00 #30) | Ảnh đại diện, tài khoản ngân hàng/thẻ, cài đặt thông báo, Google | — |
+| Đã bổ sung (00 #30) | Ảnh đại diện (Phase 13, 00 #127), tài khoản ngân hàng nhận tiền (Ví ShopHub, Phase 8 — không lưu thẻ: hoàn tiền về nguồn hoặc về ví, rút về tài khoản ngân hàng), cài đặt thông báo (Phase 10), Google (Phase 13, 00 #134) | xem bảng Phase 13 |
 
 ## Phase 3 — Danh mục & sản phẩm
 
@@ -93,7 +93,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | IDOR shop | `SellerAccess` lọc `shop_staff` trong SQL | `Other_shops_products_are_404_and_missing_staff_permission_is_403`, `Someone_elses_upload_cannot_be_attached` |
 | Gieo 40 sản phẩm cũ thành dữ liệu thật | `CatalogSeeder` + `catalog-seed.json` (18 ngành, 87 danh mục lá, 30 shop gồm 6 Mall, 40 sản phẩm, 151 SKU, 107 ảnh) | stack: `catalog.products` 40 dòng `Active`, ảnh `GET /s3/…` → 200 `image/webp` |
 | Ảnh đại diện | `PUT /api/account/avatar` (ảnh ≤ 1 MB, cỡ 600) | `Avatar_is_limited_to_one_megabyte` |
-| **Chưa làm** (xem 00 #41) | Excel hàng loạt, tài khoản phụ & trang trí shop, UI ảnh đại diện ở `web` | — |
+| Đã bổ sung (00 #41) | Excel hàng loạt, tài khoản phụ, trang trí & danh mục shop, ảnh đại diện — Phase 13 (00 #120–122, #127, #130) | xem bảng Phase 13 |
 
 ## Phase 4 — Tìm kiếm & trang người mua
 
@@ -112,7 +112,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Trang danh mục, trang shop | `/danh-muc/{slug}`, `/shop/{slug}` | e2e `Click danh mục mở trang danh mục có breadcrumb`, `Trang Shop: theo dõi tăng số người theo dõi` |
 | ~1.000 sản phẩm mẫu | `ProductGenerator` (tất định, qua domain) | stack: 999 sản phẩm `Active` được lập chỉ mục khi khởi động |
 | Bỏ dữ liệu giả ở `web` | xoá `data/products.ts`, `data/images.ts`; giỏ hàng theo SKU | `tsc -b`, `vitest` (quy tắc màu / ngày giờ / đường dẫn API), 23 e2e người mua |
-| **Dời lại** | Flash Sale (Phase 9), giỏ & thanh toán thật (Phase 5), đánh giá (Phase 7) | 00 #47 |
+| Đã làm ở phase sau | Flash Sale (Phase 9), giỏ & thanh toán (Phase 5), đánh giá (Phase 7) | 00 #47 |
 
 ## Phase 5 — Giỏ hàng & thanh toán
 
@@ -134,7 +134,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Đơn mua (danh sách theo tab, chi tiết, lịch sử) | `/api/orders`, `/tai-khoan/don-mua` | `Another_buyers_order_and_checkout_are_not_found` (IDOR → 404) |
 | Ví voucher, ShopHub Xu, voucher của shop (Kênh Người Bán), voucher sàn + cộng xu (quản trị) | `/tai-khoan/voucher`, `/tai-khoan/xu`, seller `Mã giảm giá`, admin `Voucher của sàn`, nút "Xu" ở Người dùng | kiểm thủ công trên stack; API có phép thử |
 | Máy trạng thái đơn (một lớp duy nhất) | `OrderStateMachine` | `OrderStateMachineTests`; quy tắc quét mã `Order_status_is_only_assigned_inside_OrderStateMachine` |
-| **Dời lại** | đa kho, giới hạn mua/người theo sản phẩm, combo / Flash Sale trong giá (Phase 9), hoàn xu từ voucher & hết hạn xu (Phase 6/7), Ví ShopHub (Phase 8) | 00 #56 |
+| Đã làm ở phase sau | giới hạn mua mỗi người (Phase 13, 00 #128), giá combo / Flash Sale (Phase 9), hoàn xu & hết hạn xu (Phase 9), Ví ShopHub (Phase 8); **đa kho không bật** (00 #135) | 00 #56 |
 
 ## Phase 6 — Đơn hàng & vận chuyển
 
@@ -154,7 +154,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Thông báo theo sự kiện | 00 #63, `/thong-bao`, chuông header | phép thử vòng đời kiểm 5 thông báo của người mua |
 | IDOR đơn / sản phẩm | lọc chủ sở hữu trong SQL | `Shops_and_buyers_only_reach_their_own_orders`; e2e **số 11** |
 | Thân dữ liệu thiếu trường không gây 500 | 00 #65 | `MalformedInputTests` |
-| **Dời lại** | đánh giá, trả hàng (Phase 7), giải ngân (Phase 8), đẩy tức thời (Phase 10) | 00 #67 |
+| Đã làm ở phase sau | đánh giá, trả hàng (Phase 7), giải ngân (Phase 8), đẩy tức thời (Phase 10) | 00 #67 |
 
 ## Phase 7 — Đánh giá, trả hàng, khiếu nại
 
@@ -169,7 +169,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Hạn xử lý tự động | 00 #70, `ReturnAutomationService` (chạy trong `sales.order-automation`) | `Deadlines_auto_approve_unanswered_returns_and_close_undisputed_rejections_and_late_requests_are_refused` |
 | Không trả trùng khi gửi song song | index `ux_return_items_open` | `Only_one_open_return_per_line_even_in_parallel` |
 | Hoàn tiền thu hồi thưởng đánh giá; IDOR trả hàng | 00 #68 | `A_refunded_line_loses_its_review_reward_and_strangers_cannot_touch_returns` |
-| **Dời lại** | ghi có ví cho hoàn COD và khoá giải ngân (Phase 8), chat trong yêu cầu (Phase 10) | 00 #71, #73 |
+| Đã làm ở phase sau | ghi có ví cho hoàn COD, khoá giải ngân (Phase 8); chat từ yêu cầu trả hàng ("Liên hệ shop", Phase 13, L052) | 00 #71, #73 |
 
 ## Phase 8 — Tài chính
 
@@ -185,7 +185,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Báo cáo đối soát theo kỳ (Excel + PDF) khớp từng đồng, hoá đơn phí sàn | 00 #81, `FinanceDocuments` | phép thử giải ngân đọc lại Excel (ClosedXML) và PDF (PdfPig): dòng đơn và dòng tổng = số đã giải ngân |
 | Đối soát với cổng thanh toán và hãng vận chuyển: khớp từng giao dịch, liệt kê lệch | 00 #81, quản trị → Đối soát | `Reconciliation_matches_every_transaction_and_lists_each_difference` |
 | IDOR tài chính | lọc chủ sở hữu trong SQL | `Finance_of_another_shop_or_another_buyer_is_not_found…` |
-| **Dời lại** | chương trình Freeship / Voucher Xtra (Phase 9), cổng / hãng thật (Phase 11), báo cáo toàn sàn (Phase 12) | 00 #82 |
+| Đã làm ở phase sau | Freeship / Voucher Xtra (Phase 13, 00 #132), cổng / hãng thật (Phase 11), báo cáo toàn sàn (Phase 12) | 00 #82 |
 
 ## Phase 9 — Marketing
 
@@ -201,7 +201,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Banner, lối tắt, popup (tần suất), chiến dịch / trang sự kiện | 00 #86, `/su-kien/:slug` | `Banners_and_campaign_pages_come_from_the_admin_and_only_marketing_admins_edit_them`; e2e popup |
 | Hạng thành viên & voucher theo hạng, điểm danh 7 ngày, hoàn xu từ voucher, xu hết hạn | 00 #87 | `Spending_unlocks_the_gold_tier_voucher_and_voucher_cashback_is_paid_once…`, `Check_in_pays_the_streak_reward_once_per_day…`, `MarketingRulesTests.Spending_uses_the_xu_that_expire_first…` |
 | Dữ liệu mẫu: 1 khung đang chạy + 1 sắp tới, banner, 1 chiến dịch | `MarketingSeeder` | stack dev: log `SEED flash sale / banners / campaign` |
-| **Dời lại** | thông báo hàng loạt (Phase 10), Freeship / Voucher Xtra, giá khuyến mãi trên thẻ lưới | 00 #89 |
+| Đã làm ở phase sau | thông báo hàng loạt (Phase 10), Freeship / Voucher Xtra (Phase 13), giá khuyến mãi trên thẻ (Phase 13, L048) | 00 #89 |
 
 ## Phase 10 — Chat & thông báo
 
@@ -218,7 +218,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Thông báo đa kênh theo lựa chọn của người dùng | 00 #94, `/tai-khoan/thong-bao`, `NotificationDeliveryHandler` | phép thử trên (email chỉ khi bật); chuông thông báo cập nhật realtime |
 | Thông báo hàng loạt theo phân khúc, ≤ 1 khuyến mãi / người / ngày | 00 #95, quản trị → Marketing → Thông báo đẩy | `A_broadcast_reaches_its_segment_once_and_nobody_gets_two_promotions_the_same_day` |
 | Nhắc việc: đơn sắp tự hoàn thành, voucher sắp hết hạn, yêu thích giảm giá | `ReminderService` (`engage.reminders`) | `Reminders_tell_about_orders_completing_soon_once` |
-| **Dời lại** | push FCM thật, SMS thật (Phase 11), quản trị xem chat bị báo cáo (Phase 12) | 00 #96 |
+| Theo đặc tả / đã làm | SMS: interface + bản giả lập ghi bảng (đúng mục VII); push FCM: chuẩn bị sẵn (`device_tokens`, kênh push ghi log) — gửi thật cần khoá của nhà cung cấp; chat bị báo cáo (Phase 13, 00 #124) | 00 #96 |
 
 ## Phase 11 — Cổng thanh toán & hãng vận chuyển thật
 
@@ -247,7 +247,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | VI.5 Tra đơn toàn bộ lịch sử, can thiệp có kiểm soát (quyền riêng, lý do, nhật ký) | 00 #108, admin → Đơn hàng | `Admin_cancels_an_order_with_a_reason_and_a_failed_refund_can_be_sent_to_the_wallet` (không quyền 403, lý do ngắn 400, lệnh hoàn lỗi → ví, xử lý lần hai 409); e2e `reports.spec.cjs` |
 | VI.8 Trang tĩnh, trợ giúp, mẫu thư / SMS, tham số có lịch sử, bật / tắt đơn vị vận chuyển & cổng thanh toán | 00 #110, admin → Nội dung & mẫu tin, Vận chuyển & cổng thanh toán | phép thử nội dung ở trên (HTML bị lọc `<script>`, mẫu OTP mới tới SMS, biến lạ → 409, tắt MoMo biến mất khỏi nạp ví); e2e trang pháp lý / trợ giúp / footer |
 | VI.9 Nhật ký: lọc người / hành động / đối tượng / thời gian, khác biệt cũ / mới, xuất Excel | `AuditLogsExportHandler`, admin → Nhật ký | phép thử nội dung ở trên (xuất có dòng đổi tham số) |
-| **Dời lại** | trang trí shop, Excel sản phẩm hàng loạt, mẫu thông báo từng sự kiện | 00 #111 |
+| Đã làm ở Phase 13 | trang trí shop (00 #121), Excel hàng loạt (00 #130), mẫu thông báo từng sự kiện (00 #125) | 00 #111 |
 
 ## Phase 13 — Hoàn thiện
 
@@ -261,6 +261,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 6.5 WCAG AA: tương phản, bàn phím | 00 #112, `--sh-focus`, `theme.ts` | `contrast.test.ts` ×3; e2e `a11y.spec.cjs` (axe, Tab tới ô tìm kiếm); L044 |
 | 7 `docker-compose.prod.yml`: HTTPS, giới hạn tài nguyên, restart, log driver; triển khai tự dọn ảnh cũ | 00 #119, `gateway-https.conf`, `deploy/scripts/deploy.sh` | `The_https_gateway_routes_exactly_like_the_dev_gateway`; `docker compose -f docker-compose.yml -f docker-compose.prod.yml config` hợp lệ |
 | 6.4 Sao lưu / phục hồi | `backup-db`, `backup-files`, `deploy/scripts/restore.sh` | Diễn tập trên CSDL dev: 489 đơn, 1.096 sản phẩm, tổng sổ cái khớp trước / sau (docs/04) |
+| 7 Dữ liệu gieo: 500 đơn mọi trạng thái trong 90 ngày, 800 đánh giá, qua đúng máy trạng thái và PricingEngine | 00 #136, `OrderSampleSeeder` | L054 (kiểm SQL trên DB mới) |
 | III.9 Tài khoản phụ: mời nhân viên, vai trò & quyền theo `shop_staff`; menu Kênh Người Bán theo quyền | 00 #120, `StaffFeatures.cs`, seller → Tài khoản phụ | `An_owner_adds_a_cskh_who_works_only_within_the_granted_permissions_and_loses_access_when_removed`, `Grants_cannot_exceed_the_granters_own_and_the_owner_cannot_be_changed_or_removed`; e2e `shop-design.spec.cjs` |
 | III.9 Trang trí shop (kéo thả khối banner / sản phẩm nổi bật / danh mục / video / chữ), danh mục của shop; II.5 tab Dạo, Tất cả, danh mục, Hồ sơ shop | 00 #121–122, `ShopDesignFeatures.cs`, `ShopHomeFeatures.cs`, seller → Trang trí shop / Danh mục của shop | `Shop_categories_become_tabs_with_the_shops_order_and_only_products_a_buyer_can_see`, `The_decoration_is_published_from_own_uploads_and_buyers_see_it_resolved`; e2e `shop-design.spec.cjs` |
 | Giá khuyến mãi / Flash Sale trên thẻ sản phẩm khớp trang chi tiết | 00 #123, `CardPricing` | `A_running_discount_shows_on_search_shop_and_related_cards_like_on_the_product_page_and_ends_with_it`; L048 |

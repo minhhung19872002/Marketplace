@@ -40,6 +40,8 @@ public static class DatabaseInitializer
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.FinanceSeeder>().SeedAsync(ct);
         if (settings.SeedSampleData) await sp.GetRequiredService<ShopHub.Infrastructure.Seed.MarketingSeeder>().SeedAsync(ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.LoadUserSeeder>().SeedAsync(ct);
+        // Sample orders go through the real order commands: last, once products, vouchers and fees exist
+        if (settings.SeedSampleData) await sp.GetRequiredService<ShopHub.Infrastructure.Seed.OrderSampleSeeder>().SeedAsync(ct);
         if (settings.PerfProducts > 0)
         {
             // The perf catalogue indexes itself straight into Meilisearch: configure the index first

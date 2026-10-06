@@ -11,7 +11,23 @@ namespace ShopHub.Infrastructure.Services;
 
 public sealed class SystemClock : IClock
 {
-    public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
+    // Only the sample-order seeder moves time (its own async flow): orders placed "90 days ago" go through the real commands
+    private static readonly AsyncLocal<DateTimeOffset?> Travelled = new();
+
+    public DateTimeOffset UtcNow => Travelled.Value ?? DateTimeOffset.UtcNow;
+
+    /// <summary>Until disposed, this async flow sees <paramref name="at"/> as the current time.</summary>
+    public static IDisposable TravelTo(DateTimeOffset at)
+    {
+        var before = Travelled.Value;
+        Travelled.Value = at;
+        return new Restore(before);
+    }
+
+    private sealed class Restore(DateTimeOffset? before) : IDisposable
+    {
+        public void Dispose() => Travelled.Value = before;
+    }
 }
 
 /// <summary>

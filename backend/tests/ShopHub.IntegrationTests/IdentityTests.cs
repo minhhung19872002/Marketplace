@@ -548,4 +548,24 @@ public class IdentityTests(ApiFactory factory)
         entries.Should().OnlyContain(v => v == null || (!v.Contains("$2a$") && !v.Contains("$2b$")));
         entries.Should().Contain(v => v != null && v.Contains("PasswordHash") && v.Contains("***"));
     }
+
+    [Fact]
+    public async Task An_otp_text_is_not_stuck_behind_a_backlog_of_notifications()
+    {
+        // A burst of ordinary messages (a mass notification, a busy day) waiting in the outbox
+        await factory.WithDbAsync(async db =>
+        {
+            var at = DateTimeOffset.UtcNow.AddMinutes(-5);
+            for (var i = 0; i < 250; i++)
+                db.OutboxMessages.Add(new Domain.SystemConfig.OutboxMessage(Application.SystemConfig.OutboxTypes.SystemParameterChanged,
+                    """{"key":"SITE.NAME"}""", at.AddMilliseconds(i)));
+            await db.SaveChangesAsync();
+        });
+        var phone = ApiFactory.NewPhone();
+        (await factory.CreateClient().PostAsJsonAsync("/api/auth/otp/send", new { target = phone, purpose = "Register" })).EnsureSuccessStatusCode();
+
+        // One dispatcher run later the code has been texted
+        await factory.DispatchOutboxAsync();
+        (await factory.WithDbAsync(db => db.SimulatedSms.CountAsync(s => s.To == phone))).Should().Be(1);
+    }
 }

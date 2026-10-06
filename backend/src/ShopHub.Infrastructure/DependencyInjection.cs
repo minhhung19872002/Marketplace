@@ -102,6 +102,7 @@ public static class DependencyInjection
         services.AddScoped<ICarrier>(sp => sp.GetRequiredService<Commerce.SimulatedCarrier>());
         AddRealProviders(services, settings.Providers);
         services.AddScoped<Commerce.CarrierSimulator>();
+        services.AddScoped<Seed.OrderSampleSeeder>();
         services.AddScoped<IOutboxHandler, OrderEventHandler>();
         services.AddScoped<IOutboxHandler, NotificationDeliveryHandler>();
         services.AddScoped<IPushSender, SimulatedPushSender>();

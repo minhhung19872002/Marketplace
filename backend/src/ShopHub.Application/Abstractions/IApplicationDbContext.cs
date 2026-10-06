@@ -6,6 +6,9 @@ using ShopHub.Domain.Media;
 using ShopHub.Domain.Shops;
 using ShopHub.Domain.SystemConfig;
 
+using ShopHub.Domain.Sales;
+using ShopHub.Domain.Promo;
+using ShopHub.Domain.Logistics;
 namespace ShopHub.Application.Abstractions;
 
 public interface IApplicationDbContext
@@ -44,6 +47,23 @@ public interface IApplicationDbContext
     DbSet<ProductView> ProductViews { get; }
     DbSet<SearchLog> SearchLogs { get; }
 
+    DbSet<Cart> Carts { get; }
+    DbSet<CartItem> CartItems { get; }
+    DbSet<CheckoutSession> CheckoutSessions { get; }
+    DbSet<Order> Orders { get; }
+    DbSet<OrderItem> OrderItems { get; }
+    DbSet<OrderItemDiscount> OrderItemDiscounts { get; }
+    DbSet<OrderStatusHistory> OrderStatusHistory { get; }
+    DbSet<Payment> Payments { get; }
+    DbSet<PaymentWebhookEvent> PaymentWebhookEvents { get; }
+    DbSet<Voucher> Vouchers { get; }
+    DbSet<VoucherClaim> VoucherClaims { get; }
+    DbSet<VoucherUsage> VoucherUsages { get; }
+    DbSet<VoucherUserCounter> VoucherUserCounters { get; }
+    DbSet<CoinEntry> CoinLedger { get; }
+    DbSet<Carrier> Carriers { get; }
+    DbSet<ShippingRate> ShippingRates { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -51,4 +71,22 @@ public interface IApplicationDbContext
     /// so concurrent requests for the same key run one after another (check-then-insert without races).
     /// </summary>
     Task<T> InLockedTransactionAsync<T>(string lockKey, Func<Task<T>> work, CancellationToken ct);
+
+    /// <summary>Explicit transaction for multi-step writes (checkout, payment callbacks, expiry).</summary>
+    Task<IAppTransaction> BeginTransactionAsync(CancellationToken ct);
+
+    /// <summary>Transaction-scoped PostgreSQL advisory lock — must be called inside a transaction.</summary>
+    Task LockAsync(string lockKey, CancellationToken ct);
+
+    /// <summary>Raw parameterised SQL (conditional UPDATE / upsert) returning the affected row count.</summary>
+    Task<int> ExecuteSqlAsync(FormattableString sql, CancellationToken ct);
+
+    /// <summary>Forget tracked entities (after a rolled-back attempt).</summary>
+    void ClearTracking();
+}
+
+public interface IAppTransaction : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken ct);
+    Task RollbackAsync(CancellationToken ct);
 }

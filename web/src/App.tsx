@@ -1,6 +1,5 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
 import Header from './components/Header'
 import Footer from './components/Footer'
@@ -17,7 +16,13 @@ const CategoryResults = lazy(() => import('./pages/SearchResults').then((m) => (
 const Login = lazy(() => import('./pages/Login'))
 const Register = lazy(() => import('./pages/Register'))
 const Checkout = lazy(() => import('./pages/Checkout'))
-const OrderSuccess = lazy(() => import('./pages/OrderSuccess'))
+const OrderSuccess = lazy(() => import('./pages/PaymentPages').then((m) => ({ default: m.OrderSuccessPage })))
+const GatewayPage = lazy(() => import('./pages/PaymentPages').then((m) => ({ default: m.SimulatedGatewayPage })))
+const PaymentResult = lazy(() => import('./pages/PaymentPages').then((m) => ({ default: m.PaymentResultPage })))
+const OrdersPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.OrdersPage })))
+const OrderDetailPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.OrderDetailPage })))
+const VouchersPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.VouchersPage })))
+const CoinsPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.CoinsPage })))
 const Wishlist = lazy(() => import('./pages/Wishlist'))
 const Notifications = lazy(() => import('./pages/Notifications'))
 const ShopPage = lazy(() => import('./pages/ShopPage'))
@@ -37,7 +42,6 @@ const PageLoader = () => (
 function App() {
   return (
     <AuthProvider>
-        <CartProvider>
           <Router>
             <ScrollToTop />
             <div className="App">
@@ -54,12 +58,18 @@ function App() {
                     <Route path="/dang-ky" element={<Register />} />
                     <Route path="/thanh-toan" element={<Checkout />} />
                     <Route path="/dat-hang-thanh-cong" element={<OrderSuccess />} />
+                    <Route path="/cong-thanh-toan/:paymentId" element={<GatewayPage />} />
+                    <Route path="/thanh-toan/ket-qua/:checkoutId" element={<PaymentResult />} />
                     <Route path="/yeu-thich" element={<Wishlist />} />
                     <Route path="/thong-bao" element={<Notifications />} />
                     <Route path="/shop/:slug" element={<ShopPage />} />
                     <Route path="/quen-mat-khau" element={<ForgotPassword />} />
                     <Route path="/tai-khoan" element={<AccountLayout />}>
                       <Route index element={<Navigate to="ho-so" replace />} />
+                      <Route path="don-mua" element={<OrdersPage />} />
+                      <Route path="don-mua/:code" element={<OrderDetailPage />} />
+                      <Route path="voucher" element={<VouchersPage />} />
+                      <Route path="xu" element={<CoinsPage />} />
                       <Route path="ho-so" element={<ProfilePage />} />
                       <Route path="dia-chi" element={<AddressesPage />} />
                       <Route path="mat-khau" element={<PasswordPage />} />
@@ -72,7 +82,6 @@ function App() {
               <BackToTop />
             </div>
           </Router>
-        </CartProvider>
     </AuthProvider>
   )
 }

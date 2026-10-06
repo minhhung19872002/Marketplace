@@ -211,20 +211,3 @@ export interface BannerSlide {
   tone: string;
   to: string;
 }
-
-// ---------- cart (client-side until the server cart of Phase 5) ----------
-
-/** One line per SKU — the same product in two options is two lines. */
-export interface CartLine {
-  cartKey: string;
-  skuId: string;
-  productId: string;
-  shopId: string;
-  shopName: string;
-  name: string;
-  image: string | null;
-  selectedVariant: string;
-  price: number;
-  available: number;
-  quantity: number;
-}

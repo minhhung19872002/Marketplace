@@ -7,6 +7,12 @@ public class NotFoundException(string message = "Không tìm thấy dữ liệu 
 public class ConflictException(string message, string? code = null) : Exception(message)
 {
     public string? Code { get; } = code;
+
+    // Unique / check constraint that caused it (when it came from the database)
+    public string? Constraint { get; init; }
+
+    // Extra data for the client, returned in the envelope's "data" (e.g. the re-priced checkout)
+    public object? Payload { get; init; }
 }
 
 /// <summary>Credentials or session not accepted — HTTP 401 (message stays generic: never says which part was wrong).</summary>

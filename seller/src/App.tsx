@@ -11,6 +11,7 @@ import RegisterShopPage from './pages/RegisterShopPage'
 import ProductsPage from './pages/ProductsPage'
 import ProductEditorPage from './pages/ProductEditorPage'
 import ShopSettingsPage from './pages/ShopSettingsPage'
+import VouchersPage from './pages/VouchersPage'
 import './App.css'
 
 const { Header, Sider, Content } = Layout
@@ -18,6 +19,7 @@ const { Header, Sider, Content } = Layout
 const MENU = [
   { path: '/san-pham', label: 'Sản phẩm' },
   { path: '/san-pham/moi', label: 'Thêm sản phẩm' },
+  { path: '/ma-giam-gia', label: 'Mã giảm giá' },
   { path: '/thiet-lap', label: 'Thiết lập shop' },
   { path: '/dang-ky-ban-hang', label: 'Đăng ký shop mới' },
 ]
@@ -81,6 +83,7 @@ const Shell = () => {
               <Route path="/" element={<Navigate to="/san-pham" replace />} />
               <Route path="/san-pham" element={<ProductsPage shopId={shop.id} />} />
               <Route path="/san-pham/:id" element={<ProductEditorPage key={location.pathname} shopId={shop.id} />} />
+              <Route path="/ma-giam-gia" element={<VouchersPage shopId={shop.id} />} />
               <Route path="/thiet-lap" element={<ShopSettingsPage shop={shop} />} />
               <Route path="/dang-ky-ban-hang" element={<RegisterShopPage />} />
               <Route path="*" element={<Navigate to="/san-pham" replace />} />

@@ -11,6 +11,7 @@ public static class Permissions
     public const string AuditLogView = "SYS.AUDIT.VIEW";
     public const string JobDashboardView = "SYS.JOB.VIEW";
     public const string SearchReindex = "SYS.SEARCH.REINDEX";
+    public const string JobRun = "SYS.JOB.RUN";
 
     public const string UserView = "IAM.USER.VIEW";
     public const string UserLock = "IAM.USER.LOCK";
@@ -27,6 +28,10 @@ public static class Permissions
     public const string ShopLock = "SHOP.SHOP.LOCK";
     public const string ShopLabel = "SHOP.SHOP.LABEL";
 
+    public const string VoucherManage = "PROMO.VOUCHER.MANAGE";
+    public const string CoinGrant = "PROMO.COIN.GRANT";
+    public const string OrderView = "SALES.ORDER.VIEW";
+
     public const string ClaimType = "perm";
 }
 
@@ -41,6 +46,7 @@ public static class PermissionCatalog
         new(Permissions.AuditLogView, "Hệ thống", "Xem nhật ký thao tác"),
         new(Permissions.JobDashboardView, "Hệ thống", "Xem bảng việc nền"),
         new(Permissions.SearchReindex, "Hệ thống", "Lập lại chỉ mục tìm kiếm"),
+        new(Permissions.JobRun, "Hệ thống", "Chạy ngay một việc nền"),
         new(Permissions.UserView, "Người dùng", "Xem người dùng"),
         new(Permissions.UserLock, "Người dùng", "Khoá / mở khoá người dùng"),
         new(Permissions.UserAssignRole, "Người dùng", "Gán vai trò quản trị"),
@@ -54,6 +60,9 @@ public static class PermissionCatalog
         new(Permissions.ShopReview, "Shop", "Duyệt đăng ký shop"),
         new(Permissions.ShopLock, "Shop", "Khoá / mở khoá shop"),
         new(Permissions.ShopLabel, "Shop", "Cấp nhãn Mall / Yêu thích"),
+        new(Permissions.VoucherManage, "Khuyến mãi", "Tạo / sửa / dừng voucher của sàn"),
+        new(Permissions.CoinGrant, "Khuyến mãi", "Cộng / trừ ShopHub Xu cho người dùng"),
+        new(Permissions.OrderView, "Đơn hàng", "Xem đơn hàng toàn sàn"),
     ];
 }
 
@@ -69,12 +78,14 @@ public static class RoleCatalog
         new(SuperAdmin, "Quản trị cao nhất", "Toàn quyền trên sàn.", [Permissions.All]),
         new("OPERATIONS", "Vận hành", "Vận hành đơn hàng, người dùng, shop.",
             [Permissions.UserView, Permissions.UserLock, Permissions.AuditLogView, Permissions.SystemParameterView,
-             Permissions.ShopView, Permissions.ShopReview, Permissions.ShopLock, Permissions.ShopLabel]),
+             Permissions.ShopView, Permissions.ShopReview, Permissions.ShopLock, Permissions.ShopLabel, Permissions.OrderView,
+             Permissions.JobRun]),
         new("CONTENT_REVIEW", "Duyệt nội dung", "Duyệt sản phẩm, xử lý vi phạm.",
             [Permissions.UserView, Permissions.ProductReview, Permissions.ProductBan, Permissions.ShopView,
              Permissions.CategoryManage, Permissions.BrandManage]),
-        new("CUSTOMER_SERVICE", "Chăm sóc khách hàng", "Hỗ trợ người mua và người bán.", [Permissions.UserView]),
-        new("ACCOUNTING", "Kế toán", "Đối soát, giải ngân, báo cáo tài chính.", [Permissions.AuditLogView]),
-        new("MARKETING", "Marketing", "Voucher, Flash Sale, chiến dịch.", [Permissions.SystemParameterView]),
+        new("CUSTOMER_SERVICE", "Chăm sóc khách hàng", "Hỗ trợ người mua và người bán.", [Permissions.UserView, Permissions.OrderView]),
+        new("ACCOUNTING", "Kế toán", "Đối soát, giải ngân, báo cáo tài chính.", [Permissions.AuditLogView, Permissions.OrderView]),
+        new("MARKETING", "Marketing", "Voucher, Flash Sale, chiến dịch.",
+            [Permissions.SystemParameterView, Permissions.VoucherManage, Permissions.CoinGrant]),
     ];
 }

@@ -32,6 +32,9 @@ public sealed class ShopHubSettings
     // Sample accounts/data for demo (on by default; set SH_SEED_SAMPLE=false for a clean production DB)
     public bool SeedSampleData { get; init; }
 
+    // SimulatedGateway (fake payment page that can mark any payment as paid): demo/test only, off unless set
+    public bool PaymentSimulated { get; init; }
+
     public static ShopHubSettings FromConfiguration(IConfiguration config)
     {
         var csb = new NpgsqlConnectionStringBuilder
@@ -68,6 +71,7 @@ public sealed class ShopHubSettings
             SmtpFrom = config["SH_SMTP_FROM"] ?? "ShopHub <no-reply@shophub.local>",
             SmsProvider = config["SH_SMS_PROVIDER"] ?? "simulated",
             SeedSampleData = !string.Equals(config["SH_SEED_SAMPLE"], "false", StringComparison.OrdinalIgnoreCase),
+            PaymentSimulated = string.Equals(config["SH_PAYMENT_SIMULATED"], "true", StringComparison.OrdinalIgnoreCase),
         };
     }
 

@@ -17,56 +17,12 @@ namespace ShopHub.IntegrationTests;
 [Collection(ApiCollection.Name)]
 public class StorefrontTests(ApiFactory factory)
 {
-    private record SeedProduct(string Name, string Leaf, long Price, int Stock, string Origin, string? Material = null);
-
     private record Store(Guid ShopId, Guid OwnerId, string Marker, Dictionary<string, Guid> Products);
 
-    /// <summary>A fresh approved shop in the given province with active products, already pushed to the search index.</summary>
     private async Task<Store> StoreAsync(string province = "01", bool mall = false, params SeedProduct[] products)
     {
-        var marker = $"Q{Guid.NewGuid():N}"[..8];
-        var ids = new Dictionary<string, Guid>();
-        Guid shopId = Guid.Empty, ownerId = Guid.Empty;
-        await factory.WithDbAsync(async db =>
-        {
-            var now = DateTimeOffset.UtcNow;
-            var owner = User.Register(ApiFactory.NewPhone(), null, "x", "Chủ shop thử", now);
-            db.Users.Add(owner);
-            var shop = new Shop(owner.Id, $"Shop {marker}", Slug.From($"Shop {marker}"), ShopType.Business);
-            shop.Approve(now);
-            if (mall) shop.SetLabels(true, true);
-            db.Shops.Add(shop);
-            db.ShopStaff.Add(new ShopStaff(shop.Id, owner.Id, ShopStaffRole.Owner, ShopHub.Application.Security.ShopPermissions.All));
-            var district = await db.AdminDivisions.Where(d => d.ParentCode == province).OrderBy(d => d.Code).FirstAsync();
-            var ward = await db.AdminDivisions.Where(d => d.ParentCode == district.Code).OrderBy(d => d.Code).FirstAsync();
-            var w = new ShopWarehouse(shop.Id);
-            w.Update("Kho", "Kho", "0912345678", province, district.Code, ward.Code, "1 Đường Thử", true, true);
-            db.ShopWarehouses.Add(w);
-
-            foreach (var spec in products)
-            {
-                var leaf = await db.Categories.SingleAsync(c => c.Name == spec.Leaf && c.Level == 3);
-                var attrs = await db.CategoryAttributes.Where(a => a.CategoryId == leaf.Id).ToListAsync();
-                var p = new Product(shop.Id);
-                var name = $"{spec.Name} {marker}";
-                p.SetInfo(leaf.Id, null, name, Slug.From(name), "<p>Mô tả</p>", ProductCondition.New, 300, 0, 0, 0, false, 0);
-                var values = new List<(Guid, IReadOnlyList<string>)> { (attrs.Single(a => a.Name == "Xuất xứ").Id, [spec.Origin]) };
-                foreach (var a in attrs.Where(a => a.IsRequired && a.Name != "Xuất xứ"))
-                    values.Add((a.Id, a.Name == "Chất liệu" && spec.Material is not null ? [spec.Material] : [a.Options.FirstOrDefault() ?? "12"]));
-                p.SetAttributes(values);
-                p.SetVariants([], [new SkuSpec(null, null, null, spec.Price, spec.Price + 10_000, spec.Stock, null, true)]);
-                p.SetMedia([new MediaSpec(MediaType.Image, null, "https://example.invalid/a.webp", null)]);
-                p.SubmitForReview(now, null);
-                p.Approve(now);
-                db.Products.Add(p);
-                ids[spec.Name] = p.Id;
-            }
-            await db.SaveChangesAsync();
-            shopId = shop.Id;
-            ownerId = owner.Id;
-        });
-        await factory.DispatchOutboxAsync();
-        return new Store(shopId, ownerId, marker, ids);
+        var s = await factory.CreateStoreAsync(province, mall, products);
+        return new Store(s.ShopId, s.OwnerId, s.Marker, s.Products);
     }
 
     private async Task<JsonElement> SearchAsync(string query)

@@ -55,7 +55,6 @@ app.UseExceptionHandler();
 app.UseStatusCodePages(StatusCodeEnvelope.WriteAsync);
 app.UseSerilogRequestLogging();
 app.UseMiddleware<NullCharacterMiddleware>();
-app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {
@@ -64,6 +63,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+// After authentication so per-user policies (checkout, upload) partition by the token's subject, not one shared bucket
+app.UseRateLimiter();
 app.UseMiddleware<PasswordChangeGateMiddleware>();
 app.UseAuthorization();
 

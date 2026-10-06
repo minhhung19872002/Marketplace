@@ -94,6 +94,18 @@ public static class DependencyInjection
         services.AddScoped<OutboxDispatcher>();
         services.AddScoped<OutboxCleanupJob>();
 
+        // Commerce: carriers and payment gateways behind interfaces (real GHN / VNPay / MoMo arrive in Phase 11)
+        services.AddScoped<ICarrier, Commerce.SimulatedCarrier>();
+        services.AddScoped<Commerce.SimulatedGateway>();
+        if (settings.PaymentSimulated)
+        {
+            services.AddScoped<IPaymentGateway>(sp => sp.GetRequiredService<Commerce.SimulatedGateway>());
+            services.AddScoped<Commerce.SimulatedGatewayDesk>();
+        }
+        services.AddScoped<IPaymentGatewayRegistry, Commerce.PaymentGatewayRegistry>();
+        services.AddScoped<Jobs.PaymentExpiryJob>();
+        services.AddScoped<CommerceSeeder>();
+
         services.AddHangfire(cfg => cfg
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()

@@ -9,6 +9,6 @@ public static class ApiResponse
 {
     public static ApiResponse<T> Ok<T>(T data, string message = "") => new(true, data, message, []);
 
-    public static ApiResponse<object> Fail(string message, IReadOnlyList<ApiError>? errors = null) =>
-        new(false, null, message, errors ?? []);
+    public static ApiResponse<object> Fail(string message, IReadOnlyList<ApiError>? errors = null, object? data = null) =>
+        new(false, data, message, errors ?? []);
 }

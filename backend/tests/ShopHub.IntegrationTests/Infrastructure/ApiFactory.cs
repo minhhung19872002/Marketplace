@@ -86,6 +86,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         // The whole suite signs in from one IP
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_AUTH", "100000");
+        Environment.SetEnvironmentVariable("SH_PAYMENT_SIMULATED", "true");
+        // Every test request shares one (unknown) client IP: the per-IP ceiling would trip across the whole suite
+        Environment.SetEnvironmentVariable("SH_RATE_LIMIT_GLOBAL", "1000000");
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_OTP", "100000");
 
         // Force host start (migrations + seed) before tests run

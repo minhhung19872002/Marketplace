@@ -3,6 +3,9 @@ import { useAuth } from '../../context/AuthContext';
 import './Account.css';
 
 const LINKS = [
+  { to: '/tai-khoan/don-mua', label: 'Đơn Mua' },
+  { to: '/tai-khoan/voucher', label: 'Ví Voucher' },
+  { to: '/tai-khoan/xu', label: 'ShopHub Xu' },
   { to: '/tai-khoan/ho-so', label: 'Hồ Sơ' },
   { to: '/tai-khoan/dia-chi', label: 'Địa Chỉ' },
   { to: '/tai-khoan/mat-khau', label: 'Đổi Mật Khẩu' },

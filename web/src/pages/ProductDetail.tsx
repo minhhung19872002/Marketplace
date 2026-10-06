@@ -20,7 +20,7 @@ const matching = (skus: PublicSku[], picked: (string | null)[]) =>
 
 const ProductView = ({ product }: { product: ProductPage }) => {
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { add: addToCart } = useCart();
   const { has, toggle } = useWishlist();
 
   const tiers = product.tiers;
@@ -69,28 +69,26 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     window.setTimeout(() => setToast(''), 2000);
   };
 
-  const add = (): boolean => {
+  const [busy, setBusy] = useState(false);
+
+  /** Adds the chosen SKU to the server cart; false when a variant is missing or the server refused. */
+  const add = async (): Promise<boolean> => {
     if (!product.purchasable) return false;
     if (!sku) {
       setVariantError(true);
       return false;
     }
-    if (sku.available <= 0) return false;
-    addToCart(
-      {
-        skuId: sku.id,
-        productId: product.id,
-        shopId: product.shop.id,
-        shopName: product.shop.name,
-        name: product.name,
-        image: product.media.find((m) => m.optionValue && (m.optionValue === sku.option1 || m.optionValue === sku.option2))?.url ?? gallery[0],
-        selectedVariant: [sku.option1, sku.option2].filter(Boolean).join(', '),
-        price: sku.price,
-        available: sku.available,
-      },
-      quantity,
-    );
-    return true;
+    if (sku.available <= 0 || busy) return false;
+    setBusy(true);
+    try {
+      showToast(await addToCart(sku.id, quantity));
+      return true;
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : 'Không thêm được vào giỏ, vui lòng thử lại.');
+      return false;
+    } finally {
+      setBusy(false);
+    }
   };
 
   const liked = has(product.id);
@@ -248,13 +246,13 @@ const ProductView = ({ product }: { product: ProductPage }) => {
             <div className="product-detail-actions">
               <button
                 className="btn-add-cart"
-                onClick={() => add() && showToast('Đã thêm vào giỏ hàng!')}
+                onClick={() => void add()}
                 disabled={!product.purchasable || (sku != null && sku.available <= 0)}
                 data-testid="add-to-cart"
               >
                 🛒 Thêm Vào Giỏ Hàng
               </button>
-              <button className="btn-buy-now" onClick={() => add() && navigate('/gio-hang')} disabled={!product.purchasable}>
+              <button className="btn-buy-now" onClick={async () => (await add()) && navigate('/gio-hang')} disabled={!product.purchasable || busy}>
                 Mua Ngay
               </button>
               <button className={`btn-wishlist ${liked ? 'liked' : ''}`} onClick={() => toggle(product.id)} data-testid="detail-heart" aria-label="Yêu thích">

@@ -127,6 +127,10 @@ services:
       # Dev/demo stack: every browser and the e2e suite share one IP behind the gateway
       SH_RATE_LIMIT_AUTH: ${SH_RATE_LIMIT_AUTH:-300}
       SH_RATE_LIMIT_OTP: ${SH_RATE_LIMIT_OTP:-300}
+      # Per-IP ceiling for every request (code default 600/min); e2e runs hammer it from one IP
+      SH_RATE_LIMIT_GLOBAL: ${SH_RATE_LIMIT_GLOBAL:-5000}
+      # Fake payment page that can mark any payment as paid — demo / test stacks only, never production
+      SH_PAYMENT_SIMULATED: ${SH_PAYMENT_SIMULATED:-true}
     volumes:
       - apilogs:/app/logs
     depends_on:

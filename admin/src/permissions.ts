@@ -17,6 +17,10 @@ export const P = {
   ShopReview: 'SHOP.SHOP.REVIEW',
   ShopLock: 'SHOP.SHOP.LOCK',
   ShopLabel: 'SHOP.SHOP.LABEL',
+  VoucherManage: 'PROMO.VOUCHER.MANAGE',
+  CoinGrant: 'PROMO.COIN.GRANT',
+  OrderView: 'SALES.ORDER.VIEW',
+  JobRun: 'SYS.JOB.RUN',
 } as const
 
 export const can = (permissions: readonly string[] | undefined, code: string): boolean =>

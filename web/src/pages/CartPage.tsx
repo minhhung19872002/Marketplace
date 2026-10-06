@@ -1,27 +1,67 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { storefrontApi } from '../api/storefront';
+import { ApiError } from '../api/http';
+import type { CartLine } from '../api/commerce';
 import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import './CartPage.css';
 
+/** "Phân loại: …" with a picker of the product's other SKUs (change variant without leaving the cart). */
+const VariantPicker = ({ line, onPick }: { line: CartLine; onPick: (skuId: string) => void }) => {
+  const [open, setOpen] = useState(false);
+  const { data } = useQuery({ queryKey: ['product', line.productId], queryFn: () => storefrontApi.product(line.productId), enabled: open });
+  if (!line.variant) return null;
+  return (
+    <span className="cart-variant">
+      <button type="button" className="cart-item-variant" onClick={() => setOpen((v) => !v)} data-testid="cart-variant">
+        Phân loại: {line.variant} ▾
+      </button>
+      {open && data && (
+        <span className="cart-variant-menu">
+          {data.skus.map((s) => {
+            const label = [s.option1, s.option2].filter(Boolean).join(', ');
+            return (
+              <button
+                key={s.id}
+                type="button"
+                disabled={s.available <= 0 || s.id === line.skuId}
+                className={s.id === line.skuId ? 'active' : ''}
+                onClick={() => {
+                  setOpen(false);
+                  onPick(s.id);
+                }}
+              >
+                {label} {s.available <= 0 ? '(hết hàng)' : ''}
+              </button>
+            );
+          })}
+        </span>
+      )}
+    </span>
+  );
+};
+
 const CartPage = () => {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeFromCart, removeMany } = useCart();
+  const { isLoggedIn } = useAuth();
+  const { cart, lines, isLoading, update, remove, select } = useCart();
+  const [error, setError] = useState('');
 
-  // chọn item bằng checkbox, chỉ tính tiền item đã chọn
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(items.map((it) => it.cartKey)));
+  const run = async (action: () => Promise<void>) => {
+    setError('');
+    try {
+      await action();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Không cập nhật được giỏ hàng, vui lòng thử lại.');
+    }
+  };
 
-  // Giữ selection hợp lệ khi giỏ thay đổi (xóa item khỏi selection nếu không còn)
-  useEffect(() => {
-    setSelected((prev) => {
-      const keys = new Set(items.map((it) => it.cartKey));
-      const next = new Set([...prev].filter((k) => keys.has(k)));
-      return next;
-    });
-  }, [items]);
-
-  if (items.length === 0) {
+  if (isLoading) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  if (lines.length === 0) {
     return (
       <div className="cart-page">
         <div className="container">
@@ -35,49 +75,28 @@ const CartPage = () => {
     );
   }
 
-  const allSelected = items.length > 0 && selected.size === items.length;
+  const allSelected = lines.every((l) => l.isSelected);
+  const selected = lines.filter((l) => l.isSelected);
+  const blocked = selected.filter((l) => !l.canBuy);
 
-  const toggleOne = (key: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    setSelected(allSelected ? new Set() : new Set(items.map((it) => it.cartKey)));
-  };
-
-  const selectedItems = items.filter((it) => selected.has(it.cartKey));
-  const selectedCount = selectedItems.reduce((sum, it) => sum + it.quantity, 0);
-  const selectedTotal = selectedItems.reduce((sum, it) => sum + it.price * it.quantity, 0);
-
-  const handleCheckout = () => {
-    if (selectedItems.length === 0) return;
-    // Sang trang thanh toán với các item đã chọn
-    navigate('/thanh-toan', { state: { keys: selectedItems.map((it) => it.cartKey) } });
-  };
-
-  const handleDeleteSelected = () => {
-    removeMany(selectedItems.map((it) => it.cartKey));
+  const checkout = () => {
+    if (selected.length === 0) return;
+    if (blocked.length > 0) {
+      setError(`Vui lòng bỏ chọn hoặc sửa ${blocked.length} sản phẩm chưa thể mua trước khi thanh toán.`);
+      return;
+    }
+    navigate(isLoggedIn ? '/thanh-toan' : '/dang-nhap', isLoggedIn ? undefined : { state: { from: '/thanh-toan' } });
   };
 
   return (
     <div className="cart-page">
       <div className="container">
         <h1 className="cart-title">Giỏ Hàng</h1>
+        {error && <div className="cart-error" role="alert" data-testid="cart-error">{error}</div>}
 
         <div className="cart-header-row">
           <span className="cart-col-check">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={toggleAll}
-              aria-label="Chọn tất cả"
-              data-testid="select-all"
-            />
+            <input type="checkbox" checked={allSelected} onChange={() => run(() => select(!allSelected))} aria-label="Chọn tất cả" data-testid="select-all" />
           </span>
           <span className="cart-col-product">Sản Phẩm</span>
           <span className="cart-col-price">Đơn Giá</span>
@@ -86,85 +105,86 @@ const CartPage = () => {
           <span className="cart-col-action">Thao Tác</span>
         </div>
 
-        <div className="cart-items">
-          {items.map((item) => (
-            <div key={item.cartKey} className="cart-item" data-testid="cart-item">
-              <span className="cart-col-check">
+        {cart.shops.map((shop) => {
+          const shopSelected = shop.lines.every((l) => l.isSelected);
+          return (
+            <div key={shop.shopId} className="cart-shop" data-testid="cart-shop">
+              <div className="cart-shop-head">
                 <input
                   type="checkbox"
-                  checked={selected.has(item.cartKey)}
-                  onChange={() => toggleOne(item.cartKey)}
-                  aria-label={`Chọn ${item.name}`}
-                  data-testid="select-item"
+                  checked={shopSelected}
+                  onChange={() => run(() => select(!shopSelected, shop.shopId))}
+                  aria-label={`Chọn tất cả sản phẩm của ${shop.shopName}`}
+                  data-testid="select-shop"
                 />
-              </span>
-              <div className="cart-col-product cart-item-product">
-                <img
-                  src={imageOrPlaceholder(item.image)}
-                  alt={item.name}
-                  className="cart-item-img"
-                  onError={handleImgError}
-                />
-                <div className="cart-item-textblock">
-                  <Link to={`/san-pham/${item.productId}`} className="cart-item-name">{item.name}</Link>
-                  {item.selectedVariant && (
-                    <span className="cart-item-variant">Phân loại: {item.selectedVariant}</span>
-                  )}
+                {shop.isMall && <span className="cart-shop-mall">Mall</span>}
+                <Link to={`/shop/${shop.shopSlug}`} className="cart-shop-name">{shop.shopName}</Link>
+                {shop.onVacation && <span className="cart-shop-vacation">Shop đang tạm nghỉ</span>}
+              </div>
+              {shop.lines.map((item) => (
+                <div key={item.skuId} className={`cart-item ${item.canBuy ? '' : 'cart-item-blocked'}`} data-testid="cart-item">
+                  <span className="cart-col-check">
+                    <input
+                      type="checkbox"
+                      checked={item.isSelected}
+                      onChange={() => run(() => update(item.skuId, { selected: !item.isSelected }))}
+                      aria-label={`Chọn ${item.name}`}
+                      data-testid="select-item"
+                    />
+                  </span>
+                  <div className="cart-col-product cart-item-product">
+                    <img src={imageOrPlaceholder(item.imageUrl)} alt={item.name} className="cart-item-img" onError={handleImgError} />
+                    <div className="cart-item-textblock">
+                      <Link to={`/san-pham/${item.productId}`} className="cart-item-name">{item.name}</Link>
+                      <VariantPicker line={item} onPick={(skuId) => run(() => update(item.skuId, { skuId }))} />
+                      {item.problem && (
+                        <span className="cart-item-problem" data-testid="cart-item-problem">
+                          {item.problem}{' '}
+                          {item.available === 0 && <Link to={`/san-pham/${item.productId}`}>Xem sản phẩm tương tự ›</Link>}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="cart-col-price cart-item-price">
+                    {item.previousPrice !== null && <span className="cart-item-old-price" data-testid="cart-old-price">{formatPrice(item.previousPrice)}</span>}
+                    {formatPrice(item.price)}
+                  </span>
+                  <div className="cart-col-qty cart-item-qty">
+                    <button onClick={() => run(() => update(item.skuId, { quantity: item.quantity - 1 }))} disabled={item.quantity <= 1} aria-label="Giảm">−</button>
+                    <input
+                      type="number"
+                      min="1"
+                      max={Math.max(1, item.available)}
+                      defaultValue={item.quantity}
+                      key={item.quantity}
+                      onBlur={(e) => {
+                        const q = Math.max(1, Number(e.target.value) || 1);
+                        if (q !== item.quantity) void run(() => update(item.skuId, { quantity: q }));
+                      }}
+                      aria-label="Số lượng"
+                    />
+                    <button onClick={() => run(() => update(item.skuId, { quantity: item.quantity + 1 }))} disabled={item.quantity >= item.available} aria-label="Tăng">+</button>
+                  </div>
+                  <span className="cart-col-total cart-item-total">{formatPrice(item.price * item.quantity)}</span>
+                  <div className="cart-col-action">
+                    <button className="cart-item-remove" onClick={() => run(() => remove([item.skuId]))}>Xóa</button>
+                  </div>
                 </div>
-              </div>
-              <span className="cart-col-price cart-item-price">{formatPrice(item.price)}</span>
-              <div className="cart-col-qty cart-item-qty">
-                <button onClick={() => updateQuantity(item.cartKey, item.quantity - 1)} aria-label="Giảm">−</button>
-                <input
-                  type="number"
-                  min="1"
-                  max={item.available}
-                  value={item.quantity}
-                  onChange={(e) => updateQuantity(item.cartKey, Math.max(1, Number(e.target.value) || 1))}
-                  aria-label="Số lượng"
-                />
-                <button
-                  onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
-                  disabled={item.quantity >= item.available}
-                  aria-label="Tăng"
-                >
-                  +
-                </button>
-              </div>
-              <span className="cart-col-total cart-item-total">{formatPrice(item.price * item.quantity)}</span>
-              <div className="cart-col-action">
-                <button className="cart-item-remove" onClick={() => removeFromCart(item.cartKey)}>Xóa</button>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          );
+        })}
 
         <div className="cart-footer">
           <div className="cart-footer-left">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={toggleAll}
-              aria-label="Chọn tất cả"
-            />
-            <button className="cart-select-all-btn" onClick={toggleAll}>
-              Chọn Tất Cả ({items.length})
-            </button>
-            <button className="cart-clear" onClick={handleDeleteSelected}>Xóa</button>
+            <input type="checkbox" checked={allSelected} onChange={() => run(() => select(!allSelected))} aria-label="Chọn tất cả" />
+            <button className="cart-select-all-btn" onClick={() => run(() => select(!allSelected))}>Chọn Tất Cả ({lines.length})</button>
+            <button className="cart-clear" onClick={() => run(() => remove(selected.map((l) => l.skuId)))} disabled={selected.length === 0}>Xóa</button>
           </div>
           <div className="cart-summary">
-            <span className="cart-summary-label">
-              Tổng thanh toán ({selectedCount} sản phẩm):
-            </span>
-            <span className="cart-summary-total" data-testid="cart-total">{formatPrice(selectedTotal)}</span>
-            <button
-              className="cart-checkout"
-              onClick={handleCheckout}
-              disabled={selectedItems.length === 0}
-              data-testid="checkout"
-            >
-              Mua Hàng
-            </button>
+            <span className="cart-summary-label">Tổng thanh toán ({cart.selectedQuantity} sản phẩm):</span>
+            <span className="cart-summary-total" data-testid="cart-total">{formatPrice(cart.selectedSubtotal)}</span>
+            <button className="cart-checkout" onClick={checkout} disabled={selected.length === 0} data-testid="checkout">Mua Hàng</button>
           </div>
         </div>
       </div>

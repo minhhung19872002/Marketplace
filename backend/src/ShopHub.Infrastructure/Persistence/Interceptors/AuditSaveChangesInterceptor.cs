@@ -23,7 +23,13 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
     private static readonly HashSet<Type> NotAudited =
         [typeof(AuditLog), typeof(OutboxMessage), typeof(SimulatedSms), typeof(AdminDivision), typeof(RefreshToken), typeof(OtpCode),
          typeof(Domain.Catalog.InventoryMovement), typeof(Domain.Media.MediaAsset), typeof(Domain.Engage.ProductView),
-         typeof(Domain.Engage.SearchLog), typeof(Domain.Engage.Wishlist), typeof(Domain.Engage.ShopFollower)];
+         typeof(Domain.Engage.SearchLog), typeof(Domain.Engage.Wishlist), typeof(Domain.Engage.ShopFollower),
+         // Orders keep their own status history; carts, payments and ledgers are their own journal
+         typeof(Domain.Sales.Cart), typeof(Domain.Sales.CartItem), typeof(Domain.Sales.CheckoutSession), typeof(Domain.Sales.Order),
+         typeof(Domain.Sales.OrderItem), typeof(Domain.Sales.OrderItemDiscount), typeof(Domain.Sales.OrderStatusHistory),
+         typeof(Domain.Sales.Payment), typeof(Domain.Sales.PaymentWebhookEvent), typeof(Domain.Promo.VoucherClaim),
+         typeof(Domain.Promo.VoucherUsage), typeof(Domain.Promo.VoucherUserCounter), typeof(Domain.Promo.CoinEntry),
+         typeof(Domain.Logistics.ShippingRate), typeof(SimulatedPayment)];
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {

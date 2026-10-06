@@ -20,6 +20,19 @@ public static class DependencyInjection
         services.AddScoped<Identity.SessionService>();
         services.AddScoped<Features.Seller.SellerAccess>();
         services.AddScoped<Features.Seller.ProductWriter>();
+
+        services.AddScoped<Features.Cart.CartStore>();
+        services.AddScoped<Features.Checkout.ShippingCalculator>();
+        services.AddScoped<Features.Checkout.VoucherEvaluator>();
+        services.AddScoped<Features.Checkout.VoucherLedger>();
+        services.AddScoped<Features.Checkout.CoinWallet>();
+        services.AddScoped<Features.Checkout.CheckoutBuilder>();
+        services.AddScoped<Features.Checkout.CheckoutReader>();
+        services.AddScoped<Features.Checkout.PaymentStarter>();
+        services.AddScoped<Features.Payments.PaymentProcessor>();
+        services.AddScoped<Features.Payments.CheckoutReleaser>();
+        services.AddScoped<Features.Payments.PaymentExpiryService>();
+        services.AddScoped<Features.Payments.PaymentWebhookIntake>();
         return services;
     }
 }

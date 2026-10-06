@@ -1,0 +1,148 @@
+.gateway-page {
+  display: flex;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.gateway-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 28px;
+  text-align: center;
+  background: var(--sh-on-primary);
+  border-top: 4px solid var(--sh-tone-teal);
+  box-shadow: 0 2px 12px var(--sh-overlay);
+}
+
+.gateway-brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--sh-tone-teal);
+}
+
+.gateway-note {
+  margin: 8px 0 18px;
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.gateway-amount {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.gateway-desc {
+  margin: 6px 0 14px;
+  color: var(--text-light);
+}
+
+.gateway-timer {
+  margin-bottom: 18px;
+}
+
+.gateway-error {
+  margin: 10px 0;
+  color: var(--sh-primary);
+}
+
+.gateway-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gateway-actions button,
+.gateway-leave {
+  display: block;
+  padding: 11px;
+  border: 1px solid var(--border);
+  font-size: 15px;
+  cursor: pointer;
+  background: var(--sh-on-primary);
+}
+
+.gateway-ok {
+  color: var(--sh-on-primary);
+  background: var(--sh-tone-teal) !important;
+  border-color: var(--sh-tone-teal) !important;
+}
+
+.gateway-fail {
+  color: var(--sh-primary);
+  border-color: var(--sh-primary) !important;
+}
+
+.payment-result {
+  max-width: 640px;
+  margin: 30px auto;
+  padding: 30px;
+  text-align: center;
+  background: var(--sh-on-primary);
+}
+
+.payment-result-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  font-size: 32px;
+  color: var(--sh-on-primary);
+}
+
+.payment-result-icon.ok {
+  background: var(--sh-tone-teal);
+}
+
+.payment-result-icon.fail {
+  background: var(--sh-primary);
+}
+
+.payment-result-icon.wait {
+  background: var(--sh-tone-amber);
+}
+
+.payment-result h1 {
+  margin-bottom: 10px;
+  font-size: 22px;
+}
+
+.payment-result-orders {
+  margin: 18px 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.payment-result-orders li {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.payment-result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.payment-result-btn,
+.payment-retry {
+  padding: 10px 20px;
+  border: 1px solid var(--sh-primary);
+  color: var(--sh-on-primary);
+  background: var(--sh-primary);
+  cursor: pointer;
+}
+
+.payment-result-btn.ghost {
+  color: var(--sh-primary);
+  background: var(--sh-on-primary);
+}
+
+.payment-retry {
+  margin-top: 12px;
+}

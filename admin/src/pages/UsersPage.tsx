@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { App as AntApp, Button, Checkbox, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd'
+import { App as AntApp, Button, Checkbox, Input, InputNumber, Modal, Select, Space, Table, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi, type AdminUser, type UserStatus } from '../api/admin'
+import { promoApi } from '../api/promo'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
 import { P, can } from '../permissions'
@@ -24,6 +25,9 @@ const UsersPage = ({ permissions }: { permissions: string[] }) => {
   const [lockReason, setLockReason] = useState('')
   const [assigning, setAssigning] = useState<AdminUser | null>(null)
   const [roleIds, setRoleIds] = useState<string[]>([])
+  const [granting, setGranting] = useState<AdminUser | null>(null)
+  const [coins, setCoins] = useState<number | null>(10000)
+  const [coinReason, setCoinReason] = useState('')
 
   const users = useQuery({
     queryKey: ['users', page, pageSize, q, status, adminsOnly],
@@ -43,6 +47,15 @@ const UsersPage = ({ permissions }: { permissions: string[] }) => {
       setLocking(null)
       setLockReason('')
       done(r.message)
+    },
+    onError: fail,
+  })
+  const grant = useMutation({
+    mutationFn: () => promoApi.grantCoins(granting!.id, coins ?? 0, coinReason),
+    onSuccess: (r) => {
+      setGranting(null)
+      setCoinReason('')
+      done(`${r.message} Số dư mới: ${r.data} xu.`)
     },
     onError: fail,
   })
@@ -107,11 +120,22 @@ const UsersPage = ({ permissions }: { permissions: string[] }) => {
                     setRoleIds(roles.data.filter((r) => u.roles.includes(r.code)).map((r) => r.id))
                   }}>Vai trò</Button>
                 )}
+                {can(permissions, P.CoinGrant) && (
+                  <Button size="small" onClick={() => setGranting(u)} data-testid="grant-coins">Xu</Button>
+                )}
               </Space>
             ),
           },
         ]}
       />
+
+      <Modal title={`ShopHub Xu — ${granting?.fullName ?? ''}`} open={!!granting} onCancel={() => setGranting(null)} cancelText="Huỷ"
+        okText="Cập nhật" okButtonProps={{ disabled: !coins || !coinReason.trim(), loading: grant.isPending }} onOk={() => grant.mutate()}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <InputNumber value={coins} onChange={setCoins} step={1000} style={{ width: '100%' }} addonAfter="xu" placeholder="Số âm để thu hồi" />
+          <Input.TextArea rows={2} placeholder="Lý do (bắt buộc)" value={coinReason} onChange={(e) => setCoinReason(e.target.value)} />
+        </Space>
+      </Modal>
 
       <Modal title={`Khoá tài khoản ${locking?.fullName ?? ''}`} open={!!locking} onCancel={() => setLocking(null)}
         okText="Khoá" okButtonProps={{ danger: true, disabled: !lockReason.trim(), loading: lock.isPending }}

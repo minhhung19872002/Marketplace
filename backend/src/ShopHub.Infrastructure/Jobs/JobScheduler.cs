@@ -10,6 +10,17 @@ public static class JobIds
     public const string OutboxDispatch = "sys.outbox-dispatch";
     public const string OutboxCleanup = "sys.outbox-cleanup";
     public const string CounterRecompute = "sys.counter-recompute";
+    public const string PaymentExpiry = "sales.payment-expiry";
+
+    // Jobs an admin may trigger on demand (POST /api/admin/job-runs/{id})
+    public static readonly IReadOnlyList<string> Runnable = [OutboxDispatch, CounterRecompute, PaymentExpiry];
+}
+
+/// <summary>Hangfire entry for <see cref="Application.Features.Payments.PaymentExpiryService"/>.</summary>
+public sealed class PaymentExpiryJob(Application.Features.Payments.PaymentExpiryService service)
+{
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
+    public Task RunJobAsync() => service.RunAsync(CancellationToken.None);
 }
 
 /// <summary>
@@ -32,6 +43,12 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
             JobIds.CounterRecompute,
             j => j.RunJobAsync(),
             await parameters.GetStringAsync(ParameterKeys.JobCounterRecomputeCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<PaymentExpiryJob>(
+            JobIds.PaymentExpiry,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobPaymentExpiryCron, ct),
             options);
 
         recurringJobs.AddOrUpdate<OutboxCleanupJob>(

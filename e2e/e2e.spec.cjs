@@ -1,70 +1,8 @@
 const { test, expect } = require('@playwright/test');
 
-const BASE = process.env.SH_E2E_BASE_URL || 'http://localhost:5173';
-
-// Unique VN mobile number per test run
-let phoneSeq = Date.now() % 100000000;
-const newPhone = () => `09${String(++phoneSeq % 100000000).padStart(8, '0')}`;
-
-// Newest OTP texted by the simulated SMS provider (dev-only inbox)
-async function latestOtp(request, phone) {
-  for (let i = 0; i < 40; i++) {
-    const res = await request.get(`${BASE}/api/dev/sms?to=${phone}`);
-    const body = await res.json();
-    const text = body.data?.[0]?.content;
-    const code = text && text.match(/\b\d{6}\b/);
-    if (code) return code[0];
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`Không nhận được OTP cho ${phone}`);
-}
-
-// Real account through the public API: OTP → ticket → register
-async function registerViaApi(request, fullName = 'Khách Thử E2E') {
-  const phone = newPhone();
-  const password = 'Matkhau123';
-  const sent = await request.post(`${BASE}/api/auth/otp/send`, { data: { target: phone, purpose: 'Register' } });
-  if (!sent.ok()) throw new Error(`Gửi OTP thất bại (${sent.status()}): ${await sent.text()}`);
-  const code = await latestOtp(request, phone);
-  const verify = await (await request.post(`${BASE}/api/auth/otp/verify`, { data: { target: phone, purpose: 'Register', code } })).json();
-  const res = await request.post(`${BASE}/api/auth/register`, {
-    data: { target: phone, ticket: verify.data.ticket, password, fullName, acceptTerms: true },
-  });
-  if (!res.ok()) throw new Error(`Đăng ký thất bại: ${await res.text()}`);
-  return { phone, password, fullName };
-}
-
-
-// ---------- real catalogue lookups (seeded sample data, no fixed ids) ----------
-
-async function api(request, path) {
-  const res = await request.get(`${BASE}/api${path}`);
-  if (!res.ok()) throw new Error(`GET ${path} → ${res.status()}: ${await res.text()}`);
-  return (await res.json()).data;
-}
-
-/** First in-stock, purchasable product whose page matches the predicate. */
-async function findProduct(request, predicate, query = 'inStock=true&sort=BestSelling&pageSize=60') {
-  const result = await api(request, `/search/products?${query}`);
-  for (const card of result.items) {
-    const page = await api(request, `/products/${card.id}`);
-    if (page.purchasable && predicate(page)) return page;
-  }
-  throw new Error('Không tìm thấy sản phẩm phù hợp trong dữ liệu mẫu');
-}
-
-const withTiers = (p) => p.tiers.length > 0 && p.skus.some((s) => s.available > 2);
-const withoutTiers = (p) => p.tiers.length === 0 && p.skus[0].available > 2;
-
-async function loginInBrowser(page, account) {
-  await page.goto(`${BASE}/dang-nhap`);
-  await page.locator('input[aria-label="Tên đăng nhập"]').fill(account.phone);
-  await page.locator('input[aria-label="Mật khẩu"]').fill(account.password);
-  await page.locator('[data-testid="login-submit"]').click();
-  await expect(page.locator('[data-testid="user-menu"]')).toBeVisible();
-}
-
-const stripTones = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+const {
+  BASE, newPhone, latestOtp, registerViaApi, api, findProduct, withTiers, withoutTiers, loginInBrowser, stripTones, addAddressViaApi,
+} = require('./helpers.cjs');
 
 const filterRealErrors = (errors) =>
   errors.filter((e) => !e.includes('Warning') && !e.includes('warn') && !e.includes('Failed to load resource') && !e.includes('favicon'));
@@ -266,6 +204,8 @@ test.describe('ShopHub Marketplace', () => {
     await page.locator('[data-testid="variant-option"]').filter({ hasText: skuA.option1 }).first().click();
     if (skuA.option2) await page.locator('[data-testid="variant-option"]').filter({ hasText: skuA.option2 }).last().click();
     await page.locator('[data-testid="add-to-cart"]').click();
+    // The cart is on the server: wait for the answer before navigating away (that would abort the request)
+    await expect(page.locator('.header-cart .header-cart-badge')).toHaveText('1');
 
     await page.goto(`${BASE}/san-pham/${b.id}`);
     await page.waitForLoadState('networkidle');
@@ -285,33 +225,39 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('[data-testid="cart-total"]')).not.toHaveText('₫0');
   });
 
-  test('Luồng thanh toán (tạm, Phase 5 thay bằng đơn thật): voucher + đặt hàng', async ({ page, request }) => {
+  test('Thanh toán cần đăng nhập; COD tạo đơn thật có mã đơn', async ({ page, request }) => {
     const product = await findProduct(request, withoutTiers);
+    const account = await registerViaApi(request, 'Người Mua COD');
+    await addAddressViaApi(request, account);
+
     await page.goto(`${BASE}/san-pham/${product.id}`);
     await page.waitForLoadState('networkidle');
     await page.locator('[data-testid="add-to-cart"]').click();
-
+    await expect(page.locator('.header-cart .header-cart-badge')).toHaveText('1');
     await page.goto(`${BASE}/gio-hang`);
-    await page.waitForLoadState('networkidle');
     await page.locator('[data-testid="checkout"]').click();
+
+    // Guests are asked to sign in first; the guest cart follows them into the account
+    await page.waitForURL(/\/dang-nhap/);
+    await page.locator('input[aria-label="Tên đăng nhập"]').fill(account.phone);
+    await page.locator('input[aria-label="Mật khẩu"]').fill(account.password);
+    await page.locator('[data-testid="login-submit"]').click();
     await page.waitForURL(/\/thanh-toan/);
+
     await expect(page.locator('[data-testid="checkout-item"]')).toHaveCount(1);
-
-    await page.locator('input[aria-label="Mã giảm giá"]').fill('SHOPHUB50');
-    await page.locator('[data-testid="apply-voucher"]').click();
-    await expect(page.locator('[data-testid="voucher-msg"]')).toContainText('SHOPHUB50');
-
-    await page.locator('[data-testid="place-order"]').click();
-    await expect(page.locator('[data-testid="checkout-error"]')).toBeVisible();
-
-    await page.locator('input[aria-label="Họ và tên"]').fill('Nguyễn Văn A');
-    await page.locator('input[aria-label="Số điện thoại"]').fill('0901234567');
-    await page.locator('input[aria-label="Địa chỉ"]').fill('123 Lê Lợi, Q1, TP.HCM');
+    await expect(page.locator('[data-testid="checkout-address"]')).toContainText('Người Nhận E2E');
+    const total = await page.locator('[data-testid="checkout-total"]').textContent();
     await page.locator('[data-testid="place-order"]').click();
 
-    await page.waitForURL(/\/dat-hang-thanh-cong/);
+    await page.waitForURL(/\/dat-hang-thanh-cong\?checkout=/);
     await expect(page.locator('[data-testid="order-success"]')).toBeVisible();
+    await expect(page.locator('[data-testid="result-order"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="success-total"]')).toHaveText(total);
     await expect(page.locator('.header-cart .header-cart-badge')).toHaveCount(0);
+
+    await page.locator('[data-testid="view-orders"]').click();
+    await expect(page.locator('[data-testid="order-card"]').first()).toBeVisible();
+    await expect(page.locator('[data-testid="order-status"]').first()).toHaveText('Chờ xác nhận');
   });
 
   test('Cập nhật số lượng và xóa trong giỏ hàng', async ({ page, request }) => {

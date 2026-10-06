@@ -365,3 +365,249 @@
     flex-wrap: wrap;
   }
 }
+
+/* ---- orders, vouchers, coins ---- */
+.account-title {
+  margin-bottom: 14px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.account-subtitle {
+  margin: 20px 0 10px;
+  font-size: 15px;
+}
+
+.account-message {
+  margin-bottom: 10px;
+  color: var(--sh-tone-teal);
+}
+
+.account-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.account-tab {
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+}
+
+.account-tab.active {
+  color: var(--sh-primary);
+  border-bottom-color: var(--sh-primary);
+}
+
+.account-search input {
+  width: 100%;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: none;
+  background: var(--bg);
+}
+
+.account-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border: none;
+  color: var(--sh-on-primary);
+  background: var(--sh-primary);
+  cursor: pointer;
+}
+
+.account-pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.order-card {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+}
+
+.order-card-head,
+.order-card-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.order-card-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.order-card-shop {
+  font-weight: 600;
+}
+
+.order-card-status {
+  color: var(--sh-primary);
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+.order-card-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.order-card-item img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
+
+.order-card-item > span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-card-variant {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.order-card-foot strong,
+.order-money-total td:last-child {
+  color: var(--sh-primary);
+  font-size: 18px;
+}
+
+.order-card-actions {
+  padding: 0 14px 12px;
+  text-align: right;
+}
+
+.order-detail-head {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.order-detail-alert {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--bg);
+}
+
+.order-timeline {
+  margin: 16px 0;
+  padding-left: 20px;
+}
+
+.order-timeline li {
+  margin-bottom: 6px;
+}
+
+.order-detail-address {
+  padding: 12px 0;
+  border-top: 1px dashed var(--border);
+}
+
+.order-detail-address h3 {
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+
+.order-detail-shop {
+  padding: 10px 0;
+  font-weight: 600;
+  border-top: 1px solid var(--border);
+}
+
+.order-item-price {
+  flex: 0 !important;
+  white-space: nowrap;
+}
+
+.order-money {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+}
+
+.order-money td {
+  padding: 8px 4px;
+  border-top: 1px solid var(--border);
+}
+
+.order-money td:last-child {
+  text-align: right;
+}
+
+.voucher-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.voucher-ticket {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 12px;
+  border: 1px solid var(--border);
+}
+
+.voucher-ticket-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  min-height: 80px;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--sh-on-primary);
+  background: var(--sh-primary);
+}
+
+.voucher-ticket-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.voucher-problem {
+  color: var(--sh-primary);
+}
+
+.coins-balance {
+  margin-bottom: 14px;
+}
+
+.coins-amount {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--sh-tone-amber);
+}
+
+.coins-expiring {
+  color: var(--text-light);
+}
+
+.coins-plus {
+  color: var(--sh-tone-teal);
+}
+
+.coins-minus {
+  color: var(--sh-primary);
+}

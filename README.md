@@ -6,10 +6,11 @@ Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** 
 Đặc tả và lộ trình: [`PROMPT-BUILD-SHOPHUB.md`](PROMPT-BUILD-SHOPHUB.md). Tiến độ từng phase:
 [`docs/07-bang-doi-chieu-chuc-nang.md`](docs/07-bang-doi-chieu-chuc-nang.md).
 
-> **Trạng thái hiện tại: xong Phase 0–4** (chuyển đổi repo, nền móng backend, tài khoản, danh mục & sản phẩm, tìm kiếm & trang người mua).
+> **Trạng thái hiện tại: xong Phase 0–5** (chuyển đổi repo, nền móng backend, tài khoản, danh mục & sản phẩm, tìm kiếm & trang người mua, giỏ hàng & thanh toán).
 > Kênh Người Bán (đăng ký shop, đăng/sửa sản phẩm, tồn kho) và quản trị (duyệt shop/sản phẩm, ngành hàng) chạy thật.
 > Trang người mua đọc dữ liệu thật: tìm kiếm không dấu có facet (Meilisearch, dự phòng PostgreSQL), trang danh mục / sản phẩm / shop,
-> yêu thích, theo dõi shop, ~1.000 sản phẩm mẫu. Giỏ hàng còn ở trình duyệt và trang Thanh toán là bản tạm cho tới Phase 5.
+> yêu thích, theo dõi shop, ~1.000 sản phẩm mẫu. Giỏ hàng trên máy chủ, thanh toán tách đơn theo shop với voucher sàn/shop, xu, phí vận
+> chuyển giả lập, COD và cổng thanh toán giả lập (`SH_PAYMENT_SIMULATED=true`, chỉ cho demo/kiểm thử).
 > Tài liệu API: [`docs/05-api-reference.md`](docs/05-api-reference.md).
 
 ## Cấu trúc
@@ -67,3 +68,6 @@ cd e2e && npm install && npx playwright install chromium
 npx playwright test                              # tự chạy web dev server
 SH_E2E_BASE_URL=http://localhost:18000 npx playwright test   # chạy trên stack Docker (+ smoke test)
 ```
+
+Các kịch bản cần quyền quản trị (duyệt shop, cộng xu, rút ngắn hạn thanh toán) đọc tài khoản từ `SH_E2E_ADMIN_USER` /
+`SH_E2E_ADMIN_PASSWORD` (không lưu trong repo); thiếu hai biến này thì các kịch bản đó được bỏ qua.

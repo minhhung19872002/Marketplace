@@ -1,0 +1,273 @@
+using ShopHub.Domain.Common;
+
+namespace ShopHub.Domain.Sales;
+
+public enum PaymentMethod
+{
+    Cod,
+    // SimulatedGateway: the system's own fake payment page that calls the webhook like a real gateway
+    Simulated,
+}
+
+public enum CheckoutStatus
+{
+    // Online payment not received yet (stock and vouchers are held until PaymentExpiresAt)
+    AwaitingPayment,
+    // COD placed, or online payment received
+    Placed,
+    // Payment window passed / cancelled before payment: everything held was released
+    Expired,
+}
+
+/// <summary>One press of "Đặt hàng": prices are fixed here and N orders (one per shop) hang off it.</summary>
+public class CheckoutSession : Entity
+{
+    private CheckoutSession() { }
+
+    public CheckoutSession(Guid userId, string idempotencyKey, string addressSnapshot, PaymentMethod method, DateTimeOffset now)
+    {
+        UserId = userId;
+        IdempotencyKey = idempotencyKey;
+        AddressSnapshot = addressSnapshot;
+        PaymentMethod = method;
+        CreatedAt = now;
+        Status = method == PaymentMethod.Cod ? CheckoutStatus.Placed : CheckoutStatus.AwaitingPayment;
+    }
+
+    public Guid UserId { get; private set; }
+    public string IdempotencyKey { get; private set; } = string.Empty;
+    // jsonb: receiver, phone, full address text and codes at the time of ordering
+    public string AddressSnapshot { get; private set; } = "{}";
+    public PaymentMethod PaymentMethod { get; private set; }
+    public long Subtotal { get; private set; }
+    public long ShippingFee { get; private set; }
+    public long ShippingDiscount { get; private set; }
+    public long DiscountTotal { get; private set; }
+    public long CoinUsed { get; private set; }
+    public long GrandTotal { get; private set; }
+    public Guid? PlatformVoucherId { get; private set; }
+    public Guid? FreeshipVoucherId { get; private set; }
+    public CheckoutStatus Status { get; private set; }
+    public DateTimeOffset? PaymentExpiresAt { get; private set; }
+    public DateTimeOffset? PaidAt { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+    public uint Version { get; private set; }
+
+    public void SetTotals(long subtotal, long shippingFee, long shippingDiscount, long discountTotal, long coinUsed, long grandTotal,
+        Guid? platformVoucherId, Guid? freeshipVoucherId, DateTimeOffset? paymentExpiresAt)
+    {
+        Subtotal = subtotal;
+        ShippingFee = shippingFee;
+        ShippingDiscount = shippingDiscount;
+        DiscountTotal = discountTotal;
+        CoinUsed = coinUsed;
+        GrandTotal = grandTotal;
+        PlatformVoucherId = platformVoucherId;
+        FreeshipVoucherId = freeshipVoucherId;
+        PaymentExpiresAt = paymentExpiresAt;
+    }
+
+    public void MarkPaid(DateTimeOffset now)
+    {
+        if (Status != CheckoutStatus.AwaitingPayment) throw new BusinessRuleException("Đơn hàng không ở trạng thái chờ thanh toán.");
+        Status = CheckoutStatus.Placed;
+        PaidAt = now;
+    }
+
+    public void MarkExpired()
+    {
+        if (Status != CheckoutStatus.AwaitingPayment) throw new BusinessRuleException("Đơn hàng không ở trạng thái chờ thanh toán.");
+        Status = CheckoutStatus.Expired;
+    }
+}
+
+public enum OrderStatus
+{
+    PendingPayment,       // Chờ thanh toán
+    PendingConfirmation,  // Chờ xác nhận
+    ReadyToShip,          // Chờ lấy hàng
+    Shipping,             // Đang giao
+    Delivered,            // Đã giao
+    Completed,            // Hoàn thành
+    Cancelled,            // Đã huỷ
+    DeliveryFailed,       // Giao thất bại
+    Returning,            // Đang hoàn về
+    Returned,             // Đã hoàn về
+}
+
+public enum OrderPaymentStatus
+{
+    Unpaid,
+    Paid,
+    Refunded,
+}
+
+public enum OrderActor
+{
+    Buyer,
+    Seller,
+    Admin,
+    System,
+    Carrier,
+    Gateway,
+}
+
+public class Order : Entity
+{
+    private Order() { }
+
+    public Order(Guid checkoutId, Guid buyerId, Guid shopId, string code, PaymentMethod paymentMethod, string carrierCode,
+        string? buyerNote, DateTimeOffset now)
+    {
+        CheckoutId = checkoutId;
+        BuyerId = buyerId;
+        ShopId = shopId;
+        Code = code;
+        PaymentMethod = paymentMethod;
+        CarrierCode = carrierCode;
+        BuyerNote = buyerNote;
+        CreatedAt = now;
+        // COD skips "Chờ thanh toán"; the state machine records the initial state in the history
+        Status = paymentMethod == PaymentMethod.Cod ? OrderStatus.PendingConfirmation : OrderStatus.PendingPayment;
+        PaymentStatus = OrderPaymentStatus.Unpaid;
+    }
+
+    public Guid CheckoutId { get; private set; }
+    public Guid BuyerId { get; private set; }
+    public Guid ShopId { get; private set; }
+    public string Code { get; private set; } = string.Empty;
+    // Only OrderStateMachine changes this (source-scan rule)
+    public OrderStatus Status { get; internal set; }
+    public OrderPaymentStatus PaymentStatus { get; internal set; }
+    public PaymentMethod PaymentMethod { get; private set; }
+    public string CarrierCode { get; private set; } = string.Empty;
+    public long Subtotal { get; private set; }
+    public long ShopDiscount { get; private set; }
+    public long PlatformDiscount { get; private set; }
+    public long ShippingFee { get; private set; }
+    public long ShippingDiscount { get; private set; }
+    public long CoinUsed { get; private set; }
+    public long GrandTotal { get; private set; }
+    public Guid? ShopVoucherId { get; private set; }
+    public int ExpectedDeliveryDays { get; private set; }
+    public string? BuyerNote { get; private set; }
+    public string? CancelReason { get; internal set; }
+    public OrderActor? CancelledBy { get; internal set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset? PaidAt { get; internal set; }
+    public DateTimeOffset? ConfirmedAt { get; internal set; }
+    public DateTimeOffset? ShippedAt { get; internal set; }
+    public DateTimeOffset? DeliveredAt { get; internal set; }
+    public DateTimeOffset? CompletedAt { get; internal set; }
+    public DateTimeOffset? CancelledAt { get; internal set; }
+    public DateTimeOffset? AutoCompleteAt { get; internal set; }
+    public uint Version { get; private set; }
+
+    public List<OrderItem> Items { get; private set; } = [];
+    public List<OrderStatusHistory> History { get; private set; } = [];
+
+    public void SetTotals(long subtotal, long shopDiscount, long platformDiscount, long shippingFee, long shippingDiscount, long coinUsed,
+        Guid? shopVoucherId, int expectedDeliveryDays)
+    {
+        Subtotal = subtotal;
+        ShopDiscount = shopDiscount;
+        PlatformDiscount = platformDiscount;
+        ShippingFee = shippingFee;
+        ShippingDiscount = shippingDiscount;
+        CoinUsed = coinUsed;
+        GrandTotal = subtotal - shopDiscount - platformDiscount + shippingFee - shippingDiscount - coinUsed;
+        if (GrandTotal < 0) throw new BusinessRuleException("Tổng thanh toán không được âm.");
+        ShopVoucherId = shopVoucherId;
+        ExpectedDeliveryDays = expectedDeliveryDays;
+    }
+}
+
+/// <summary>Snapshot of the line at ordering time — later price / name edits never change an old order.</summary>
+public class OrderItem : Entity
+{
+    private OrderItem() { }
+
+    public OrderItem(Guid orderId, Guid skuId, Guid productId, string nameSnapshot, string? variantSnapshot, string? imageSnapshot,
+        long unitPrice, long originalPrice, int quantity)
+    {
+        OrderId = orderId;
+        SkuId = skuId;
+        ProductId = productId;
+        NameSnapshot = nameSnapshot;
+        VariantSnapshot = variantSnapshot;
+        ImageSnapshot = imageSnapshot;
+        UnitPrice = unitPrice;
+        OriginalPrice = originalPrice;
+        Quantity = quantity;
+        LineTotal = checked(unitPrice * quantity);
+    }
+
+    public Guid OrderId { get; private set; }
+    public Guid SkuId { get; private set; }
+    public Guid ProductId { get; private set; }
+    public string NameSnapshot { get; private set; } = string.Empty;
+    public string? VariantSnapshot { get; private set; }
+    public string? ImageSnapshot { get; private set; }
+    public long UnitPrice { get; private set; }
+    public long OriginalPrice { get; private set; }
+    public int Quantity { get; private set; }
+    public long LineTotal { get; private set; }
+
+    public List<OrderItemDiscount> Discounts { get; private set; } = [];
+
+    /// <summary>What the buyer actually paid for this line after every allocated discount.</summary>
+    public long PaidAmount => LineTotal - Discounts.Sum(d => d.Amount);
+}
+
+public enum DiscountSource
+{
+    Shop,      // shop voucher — the shop bears it
+    Platform,  // platform voucher — the platform bears it
+    Combo,
+    Flash,
+    Coin,
+}
+
+/// <summary>A discount allocated down to one order line (largest remainder) — needed for partial refunds and settlement.</summary>
+public class OrderItemDiscount : Entity
+{
+    private OrderItemDiscount() { }
+
+    public OrderItemDiscount(Guid orderItemId, DiscountSource source, Guid? refId, long amount)
+    {
+        if (amount < 0) throw new BusinessRuleException("Số tiền giảm không được âm.");
+        OrderItemId = orderItemId;
+        Source = source;
+        RefId = refId;
+        Amount = amount;
+    }
+
+    public Guid OrderItemId { get; private set; }
+    public DiscountSource Source { get; private set; }
+    public Guid? RefId { get; private set; }
+    public long Amount { get; private set; }
+}
+
+public class OrderStatusHistory : Entity
+{
+    private OrderStatusHistory() { }
+
+    internal OrderStatusHistory(Guid orderId, OrderStatus? from, OrderStatus to, OrderActor actor, Guid? actorId, string? reason, DateTimeOffset at)
+    {
+        OrderId = orderId;
+        FromStatus = from;
+        ToStatus = to;
+        ActorType = actor;
+        ActorId = actorId;
+        Reason = reason;
+        OccurredAt = at;
+    }
+
+    public Guid OrderId { get; private set; }
+    public OrderStatus? FromStatus { get; private set; }
+    public OrderStatus ToStatus { get; private set; }
+    public OrderActor ActorType { get; private set; }
+    public Guid? ActorId { get; private set; }
+    public string? Reason { get; private set; }
+    public DateTimeOffset OccurredAt { get; private set; }
+}

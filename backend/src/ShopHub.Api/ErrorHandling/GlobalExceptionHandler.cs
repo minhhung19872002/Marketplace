@@ -21,7 +21,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             NotFoundException nf => (StatusCodes.Status404NotFound, ApiResponse.Fail(nf.Message)),
             AuthenticationFailedException af => (StatusCodes.Status401Unauthorized, ApiResponse.Fail(af.Message)),
             ForbiddenException fe => (StatusCodes.Status403Forbidden, ApiResponse.Fail(fe.Message)),
-            ConflictException ce => (StatusCodes.Status409Conflict, ApiResponse.Fail(ce.Message)),
+            ConflictException ce => (StatusCodes.Status409Conflict, ApiResponse.Fail(ce.Message, data: ce.Payload)),
             BusinessRuleException be => (StatusCodes.Status409Conflict, ApiResponse.Fail(be.Message)),
             BadHttpRequestException bhr => (bhr.StatusCode, ApiResponse.Fail(
                 bhr.StatusCode == StatusCodes.Status413PayloadTooLarge

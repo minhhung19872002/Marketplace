@@ -11,6 +11,9 @@ using ShopHub.Domain.Media;
 using ShopHub.Domain.Shops;
 using ShopHub.Domain.SystemConfig;
 
+using ShopHub.Domain.Sales;
+using ShopHub.Domain.Promo;
+using ShopHub.Domain.Logistics;
 namespace ShopHub.Infrastructure.Persistence;
 
 public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbContext(options), IApplicationDbContext
@@ -46,6 +49,23 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<ShopFollower> ShopFollowers => Set<ShopFollower>();
     public DbSet<ProductView> ProductViews => Set<ProductView>();
     public DbSet<SearchLog> SearchLogs => Set<SearchLog>();
+    public DbSet<Cart> Carts => Set<Cart>();
+    public DbSet<CartItem> CartItems => Set<CartItem>();
+    public DbSet<CheckoutSession> CheckoutSessions => Set<CheckoutSession>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<OrderItemDiscount> OrderItemDiscounts => Set<OrderItemDiscount>();
+    public DbSet<OrderStatusHistory> OrderStatusHistory => Set<OrderStatusHistory>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PaymentWebhookEvent> PaymentWebhookEvents => Set<PaymentWebhookEvent>();
+    public DbSet<Voucher> Vouchers => Set<Voucher>();
+    public DbSet<VoucherClaim> VoucherClaims => Set<VoucherClaim>();
+    public DbSet<VoucherUsage> VoucherUsages => Set<VoucherUsage>();
+    public DbSet<VoucherUserCounter> VoucherUserCounters => Set<VoucherUserCounter>();
+    public DbSet<CoinEntry> CoinLedger => Set<CoinEntry>();
+    public DbSet<Carrier> Carriers => Set<Carrier>();
+    public DbSet<ShippingRate> ShippingRates => Set<ShippingRate>();
+    public DbSet<SimulatedPayment> SimulatedPayments => Set<SimulatedPayment>();
 
     // Unique index name → what the user is told when a parallel request already took the value
     private static readonly Dictionary<string, string> UniqueMessages = new()
@@ -63,6 +83,11 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         ["ux_wishlists_user_product"] = "Sản phẩm đã có trong danh sách yêu thích.",
         ["ux_shop_followers_shop_user"] = "Bạn đã theo dõi shop này.",
         ["ux_variant_options_tier_value"] = "Phân loại có lựa chọn bị trùng.",
+        ["ux_voucher_code"] = "Mã voucher đã tồn tại.",
+        ["ux_voucher_claims"] = "Bạn đã lưu voucher này.",
+        ["ux_cart_items_cart_sku"] = "Sản phẩm đã có trong giỏ, vui lòng thử lại.",
+        ["ux_carts_user"] = "Giỏ hàng đang được cập nhật, vui lòng thử lại.",
+        ["ux_carts_guest"] = "Giỏ hàng đang được cập nhật, vui lòng thử lại.",
     };
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -76,6 +101,7 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
             throw new ConflictException(ck.ConstraintName switch
             {
                 "ck_skus_stock" or "ck_skus_reserved" => "Tồn kho không đủ hoặc thấp hơn số đang giữ cho đơn.",
+                "ck_vouchers_quota" => "Voucher đã hết lượt sử dụng.",
                 _ => "Dữ liệu vi phạm ràng buộc, vui lòng kiểm tra lại.",
             }, "CHECK_VIOLATION");
         }
@@ -83,17 +109,33 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         {
             throw new ConflictException(
                 pg.ConstraintName is { } name && UniqueMessages.TryGetValue(name, out var message) ? message : "Dữ liệu bị trùng, vui lòng kiểm tra lại.",
-                "UNIQUE_VIOLATION");
+                "UNIQUE_VIOLATION") { Constraint = pg.ConstraintName };
         }
     }
 
     public async Task<T> InLockedTransactionAsync<T>(string lockKey, Func<Task<T>> work, CancellationToken ct)
     {
         await using var tx = await Database.BeginTransactionAsync(ct);
-        await Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", ct);
+        await LockAsync(lockKey, ct);
         var result = await work();
         await tx.CommitAsync(ct);
         return result;
+    }
+
+    public async Task<IAppTransaction> BeginTransactionAsync(CancellationToken ct) => new AppTransaction(await Database.BeginTransactionAsync(ct));
+
+    public Task LockAsync(string lockKey, CancellationToken ct) =>
+        Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", ct);
+
+    public Task<int> ExecuteSqlAsync(FormattableString sql, CancellationToken ct) => Database.ExecuteSqlInterpolatedAsync(sql, ct);
+
+    public void ClearTracking() => ChangeTracker.Clear();
+
+    private sealed class AppTransaction(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction inner) : IAppTransaction
+    {
+        public Task CommitAsync(CancellationToken ct) => inner.CommitAsync(ct);
+        public Task RollbackAsync(CancellationToken ct) => inner.RollbackAsync(ct);
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

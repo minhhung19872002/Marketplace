@@ -1,0 +1,324 @@
+// Cart, checkout, payment and orders. Money is integer VND; every total shown comes from the server.
+import { apiCommand, apiRequest } from './http';
+import type { PagedResult } from '../types';
+
+// ---------- cart ----------
+
+export interface CartLine {
+  skuId: string;
+  productId: string;
+  name: string;
+  imageUrl: string | null;
+  variant: string | null;
+  price: number;
+  originalPrice: number;
+  previousPrice: number | null;
+  quantity: number;
+  available: number;
+  isSelected: boolean;
+  canBuy: boolean;
+  problem: string | null;
+}
+
+export interface CartShop {
+  shopId: string;
+  shopName: string;
+  shopSlug: string;
+  isMall: boolean;
+  onVacation: boolean;
+  lines: CartLine[];
+}
+
+export interface Cart {
+  shops: CartShop[];
+  lineCount: number;
+  totalQuantity: number;
+  selectedQuantity: number;
+  selectedSubtotal: number;
+}
+
+export const cartApi = {
+  get: () => apiRequest<Cart>('/cart'),
+  add: (skuId: string, quantity: number) => apiCommand<Cart>('/cart/items', { method: 'POST', body: { skuId, quantity } }),
+  update: (skuId: string, change: { quantity?: number; selected?: boolean; skuId?: string }) =>
+    apiRequest<Cart>(`/cart/items/${skuId}`, { method: 'PUT', body: change }),
+  remove: (skuIds: string[]) => apiCommand<Cart>('/cart/items/remove', { method: 'POST', body: { skuIds } }),
+  select: (selected: boolean, shopId?: string) => apiRequest<Cart>('/cart/selection', { method: 'PUT', body: { shopId: shopId ?? null, selected } }),
+};
+
+// ---------- checkout ----------
+
+export type PaymentMethod = 'Cod' | 'Simulated';
+export type VoucherType = 'Amount' | 'Percent' | 'FreeShipping' | 'CoinCashback';
+
+export interface CheckoutShopChoice {
+  shopId: string;
+  carrierCode?: string | null;
+  voucherCode?: string | null;
+  note?: string | null;
+}
+
+export interface CheckoutRequest {
+  addressId: string | null;
+  shops: CheckoutShopChoice[];
+  platformVoucherCode: string | null;
+  freeshipVoucherCode: string | null;
+  useCoins: boolean;
+  paymentMethod: PaymentMethod;
+}
+
+export interface ShippingOption {
+  code: string;
+  name: string;
+  description: string | null;
+  fee: number;
+  days: number;
+  expectedDate: string;
+  supportsCod: boolean;
+}
+
+export interface VoucherOption {
+  id: string;
+  code: string;
+  name: string;
+  type: VoucherType;
+  discountValue: number;
+  discountPercentBp: number;
+  maxDiscount: number | null;
+  minOrder: number;
+  endAt: string;
+  discount: number;
+  usable: boolean;
+  problem: string | null;
+  selected: boolean;
+}
+
+export interface QuoteLine {
+  skuId: string;
+  productId: string;
+  name: string;
+  imageUrl: string | null;
+  variant: string | null;
+  unitPrice: number;
+  originalPrice: number;
+  quantity: number;
+  lineTotal: number;
+  shopDiscount: number;
+  platformDiscount: number;
+  coinDiscount: number;
+}
+
+export interface QuoteShop {
+  shopId: string;
+  shopName: string;
+  isMall: boolean;
+  lines: QuoteLine[];
+  shippingOptions: ShippingOption[];
+  carrierCode: string | null;
+  subtotal: number;
+  shopDiscount: number;
+  shippingFee: number;
+  shippingDiscount: number;
+  platformDiscount: number;
+  coinUsed: number;
+  total: number;
+  shopVoucher: VoucherOption | null;
+  shopVoucherOptions: VoucherOption[];
+  note: string | null;
+}
+
+export interface CheckoutQuote {
+  address: { id: string; receiverName: string; phone: string; fullAddress: string; provinceCode: string } | null;
+  shops: QuoteShop[];
+  platformVouchers: VoucherOption[];
+  freeshipVouchers: VoucherOption[];
+  coins: { balance: number; max: number; used: number; applied: boolean };
+  paymentMethods: { code: PaymentMethod; name: string; available: boolean; reason: string | null }[];
+  paymentMethod: PaymentMethod;
+  subtotal: number;
+  shopDiscount: number;
+  shippingFee: number;
+  shippingDiscount: number;
+  platformDiscount: number;
+  coinUsed: number;
+  grandTotal: number;
+  coinCashback: number;
+  problems: string[];
+  canPlace: boolean;
+}
+
+export type OrderStatus =
+  | 'PendingPayment'
+  | 'PendingConfirmation'
+  | 'ReadyToShip'
+  | 'Shipping'
+  | 'Delivered'
+  | 'Completed'
+  | 'Cancelled'
+  | 'DeliveryFailed'
+  | 'Returning'
+  | 'Returned';
+
+export interface CheckoutResult {
+  checkoutId: string;
+  status: 'AwaitingPayment' | 'Placed' | 'Expired';
+  paymentMethod: PaymentMethod;
+  grandTotal: number;
+  paymentExpiresAt: string | null;
+  orders: { id: string; code: string; shopId: string; shopName: string; status: OrderStatus; grandTotal: number }[];
+  payment: {
+    paymentId: string;
+    method: PaymentMethod;
+    status: 'Initiated' | 'Succeeded' | 'Failed' | 'Expired' | 'Refunded';
+    amount: number;
+    redirectUrl: string | null;
+    expiresAt: string;
+  } | null;
+}
+
+export const checkoutApi = {
+  quote: (request: CheckoutRequest) => apiRequest<CheckoutQuote>('/checkout/quote', { method: 'POST', body: request }),
+  place: (idempotencyKey: string, checkout: CheckoutRequest, expectedGrandTotal: number) =>
+    apiRequest<CheckoutResult>('/checkout', {
+      method: 'POST',
+      body: { checkout, expectedGrandTotal },
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }),
+  get: (id: string) => apiRequest<CheckoutResult>(`/checkout/${id}`),
+  retryPayment: (id: string) => apiRequest<CheckoutResult>(`/checkout/${id}/pay`, { method: 'POST' }),
+};
+
+// ---------- simulated gateway (the fake payment page) ----------
+
+export interface SimulatedPayment {
+  paymentId: string;
+  amount: number;
+  description: string;
+  expiresAt: string;
+  status: 'Initiated' | 'Succeeded' | 'Failed' | 'Expired' | 'Refunded';
+  checkoutId: string;
+}
+
+export const gatewayApi = {
+  view: (paymentId: string) => apiRequest<SimulatedPayment>(`/payments/simulated/${paymentId}`, { auth: false }),
+  complete: (paymentId: string, outcome: 'success' | 'fail') =>
+    apiRequest<SimulatedPayment>(`/payments/simulated/${paymentId}/${outcome}`, { method: 'POST', auth: false }),
+};
+
+// ---------- orders ----------
+
+export type OrderTab = 'All' | 'AwaitingPayment' | 'Processing' | 'Shipping' | 'Completed' | 'Cancelled' | 'Returns';
+
+export interface OrderItem {
+  id: string;
+  skuId: string;
+  productId: string;
+  name: string;
+  variant: string | null;
+  imageUrl: string | null;
+  unitPrice: number;
+  originalPrice: number;
+  quantity: number;
+  lineTotal: number;
+  shopDiscount: number;
+  platformDiscount: number;
+  coinDiscount: number;
+  paidAmount: number;
+}
+
+export interface OrderSummary {
+  id: string;
+  code: string;
+  shopId: string;
+  shopName: string;
+  shopSlug: string;
+  status: OrderStatus;
+  statusLabel: string;
+  paymentStatus: 'Unpaid' | 'Paid' | 'Refunded';
+  paymentMethod: PaymentMethod;
+  grandTotal: number;
+  itemCount: number;
+  firstItem: OrderItem | null;
+  createdAt: string;
+  checkoutId: string;
+}
+
+export interface OrderDetail {
+  id: string;
+  code: string;
+  checkoutId: string;
+  shopId: string;
+  shopName: string;
+  shopSlug: string;
+  status: OrderStatus;
+  statusLabel: string;
+  paymentStatus: 'Unpaid' | 'Paid' | 'Refunded';
+  paymentMethod: PaymentMethod;
+  carrierCode: string;
+  carrierName: string | null;
+  expectedDeliveryDays: number;
+  address: { receiverName: string; phone: string; fullAddress: string };
+  buyerNote: string | null;
+  items: OrderItem[];
+  subtotal: number;
+  shopDiscount: number;
+  platformDiscount: number;
+  shippingFee: number;
+  shippingDiscount: number;
+  coinUsed: number;
+  grandTotal: number;
+  cancelReason: string | null;
+  createdAt: string;
+  paymentExpiresAt: string | null;
+  history: { from: OrderStatus | null; to: OrderStatus; toLabel: string; actor: string; reason: string | null; occurredAt: string }[];
+}
+
+export const ordersApi = {
+  list: (tab: OrderTab, q: string, page: number) =>
+    apiRequest<PagedResult<OrderSummary>>(`/orders?tab=${tab}&page=${page}&pageSize=10${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+  get: (code: string) => apiRequest<OrderDetail>(`/orders/${encodeURIComponent(code)}`),
+};
+
+// ---------- vouchers & coins ----------
+
+export interface VoucherInfo {
+  id: string;
+  owner: 'Platform' | 'Shop';
+  shopId: string | null;
+  shopName: string | null;
+  code: string;
+  name: string;
+  type: VoucherType;
+  discountValue: number;
+  discountPercentBp: number;
+  maxDiscount: number | null;
+  minOrder: number;
+  startAt: string;
+  endAt: string;
+  totalQuota: number | null;
+  usedCount: number;
+  perUserLimit: number;
+  state: string;
+}
+
+export interface WalletVoucher {
+  voucher: VoucherInfo;
+  claimed: boolean;
+  usedByMe: number;
+  problem: string | null;
+}
+
+export type WalletTab = 'Valid' | 'ExpiringSoon' | 'Used' | 'Expired';
+
+export interface CoinWallet {
+  balance: number;
+  expiringSoon: number;
+  history: PagedResult<{ id: string; delta: number; reason: string; note: string | null; createdAt: string; expiresAt: string | null }>;
+}
+
+export const walletApi = {
+  available: (shopId?: string) => apiRequest<WalletVoucher[]>(shopId ? `/vouchers?shopId=${shopId}` : '/vouchers'),
+  claim: (voucherId: string) => apiCommand(`/account/vouchers/${voucherId}/claim`, { method: 'POST' }),
+  mine: (tab: WalletTab) => apiRequest<WalletVoucher[]>(`/account/vouchers?tab=${tab}`),
+  coins: (page: number) => apiRequest<CoinWallet>(`/account/coins?page=${page}&pageSize=20`),
+};

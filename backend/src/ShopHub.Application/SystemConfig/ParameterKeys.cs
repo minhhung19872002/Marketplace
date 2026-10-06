@@ -43,6 +43,14 @@ public static class ParameterKeys
     public const string SearchHotKeywordDays = "SEARCH.HOT_KEYWORD_DAYS";
     public const string ProductViewDedupeMinutes = "PRODUCT.VIEW_DEDUPE_MINUTES";
     public const string JobCounterRecomputeCron = "JOB.COUNTER_RECOMPUTE_CRON";
+
+    public const string CartMaxLines = "CART.MAX_LINES";
+    public const string PaymentTimeoutMinutes = "PAYMENT.TIMEOUT_MINUTES";
+    public const string PaymentCodMaxAmount = "PAYMENT.COD_MAX_AMOUNT";
+    public const string CoinMaxPercentBp = "COIN.MAX_PERCENT_BP";
+    public const string CoinExpiryDays = "COIN.EXPIRY_DAYS";
+    public const string LogisticsHolidays = "LOGISTICS.HOLIDAYS";
+    public const string JobPaymentExpiryCron = "JOB.PAYMENT_EXPIRY_CRON";
 }
 
 public static class ParameterGroups
@@ -55,6 +63,10 @@ public static class ParameterGroups
     public const string Shop = "SHOP";
     public const string Media = "MEDIA";
     public const string Search = "SEARCH";
+    public const string Cart = "CART";
+    public const string Payment = "PAYMENT";
+    public const string Coin = "COIN";
+    public const string Logistics = "LOGISTICS";
 }
 
 public record ParameterDefinition(
@@ -138,5 +150,21 @@ public static class ParameterCatalog
             "Chống đếm trùng lượt xem (phút)", "Cùng người xem cùng sản phẩm trong khoảng này chỉ tính một lượt."),
         new(ParameterKeys.JobCounterRecomputeCron, "30 18 * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch tính lại chỉ số", "Cron tính lại lượt thích, theo dõi, số sản phẩm, lượt xem từ dữ liệu gốc (01:30 giờ VN)."),
+
+        new(ParameterKeys.CartMaxLines, "100", ParameterDataType.Int, ParameterGroups.Cart,
+            "Số dòng tối đa trong giỏ", "Giỏ hàng có nhiều nhất bấy nhiêu sản phẩm (phân loại) khác nhau."),
+        new(ParameterKeys.PaymentTimeoutMinutes, "15", ParameterDataType.Int, ParameterGroups.Payment,
+            "Hạn thanh toán online (phút)", "Quá thời gian này chưa trả tiền thì đơn tự huỷ, hàng giữ và voucher, xu được trả lại."),
+        new(ParameterKeys.PaymentCodMaxAmount, "20000000", ParameterDataType.Int, ParameterGroups.Payment,
+            "Ngưỡng tối đa COD (₫)", "Đơn có tổng thanh toán lớn hơn ngưỡng này không được chọn thanh toán khi nhận hàng."),
+        new(ParameterKeys.CoinMaxPercentBp, "5000", ParameterDataType.Int, ParameterGroups.Coin,
+            "Xu dùng tối đa (phần vạn)", "Xu trừ tối đa bấy nhiêu phần vạn giá trị hàng sau giảm giá (5000 = 50%). 1 xu = ₫1."),
+        new(ParameterKeys.CoinExpiryDays, "180", ParameterDataType.Int, ParameterGroups.Coin,
+            "Hạn dùng xu (ngày)", "Xu được cộng có hạn dùng bấy nhiêu ngày."),
+        new(ParameterKeys.LogisticsHolidays, "[\"2026-01-01\",\"2026-02-16\",\"2026-02-17\",\"2026-02-18\",\"2026-02-19\",\"2026-02-20\",\"2026-04-26\",\"2026-04-30\",\"2026-05-01\",\"2026-09-02\"]",
+            ParameterDataType.Json, ParameterGroups.Logistics,
+            "Ngày nghỉ lễ", "Ngày (yyyy-MM-dd, giờ Việt Nam) không tính vào thời gian giao dự kiến; Chủ nhật luôn được bỏ qua."),
+        new(ParameterKeys.JobPaymentExpiryCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch xử lý đơn quá hạn thanh toán", "Cron đối chiếu giao dịch treo với cổng và huỷ đơn quá hạn, nhả kho."),
     ];
 }

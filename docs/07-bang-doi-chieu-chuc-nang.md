@@ -11,7 +11,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 2 | Tài khoản | **Xong** | Xem bảng Phase 2 dưới đây |
 | 3 | Danh mục & sản phẩm | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 3 dưới đây |
 | 4 | Tìm kiếm & trang người mua | **Xong** | Xem bảng Phase 4 dưới đây |
-| 5 | Giỏ hàng & thanh toán | Chưa làm | |
+| 5 | Giỏ hàng & thanh toán | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 5 dưới đây |
 | 6 | Đơn hàng & vận chuyển | Chưa làm | |
 | 7 | Đánh giá, trả hàng, khiếu nại | Chưa làm | |
 | 8 | Tài chính | Chưa làm | |
@@ -113,4 +113,26 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | ~1.000 sản phẩm mẫu | `ProductGenerator` (tất định, qua domain) | stack: 999 sản phẩm `Active` được lập chỉ mục khi khởi động |
 | Bỏ dữ liệu giả ở `web` | xoá `data/products.ts`, `data/images.ts`; giỏ hàng theo SKU | `tsc -b`, `vitest` (quy tắc màu / ngày giờ / đường dẫn API), 23 e2e người mua |
 | **Dời lại** | Flash Sale (Phase 9), giỏ & thanh toán thật (Phase 5), đánh giá (Phase 7) | 00 #47 |
+
+## Phase 5 — Giỏ hàng & thanh toán
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| Giỏ theo SKU, nhóm theo shop, chọn shop / tất cả, đổi phân loại tại chỗ, báo đổi giá / hết hàng từng dòng | `sales.carts/cart_items`, `CartStore`, `CartPage.tsx` | `Cart_reports_price_changes_and_shortages_per_line_instead_of_dropping_them`; e2e `Giỏ hàng: checkbox…`, `Cập nhật số lượng…` |
+| Gộp giỏ khách khi đăng nhập | cookie `sh_cart`, `MergeGuestCartCommand` trong `/api/auth/*` (00 #48) | `Guest_cart_is_merged_into_the_account_at_sign_in`; e2e **số 2** `Khách thêm giỏ → đăng nhập → giỏ được gộp` |
+| PricingEngine, phân bổ dư lớn nhất xuống từng dòng | `PricingEngine` (00 #49), `order_item_discounts` | 12 phép thử đơn vị `PricingEngineTests`; `Two_shop_checkout_with_every_discount_creates_two_orders_that_add_up_exactly` |
+| Voucher sàn & shop, miễn ship, hoàn xu; hiện cả mã không dùng được kèm lý do | `VoucherEvaluator`, `CheckoutBuilder`, trang Thanh toán | `Unusable_vouchers_are_listed_with_the_reason` ("Mua thêm ₫35.000…") |
+| Xu: dùng ≤ X% khi thanh toán, hoàn khi huỷ | `promo.coin_ledger` (số dư = tổng), `CoinWallet` | `Failed_then_abandoned_payment_gives_back_stock_voucher_and_coins_when_it_expires` |
+| Vận chuyển giả lập, cân quy đổi, ngày dự kiến | `SimulatedCarrier`, `ShippingCalculator` (00 #54) | `ShippingRuleTests`, `Express_shipping_is_only_offered_within_the_same_province` |
+| Checkout tách đơn theo shop, idempotency | `PlaceOrderHandler` (00 #50) | `The_same_idempotency_key_in_parallel_creates_one_checkout` (10 yêu cầu song song) |
+| Giữ kho không bán âm | UPDATE có điều kiện + CHECK | `Fifty_parallel_buyers_for_ten_units_get_exactly_ten_orders` (50 song song / 10 chiếc → đúng 10) |
+| Voucher không vượt quota / lượt mỗi người | UPDATE có điều kiện, `voucher_user_counters`, CHECK `ck_vouchers_quota` | `Voucher_quota_and_per_user_limit_hold_under_parallel_checkouts` |
+| Giá đổi giữa báo giá và đặt hàng | so `expectedGrandTotal` → 409 kèm báo giá mới | `A_price_change_between_quote_and_order_is_a_409_with_the_new_quote` |
+| COD + SimulatedGateway, webhook đúng một lần | `PaymentProcessor`, `SimulatedGateway` (00 #51, #52) | `Paying_on_the_simulated_gateway_…`, `A_webhook_is_applied_exactly_once_even_when_delivered_in_parallel`, `A_forged_or_wrong_amount_webhook_changes_nothing`, `Money_arriving_after_expiry_is_refunded…` |
+| Nhả kho quá hạn, đối chiếu giao dịch treo | `PaymentExpiryService` (00 #53) | `A_lost_callback_is_found_by_asking_the_gateway_before_expiring`; e2e **số 4** `Bỏ dở thanh toán online → quá hạn → huỷ đơn và nhả kho`, `Thanh toán online…: thành công / thất bại (thanh toán lại)` |
+| e2e số 3: 2 shop + voucher shop + voucher sàn + xu → COD → 2 đơn, tổng khớp từng đồng | trang Thanh toán, `/dat-hang-thanh-cong` | e2e `Giỏ 2 shop + voucher shop + voucher sàn + xu → COD → 2 đơn, tổng khớp từng đồng` (so cả từng khoản giảm qua API) |
+| Đơn mua (danh sách theo tab, chi tiết, lịch sử) | `/api/orders`, `/tai-khoan/don-mua` | `Another_buyers_order_and_checkout_are_not_found` (IDOR → 404) |
+| Ví voucher, ShopHub Xu, voucher của shop (Kênh Người Bán), voucher sàn + cộng xu (quản trị) | `/tai-khoan/voucher`, `/tai-khoan/xu`, seller `Mã giảm giá`, admin `Voucher của sàn`, nút "Xu" ở Người dùng | kiểm thủ công trên stack; API có phép thử |
+| Máy trạng thái đơn (một lớp duy nhất) | `OrderStateMachine` | `OrderStateMachineTests`; quy tắc quét mã `Order_status_is_only_assigned_inside_OrderStateMachine` |
+| **Dời lại** | đa kho, giới hạn mua/người theo sản phẩm, combo / Flash Sale trong giá (Phase 9), hoàn xu từ voucher & hết hạn xu (Phase 6/7), Ví ShopHub (Phase 8) | 00 #56 |
 

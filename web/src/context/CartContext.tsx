@@ -1,103 +1,85 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { CartLine } from '../types';
+import { useCallback, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { cartApi, type Cart, type CartLine } from '../api/commerce';
+import { useAuthStore } from '../stores/auth';
 
-// A SKU as chosen on the product page (the cart key is the SKU id)
-type CartInput = Omit<CartLine, 'cartKey' | 'quantity'>;
+export const CART_KEY = ['cart'] as const;
+
+const EMPTY: Cart = { shops: [], lineCount: 0, totalQuantity: 0, selectedQuantity: 0, selectedSubtotal: 0 };
 
 interface CartValue {
-  items: CartLine[];
-  addToCart: (product: CartInput, quantity?: number) => void;
-  removeFromCart: (cartKey: string) => void;
-  updateQuantity: (cartKey: string, quantity: number) => void;
-  removeMany: (keys: string[]) => void;
-  clearCart: () => void;
+  cart: Cart;
+  lines: CartLine[];
   totalItems: number;
-  totalPrice: number;
+  isLoading: boolean;
+  /** Adds to the server cart (guests get a cart cookie, merged into the account at sign-in). */
+  add: (skuId: string, quantity: number) => Promise<string>;
+  update: (skuId: string, change: { quantity?: number; selected?: boolean; skuId?: string }) => Promise<void>;
+  remove: (skuIds: string[]) => Promise<void>;
+  select: (selected: boolean, shopId?: string) => Promise<void>;
 }
 
-const CartContext = createContext<CartValue | null>(null);
-
-// v2: lines are SKUs from the API (v1 held mock products with numeric ids)
-const STORAGE_KEY = 'shophub_cart_v2';
-
-// Quantity between 1 and what the SKU had available when it was added
-const clampQty = (item: Pick<CartLine, 'available'>, quantity: number): number => Math.max(1, Math.min(item.available, quantity));
-
-export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [items, setItems] = useState<CartLine[]>(() => {
-    try {
-      localStorage.removeItem('shophub_cart');
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    } catch {
-      // storage blocked: the cart lives for this tab only
-    }
-  }, [items]);
-
-  const addToCart = useCallback((product: CartInput, quantity = 1) => {
-    const key = product.skuId;
-    setItems((prev) => {
-      const existing = prev.find((it) => it.cartKey === key);
-      if (existing) {
-        return prev.map((it) =>
-          it.cartKey === key ? { ...it, quantity: clampQty(it, it.quantity + quantity) } : it
-        );
-      }
-      return [
-        ...prev,
-        { ...product, cartKey: key, quantity: clampQty(product, quantity) },
-      ];
-    });
-  }, []);
-
-  const removeFromCart = useCallback((cartKey: string) => {
-    setItems((prev) => prev.filter((it) => it.cartKey !== cartKey));
-  }, []);
-
-  const updateQuantity = useCallback((cartKey: string, quantity: number) => {
-    setItems((prev) =>
-      prev.map((it) => (it.cartKey === cartKey ? { ...it, quantity: clampQty(it, quantity) } : it))
-    );
-  }, []);
-
-  const removeMany = useCallback((keys: string[]) => {
-    const set = new Set(keys);
-    setItems((prev) => prev.filter((it) => !set.has(it.cartKey)));
-  }, []);
-
-  const clearCart = useCallback(() => setItems([]), []);
-
-  const totalItems = items.reduce((sum, it) => sum + it.quantity, 0);
-  const totalPrice = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
-
-  return (
-    <CartContext.Provider
-      value={{
-        items,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        removeMany,
-        clearCart,
-        totalItems,
-        totalPrice,
-      }}
-    >
-      {children}
-    </CartContext.Provider>
-  );
-};
-
+/** The cart lives on the server (validated stock / price per line); this hook keeps one cached copy for the whole app. */
 export const useCart = (): CartValue => {
-  const ctx = useContext(CartContext);
-  if (!ctx) throw new Error('useCart must be used within CartProvider');
-  return ctx;
+  const queryClient = useQueryClient();
+  const status = useAuthStore((s) => s.status);
+  const userId = useAuthStore((s) => s.user?.id ?? 'guest');
+  // Wait for the session restore on page load: asking too early returns the (empty) guest cart
+  const key = useMemo(() => [...CART_KEY, userId] as const, [userId]);
+  const { data, isLoading } = useQuery({ queryKey: key, queryFn: cartApi.get, staleTime: 10_000, enabled: status !== 'checking' });
+  const cart = data ?? EMPTY;
+  const set = useCallback((next: Cart): void => {
+    queryClient.setQueryData(key, next);
+  }, [queryClient, key]);
+
+  const addMutation = useMutation({ mutationFn: ({ skuId, quantity }: { skuId: string; quantity: number }) => cartApi.add(skuId, quantity) });
+
+  const add = useCallback(
+    async (skuId: string, quantity: number) => {
+      const result = await addMutation.mutateAsync({ skuId, quantity });
+      set(result.data);
+      return result.message;
+    },
+    [addMutation, set],
+  );
+  /** Tick boxes react at once; the server's answer (totals, checks) replaces the guess, a failure restores it. */
+  const optimistic = useCallback(
+    async (patch: (line: CartLine, shopId: string) => CartLine, call: () => Promise<Cart>) => {
+      const before = queryClient.getQueryData<Cart>(key);
+      if (before) set({ ...before, shops: before.shops.map((s) => ({ ...s, lines: s.lines.map((l) => patch(l, s.shopId)) })) });
+      try {
+        set(await call());
+      } catch (e) {
+        if (before) set(before);
+        throw e;
+      }
+    },
+    [queryClient, key, set],
+  );
+
+  const update = useCallback(
+    async (skuId: string, change: { quantity?: number; selected?: boolean; skuId?: string }) => {
+      if (change.selected !== undefined && change.quantity === undefined && change.skuId === undefined)
+        return optimistic((l) => (l.skuId === skuId ? { ...l, isSelected: change.selected! } : l), () => cartApi.update(skuId, change));
+      set(await cartApi.update(skuId, change));
+    },
+    [optimistic, set],
+  );
+  const remove = useCallback(async (skuIds: string[]) => set((await cartApi.remove(skuIds)).data), [set]);
+  const select = useCallback(
+    (selected: boolean, shopId?: string) =>
+      optimistic((l, s) => (shopId === undefined || s === shopId ? { ...l, isSelected: selected } : l), () => cartApi.select(selected, shopId)),
+    [optimistic],
+  );
+
+  return {
+    cart,
+    lines: cart.shops.flatMap((s) => s.lines),
+    totalItems: cart.totalQuantity,
+    isLoading: isLoading || status === 'checking',
+    add,
+    update,
+    remove,
+    select,
+  };
 };

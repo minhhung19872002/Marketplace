@@ -16,6 +16,7 @@ import AuditLogsPage from './pages/AuditLogsPage'
 import ProductReviewPage from './pages/ProductReviewPage'
 import ShopsPage from './pages/ShopsPage'
 import CategoriesPage from './pages/CategoriesPage'
+import VouchersPage from './pages/VouchersPage'
 import './App.css'
 
 const { Header, Sider, Content } = Layout
@@ -26,6 +27,7 @@ const MENU = [
   { path: '/duyet-san-pham', label: 'Duyệt sản phẩm', permission: P.ProductReview },
   { path: '/shop', label: 'Shop', permission: P.ShopView },
   { path: '/nganh-hang', label: 'Ngành hàng', permission: P.CategoryManage },
+  { path: '/voucher', label: 'Voucher của sàn', permission: P.VoucherManage },
   { path: '/nguoi-dung', label: 'Người dùng', permission: P.UserView },
   { path: '/vai-tro', label: 'Vai trò & quyền', permission: P.RoleView },
   { path: '/tham-so', label: 'Tham số hệ thống', permission: P.SystemParameterView },
@@ -85,6 +87,7 @@ const Shell = () => {
             <Route path="/duyet-san-pham" element={guard(P.ProductReview, <ProductReviewPage permissions={perms} />)} />
             <Route path="/shop" element={guard(P.ShopView, <ShopsPage permissions={perms} />)} />
             <Route path="/nganh-hang" element={guard(P.CategoryManage, <CategoriesPage />)} />
+            <Route path="/voucher" element={guard(P.VoucherManage, <VouchersPage />)} />
             <Route path="/nguoi-dung" element={guard(P.UserView, <UsersPage permissions={perms} />)} />
             <Route path="/vai-tro" element={guard(P.RoleView, <RolesPage permissions={perms} />)} />
             <Route path="/tham-so" element={guard(P.SystemParameterView, <ParametersPage permissions={perms} />)} />

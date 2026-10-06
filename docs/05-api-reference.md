@@ -209,6 +209,71 @@ soldCount, inStock, shopId, shopName, isMall, isPreferred, provinceName }`. Sả
 | POST / DELETE | `/api/account/wishlist/{productId}` | Thích / bỏ thích — trả số lượt thích (gọi lặp/song song vẫn đếm 1) |
 | GET | `/api/account/wishlist?page=` · `/api/account/wishlist/ids` | Danh sách yêu thích · chỉ id (để tô tim) |
 
+## Giỏ hàng & thanh toán (Phase 5)
+
+**Giỏ hàng** — `/api/cart`, khách hoặc đã đăng nhập. Khách được cấp cookie httpOnly `sh_cart`; đăng nhập / đăng ký thì
+giỏ khách gộp vào giỏ tài khoản (cùng SKU cộng số lượng).
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/api/cart` | `{ shops[{ shopId, shopName, isMall, onVacation, lines[] }], lineCount, totalQuantity, selectedQuantity, selectedSubtotal }`. Mỗi dòng: `price`, `previousPrice` (giá lúc thêm nếu đã đổi), `available`, `canBuy`, `problem` ("Hết hàng.", "Chỉ còn N sản phẩm…", "Shop đang tạm nghỉ…") — không âm thầm xoá dòng |
+| POST | `/api/cart/items` | `{ skuId, quantity }` — vượt tồn → 409 |
+| PUT | `/api/cart/items/{skuId}` | `{ quantity?, selected?, skuId? }` — `skuId` = đổi sang phân loại khác của cùng sản phẩm |
+| DELETE | `/api/cart/items/{skuId}` · POST `/api/cart/items/remove` `{ skuIds }` | Xoá |
+| PUT | `/api/cart/selection` | `{ shopId?, selected }` — chọn / bỏ chọn cả giỏ hoặc một shop |
+
+**Thanh toán** — `/api/checkout`, cần đăng nhập. Thân chung (`CheckoutRequest`):
+
+```json
+{ "addressId": "…", "shops": [{ "shopId": "…", "carrierCode": "SIM_FAST", "voucherCode": "SHOP01GIAM10K", "note": "…" }],
+  "platformVoucherCode": "SHOPHUB50", "freeshipVoucherCode": "FREESHIP", "useCoins": true, "paymentMethod": "Cod" }
+```
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| POST | `/api/checkout/quote` | Báo giá các dòng **đã chọn** trong giỏ: mỗi shop có `shippingOptions` (phí, ngày nhận dự kiến), `shopVoucherOptions`; toàn đơn có `platformVouchers`, `freeshipVouchers` — **cả mã không dùng được** kèm `problem` ("Mua thêm ₫35.000 để dùng mã này.", "Mã đã hết lượt sử dụng."…); `coins { balance, max, used }`; `paymentMethods` (COD ẩn khi vượt `PAYMENT.COD_MAX_AMOUNT`); các khoản tiền; `problems`; `canPlace` |
+| POST | `/api/checkout` | Header **`Idempotency-Key`** (bắt buộc) + `{ checkout: CheckoutRequest, expectedGrandTotal }`. Tạo **mỗi shop một đơn**. Cùng khoá → trả đúng checkout cũ. 409 `PRICE_CHANGED` (data = báo giá mới), 409 hết hàng / hết lượt voucher. Giới hạn 30 lần/phút/người |
+| GET | `/api/checkout/{id}` | `{ status: AwaitingPayment / Placed / Expired, orders[{ code, shopName, status, grandTotal }], payment{ paymentId, status, redirectUrl, expiresAt } }` |
+| POST | `/api/checkout/{id}/pay` | "Thanh toán lại" (lần thử mới) khi còn hạn |
+
+`paymentMethod`: `Cod` (đơn vào thẳng **Chờ xác nhận**) hoặc `Simulated` (đơn **Chờ thanh toán**, hàng / voucher / xu được giữ
+tới `PAYMENT.TIMEOUT_MINUTES`; quá hạn: huỷ đơn, nhả kho, trả lượt voucher còn hạn, hoàn xu).
+
+**Thanh toán online**
+
+| Phương thức | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| POST | `/api/payments/webhooks/{provider}` | công khai, **chữ ký cổng** | IPN của cổng; xử lý đúng một lần theo `event_id`; trả lời theo khuôn của cổng (`{"code":"00",…}`), sai chữ ký → 400 |
+| GET | `/api/payments/simulated/{paymentId}` | công khai | Dữ liệu trang cổng giả lập (chỉ khi `SH_PAYMENT_SIMULATED=true`) |
+| POST | `/api/payments/simulated/{paymentId}/success\|fail` | công khai | Nút "Thành công" / "Thất bại" của cổng giả lập — cổng ghi sổ rồi gọi webhook có chữ ký |
+
+Webhook của SimulatedGateway: thân `{ eventId, paymentId, txnId, amount, status: "SUCCESS"|"FAILED", reason }`, header
+`X-Sim-Signature` = hex HMAC-SHA256 của thân.
+
+**Đơn mua** (`/api/orders`, của chính người mua; đơn người khác → 404)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/api/orders?tab=&q=&page=` | `tab`: `All`, `AwaitingPayment`, `Processing`, `Shipping`, `Completed`, `Cancelled`, `Returns`; `q` = mã đơn / tên shop / tên sản phẩm |
+| GET | `/api/orders/{code}` | Chi tiết: dòng (đã chụp tên, ảnh, phân loại, giá), giảm giá phân bổ từng dòng, địa chỉ đã chụp, lịch sử trạng thái |
+
+**Voucher & xu**
+
+| Phương thức | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/vouchers?shopId=` | công khai | Voucher công khai đang chạy của sàn / một shop (đăng nhập thì kèm lý do không dùng được) |
+| POST | `/api/account/vouchers/{id}/claim` | đăng nhập | Lưu vào ví |
+| GET | `/api/account/vouchers?tab=Valid\|ExpiringSoon\|Used\|Expired` | đăng nhập | Ví voucher |
+| GET | `/api/account/coins?page=` | đăng nhập | `{ balance, expiringSoon, history }` — số dư là tổng sổ xu |
+| GET / POST / PUT | `/api/seller/shops/{shopId}/vouchers[/{id}]` · POST `…/{id}/stop` | nhân viên có `MARKETING.MANAGE` | Voucher của shop (giảm tiền / %) |
+| GET / POST / PUT | `/api/admin/vouchers[/{id}]` · POST `…/{id}/stop` | `PROMO.VOUCHER.MANAGE` | Voucher của sàn (giảm tiền / % / miễn ship / hoàn xu; đối tượng: mọi người / khách mới) |
+| POST | `/api/admin/users/{id}/coins` | `PROMO.COIN.GRANT` | `{ delta, reason }` — cộng / thu hồi xu (không xuống dưới 0) |
+| POST | `/api/admin/job-runs/{id}` | `SYS.JOB.RUN` | Chạy ngay `sys.outbox-dispatch`, `sys.counter-recompute`, `sales.payment-expiry` |
+
+Thân voucher: `{ code, name, type: Amount|Percent|FreeShipping|CoinCashback, discountValue, discountPercentBp, maxDiscount,
+minOrder, audience: Everyone|NewBuyer|ShopFollowers, categoryIds, productIds, startAt, endAt, totalQuota, perUserLimit,
+isPublic, channel }` (`discountPercentBp`: phần vạn, 1200 = 12%).
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

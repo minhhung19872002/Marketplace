@@ -24,7 +24,8 @@ function useDebounced<T>(value: T, ms: number): T {
 
 const Header = () => {
   const navigate = useNavigate();
-  const { items, totalItems, totalPrice } = useCart();
+  const { lines: items, totalItems, cart } = useCart();
+  const totalPrice = cart.selectedSubtotal;
   const { user, isLoggedIn, logout } = useAuth();
   const { count: wishCount } = useWishlist();
 
@@ -250,8 +251,8 @@ const Header = () => {
                   <div className="header-cart-preview-title">Sản Phẩm Mới Thêm</div>
                   <div className="header-cart-preview-list">
                     {items.slice(0, 5).map((it) => (
-                      <Link key={it.cartKey} to={`/san-pham/${it.productId}`} className="header-cart-preview-item">
-                        <img src={imageOrPlaceholder(it.image)} alt={it.name} onError={handleImgError} />
+                      <Link key={it.skuId} to={`/san-pham/${it.productId}`} className="header-cart-preview-item">
+                        <img src={imageOrPlaceholder(it.imageUrl)} alt={it.name} onError={handleImgError} />
                         <span className="header-cart-preview-name">{it.name}</span>
                         <span className="header-cart-preview-price">{formatPrice(it.price)}</span>
                       </Link>

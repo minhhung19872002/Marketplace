@@ -22,6 +22,7 @@ public static class ApiServiceExtensions
     public const string AuthRateLimit = "auth";
     public const string OtpRateLimit = "otp";
     public const string UploadRateLimit = "upload";
+    public const string CheckoutRateLimit = "checkout";
 
     public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration config)
     {
@@ -94,11 +95,15 @@ public static class ApiServiceExtensions
     // where every client shares one IP
     private static int AuthPermitsPerMinute = 20;
     private static int OtpPermitsPerMinute = 10;
+    private static int CheckoutPermitsPerMinute = 30;
+    private static int GlobalPermitsPerMinute = 600;
 
     private static void AddRateLimiting(IServiceCollection services, IConfiguration config)
     {
         if (int.TryParse(config["SH_RATE_LIMIT_AUTH"], out var auth) && auth > 0) AuthPermitsPerMinute = auth;
         if (int.TryParse(config["SH_RATE_LIMIT_OTP"], out var otp) && otp > 0) OtpPermitsPerMinute = otp;
+        if (int.TryParse(config["SH_RATE_LIMIT_CHECKOUT"], out var checkout) && checkout > 0) CheckoutPermitsPerMinute = checkout;
+        if (int.TryParse(config["SH_RATE_LIMIT_GLOBAL"], out var global) && global > 0) GlobalPermitsPerMinute = global;
 
         services.AddRateLimiter(o =>
         {
@@ -122,11 +127,16 @@ public static class ApiServiceExtensions
                 ctx.User.FindFirst("sub")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
 
+            // Placing orders: per buyer (same key retries are cheap, but nobody needs 30 checkouts a minute)
+            o.AddPolicy(CheckoutRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.User.FindFirst("sub")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = CheckoutPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
+
             // Coarse per-IP ceiling; tighter named policies (login, OTP, checkout…) are added per feature
             o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) }));
+                    _ => new FixedWindowRateLimiterOptions { PermitLimit = GlobalPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
         });
     }
 

@@ -7,6 +7,7 @@ using ShopHub.Api.Hosting;
 using ShopHub.Application.Features.Auth;
 using ShopHub.Application.Identity;
 using ShopHub.Domain.Iam;
+using ShopHub.Application.Features.Cart;
 
 namespace ShopHub.Api.Controllers;
 
@@ -43,8 +44,8 @@ public sealed class AuthController : ApiControllerBase
     [EnableRateLimiting(ApiServiceExtensions.AuthRateLimit)]
     [ProducesResponseType<ApiResponse<AuthResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Register([FromBody] RegisterRequest body, CancellationToken ct) =>
-        SignedIn(await Sender.Send(new RegisterCommand(body.Target, body.Ticket, body.Password, body.FullName,
-            body.AcceptTerms, DeviceOf(body.Device)), ct), "Đăng ký thành công.");
+        await SignedInAsync(await Sender.Send(new RegisterCommand(body.Target, body.Ticket, body.Password, body.FullName,
+            body.AcceptTerms, DeviceOf(body.Device)), ct), ct, "Đăng ký thành công.");
 
     public record LoginRequest(string Identifier, string Password, string? Device);
 
@@ -55,7 +56,7 @@ public sealed class AuthController : ApiControllerBase
     [ProducesResponseType<ApiResponse<AuthResult>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequest body, CancellationToken ct) =>
-        SignedIn(await Sender.Send(new LoginCommand(body.Identifier, body.Password, DeviceOf(body.Device)), ct));
+        await SignedInAsync(await Sender.Send(new LoginCommand(body.Identifier, body.Password, DeviceOf(body.Device)), ct), ct);
 
     public record LoginOtpRequest(string Phone, string Code, string? Device);
 
@@ -64,7 +65,7 @@ public sealed class AuthController : ApiControllerBase
     [EnableRateLimiting(ApiServiceExtensions.AuthRateLimit)]
     [ProducesResponseType<ApiResponse<AuthResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> LoginOtp([FromBody] LoginOtpRequest body, CancellationToken ct) =>
-        SignedIn(await Sender.Send(new LoginWithOtpCommand(body.Phone, body.Code, DeviceOf(body.Device)), ct));
+        await SignedInAsync(await Sender.Send(new LoginWithOtpCommand(body.Phone, body.Code, DeviceOf(body.Device)), ct), ct);
 
     public record RefreshRequest(string? RefreshToken, string? Device);
 
@@ -111,6 +112,17 @@ public sealed class AuthController : ApiControllerBase
     {
         await Sender.Send(new ResetPasswordCommand(body.Target, body.Ticket, body.NewPassword), ct);
         return OkData<object?>(null, "Đã đặt lại mật khẩu. Vui lòng đăng nhập lại.");
+    }
+
+    /// <summary>A fresh sign-in also moves the guest cart (cookie sh_cart) into the account's cart (spec 3.4).</summary>
+    private async Task<OkObjectResult> SignedInAsync(AuthResult result, CancellationToken ct, string message = "")
+    {
+        if (Request.Cookies.TryGetValue(CartController.GuestCookie, out var guestToken) && !string.IsNullOrEmpty(guestToken))
+        {
+            await Sender.Send(new MergeGuestCartCommand(result.User.Id, guestToken), ct);
+            Response.Cookies.Delete(CartController.GuestCookie, CartController.GuestCookieOptions(Request));
+        }
+        return SignedIn(result, message);
     }
 
     private OkObjectResult SignedIn(AuthResult result, string message = "")

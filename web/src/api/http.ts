@@ -18,11 +18,14 @@ interface Envelope<T> {
 export class ApiError extends Error {
   readonly status: number;
   readonly fieldErrors: FieldError[];
+  // Extra payload on some errors (e.g. 409 PRICE_CHANGED carries the re-priced checkout)
+  readonly data: unknown;
 
-  constructor(status: number, message: string, fieldErrors: FieldError[] = []) {
+  constructor(status: number, message: string, fieldErrors: FieldError[] = [], data: unknown = null) {
     super(message);
     this.status = status;
     this.fieldErrors = fieldErrors;
+    this.data = data;
   }
 
   /** Message for one form field, if the server flagged it. */
@@ -38,10 +41,12 @@ interface RequestOptions {
   body?: unknown;
   // Send the access token and retry once after a silent refresh on 401
   auth?: boolean;
+  headers?: Record<string, string>;
 }
 
-async function send<T>(path: string, { method = 'GET', body, auth = true }: RequestOptions, retried: boolean): Promise<Envelope<T>> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+async function send<T>(path: string, options: RequestOptions, retried: boolean): Promise<Envelope<T>> {
+  const { method = 'GET', body, auth = true } = options;
+  const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const token = useAuthStore.getState().accessToken;
   if (auth && token) headers.Authorization = `Bearer ${token}`;
@@ -60,12 +65,12 @@ async function send<T>(path: string, { method = 'GET', body, auth = true }: Requ
   }
 
   if (response.status === 401 && auth && token && !retried) {
-    if (await refreshSession()) return send<T>(path, { method, body, auth }, true);
+    if (await refreshSession()) return send<T>(path, options, true);
   }
 
   const envelope = (await response.json().catch(() => null)) as Envelope<T> | null;
   if (!response.ok || !envelope?.success) {
-    throw new ApiError(response.status, envelope?.message || 'Yêu cầu không thành công.', envelope?.errors ?? []);
+    throw new ApiError(response.status, envelope?.message || 'Yêu cầu không thành công.', envelope?.errors ?? [], envelope?.data ?? null);
   }
   return envelope;
 }

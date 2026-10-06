@@ -26,6 +26,11 @@ export const authApi = {
 
   logout: () => apiCommand('/auth/logout', { method: 'POST', body: {}, auth: false }),
 
+  providers: () => apiRequest<{ googleClientId: string | null }>('/auth/providers', { auth: false }),
+
+  google: (idToken: string, acceptTerms: boolean) =>
+    apiRequest<AuthResult>('/auth/google', { method: 'POST', body: { idToken, acceptTerms }, auth: false }),
+
   forgotPassword: (target: string) =>
     apiRequest<OtpIssued>('/auth/forgot-password', { method: 'POST', body: { target }, auth: false }),
 

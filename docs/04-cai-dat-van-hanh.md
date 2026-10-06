@@ -73,6 +73,14 @@ Email thông báo đi qua Mailpit ở stack dev; push FCM là bản giả lập 
 5. Kiểm tay: đặt đơn VNPay bằng thẻ NCB thử của sandbox, xem đơn chuyển "Chờ xác nhận" sau IPN; chuẩn bị hàng với
    GHN → mã vận đơn GHN; đổi trạng thái trên trang thử của hãng → đơn đổi theo (hoặc chờ `logistics.carrier-sync`).
 
+## Đăng nhập Google (tuỳ chọn)
+
+1. Google Cloud Console → APIs & Services → Credentials → *Create OAuth client ID* loại **Web application**; *Authorized
+   JavaScript origins* = địa chỉ site (vd. `https://shophub.example.vn`, dev: `http://localhost:18000`).
+2. `.env`: `SH_GOOGLE_CLIENT_ID=<client id>` rồi `docker compose up -d api`. Trang Đăng nhập / Đăng ký hiện nút Google.
+3. Máy chủ tự kiểm ID token (chữ ký RS256 theo khoá công bố của Google, `iss`, `aud` = client id, hạn, email đã xác minh);
+   CSP của gateway đã cho phép `https://accounts.google.com/gsi/…` (script, khung, style, kết nối).
+
 ## Triển khai production
 
 `docker-compose.prod.yml` luôn dùng **chồng lên** tệp gốc. Khác với stack dev: chỉ gateway mở cổng (80 → chuyển hướng

@@ -522,6 +522,13 @@ Ngày là ngày Việt Nam `YYYY-MM-DD`, tính cả hai đầu (mặc định 30
 
 `POST /api/products/{id}/views?source=Home|Search|Category|Shop|Campaign|External|Direct` ghi nguồn lượt xem.
 
+## Đăng nhập Google (Phase 13)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/api/auth/providers` | `{ googleClientId }` — null khi tắt |
+| POST | `/api/auth/google` | `{ idToken, device?, acceptTerms }` → như `/auth/login`; 409 `NEED_CONSENT` khi cần tạo tài khoản mà chưa đồng ý điều khoản, 409 `GOOGLE_DISABLED` khi tắt, 401 khi token không hợp lệ / hết hạn / email chưa xác minh / tài khoản bị khoá |
+
 ## Thiết lập shop: tài khoản phụ, danh mục, trang trí (Phase 13)
 
 | Phương thức | Đường dẫn | Quyền shop | Mô tả |

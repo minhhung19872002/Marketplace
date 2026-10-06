@@ -4,6 +4,7 @@ import { authApi } from '../api/auth';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
 import { useCountdown } from '../lib/useCountdown';
+import GoogleSignIn from '../components/GoogleSignIn';
 import './Auth.css';
 
 type Mode = 'password' | 'otp';
@@ -161,6 +162,7 @@ const Login = () => {
             <div className="auth-links">
               <Link to="/quen-mat-khau">Quên mật khẩu</Link>
             </div>
+            <GoogleSignIn text="signin_with" onSignedIn={(r) => { signIn(r); navigate(redirectTo, { replace: true }); }} />
             <div className="auth-footer">
               Bạn mới biết đến ShopHub? <Link to="/dang-ky">Đăng ký</Link>
             </div>

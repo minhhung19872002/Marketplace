@@ -76,6 +76,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             // Image links of Excel imports: https://img.test/… serves a PNG, https://big.test/… is over the size limit
             services.AddHttpClient(ShopHub.Infrastructure.Media.RemoteImageFetcher.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => new FakeImageHostHandler());
+            services.AddHttpClient(ShopHub.Infrastructure.Identity.GoogleTokenVerifier.HttpClientName)
+                .ConfigurePrimaryHttpMessageHandler(() => new FakeGoogleCertsHandler());
         });
 
     public string ConnectionString => _postgres.GetConnectionString();
@@ -92,6 +94,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("SH_REDIS_URL", RedisEndpoint);
         Environment.SetEnvironmentVariable("SH_JWT_SECRET", JwtSecret);
         Environment.SetEnvironmentVariable("SH_JOBS_ENABLED", "false");
+        Environment.SetEnvironmentVariable("SH_GOOGLE_CLIENT_ID", FakeGoogle.ClientId);
+        Environment.SetEnvironmentVariable("SH_GOOGLE_CERTS_URL", FakeGoogle.CertsUrl);
         Environment.SetEnvironmentVariable("SH_SEED_SAMPLE", "false");
         Environment.SetEnvironmentVariable("SH_MINIO_ENDPOINT", MinioEndpoint);
         Environment.SetEnvironmentVariable("SH_MINIO_ACCESS_KEY", "shophub");

@@ -46,6 +46,10 @@ public sealed class ShopHubSettings
     // VNPay / MoMo / GHN / GHTK: each on only when its keys are set
     public ProviderSettings Providers { get; init; } = new();
 
+    // Đăng nhập Google: on only when the OAuth client id is set; the key set URL is overridable for tests
+    public string? GoogleClientId { get; init; }
+    public string GoogleCertsUrl { get; init; } = "https://www.googleapis.com/oauth2/v3/certs";
+
     public static ShopHubSettings FromConfiguration(IConfiguration config)
     {
         var csb = new NpgsqlConnectionStringBuilder
@@ -86,6 +90,8 @@ public sealed class ShopHubSettings
             LoadUsers = int.TryParse(config["SH_SEED_LOAD_USERS"], out var loadUsers) ? Math.Clamp(loadUsers, 0, 10_000) : 0,
             LoadUserPassword = string.IsNullOrWhiteSpace(config["SH_LOAD_USER_PASSWORD"]) ? null : config["SH_LOAD_USER_PASSWORD"],
             Providers = ProviderSettings.FromConfiguration(config),
+            GoogleClientId = string.IsNullOrWhiteSpace(config["SH_GOOGLE_CLIENT_ID"]) ? null : config["SH_GOOGLE_CLIENT_ID"]!.Trim(),
+            GoogleCertsUrl = config["SH_GOOGLE_CERTS_URL"] ?? "https://www.googleapis.com/oauth2/v3/certs",
             PerfProducts = string.Equals(config["SH_SEED"], "perf", StringComparison.OrdinalIgnoreCase)
                 ? int.TryParse(config["SH_PERF_PRODUCTS"], out var perf) ? Math.Clamp(perf, 1, 5_000_000) : 1_000_000
                 : 0,

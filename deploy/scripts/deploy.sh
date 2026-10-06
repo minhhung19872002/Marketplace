@@ -16,6 +16,9 @@ for app in api web seller admin; do docker tag "shophub/$app:$tag" "shophub/$app
 
 echo "Khởi động…"
 $compose up -d --remove-orphans
+# The gateway renders its config templates (bind-mounted) only when the container starts: recreate it so a changed
+# deploy/nginx/*.conf applies even though its image did not change
+$compose up -d --no-deps --force-recreate nginx
 
 # Wait for the API to be ready before declaring success
 i=0

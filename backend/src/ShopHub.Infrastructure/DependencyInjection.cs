@@ -159,6 +159,8 @@ public static class DependencyInjection
             })
             .ConfigurePrimaryHttpMessageHandler(Media.RemoteImageFetcher.CreateHandler);
         services.AddScoped<IRemoteImageFetcher, Media.RemoteImageFetcher>();
+        services.AddHttpClient(Identity.GoogleTokenVerifier.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(5));
+        services.AddScoped<IGoogleTokenVerifier, Identity.GoogleTokenVerifier>();
 
         services.AddHttpClient("health", c => c.Timeout = TimeSpan.FromSeconds(3));
         services.AddHealthChecks()

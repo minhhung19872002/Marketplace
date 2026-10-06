@@ -2859,6 +2859,51 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("users", "iam");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Iam.UserIdentity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("provider_key");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_identities");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_user_identities_user");
+
+                    b.HasIndex("Provider", "ProviderKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_user_identities_provider_key");
+
+                    b.ToTable("user_identities", "iam");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Iam.UserRole", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -6715,6 +6760,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_role_permissions_roles_role_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Iam.UserIdentity", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_identities_users_user_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Iam.UserRole", b =>

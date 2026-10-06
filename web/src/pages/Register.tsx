@@ -4,6 +4,7 @@ import { authApi } from '../api/auth';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
 import { useCountdown } from '../lib/useCountdown';
+import GoogleSignIn from '../components/GoogleSignIn';
 import './Auth.css';
 
 type Step = 'phone' | 'code' | 'details';
@@ -178,6 +179,7 @@ const Register = () => {
               </form>
             )}
 
+            <GoogleSignIn text="signup_with" onSignedIn={(r) => { signIn(r); navigate('/', { replace: true }); }} />
             <div className="auth-footer">
               Bạn đã có tài khoản? <Link to="/dang-nhap">Đăng nhập</Link>
             </div>

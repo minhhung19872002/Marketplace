@@ -47,6 +47,22 @@ public sealed class AuthController : ApiControllerBase
         await SignedInAsync(await Sender.Send(new RegisterCommand(body.Target, body.Ticket, body.Password, body.FullName,
             body.AcceptTerms, DeviceOf(body.Device)), ct), ct, "Đăng ký thành công.");
 
+    /// <summary>Sign-in methods the site offers besides the password (the Google client id when enabled).</summary>
+    [HttpGet("providers")]
+    [AllowAnonymous]
+    [ProducesResponseType<ApiResponse<AuthProvidersDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Providers(CancellationToken ct) => OkData(await Sender.Send(new AuthProvidersQuery(), ct));
+
+    public record GoogleRequest(string IdToken, string? Device, bool AcceptTerms);
+
+    /// <summary>Đăng nhập Google: the ID token from Google Identity Services; a new account needs acceptTerms (409 NEED_CONSENT otherwise).</summary>
+    [HttpPost("google")]
+    [AllowAnonymous]
+    [EnableRateLimiting(ApiServiceExtensions.AuthRateLimit)]
+    [ProducesResponseType<ApiResponse<AuthResult>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Google([FromBody] GoogleRequest body, CancellationToken ct) =>
+        await SignedInAsync(await Sender.Send(new GoogleLoginCommand(body.IdToken, DeviceOf(body.Device), body.AcceptTerms), ct), ct);
+
     public record LoginRequest(string Identifier, string Password, string? Device);
 
     /// <summary>Phone / email / username + password. Wrong credentials always get the same message.</summary>

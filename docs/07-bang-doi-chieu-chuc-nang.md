@@ -272,4 +272,6 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 3.9 phí dịch vụ Freeship Xtra / Voucher Xtra chỉ với shop tham gia; voucher sàn chỉ phủ shop Xtra (Phase 8–9 dời lại) | 00 #132, `XtraFeatures.cs`, seller → Kênh Marketing → Chương trình dịch vụ, admin → Voucher (chỉ shop Xtra) | `An_xtra_voucher_covers_only_shops_in_the_programme_and_only_their_orders_carry_the_service_fee`; e2e `shop-design.spec.cjs` "Chương trình dịch vụ" |
 | Lưu cài đặt shop không còn 500 khi việc nền cập nhật chỉ số cùng lúc | 00 #133, `SaveOwnChangesAsync`, `ConcurrencyRetry` | `Shop_settings_saves_survive_counter_updates_running_at_the_same_time`; L051 |
 | II.8 "Liên hệ shop" từ đơn mua; chat gắn với yêu cầu trả hàng (Phase 7 dời lại) — thẻ đơn hàng gửi sẵn | `ContactShopButton`, `openAboutOrder` | e2e `orders.spec.cjs` "Liên hệ shop"; L052 |
+| I.1 Đăng nhập Google (tuỳ chọn, cấu hình) (Phase 2 dời lại) | 00 #134, `GoogleLoginHandler`, `GoogleTokenVerifier`, `iam.user_identities`, nút Google ở Đăng nhập / Đăng ký | `A_new_google_account_needs_consent_then_signs_in_to_the_same_account_every_time`, `An_existing_account_with_the_verified_email_is_linked_not_duplicated_and_a_locked_one_stays_out`, `Forged_expired_foreign_or_unverified_tokens_are_refused` |
+| 3.5 Đa kho (một kiện mỗi kho) | **không bật** — 00 #135 | — |
 

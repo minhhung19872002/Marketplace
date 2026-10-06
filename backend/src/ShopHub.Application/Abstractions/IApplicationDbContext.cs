@@ -17,6 +17,7 @@ public interface IApplicationDbContext
     DbSet<SystemParameter> SystemParameters { get; }
     DbSet<OutboxMessage> OutboxMessages { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<UserIdentity> UserIdentities { get; }
 
     DbSet<User> Users { get; }
     DbSet<RefreshToken> RefreshTokens { get; }

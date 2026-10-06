@@ -159,3 +159,18 @@ internal sealed class SimulatedSmsConfiguration : IEntityTypeConfiguration<Simul
         b.HasIndex(s => new { s.To, s.CreatedAt }).HasDatabaseName("ix_simulated_sms_to");
     }
 }
+
+internal sealed class UserIdentityConfiguration : IEntityTypeConfiguration<UserIdentity>
+{
+    public void Configure(EntityTypeBuilder<UserIdentity> b)
+    {
+        b.ToTable("user_identities", "iam");
+        b.HasKey(i => i.Id);
+        b.Property(i => i.Provider).HasConversion<string>().HasMaxLength(20);
+        b.Property(i => i.ProviderKey).HasMaxLength(255).IsRequired();
+        b.Property(i => i.Email).HasMaxLength(255);
+        b.HasOne<User>().WithMany().HasForeignKey(i => i.UserId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(i => new { i.Provider, i.ProviderKey }).IsUnique().HasDatabaseName("ux_user_identities_provider_key");
+        b.HasIndex(i => i.UserId).HasDatabaseName("ix_user_identities_user");
+    }
+}

@@ -4,7 +4,7 @@
 }
 
 .shop-banner {
-  background: linear-gradient(135deg, #f53d2d, #ff7337);
+  background: var(--sh-gradient-brand);
   padding: 24px 0;
   margin-bottom: 16px;
 }

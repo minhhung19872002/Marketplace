@@ -67,7 +67,7 @@
 }
 
 .campaign-voucher small {
-  color: #888;
+  color: var(--sh-text-muted);
 }
 
 .campaign-voucher button {

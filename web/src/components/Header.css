@@ -1,6 +1,6 @@
 .header {
   background: var(--sh-primary);
-  background: linear-gradient(-180deg, #f53d2d, #f63);
+  background: var(--sh-gradient-brand);
   color: #fff;
   position: sticky;
   top: 0;
@@ -249,7 +249,7 @@
 .header-suggest-title {
   padding: 8px 14px 4px;
   font-size: 13px;
-  color: #999;
+  color: var(--sh-text-muted);
 }
 
 .header-suggest-item {
@@ -311,7 +311,7 @@
 
 .header-cart-preview-title {
   padding: 8px 14px;
-  color: #999;
+  color: var(--sh-text-muted);
   font-size: 13px;
 }
 
@@ -364,7 +364,7 @@
 
 .header-cart-preview-empty {
   text-align: center;
-  color: #999;
+  color: var(--sh-text-muted);
   padding: 30px 14px;
   font-size: 14px;
 }
@@ -423,4 +423,35 @@
   font-size: 11px;
   color: var(--sh-primary);
   background: var(--sh-on-primary);
+}
+
+.header-mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .header-mobile-only {
+    display: inline-flex;
+  }
+
+  /* Phone: logo and icons on the first row, the search box takes the whole second row */
+  .header-main {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .header-actions {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .header-search-block {
+    order: 3;
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .header-search-input {
+    min-width: 0;
+  }
 }

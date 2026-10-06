@@ -38,7 +38,7 @@ export const FlashSaleBoard = ({ board, compact = false }: { board: FlashBoard; 
               {i.discountPercent > 0 && <span className="flash-item-badge">-{i.discountPercent}%</span>}
             </span>
             <span className="flash-item-price">{formatPrice(i.flashPrice)}</span>
-            <span className="flash-item-bar" role="progressbar" aria-valuenow={i.soldPercent} aria-valuemin={0} aria-valuemax={100}>
+            <span className="flash-item-bar" role="progressbar" aria-label={`Đã bán ${i.soldPercent}% số suất`} aria-valuenow={i.soldPercent} aria-valuemin={0} aria-valuemax={100}>
               <span className="flash-item-bar-fill" style={{ width: `${Math.max(i.soldPercent, 8)}%` }} />
               <span className="flash-item-bar-text">
                 {i.sold >= i.quota ? 'ĐÃ HẾT' : i.soldPercent >= 80 ? 'SẮP CHÁY HÀNG' : `ĐÃ BÁN ${i.sold}`}

@@ -11,9 +11,15 @@ const money = (text) => Number(String(text).replace(/[^\d]/g, ''));
 
 /** Two in-stock single-SKU products from two different shops that run a shop voucher, each ≥ ₫150.000. */
 async function twoShopsWithVouchers(request) {
-  const result = await api(request, '/search/products?inStock=true&minPrice=150000&maxPrice=3000000&sort=BestSelling&pageSize=60');
+  // Shops created by earlier e2e runs sell too: walk a few pages, not just the top best-sellers
+  const cards = [];
+  for (let p = 1; p <= 5; p++) {
+    const result = await api(request, `/search/products?inStock=true&minPrice=150000&maxPrice=3000000&sort=BestSelling&pageSize=60&page=${p}`);
+    cards.push(...result.items);
+    if (result.items.length < 60) break;
+  }
   const picked = [];
-  for (const card of result.items) {
+  for (const card of cards) {
     if (picked.some((p) => p.shopId === card.shopId)) continue;
     const vouchers = (await api(request, `/vouchers?shopId=${card.shopId}`)).map((w) => w.voucher).filter((v) => v.type === 'Amount' && v.minOrder <= card.minPrice);
     if (vouchers.length === 0) continue;

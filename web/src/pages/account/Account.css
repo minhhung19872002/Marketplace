@@ -142,7 +142,7 @@
 
 .account-input:focus {
   outline: none;
-  border-color: #888;
+  border-color: var(--sh-text-muted);
 }
 
 .account-radios {
@@ -199,7 +199,7 @@
 }
 
 .account-btn-outline:disabled {
-  color: #aaa;
+  color: var(--sh-text-muted);
   cursor: not-allowed;
 }
 
@@ -228,7 +228,7 @@
 }
 
 .account-empty {
-  color: #888;
+  color: var(--sh-text-muted);
   font-size: 14px;
   padding: 24px 0;
   text-align: center;
@@ -894,4 +894,24 @@
 
 .checkin-day.today {
   box-shadow: 0 0 0 2px var(--sh-primary) inset;
+}
+
+.account-logout {
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Phone: "1fr" would grow to the nav's min-content width (one long row of links) and scroll the page sideways */
+@media (max-width: 768px) {
+  .account-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-sidebar,
+  .account-content {
+    min-width: 0;
+  }
 }

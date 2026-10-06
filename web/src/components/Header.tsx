@@ -227,6 +227,17 @@ const Header = () => {
         </div>
 
         <div className="header-actions">
+          {/* Phones: the top bar is hidden, so notifications and the account sit here */}
+          {isLoggedIn && (
+            <Link to="/thong-bao" className="header-icon-link header-mobile-only" aria-label="Thông báo" data-testid="mobile-notifications">
+              <span className="header-heart">🔔</span>
+              {(unread?.total ?? 0) > 0 && <span className="header-cart-badge">{unread!.total}</span>}
+            </Link>
+          )}
+          <Link to={isLoggedIn ? '/tai-khoan' : '/dang-nhap'} className="header-icon-link header-mobile-only"
+            aria-label={isLoggedIn ? 'Tài khoản của tôi' : 'Đăng nhập'} data-testid="mobile-account">
+            <span className="header-heart">{isLoggedIn && user ? user.fullName.charAt(0).toUpperCase() : '👤'}</span>
+          </Link>
           {/* Yêu thích */}
           <Link to="/yeu-thich" className="header-icon-link" aria-label="Yêu thích" data-testid="wishlist-link">
             <span className="header-heart">♡</span>

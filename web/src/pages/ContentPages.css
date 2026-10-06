@@ -28,7 +28,7 @@
 
 .content-updated {
   font-size: 12px;
-  color: #888;
+  color: var(--sh-text-muted);
   margin-bottom: 16px;
 }
 
@@ -93,5 +93,5 @@
 }
 
 .help-empty {
-  color: #888;
+  color: var(--sh-text-muted);
 }

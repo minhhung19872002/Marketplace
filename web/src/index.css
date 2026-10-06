@@ -1,21 +1,24 @@
 :root {
-  --sh-primary: #ee4d2d;
-  --sh-primary-dark: #d73211;
+  --sh-primary: #c93d19;
+  --sh-primary-dark: #a8300f;
   --sh-on-primary: #fff;
-  --sh-text-muted: #999;
+  --sh-focus: #1f5fb8;
+  /* WCAG AA: white text on every stop of it reaches 4.5:1 */
+  --sh-gradient-brand: linear-gradient(-180deg, #c93d19, #c64a1d);
+  --sh-text-muted: #6b6b6b;
   --sh-gradient-voucher: linear-gradient(135deg, #7b4397, #dc2430);
   --sh-gradient-freeship: linear-gradient(135deg, #11998e, #38ef7d);
   --bg: #f5f5f5;
   --text: #333;
-  --text-light: #757575;
+  --text-light: #6b6b6b;
   --border: #e8e8e8;
   --star: #ffce3d;
   --sh-overlay: rgba(0, 0, 0, 0.55);
   --sh-skeleton: #f2f2f2;
   --sh-skeleton-shine: #fafafa;
   /* Marketing tones for banners and shortcuts */
-  --sh-tone-primary: linear-gradient(135deg, #ee4d2d, #ff7337);
-  --sh-tone-mall: linear-gradient(135deg, #d0011b, #f53d2d);
+  --sh-tone-primary: linear-gradient(135deg, #c93d19, #c64a1d);
+  --sh-tone-mall: linear-gradient(135deg, #b5121b, #d0011b);
   --sh-tone-tech: linear-gradient(135deg, #2b6cb0, #4299e1);
   --sh-tone-amber: #eb9b00;
   --sh-tone-orange: #f69113;
@@ -82,4 +85,10 @@ img {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* WCAG 2.4.7: keyboard focus is always visible, even where a component drops the default outline for mouse users */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--sh-focus) !important;
+  outline-offset: 2px;
 }

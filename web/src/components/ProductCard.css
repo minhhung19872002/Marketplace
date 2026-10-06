@@ -32,7 +32,7 @@
   top: 0;
   right: 0;
   background: #ffd7be;
-  color: var(--sh-primary);
+  color: var(--sh-primary-dark);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 4px;
@@ -70,7 +70,7 @@
   border-radius: 50%;
   border: none;
   background: rgba(255, 255, 255, 0.9);
-  color: #bbb;
+  color: var(--sh-text-muted);
   font-size: 16px;
   line-height: 1;
   display: flex;
@@ -134,7 +134,7 @@
 
 .tag-voucher {
   background: #fff0ed;
-  color: #ee4d2d;
+  color: var(--sh-primary);
   border: 1px solid #ffbfae;
   font-size: 10px;
   padding: 1px 4px;
@@ -143,7 +143,7 @@
 
 .tag-freeship {
   background: #fff9f2;
-  color: #ee4d2d;
+  color: var(--sh-primary);
   border: 1px solid #ffd9c4;
   font-size: 10px;
   padding: 1px 4px;

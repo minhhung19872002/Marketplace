@@ -1,4 +1,4 @@
-import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Account.css';
 
@@ -17,8 +17,9 @@ const LINKS = [
 
 /** "Tài khoản của tôi" shell — signed-in users only. */
 const AccountLayout = () => {
-  const { user, isLoggedIn, isChecking } = useAuth();
+  const { user, isLoggedIn, isChecking, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   if (isChecking) return <div className="page-loader"><div className="loading-spinner" /></div>;
   if (!isLoggedIn || !user) return <Navigate to="/dang-nhap" replace state={{ from: location.pathname }} />;
@@ -38,6 +39,8 @@ const AccountLayout = () => {
                 {l.label}
               </NavLink>
             ))}
+            <button type="button" className="account-nav-link account-logout" onClick={async () => { await logout(); navigate('/'); }}
+              data-testid="account-logout">Đăng Xuất</button>
           </nav>
         </aside>
         <section className="account-content">

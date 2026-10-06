@@ -1,5 +1,5 @@
 .auth-hero {
-  background: linear-gradient(-180deg, #f53d2d, #f63);
+  background: var(--sh-gradient-brand);
   padding: 50px 0;
   min-height: 60vh;
 }
@@ -100,7 +100,7 @@
 
 .auth-terms {
   font-size: 12px;
-  color: #999;
+  color: var(--sh-text-muted);
   margin-top: 14px;
   line-height: 1.5;
 }
@@ -151,12 +151,14 @@
 .auth-footer {
   text-align: center;
   margin-top: 22px;
-  color: #999;
+  color: var(--sh-text-muted);
   font-size: 14px;
 }
 
 .auth-footer a {
   color: var(--sh-primary);
+  /* A link inside running text is told apart by more than its colour (WCAG 1.4.1) */
+  text-decoration: underline;
 }
 
 @media (max-width: 768px) {
@@ -230,7 +232,7 @@
 
 .auth-otp-btn:disabled {
   border-color: #ccc;
-  color: #999;
+  color: var(--sh-text-muted);
   cursor: not-allowed;
 }
 
@@ -246,7 +248,7 @@
   margin-bottom: 16px;
   padding: 0;
   font-size: 12px;
-  color: #999;
+  color: var(--sh-text-muted);
 }
 
 .auth-steps li {

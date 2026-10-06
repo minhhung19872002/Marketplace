@@ -643,7 +643,7 @@
 }
 
 .pd-review-tags {
-  color: #757575;
+  color: var(--sh-text-muted);
   font-size: 13px;
   margin: 4px 0;
 }
@@ -673,7 +673,7 @@
 .pd-review-report {
   border: none;
   background: none;
-  color: #999;
+  color: var(--sh-text-muted);
   font-size: 12px;
   cursor: pointer;
   padding: 0;

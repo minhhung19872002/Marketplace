@@ -8,6 +8,7 @@ import { storefrontApi } from '../api/storefront';
 import { useUnreadNotifications } from '../context/NotificationsContext';
 import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import { UserAvatar } from './AvatarEditor';
 import './Header.css';
 
 // The seller centre is its own app under /seller (full page load, not a client route)
@@ -93,7 +94,7 @@ const Header = () => {
                   onClick={() => setShowUserMenu((v) => !v)}
                   data-testid="user-menu"
                 >
-                  <span className="header-user-avatar">{user.fullName.charAt(0).toUpperCase()}</span>
+                  <UserAvatar className="header-user-avatar" />
                   {user.fullName}
                 </button>
                 {showUserMenu && (

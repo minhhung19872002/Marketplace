@@ -266,4 +266,5 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Giá khuyến mãi / Flash Sale trên thẻ sản phẩm khớp trang chi tiết | 00 #123, `CardPricing` | `A_running_discount_shows_on_search_shop_and_related_cards_like_on_the_product_page_and_ends_with_it`; L048 |
 | II.11 chặn / báo cáo shop trong chat; quản trị xem hội thoại bị báo cáo, phạt (Phase 10 dời lại) | 00 #124, `ChatReportFeatures.cs`, web chat → Chặn / Báo cáo, admin → Chat bị báo cáo | `A_reported_chat_is_reviewed_with_an_audit_row_and_two_admins_deciding_at_once_penalize_only_once`; e2e `chat.spec.cjs` |
 | VI.8 mẫu thông báo cho từng sự kiện đơn hàng (Phase 12 dời lại) | 00 #125, `TemplateCatalog` `ORDER.*`, `OrderEventHandler` | `Order_notifications_use_the_template_the_platform_edited_and_unknown_placeholders_are_refused` |
+| I.2 Ảnh đại diện (cắt ảnh, ≤ 1 MB) hiện ở header & tài khoản; Quyền riêng tư: tải dữ liệu của tôi, yêu cầu xoá tài khoản có điều kiện chặn (Phase 2 dời lại) | 00 #126–127, `AvatarEditor`, `/tai-khoan/quyen-rieng-tu`, `AccountDeletionGuards.cs` | `Deleting_the_account_waits_for_open_orders_and_the_wallet_and_the_export_holds_the_orders`; e2e `account.spec.cjs`; L049, L050 |
 

@@ -45,6 +45,9 @@ public static class DependencyInjection
         services.AddScoped<Features.Reports.AdminReports>();
         services.AddScoped<Features.Reports.SellerAnalytics>();
         services.AddScoped<Features.Admin.MessageTemplates>();
+        services.AddScoped<Abstractions.IAccountDeletionGuard, Features.Account.OpenOrdersDeletionGuard>();
+        services.AddScoped<Abstractions.IAccountDeletionGuard, Features.Account.WalletBalanceDeletionGuard>();
+        services.AddScoped<Abstractions.IAccountDeletionGuard, Features.Account.ShopOwnerDeletionGuard>();
         services.AddScoped<Features.Reviews.ReviewRewards>();
         services.AddScoped<Features.Returns.ReturnRefunder>();
         services.AddScoped<Features.Returns.ReturnAutomationService>();

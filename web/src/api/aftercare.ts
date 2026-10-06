@@ -3,7 +3,7 @@ import { ApiError, apiCommand, apiRequest, refreshSession } from './http';
 import { useAuthStore } from '../stores/auth';
 import type { PagedResult } from '../types';
 
-export type MediaPurpose = 'review' | 'evidence' | 'chat';
+export type MediaPurpose = 'review' | 'evidence' | 'chat' | 'avatar';
 
 /** Multipart upload (photos are re-encoded server-side; MP4 up to 30 s). */
 export async function uploadMedia(purpose: MediaPurpose, file: File, retried = false): Promise<{ id: string; url: string | null }> {

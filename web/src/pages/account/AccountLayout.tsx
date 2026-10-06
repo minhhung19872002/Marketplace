@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { UserAvatar } from '../../components/AvatarEditor';
 import './Account.css';
 
 const LINKS = [
@@ -13,6 +14,7 @@ const LINKS = [
   { to: '/tai-khoan/mat-khau', label: 'Đổi Mật Khẩu' },
   { to: '/tai-khoan/thiet-bi', label: 'Thiết Bị Đăng Nhập' },
   { to: '/tai-khoan/thong-bao', label: 'Cài Đặt Thông Báo' },
+  { to: '/tai-khoan/quyen-rieng-tu', label: 'Quyền Riêng Tư' },
 ];
 
 /** "Tài khoản của tôi" shell — signed-in users only. */
@@ -29,7 +31,7 @@ const AccountLayout = () => {
       <div className="container account-layout">
         <aside className="account-sidebar">
           <div className="account-user">
-            <span className="account-avatar">{user.fullName.charAt(0).toUpperCase()}</span>
+            <UserAvatar className="account-avatar" />
             <span className="account-user-name">{user.fullName}</span>
           </div>
           <div className="account-nav-title">Tài Khoản Của Tôi</div>

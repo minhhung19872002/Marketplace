@@ -549,6 +549,9 @@ Ngày là ngày Việt Nam `YYYY-MM-DD`, tính cả hai đầu (mặc định 30
 Thẻ sản phẩm ở mọi danh sách có thêm `isFlashSale`; `minPrice` / `originalPrice` / `discountPercent` là giá đang hiệu lực.
 Mẫu tin có thêm kênh `InApp` (`ORDER.*`).
 
+`GET /api/account/export` trả thêm `orders` (kèm `items`), `reviews`, `wishlist`, `followedShops`, `walletBalance`, `coins`;
+`POST /api/account/delete` trả 409 kèm lý do khi còn đơn / trả hàng / số dư / shop (00 #126).
+
 ## SEO (Phase 13)
 
 Gateway chuyển máy thu thập (User-Agent: Googlebot, Bingbot, Cốc Cốc, Facebook, Zalo…) trên mọi trang người mua sang

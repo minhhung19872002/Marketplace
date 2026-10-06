@@ -5,6 +5,7 @@ import { ApiError } from '../../api/http';
 import { formatDate } from '../../lib/datetime';
 import { useCountdown } from '../../lib/useCountdown';
 import { useAuthStore } from '../../stores/auth';
+import AvatarEditor from '../../components/AvatarEditor';
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: 'Male', label: 'Nam' },
@@ -81,6 +82,7 @@ const ProfilePage = () => {
           <p className="account-card-sub">Quản lý thông tin hồ sơ để bảo mật tài khoản</p>
         </div>
         {notice && <div className="account-notice" role="status">{notice}</div>}
+        <div className="account-profile-grid">
         <form className="account-form" onSubmit={onSubmit}>
           <label className="account-row">
             <span className="account-label">Họ và tên</span>
@@ -127,6 +129,8 @@ const ProfilePage = () => {
             </button>
           </div>
         </form>
+        <AvatarEditor onSaved={setNotice} />
+        </div>
       </div>
 
       <div className="account-card">

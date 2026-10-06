@@ -35,7 +35,7 @@ const MediaPicker = ({ purpose, value, onChange, max, testId }: {
     try {
       for (const file of Array.from(files).slice(0, max - value.length)) {
         const asset = await uploadMedia(purpose, file);
-        next.push({ id: asset.id, preview: asset.url ?? URL.createObjectURL(file) });
+        next.push({ id: asset.id, preview: asset.url ?? '' });
       }
       onChange(next);
     } catch (e) {

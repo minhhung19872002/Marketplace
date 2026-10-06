@@ -115,4 +115,18 @@ test.describe('Thiết lập & trang trí shop', () => {
     await page.getByTestId('shop-nav').filter({ hasText: 'Hồ Sơ Shop' }).click();
     await expect(page.getByTestId('shop-profile')).toContainText('Shop kiểm thử đơn hàng');
   });
+
+  test('Đăng ký bán hàng: ảnh CCCD (bucket riêng tư) xem trước được ngay trên trang', async ({ browser, request }) => {
+    const applicant = await registerViaApi(request, 'Người Đăng Ký Shop');
+    const page = await (await browser.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
+    await page.goto(`${BASE}/seller/`);
+    await page.getByLabel('Tên đăng nhập').fill(applicant.phone);
+    await page.getByLabel('Mật khẩu').fill(applicant.password);
+    await page.getByTestId('login-submit').click();
+    await page.locator('input[type=file]').first().setInputFiles(SAMPLE_PNG);
+    const preview = page.getByAltText('Mặt trước CCCD');
+    await expect(preview).toBeVisible();
+    // Private files have no public URL: the local preview must actually render (a blob: image is blocked by the CSP)
+    await expect.poll(() => preview.evaluate((img) => img.complete && img.naturalWidth > 0)).toBe(true);
+  });
 });

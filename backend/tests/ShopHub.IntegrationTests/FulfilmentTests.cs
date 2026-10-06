@@ -195,6 +195,44 @@ public class FulfilmentTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Deleting_the_account_waits_for_open_orders_and_the_wallet_and_the_export_holds_the_orders()
+    {
+        var p = await PlaceAsync();
+        var password = ApiFactory.DefaultPassword;
+
+        // "Tải dữ liệu của tôi" carries the order with its lines
+        var export = (await (await p.Buyer.Client.GetAsync("/api/account/export")).ReadEnvelopeAsync()).Data;
+        var order = export.GetProperty("orders").EnumerateArray().Single(o => o.Str("code") == p.Code);
+        order.GetProperty("items")[0].Str("name").Should().StartWith("Hộp Bút Gỗ");
+
+        // An order still waiting for the shop blocks the deletion, with what to do
+        var blocked = await p.Buyer.Client.PostAsJsonAsync("/api/account/delete", new { password });
+        blocked.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await blocked.ReadEnvelopeAsync()).Message.Should().Contain("đơn hàng chưa hoàn tất");
+
+        (await p.Buyer.Client.PostAsJsonAsync($"/api/orders/{p.Code}/cancel", new { reason = "Đổi ý, không muốn mua nữa" })).EnsureSuccessStatusCode();
+
+        // Money in Ví ShopHub blocks it too
+        await factory.WithDbAsync(async db =>
+        {
+            db.LedgerAccounts.Add(new Domain.Finance.LedgerAccount(Domain.Finance.LedgerOwnerType.Buyer, p.Buyer.Id,
+                Domain.Finance.LedgerAccountType.BuyerWallet, DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE finance.ledger_accounts SET balance = 25000 WHERE owner_id = {p.Buyer.Id} AND type = 'BuyerWallet'");
+        });
+        var wallet = await p.Buyer.Client.PostAsJsonAsync("/api/account/delete", new { password });
+        wallet.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await wallet.ReadEnvelopeAsync()).Message.Should().Contain("Ví ShopHub còn");
+        await factory.WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE finance.ledger_accounts SET balance = 0 WHERE owner_id = {p.Buyer.Id} AND type = 'BuyerWallet'"));
+
+        // Nothing left open: the account is anonymised, the order kept for accounting
+        (await p.Buyer.Client.PostAsJsonAsync("/api/account/delete", new { password })).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await OrderAsync(p.OrderId)).Status.Should().Be(OrderStatus.Cancelled);
+    }
+
+    [Fact]
     public async Task A_parcel_that_cannot_be_delivered_comes_back_into_stock_and_the_money_goes_back()
     {
         var p = await PlaceAsync("Simulated", quantity: 1, coins: 5_000);

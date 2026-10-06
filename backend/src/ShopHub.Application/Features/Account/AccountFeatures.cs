@@ -224,17 +224,66 @@ public sealed class ConfirmContactChangeHandler(IApplicationDbContext db, ICurre
 
 // ---------- Privacy: export / delete (Decree 13/2023) ----------
 
-public record MyDataExport(MeDto Profile, IReadOnlyList<AddressDto> Addresses, IReadOnlyList<SessionDto> Sessions, DateTimeOffset ExportedAt);
+public record ExportedOrderItem(string Name, string? Variant, int Quantity, long UnitPrice, long LineTotal);
+
+public record ExportedOrder(string Code, string Shop, string Status, long GrandTotal, DateTimeOffset CreatedAt, IReadOnlyList<ExportedOrderItem> Items);
+
+public record ExportedReview(string Product, int Rating, string Content, bool IsAnonymous, DateTimeOffset CreatedAt);
+
+public record ExportedCoinEntry(long Delta, string Reason, string? Note, DateTimeOffset CreatedAt, DateTimeOffset? ExpiresAt);
+
+/// <summary>"Tải dữ liệu của tôi" (Nghị định 13/2023): everything ShopHub keeps about the person, as JSON.</summary>
+public record MyDataExport(MeDto Profile, IReadOnlyList<AddressDto> Addresses, IReadOnlyList<SessionDto> Sessions, IReadOnlyList<ExportedOrder> Orders,
+    IReadOnlyList<ExportedReview> Reviews, IReadOnlyList<string> Wishlist, IReadOnlyList<string> FollowedShops, long WalletBalance,
+    IReadOnlyList<ExportedCoinEntry> Coins, DateTimeOffset ExportedAt);
 
 public record ExportMyDataQuery : IRequest<MyDataExport>;
 
-public sealed class ExportMyDataHandler(ISender sender, IClock clock) : IRequestHandler<ExportMyDataQuery, MyDataExport>
+public sealed class ExportMyDataHandler(ISender sender, IApplicationDbContext db, ICurrentUser currentUser, IClock clock)
+    : IRequestHandler<ExportMyDataQuery, MyDataExport>
 {
-    public async Task<MyDataExport> Handle(ExportMyDataQuery request, CancellationToken ct) => new(
-        await sender.Send(new GetMeQuery(), ct),
-        await sender.Send(new ListAddressesQuery(), ct),
-        await sender.Send(new ListSessionsQuery(), ct),
-        clock.UtcNow);
+    public async Task<MyDataExport> Handle(ExportMyDataQuery request, CancellationToken ct)
+    {
+        var userId = currentUser.RequireUserId();
+        var orders = await (from o in db.Orders.AsNoTracking()
+                            join s in db.Shops.IgnoreQueryFilters().AsNoTracking() on o.ShopId equals s.Id
+                            where o.BuyerId == userId
+                            orderby o.CreatedAt descending, o.Id
+                            select new { o.Id, o.Code, Shop = s.Name, o.Status, o.GrandTotal, o.CreatedAt }).ToListAsync(ct);
+        var orderIds = orders.Select(o => o.Id).ToList();
+        var items = (await db.OrderItems.AsNoTracking().Where(i => orderIds.Contains(i.OrderId)).OrderBy(i => i.Id)
+                .Select(i => new { i.OrderId, i.NameSnapshot, i.VariantSnapshot, i.Quantity, i.UnitPrice, i.LineTotal }).ToListAsync(ct))
+            .ToLookup(i => i.OrderId);
+        var reviews = await (from r in db.Reviews.AsNoTracking()
+                             join p in db.Products.IgnoreQueryFilters().AsNoTracking() on r.ProductId equals p.Id
+                             where r.BuyerId == userId
+                             orderby r.CreatedAt descending, r.Id
+                             select new ExportedReview(p.Name, r.Rating, r.Content, r.IsAnonymous, r.CreatedAt)).ToListAsync(ct);
+        var wishlist = await (from w in db.Wishlists.AsNoTracking()
+                              join p in db.Products.IgnoreQueryFilters().AsNoTracking() on w.ProductId equals p.Id
+                              where w.UserId == userId
+                              orderby w.CreatedAt descending, w.Id
+                              select p.Name).ToListAsync(ct);
+        var follows = await (from f in db.ShopFollowers.AsNoTracking()
+                             join s in db.Shops.IgnoreQueryFilters().AsNoTracking() on f.ShopId equals s.Id
+                             where f.UserId == userId
+                             orderby f.CreatedAt descending, f.Id
+                             select s.Name).ToListAsync(ct);
+        var wallet = await db.LedgerAccounts.AsNoTracking()
+            .Where(a => a.OwnerType == Domain.Finance.LedgerOwnerType.Buyer && a.OwnerId == userId && a.Type == Domain.Finance.LedgerAccountType.BuyerWallet)
+            .Select(a => (long?)a.Balance).FirstOrDefaultAsync(ct) ?? 0;
+        var coins = (await db.CoinLedger.AsNoTracking().Where(c => c.UserId == userId).OrderByDescending(c => c.CreatedAt).ThenBy(c => c.Id)
+                .Select(c => new { c.Delta, c.Reason, c.Note, c.CreatedAt, c.ExpiresAt }).ToListAsync(ct))
+            .Select(c => new ExportedCoinEntry(c.Delta, c.Reason.ToString(), c.Note, c.CreatedAt, c.ExpiresAt)).ToList();
+
+        return new MyDataExport(
+            await sender.Send(new GetMeQuery(), ct),
+            await sender.Send(new ListAddressesQuery(), ct),
+            await sender.Send(new ListSessionsQuery(), ct),
+            orders.Select(o => new ExportedOrder(o.Code, o.Shop, o.Status.ToString(), o.GrandTotal, o.CreatedAt,
+                items[o.Id].Select(i => new ExportedOrderItem(i.NameSnapshot, i.VariantSnapshot, i.Quantity, i.UnitPrice, i.LineTotal)).ToList())).ToList(),
+            reviews, wishlist, follows, wallet, coins, clock.UtcNow);
+    }
 }
 
 public record DeleteMyAccountCommand(string Password) : IRequest<Unit>;
@@ -268,6 +317,9 @@ public sealed class DeleteMyAccountHandler(
         user.Anonymise(now);
         await db.Addresses.Where(a => a.UserId == userId && a.DeletedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.DeletedAt, now), ct);
+        // No longer staff of anybody's shop (owners are refused by ShopOwnerDeletionGuard)
+        await db.ShopStaff.Where(s => s.UserId == userId && s.DeletedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.DeletedAt, now), ct);
         await db.SaveChangesAsync(ct);
         await sessions.RevokeAllAsync(userId, RevokeReasons.AccountDeleted, keepFamilyId: null, ct);
         return Unit.Value;

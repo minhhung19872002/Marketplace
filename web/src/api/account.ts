@@ -61,8 +61,20 @@ export interface AdminDivision {
   parentCode: string | null;
 }
 
+/** "Tải dữ liệu của tôi" — kept loose: it is saved as a file, the page only reads exportedAt */
+export interface MyDataExport {
+  exportedAt: string;
+  [section: string]: unknown;
+}
+
 export const accountApi = {
   me: () => apiRequest<Me>('/account/me'),
+
+  setAvatar: (assetId: string) => apiCommand<string>('/account/avatar', { method: 'PUT', body: { assetId } }),
+
+  exportData: () => apiRequest<MyDataExport>('/account/export'),
+
+  deleteAccount: (password: string) => apiCommand('/account/delete', { method: 'POST', body: { password } }),
 
   updateProfile: (body: { fullName: string; gender: Gender | null; dateOfBirth: string | null }) =>
     apiCommand('/account/profile', { method: 'PUT', body }),

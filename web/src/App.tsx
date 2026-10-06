@@ -40,6 +40,7 @@ const ProfilePage = lazy(() => import('./pages/account/ProfilePage'))
 const AddressesPage = lazy(() => import('./pages/account/AddressesPage'))
 const PasswordPage = lazy(() => import('./pages/account/PasswordPage'))
 const DevicesPage = lazy(() => import('./pages/account/DevicesPage'))
+const PrivacyPage = lazy(() => import('./pages/account/PrivacyPage'))
 const NotificationSettingsPage = lazy(() => import('./pages/account/NotificationSettingsPage'))
 const ChatPage = lazy(() => import('./pages/ChatPage'))
 const CmsPageView = lazy(() => import('./pages/ContentPages').then((m) => ({ default: m.CmsPageView })))
@@ -99,6 +100,7 @@ function App() {
                       <Route path="dia-chi" element={<AddressesPage />} />
                       <Route path="mat-khau" element={<PasswordPage />} />
                       <Route path="thiet-bi" element={<DevicesPage />} />
+                      <Route path="quyen-rieng-tu" element={<PrivacyPage />} />
                       <Route path="thong-bao" element={<NotificationSettingsPage />} />
                     </Route>
                   </Routes>

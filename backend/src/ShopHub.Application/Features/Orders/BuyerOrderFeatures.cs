@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
 using ShopHub.Application.Features.Storefront;
+using ShopHub.Domain.Logistics;
 using ShopHub.Domain.Sales;
 
 namespace ShopHub.Application.Features.Orders;
@@ -19,6 +20,22 @@ public record OrderSummaryDto(Guid Id, string Code, Guid ShopId, string ShopName
 public record OrderHistoryDto(OrderStatus? From, OrderStatus To, string ToLabel, OrderActor Actor, string? Reason, DateTimeOffset OccurredAt);
 
 public record OrderAddressDto(string ReceiverName, string Phone, string FullAddress);
+
+public record ShipmentEventDto(ShipmentStatus Status, string Label, string? Location, string Description, DateTimeOffset OccurredAt);
+
+public record ShipmentDto(Guid Id, string TrackingNo, string CarrierCode, string? CarrierName, ShipmentStatus Status, string StatusLabel, PickupMethod PickupMethod,
+    string? PickupSlot, long CodAmount, int WeightG, DateTimeOffset ExpectedDeliveryAt, IReadOnlyList<ShipmentEventDto> Events)
+{
+    public static ShipmentDto From(Shipment s, string? carrierName) => new(s.Id, s.TrackingNo, s.CarrierCode, carrierName, s.Status,
+        Shipment.Label(s.Status), s.PickupMethod, s.PickupSlot, s.CodAmount, s.WeightG, s.ExpectedDeliveryAt,
+        s.Events.OrderBy(e => e.OccurredAt).ThenBy(e => e.Id)
+            .Select(e => new ShipmentEventDto(e.Status, Shipment.Label(e.Status), e.Location, e.Description, e.OccurredAt)).ToList());
+}
+
+public record CancelRequestDto(Guid Id, string Reason, CancelRequestStatus Status, DateTimeOffset CreatedAt, DateTimeOffset DueAt, string? RejectReason);
+
+/// <summary>What the buyer may do now (drives the buttons of "Đơn mua").</summary>
+public record BuyerOrderActionsDto(bool Pay, bool Cancel, bool RequestCancel, bool ConfirmReceived, bool BuyAgain);
 
 public record OrderDetailDto(
     Guid Id,
@@ -47,7 +64,11 @@ public record OrderDetailDto(
     string? CancelReason,
     DateTimeOffset CreatedAt,
     DateTimeOffset? PaymentExpiresAt,
-    IReadOnlyList<OrderHistoryDto> History);
+    IReadOnlyList<OrderHistoryDto> History,
+    ShipmentDto? Shipment,
+    CancelRequestDto? CancelRequest,
+    BuyerOrderActionsDto Actions,
+    DateTimeOffset? AutoCompleteAt);
 
 /// <summary>Buyer's order tabs (spec II.8). Status groups map to the tabs; other buyers' orders never show (404).</summary>
 public enum BuyerOrderTab
@@ -146,12 +167,26 @@ internal static class OrderDetails
         var carrier = await db.Carriers.AsNoTracking().Where(c => c.Code == order.CarrierCode).Select(c => c.Name).FirstOrDefaultAsync(ct);
         var address = JsonSerializer.Deserialize<OrderAddressDto>(checkout.AddressSnapshot, new JsonSerializerOptions(JsonSerializerDefaults.Web))
                       ?? new OrderAddressDto("", "", "");
+        var shipment = await db.Shipments.AsNoTracking().Include(s => s.Events)
+            .Where(s => s.OrderId == order.Id && s.Direction == ShipmentDirection.Outbound && s.Status != ShipmentStatus.Cancelled)
+            .OrderByDescending(s => s.CreatedAt).FirstOrDefaultAsync(ct);
+        var cancel = await db.OrderCancelRequests.AsNoTracking().Where(r => r.OrderId == order.Id).OrderByDescending(r => r.CreatedAt).FirstOrDefaultAsync(ct);
+        var pendingRequest = cancel?.Status == CancelRequestStatus.Pending;
+        var actions = new BuyerOrderActionsDto(
+            Pay: order.Status == OrderStatus.PendingPayment,
+            Cancel: order.Status is OrderStatus.PendingPayment or OrderStatus.PendingConfirmation,
+            RequestCancel: order.Status == OrderStatus.ReadyToShip && !pendingRequest && cancel?.Status != CancelRequestStatus.Rejected,
+            ConfirmReceived: order.Status == OrderStatus.Delivered,
+            BuyAgain: order.Status is OrderStatus.Completed or OrderStatus.Cancelled or OrderStatus.Delivered or OrderStatus.Returned);
         return new OrderDetailDto(order.Id, order.Code, order.CheckoutId, shop.Id, shop.Name, shop.Slug, order.Status, OrderStateMachine.Label(order.Status),
             order.PaymentStatus, order.PaymentMethod, order.CarrierCode, carrier, order.ExpectedDeliveryDays, address, order.BuyerNote,
             order.Items.OrderBy(i => i.Id).Select(OrderProjections.Item).ToList(),
             order.Subtotal, order.ShopDiscount, order.PlatformDiscount, order.ShippingFee, order.ShippingDiscount, order.CoinUsed, order.GrandTotal,
             order.CancelReason, order.CreatedAt, checkout.Status == CheckoutStatus.AwaitingPayment ? checkout.PaymentExpiresAt : null,
             order.History.OrderBy(h => h.OccurredAt).ThenBy(h => h.Id)
-                .Select(h => new OrderHistoryDto(h.FromStatus, h.ToStatus, OrderStateMachine.Label(h.ToStatus), h.ActorType, h.Reason, h.OccurredAt)).ToList());
+                .Select(h => new OrderHistoryDto(h.FromStatus, h.ToStatus, OrderStateMachine.Label(h.ToStatus), h.ActorType, h.Reason, h.OccurredAt)).ToList(),
+            shipment is null ? null : ShipmentDto.From(shipment, carrier),
+            cancel is null ? null : new CancelRequestDto(cancel.Id, cancel.Reason, cancel.Status, cancel.CreatedAt, cancel.DueAt, cancel.RejectReason),
+            actions, order.AutoCompleteAt);
     }
 }

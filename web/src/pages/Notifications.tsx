@@ -1,51 +1,96 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { notificationsApi, type AppNotification, type NotificationCategory } from '../api/commerce';
+import { useAuth } from '../context/AuthContext';
+import { useUnreadNotifications } from '../context/NotificationsContext';
+import { formatDateTime } from '../lib/datetime';
 import './Notifications.css';
 
-const TABS = ['Cập Nhật Đơn Hàng', 'Khuyến Mãi', 'Cập Nhật Ví'];
-
-const DATA = [
-  { id: 1, tab: 0, icon: '🚚', title: 'Đơn hàng SH204819 đang giao', desc: 'Đơn hàng của bạn đang trên đường giao đến. Vui lòng chú ý điện thoại.', date: 'Hôm nay 09:24', unread: true },
-  { id: 2, tab: 1, icon: '🎁', title: 'Voucher 50.000đ vừa được tặng', desc: 'Nhập mã SHOPHUB50 khi thanh toán để được giảm ngay 50.000đ cho đơn từ 0đ.', date: 'Hôm nay 08:10', unread: true },
-  { id: 3, tab: 0, icon: '✅', title: 'Đơn hàng SH198233 đã giao thành công', desc: 'Cảm ơn bạn đã mua sắm. Đừng quên đánh giá sản phẩm để nhận ShopHub Xu nhé!', date: 'Hôm qua 17:45', unread: false },
-  { id: 4, tab: 1, icon: '⚡', title: 'Flash Sale 12h đang diễn ra', desc: 'Hàng ngàn sản phẩm giảm đến 50%. Săn ngay kẻo lỡ!', date: 'Hôm qua 12:00', unread: false },
-  { id: 5, tab: 2, icon: '💰', title: 'Hoàn tiền 12.000đ vào Ví ShopHub', desc: 'Bạn vừa nhận được 12.000đ hoàn tiền từ đơn hàng SH198233.', date: '2 ngày trước', unread: false },
+const TABS: { key: NotificationCategory | null; label: string }[] = [
+  { key: null, label: 'Tất Cả' },
+  { key: 'Order', label: 'Cập Nhật Đơn Hàng' },
+  { key: 'Promotion', label: 'Khuyến Mãi' },
+  { key: 'Wallet', label: 'Cập Nhật Ví' },
+  { key: 'Activity', label: 'Hoạt Động' },
 ];
 
-const Notifications = () => {
-  const [tab, setTab] = useState(-1); // -1 = tất cả
+const ICONS: Record<NotificationCategory, string> = { Order: '📦', Promotion: '🎁', Wallet: '💰', Activity: '🔔' };
 
-  const list = tab === -1 ? DATA : DATA.filter((n) => n.tab === tab);
+const Notifications = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { isLoggedIn, isChecking } = useAuth();
+  const [tab, setTab] = useState<NotificationCategory | null>(null);
+  const [page, setPage] = useState(1);
+  const list = useQuery({
+    queryKey: ['notifications', tab, page],
+    queryFn: () => notificationsApi.list(tab, page),
+    enabled: isLoggedIn,
+    placeholderData: keepPreviousData,
+  });
+  const unread = useUnreadNotifications(isLoggedIn);
+
+  if (isChecking) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  if (!isLoggedIn) return <Navigate to="/dang-nhap" replace state={{ from: '/thong-bao' }} />;
+
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  const open = async (n: AppNotification) => {
+    if (!n.isRead) {
+      await notificationsApi.read(n.id).catch(() => undefined);
+      refresh();
+    }
+    // Seller-centre links are a different app (full page load)
+    if (n.link?.startsWith('/seller/')) window.location.assign(n.link);
+    else if (n.link) navigate(n.link);
+  };
+  const items = list.data?.items ?? [];
+  const pages = list.data ? Math.max(1, Math.ceil(list.data.totalCount / list.data.pageSize)) : 1;
 
   return (
     <div className="noti-page">
       <div className="container">
-        <h1 className="noti-title">Thông Báo</h1>
+        <div className="noti-head">
+          <h1 className="noti-title">Thông Báo</h1>
+          {(unread.data?.total ?? 0) > 0 && (
+            <button className="noti-read-all" onClick={() => notificationsApi.readAll().then(refresh)} data-testid="noti-read-all">
+              Đánh dấu đã đọc tất cả
+            </button>
+          )}
+        </div>
 
         <div className="noti-tabs">
-          <button className={`noti-tab ${tab === -1 ? 'active' : ''}`} onClick={() => setTab(-1)}>
-            Tất Cả
-          </button>
-          {TABS.map((t, i) => (
-            <button key={t} className={`noti-tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>
-              {t}
+          {TABS.map((t) => {
+            const count = t.key ? unread.data?.byCategory[t.key] ?? 0 : unread.data?.total ?? 0;
+            return (
+              <button key={t.label} className={`noti-tab ${tab === t.key ? 'active' : ''}`} onClick={() => { setTab(t.key); setPage(1); }}>
+                {t.label}{count > 0 && <span className="noti-tab-count">{count}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="noti-list" data-testid="noti-list">
+          {items.length === 0 && !list.isLoading && <p className="noti-empty" data-testid="noti-empty">Chưa có thông báo nào.</p>}
+          {items.map((n) => (
+            <button key={n.id} className={`noti-item ${n.isRead ? '' : 'unread'}`} onClick={() => open(n)} data-testid="noti-item">
+              <span className="noti-icon">{ICONS[n.category]}</span>
+              <span className="noti-body">
+                <span className="noti-item-title">{n.title}</span>
+                <span className="noti-item-desc">{n.body}</span>
+                <span className="noti-item-date">{formatDateTime(n.createdAt)}</span>
+              </span>
             </button>
           ))}
         </div>
 
-        <div className="noti-list" data-testid="noti-list">
-          {list.map((n) => (
-            <div key={n.id} className={`noti-item ${n.unread ? 'unread' : ''}`} data-testid="noti-item">
-              <span className="noti-icon">{n.icon}</span>
-              <div className="noti-body">
-                <div className="noti-item-title">{n.title}</div>
-                <div className="noti-item-desc">{n.desc}</div>
-                <div className="noti-item-date">{n.date}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
+        {pages > 1 && (
+          <div className="noti-foot">
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>‹</button>
+            <span>{page}/{pages}</span>
+            <button disabled={page >= pages} onClick={() => setPage(page + 1)}>›</button>
+          </div>
+        )}
         <div className="noti-foot">
           <Link to="/" className="noti-back">← Về trang chủ</Link>
         </div>

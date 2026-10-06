@@ -46,6 +46,7 @@ builder.Host.UseSerilog((ctx, cfg) => cfg
 builder.Services
     .AddApplication()
     .AddInfrastructure(settings)
+    .AddSingleton<ShopHub.Application.Abstractions.IShippingDocuments, ShopHub.Reporting.ShippingDocuments>()
     .AddApi(builder.Configuration);
 
 var app = builder.Build();

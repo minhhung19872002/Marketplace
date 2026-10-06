@@ -212,7 +212,8 @@ public record CreateProductCommand(Guid ShopId, ProductInput Input) : IRequest<G
 
 public sealed class CreateProductValidator : AbstractValidator<CreateProductCommand>
 {
-    public CreateProductValidator() => RuleFor(x => x.Input).SetValidator(new ProductInputValidator());
+    public CreateProductValidator() =>
+        RuleFor(x => x.Input).NotNull().WithMessage("Thiếu thông tin sản phẩm.").SetValidator(new ProductInputValidator());
 }
 
 public sealed class CreateProductHandler(IApplicationDbContext db, SellerAccess access, ProductWriter writer)
@@ -237,7 +238,8 @@ public record UpdateProductCommand(Guid ShopId, Guid ProductId, ProductInput Inp
 
 public sealed class UpdateProductValidator : AbstractValidator<UpdateProductCommand>
 {
-    public UpdateProductValidator() => RuleFor(x => x.Input).SetValidator(new ProductInputValidator());
+    public UpdateProductValidator() =>
+        RuleFor(x => x.Input).NotNull().WithMessage("Thiếu thông tin sản phẩm.").SetValidator(new ProductInputValidator());
 }
 
 public sealed class UpdateProductHandler(IApplicationDbContext db, SellerAccess access, ProductWriter writer)

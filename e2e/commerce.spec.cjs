@@ -34,8 +34,10 @@ async function buyerWithAddress(request, name) {
 async function addToCartInBrowser(page, productId) {
   await page.goto(`${BASE}/san-pham/${productId}`);
   await page.waitForLoadState('networkidle');
-  await page.locator('[data-testid="add-to-cart"]').click();
-  await expect(page.locator('[data-testid="pd-toast"]')).toContainText('Đã thêm vào giỏ hàng');
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/cart/items') && r.request().method() === 'POST' && r.ok()),
+    page.locator('[data-testid="add-to-cart"]').click(),
+  ]);
 }
 
 test.describe('Giỏ hàng & thanh toán', () => {
@@ -149,7 +151,8 @@ test.describe('Giỏ hàng & thanh toán', () => {
       await apiAs(request, admin.accessToken, 'PUT', `/admin/system-parameters/${p.key}`, { value: String(value), version: p.version });
     };
 
-    const product = await findProduct(request, withoutTiers, 'inStock=true&sort=Newest&pageSize=60');
+    // A price band no other spec picks from (stock is asserted exactly)
+    const product = await findProduct(request, withoutTiers, 'inStock=true&sort=PriceDesc&minPrice=60000&maxPrice=140000&pageSize=60');
     const before = product.skus[0].available;
     const buyer = await buyerWithAddress(request, 'Người Bỏ Dở');
     await setTimeoutMinutes(1);

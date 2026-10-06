@@ -13,22 +13,6 @@ using ShopHub.Infrastructure.Persistence;
 
 namespace ShopHub.Infrastructure.Commerce;
 
-/// <summary>Carrier backed by the zone × weight table (logistics.shipping_rates).</summary>
-public sealed class SimulatedCarrier(ShopHubDbContext db) : ICarrier
-{
-    public const string ProviderName = "SIMULATED";
-
-    public string Provider => ProviderName;
-
-    public async Task<long?> QuoteFeeAsync(Carrier carrier, ShippingZone zone, int chargeableWeightG, CancellationToken ct)
-    {
-        var rates = await db.ShippingRates.AsNoTracking().Where(r => r.CarrierId == carrier.Id && r.Zone == zone)
-            .OrderBy(r => r.WeightFromG).ToListAsync(ct);
-        var rate = rates.FirstOrDefault(r => r.Covers(chargeableWeightG));
-        return rate?.FeeFor(chargeableWeightG);
-    }
-}
-
 /// <summary>
 /// The system's own fake payment gateway (spec IV): its page lets the tester press "Thành công" / "Thất bại" / "Bỏ đi",
 /// and it notifies the shop with an HMAC-signed callback exactly like a real gateway would. Only enabled when
@@ -86,9 +70,7 @@ public sealed class SimulatedGateway(ShopHubDbContext db, ShopHubSettings settin
     public async Task<bool> RefundAsync(Payment payment, long amount, string reason, CancellationToken ct)
     {
         var txn = await db.Set<SimulatedPayment>().FirstOrDefaultAsync(t => t.PaymentId == payment.Id && t.Outcome == SimulatedPaymentOutcome.Succeeded, ct);
-        if (txn is null) return false;
-        txn.Refund(clock.UtcNow);
-        return true;
+        return txn is not null && txn.Refund(amount, clock.UtcNow);
     }
 
     public string Acknowledge(bool accepted) => accepted ? """{"code":"00","message":"Confirm Success"}""" : """{"code":"97","message":"Invalid Checksum"}""";

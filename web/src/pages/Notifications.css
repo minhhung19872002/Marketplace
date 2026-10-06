@@ -78,3 +78,44 @@
   color: var(--sh-primary);
   font-size: 14px;
 }
+
+.noti-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.noti-read-all {
+  border: none;
+  background: none;
+  color: var(--sh-primary);
+  cursor: pointer;
+}
+
+.noti-tab-count {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--sh-on-primary);
+  background: var(--sh-primary);
+}
+
+button.noti-item {
+  width: 100%;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  background: inherit;
+}
+
+.noti-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.noti-empty {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-light);
+}

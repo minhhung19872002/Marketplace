@@ -183,8 +183,11 @@ test.describe('ShopHub Marketplace', () => {
     await loginInBrowser(page, account);
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
-    await page.locator('[data-testid="card-heart"]').first().click();
-    await expect(page.locator('[data-testid="wishlist-link"] .header-cart-badge')).toHaveText('1');
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/account/wishlist/') && r.request().method() === 'POST' && r.ok()),
+      page.locator('[data-testid="card-heart"]').first().click(),
+    ]);
+    await expect(page.locator('[data-testid="wishlist-link"] .header-cart-badge')).toHaveText('1', { timeout: 10_000 });
 
     // Survives a reload: it is on the server, not in localStorage
     await page.reload();
@@ -382,10 +385,14 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('[data-testid="shop-followers"]')).toHaveText(String(before + 1));
   });
 
-  test('Trang thông báo hiển thị', async ({ page }) => {
+  test('Trang thông báo cần đăng nhập và hiển thị thông báo thật', async ({ page, request }) => {
     await page.goto(`${BASE}/thong-bao`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForURL(/\/dang-nhap/);
+    const account = await registerViaApi(request, 'Người Xem Thông Báo');
+    await loginInBrowser(page, account);
+    await page.goto(`${BASE}/thong-bao`);
     await expect(page.locator('[data-testid="noti-list"]')).toBeVisible();
+    await expect(page.locator('[data-testid="noti-empty"]')).toBeVisible();
   });
 
   test('Footer hiển thị đầy đủ', async ({ page }) => {

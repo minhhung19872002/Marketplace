@@ -63,6 +63,12 @@ public interface IApplicationDbContext
     DbSet<CoinEntry> CoinLedger { get; }
     DbSet<Carrier> Carriers { get; }
     DbSet<ShippingRate> ShippingRates { get; }
+    DbSet<Shipment> Shipments { get; }
+    DbSet<ShipmentEvent> ShipmentEvents { get; }
+    DbSet<OrderCancelRequest> OrderCancelRequests { get; }
+    DbSet<Refund> Refunds { get; }
+    DbSet<Notification> Notifications { get; }
+    DbSet<ShopPenalty> ShopPenalties { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

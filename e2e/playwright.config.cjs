@@ -23,4 +23,7 @@ module.exports = defineConfig({
       },
   timeout: 30000,
   retries: 1,
+  // On the Docker stack every request goes through the gateway's production rate limit (30 req/s per IP):
+  // two workers stay under it, more would turn the suite into a load test
+  workers: process.env.SH_E2E_BASE_URL ? 2 : undefined,
 });

@@ -66,6 +66,12 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<Carrier> Carriers => Set<Carrier>();
     public DbSet<ShippingRate> ShippingRates => Set<ShippingRate>();
     public DbSet<SimulatedPayment> SimulatedPayments => Set<SimulatedPayment>();
+    public DbSet<Shipment> Shipments => Set<Shipment>();
+    public DbSet<ShipmentEvent> ShipmentEvents => Set<ShipmentEvent>();
+    public DbSet<OrderCancelRequest> OrderCancelRequests => Set<OrderCancelRequest>();
+    public DbSet<Refund> Refunds => Set<Refund>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<ShopPenalty> ShopPenalties => Set<ShopPenalty>();
 
     // Unique index name → what the user is told when a parallel request already took the value
     private static readonly Dictionary<string, string> UniqueMessages = new()
@@ -88,6 +94,8 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         ["ux_cart_items_cart_sku"] = "Sản phẩm đã có trong giỏ, vui lòng thử lại.",
         ["ux_carts_user"] = "Giỏ hàng đang được cập nhật, vui lòng thử lại.",
         ["ux_carts_guest"] = "Giỏ hàng đang được cập nhật, vui lòng thử lại.",
+        ["ux_cancel_requests_open"] = "Đơn hàng đã có yêu cầu huỷ đang chờ shop xử lý.",
+        ["ux_shipments_tracking"] = "Mã vận đơn bị trùng, vui lòng thử lại.",
     };
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

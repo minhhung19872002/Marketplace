@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { useWishlist } from '../context/WishlistContext';
 import { storefrontApi } from '../api/storefront';
+import { useUnreadNotifications } from '../context/NotificationsContext';
 import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import './Header.css';
@@ -28,6 +29,7 @@ const Header = () => {
   const totalPrice = cart.selectedSubtotal;
   const { user, isLoggedIn, logout } = useAuth();
   const { count: wishCount } = useWishlist();
+  const { data: unread } = useUnreadNotifications(isLoggedIn);
 
   const [keyword, setKeyword] = useState('');
   const [showSuggest, setShowSuggest] = useState(false);
@@ -80,7 +82,9 @@ const Header = () => {
             <a href={`${SELLER_URL}dang-ky-ban-hang`} className="header-top-link">Trở thành Người bán</a>
           </nav>
           <nav className="header-top-links">
-            <Link to="/thong-bao" className="header-top-link">🔔 Thông Báo</Link>
+            <Link to="/thong-bao" className="header-top-link" data-testid="notifications-link">
+              🔔 Thông Báo{(unread?.total ?? 0) > 0 && <span className="header-noti-badge" data-testid="notifications-badge">{unread!.total}</span>}
+            </Link>
             <span className="header-top-link">❓ Hỗ Trợ</span>
             {isLoggedIn && user ? (
               <div className="header-user" ref={userRef}>

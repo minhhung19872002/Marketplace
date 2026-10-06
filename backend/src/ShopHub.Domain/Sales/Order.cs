@@ -151,6 +151,8 @@ public class Order : Entity
     public Guid? ShopVoucherId { get; private set; }
     public int ExpectedDeliveryDays { get; private set; }
     public string? BuyerNote { get; private set; }
+    // Internal note of the shop staff (never shown to the buyer)
+    public string? SellerNote { get; private set; }
     public string? CancelReason { get; internal set; }
     public OrderActor? CancelledBy { get; internal set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -165,6 +167,22 @@ public class Order : Entity
 
     public List<OrderItem> Items { get; private set; } = [];
     public List<OrderStatusHistory> History { get; private set; } = [];
+
+    /// <summary>When the order completes by itself if the buyer never presses "Đã nhận được hàng".</summary>
+    public void ScheduleAutoComplete(DateTimeOffset at)
+    {
+        if (Status != OrderStatus.Delivered) throw new BusinessRuleException("Chỉ đơn đã giao mới hẹn tự hoàn thành.");
+        AutoCompleteAt = at;
+    }
+
+    public void SetSellerNote(string? note) => SellerNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+
+    /// <summary>The money the buyer paid online for this order went back (cancelled after paying, returned parcel).</summary>
+    public void MarkRefunded()
+    {
+        if (PaymentStatus != OrderPaymentStatus.Paid) throw new BusinessRuleException("Đơn chưa thanh toán thì không có gì để hoàn.");
+        PaymentStatus = OrderPaymentStatus.Refunded;
+    }
 
     public void SetTotals(long subtotal, long shopDiscount, long platformDiscount, long shippingFee, long shippingDiscount, long coinUsed,
         Guid? shopVoucherId, int expectedDeliveryDays)

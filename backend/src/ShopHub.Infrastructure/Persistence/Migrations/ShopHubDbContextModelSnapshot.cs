@@ -690,6 +690,84 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Engage.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("body");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DedupeKey")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("dedupe_key");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_read");
+
+                    b.Property<string>("Link")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("link");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<Guid?>("RefId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ref_id");
+
+                    b.Property<string>("RefType")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("ref_type");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("title");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notifications");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_notifications_user");
+
+                    b.HasIndex("UserId", "DedupeKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_notifications_dedupe")
+                        .HasFilter("dedupe_key IS NOT NULL");
+
+                    b.HasIndex("UserId", "IsRead")
+                        .HasDatabaseName("ix_notifications_unread");
+
+                    b.ToTable("notifications", "engage");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Engage.ProductView", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1491,6 +1569,157 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("carriers", "logistics");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Logistics.Shipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("CarrierCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("carrier_code");
+
+                    b.Property<long>("CodAmount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cod_amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("direction");
+
+                    b.Property<DateTimeOffset>("ExpectedDeliveryAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expected_delivery_at");
+
+                    b.Property<long>("Fee")
+                        .HasColumnType("bigint")
+                        .HasColumnName("fee");
+
+                    b.Property<DateTimeOffset?>("LabelPrintedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("label_printed_at");
+
+                    b.Property<DateTimeOffset>("LastEventAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_event_at");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("PickupMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("pickup_method");
+
+                    b.Property<string>("PickupSlot")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("pickup_slot");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TrackingNo")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("tracking_no");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<int>("WeightG")
+                        .HasColumnType("integer")
+                        .HasColumnName("weight_g");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shipments");
+
+                    b.HasIndex("TrackingNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_shipments_tracking");
+
+                    b.HasIndex("OrderId", "Direction")
+                        .HasDatabaseName("ix_shipments_order");
+
+                    b.HasIndex("Status", "LastEventAt")
+                        .HasDatabaseName("ix_shipments_open");
+
+                    b.ToTable("shipments", "logistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_shipments_amounts", "fee >= 0 AND cod_amount >= 0 AND weight_g > 0");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Logistics.ShipmentEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_id");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("location");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Raw")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("raw");
+
+                    b.Property<Guid>("ShipmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shipment_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shipment_events");
+
+                    b.HasIndex("ShipmentId", "ExternalId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_shipment_events_external");
+
+                    b.ToTable("shipment_events", "logistics");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Logistics.ShippingRate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2206,6 +2435,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("platform_discount");
 
+                    b.Property<string>("SellerNote")
+                        .HasColumnType("text")
+                        .HasColumnName("seller_note");
+
                     b.Property<DateTimeOffset?>("ShippedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("shipped_at");
@@ -2270,6 +2503,71 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_orders_total", "grand_total = subtotal - shop_discount - platform_discount + shipping_fee - shipping_discount - coin_used");
                         });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Sales.OrderCancelRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("BuyerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("buyer_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<DateTimeOffset>("DueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_at");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RejectReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reject_reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_order_cancel_requests");
+
+                    b.HasIndex("BuyerId")
+                        .HasDatabaseName("ix_order_cancel_requests_buyer_id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_cancel_requests_open")
+                        .HasFilter("status = 'Pending'");
+
+                    b.HasIndex("Status", "DueAt")
+                        .HasDatabaseName("ix_cancel_requests_due");
+
+                    b.ToTable("order_cancel_requests", "sales");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Sales.OrderItem", b =>
@@ -2557,6 +2855,75 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ux_webhook_event");
 
                     b.ToTable("payment_webhook_events", "sales");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Sales.Refund", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("destination");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<Guid?>("PaymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("payment_id");
+
+                    b.Property<string>("ProviderRef")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("provider_ref");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid?>("ReturnId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("return_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_refunds");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_refunds_order");
+
+                    b.HasIndex("PaymentId")
+                        .HasDatabaseName("ix_refunds_payment_id");
+
+                    b.ToTable("refunds", "sales", t =>
+                        {
+                            t.HasCheckConstraint("ck_refunds_amount", "amount > 0");
+                        });
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Shops.Shop", b =>
@@ -2852,6 +3219,52 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("shop_kyc", "shop");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopPenalty", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("integer")
+                        .HasColumnName("points");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_penalties");
+
+                    b.HasIndex("OrderId", "Reason")
+                        .IsUnique()
+                        .HasDatabaseName("ux_shop_penalties_order")
+                        .HasFilter("order_id IS NOT NULL");
+
+                    b.HasIndex("ShopId", "CreatedAt")
+                        .HasDatabaseName("ix_shop_penalties_shop");
+
+                    b.ToTable("shop_penalties", "shop", t =>
+                        {
+                            t.HasCheckConstraint("ck_shop_penalties_points", "points > 0");
+                        });
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopStaff", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3071,6 +3484,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("PaymentId")
                         .HasColumnType("uuid")
                         .HasColumnName("payment_id");
+
+                    b.Property<long>("RefundedAmount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("refunded_amount");
 
                     b.Property<DateTimeOffset?>("RefundedAt")
                         .HasColumnType("timestamp with time zone")
@@ -3324,6 +3741,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_variant_tiers_products_product_id");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Engage.Notification", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notifications_users_user_id");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Engage.ProductView", b =>
                 {
                     b.HasOne("ShopHub.Domain.Catalog.Product", null)
@@ -3443,6 +3870,26 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_roles_users_user_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Logistics.Shipment", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Sales.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_shipments_orders_order_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Logistics.ShipmentEvent", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Logistics.Shipment", null)
+                        .WithMany("Events")
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shipment_events_shipments_shipment_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Logistics.ShippingRate", b =>
@@ -3588,6 +4035,23 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_orders_shops_shop_id");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Sales.OrderCancelRequest", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_order_cancel_requests_users_buyer_id");
+
+                    b.HasOne("ShopHub.Domain.Sales.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_order_cancel_requests_orders_order_id");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Sales.OrderItem", b =>
                 {
                     b.HasOne("ShopHub.Domain.Sales.Order", null)
@@ -3635,6 +4099,22 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_payments_checkout_sessions_checkout_id");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Sales.Refund", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Sales.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_refunds_orders_order_id");
+
+                    b.HasOne("ShopHub.Domain.Sales.Payment", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_refunds_payments_payment_id");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Shops.Shop", b =>
                 {
                     b.HasOne("ShopHub.Domain.Iam.User", null)
@@ -3663,6 +4143,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_shop_kyc_shops_shop_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopPenalty", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_penalties_shops_shop_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopStaff", b =>
@@ -3711,6 +4201,11 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Iam.Role", b =>
                 {
                     b.Navigation("Permissions");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Logistics.Shipment", b =>
+                {
+                    b.Navigation("Events");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Sales.Cart", b =>

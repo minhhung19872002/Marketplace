@@ -415,3 +415,12 @@
 .header-suggest-all {
   color: var(--sh-primary);
 }
+
+.header-noti-badge {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--sh-primary);
+  background: var(--sh-on-primary);
+}

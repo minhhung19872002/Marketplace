@@ -90,5 +90,9 @@ public interface ICounterRecomputer
     Task RecomputeProductLikesAsync(Guid productId, CancellationToken ct);
     Task RecomputeShopFollowersAsync(Guid shopId, CancellationToken ct);
     Task RecomputeShopProductCountAsync(Guid shopId, CancellationToken ct);
+
+    /// <summary>"Đã bán" = units in orders handed to the carrier and not returned.</summary>
+    Task RecomputeProductSalesAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct);
+
     Task<int> RecomputeAllAsync(CancellationToken ct);
 }

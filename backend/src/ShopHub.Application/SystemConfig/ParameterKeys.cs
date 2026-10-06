@@ -51,6 +51,15 @@ public static class ParameterKeys
     public const string CoinExpiryDays = "COIN.EXPIRY_DAYS";
     public const string LogisticsHolidays = "LOGISTICS.HOLIDAYS";
     public const string JobPaymentExpiryCron = "JOB.PAYMENT_EXPIRY_CRON";
+
+    public const string OrderAutoCompleteDays = "ORDER.AUTO_COMPLETE_DAYS";
+    public const string OrderCancelRequestHours = "ORDER.CANCEL_REQUEST_HOURS";
+    public const string OrderShipDeadlineDays = "ORDER.SHIP_DEADLINE_DAYS";
+    public const string OrderPickupSlots = "ORDER.PICKUP_SLOTS";
+    public const string LogisticsSimStepSeconds = "LOGISTICS.SIM_STEP_SECONDS";
+    public const string LogisticsSimFailPercent = "LOGISTICS.SIM_FAIL_PERCENT";
+    public const string JobOrderAutomationCron = "JOB.ORDER_AUTOMATION_CRON";
+    public const string JobCarrierSimulatorCron = "JOB.CARRIER_SIMULATOR_CRON";
 }
 
 public static class ParameterGroups
@@ -67,6 +76,7 @@ public static class ParameterGroups
     public const string Payment = "PAYMENT";
     public const string Coin = "COIN";
     public const string Logistics = "LOGISTICS";
+    public const string Order = "ORDER";
 }
 
 public record ParameterDefinition(
@@ -166,5 +176,22 @@ public static class ParameterCatalog
             "Ngày nghỉ lễ", "Ngày (yyyy-MM-dd, giờ Việt Nam) không tính vào thời gian giao dự kiến; Chủ nhật luôn được bỏ qua."),
         new(ParameterKeys.JobPaymentExpiryCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch xử lý đơn quá hạn thanh toán", "Cron đối chiếu giao dịch treo với cổng và huỷ đơn quá hạn, nhả kho."),
+
+        new(ParameterKeys.OrderAutoCompleteDays, "3", ParameterDataType.Int, ParameterGroups.Order,
+            "Tự hoàn thành sau khi giao (ngày)", "Người mua không bấm \"Đã nhận được hàng\" thì đơn tự hoàn thành sau số ngày này kể từ lúc giao thành công."),
+        new(ParameterKeys.OrderCancelRequestHours, "24", ParameterDataType.Int, ParameterGroups.Order,
+            "Hạn shop xử lý yêu cầu huỷ (giờ)", "Shop không chấp thuận / từ chối trong thời gian này thì yêu cầu huỷ được tự chấp thuận."),
+        new(ParameterKeys.OrderShipDeadlineDays, "2", ParameterDataType.Int, ParameterGroups.Order,
+            "Hạn chuẩn bị hàng (ngày làm việc)", "Shop không xác nhận / giao cho đơn vị vận chuyển trong hạn này thì đơn tự huỷ và shop bị ghi 1 điểm phạt."),
+        new(ParameterKeys.OrderPickupSlots, "[\"08:00 - 12:00\",\"13:00 - 17:00\",\"18:00 - 21:00\"]", ParameterDataType.Json, ParameterGroups.Order,
+            "Khung giờ lấy hàng", "Các khung giờ shop chọn khi hẹn đơn vị vận chuyển đến lấy hàng."),
+        new(ParameterKeys.LogisticsSimStepSeconds, "120", ParameterDataType.Int, ParameterGroups.Logistics,
+            "Hãng giả lập: giây mỗi bước", "Đơn vị vận chuyển giả lập chuyển sang trạng thái kế tiếp sau bấy nhiêu giây (đã lấy → trung chuyển → đang giao → đã giao)."),
+        new(ParameterKeys.LogisticsSimFailPercent, "0", ParameterDataType.Int, ParameterGroups.Logistics,
+            "Hãng giả lập: tỉ lệ giao thất bại (%)", "Phần trăm kiện giao thất bại rồi hoàn về (để thử luồng hoàn hàng)."),
+        new(ParameterKeys.JobOrderAutomationCron, "*/5 * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch tự động hoá đơn hàng", "Cron tự hoàn thành đơn đã giao, tự chấp thuận yêu cầu huỷ quá hạn, tự huỷ đơn shop chậm chuẩn bị."),
+        new(ParameterKeys.JobCarrierSimulatorCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch hãng vận chuyển giả lập", "Cron đẩy trạng thái các vận đơn của đơn vị vận chuyển giả lập."),
     ];
 }

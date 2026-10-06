@@ -243,6 +243,38 @@ export interface OrderSummary {
   checkoutId: string;
 }
 
+export interface ShipmentEvent {
+  status: string;
+  label: string;
+  location: string | null;
+  description: string;
+  occurredAt: string;
+}
+
+export interface ShipmentInfo {
+  id: string;
+  trackingNo: string;
+  carrierCode: string;
+  carrierName: string | null;
+  status: string;
+  statusLabel: string;
+  pickupMethod: 'Pickup' | 'DropOff';
+  pickupSlot: string | null;
+  codAmount: number;
+  weightG: number;
+  expectedDeliveryAt: string;
+  events: ShipmentEvent[];
+}
+
+export interface CancelRequestInfo {
+  id: string;
+  reason: string;
+  status: 'Pending' | 'Approved' | 'Rejected' | 'AutoApproved';
+  createdAt: string;
+  dueAt: string;
+  rejectReason: string | null;
+}
+
 export interface OrderDetail {
   id: string;
   code: string;
@@ -271,12 +303,57 @@ export interface OrderDetail {
   createdAt: string;
   paymentExpiresAt: string | null;
   history: { from: OrderStatus | null; to: OrderStatus; toLabel: string; actor: string; reason: string | null; occurredAt: string }[];
+  shipment: ShipmentInfo | null;
+  cancelRequest: CancelRequestInfo | null;
+  actions: { pay: boolean; cancel: boolean; requestCancel: boolean; confirmReceived: boolean; buyAgain: boolean };
+  autoCompleteAt: string | null;
 }
 
 export const ordersApi = {
   list: (tab: OrderTab, q: string, page: number) =>
     apiRequest<PagedResult<OrderSummary>>(`/orders?tab=${tab}&page=${page}&pageSize=10${q ? `&q=${encodeURIComponent(q)}` : ''}`),
   get: (code: string) => apiRequest<OrderDetail>(`/orders/${encodeURIComponent(code)}`),
+  cancel: (code: string, reason: string) => apiCommand(`/orders/${encodeURIComponent(code)}/cancel`, { method: 'POST', body: { reason } }),
+  requestCancel: (code: string, reason: string) =>
+    apiCommand(`/orders/${encodeURIComponent(code)}/cancel-request`, { method: 'POST', body: { reason } }),
+  received: (code: string) => apiCommand(`/orders/${encodeURIComponent(code)}/received`, { method: 'POST' }),
+  buyAgain: (code: string) =>
+    apiCommand<{ added: number; skipped: string[] }>(`/orders/${encodeURIComponent(code)}/buy-again`, { method: 'POST' }),
+};
+
+export interface Tracking {
+  trackingNo: string;
+  carrierName: string;
+  status: string;
+  statusLabel: string;
+  expectedDeliveryAt: string;
+  events: ShipmentEvent[];
+}
+
+export const trackingApi = {
+  get: (trackingNo: string) => apiRequest<Tracking>(`/tracking/${encodeURIComponent(trackingNo.trim())}`, { auth: false }),
+};
+
+// ---------- notifications ----------
+
+export type NotificationCategory = 'Order' | 'Promotion' | 'Wallet' | 'Activity';
+
+export interface AppNotification {
+  id: string;
+  category: NotificationCategory;
+  title: string;
+  body: string;
+  link: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export const notificationsApi = {
+  list: (category: NotificationCategory | null, page: number) =>
+    apiRequest<PagedResult<AppNotification>>(`/notifications?page=${page}&pageSize=20${category ? `&category=${category}` : ''}`),
+  unread: () => apiRequest<{ total: number; byCategory: Partial<Record<NotificationCategory, number>> }>('/notifications/unread'),
+  read: (id: string) => apiRequest<number>(`/notifications/${id}/read`, { method: 'POST' }),
+  readAll: () => apiCommand<number>('/notifications/read-all', { method: 'POST' }),
 };
 
 // ---------- vouchers & coins ----------

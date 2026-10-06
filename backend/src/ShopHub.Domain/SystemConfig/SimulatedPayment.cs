@@ -31,11 +31,16 @@ public class SimulatedPayment : Entity
     public long Amount { get; private set; }
     public SimulatedPaymentOutcome Outcome { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    public long RefundedAmount { get; private set; }
     public DateTimeOffset? RefundedAt { get; private set; }
 
-    public void Refund(DateTimeOffset now)
+    /// <summary>Partial refunds add up (one order of a multi-shop checkout); fully refunded → Refunded.</summary>
+    public bool Refund(long amount, DateTimeOffset now)
     {
-        Outcome = SimulatedPaymentOutcome.Refunded;
+        if (Outcome != SimulatedPaymentOutcome.Succeeded || amount <= 0 || RefundedAmount + amount > Amount) return false;
+        RefundedAmount += amount;
         RefundedAt = now;
+        if (RefundedAmount == Amount) Outcome = SimulatedPaymentOutcome.Refunded;
+        return true;
     }
 }

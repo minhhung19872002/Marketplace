@@ -12,7 +12,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 3 | Danh mục & sản phẩm | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 3 dưới đây |
 | 4 | Tìm kiếm & trang người mua | **Xong** | Xem bảng Phase 4 dưới đây |
 | 5 | Giỏ hàng & thanh toán | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 5 dưới đây |
-| 6 | Đơn hàng & vận chuyển | Chưa làm | |
+| 6 | Đơn hàng & vận chuyển | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 6 dưới đây |
 | 7 | Đánh giá, trả hàng, khiếu nại | Chưa làm | |
 | 8 | Tài chính | Chưa làm | |
 | 9 | Marketing | Chưa làm | |
@@ -135,4 +135,24 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Ví voucher, ShopHub Xu, voucher của shop (Kênh Người Bán), voucher sàn + cộng xu (quản trị) | `/tai-khoan/voucher`, `/tai-khoan/xu`, seller `Mã giảm giá`, admin `Voucher của sàn`, nút "Xu" ở Người dùng | kiểm thủ công trên stack; API có phép thử |
 | Máy trạng thái đơn (một lớp duy nhất) | `OrderStateMachine` | `OrderStateMachineTests`; quy tắc quét mã `Order_status_is_only_assigned_inside_OrderStateMachine` |
 | **Dời lại** | đa kho, giới hạn mua/người theo sản phẩm, combo / Flash Sale trong giá (Phase 9), hoàn xu từ voucher & hết hạn xu (Phase 6/7), Ví ShopHub (Phase 8) | 00 #56 |
+
+## Phase 6 — Đơn hàng & vận chuyển
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| Máy trạng thái đầy đủ (chờ xác nhận → chờ lấy hàng → đang giao → đã giao → hoàn thành; giao thất bại → đang hoàn → đã hoàn; huỷ) | `OrderStateMachine`, `ShipmentEventProcessor` | `Cod_order_goes_from_confirmation_to_completed_through_the_simulated_carrier`, `A_parcel_that_cannot_be_delivered_comes_back_into_stock_and_the_money_goes_back` |
+| Trừ kho khi giao cho hãng, hoàn kho khi hoàn về, "đã bán" tính lại | 00 #58 | cùng hai phép thử trên (tồn 10 → 8; hoàn về → 10; `SoldCount` = 2) |
+| Xử lý đơn phía shop: tab, lọc, tìm, chuẩn bị hàng (khung giờ / bưu cục), chọn nhiều, in phiếu giao (PDF A6/A5, mã vạch) & phiếu soạn hàng, xuất Excel, ghi chú nội bộ | `SellerOrderFeatures`, `ShippingDocuments`, seller `Đơn hàng` | PDF đọc lại được chữ có dấu (PdfPig), `Picking_list_and_excel_export_are_real_files`; e2e **số 5** (in phiếu, tệp `%PDF-` hợp lệ) |
+| Bảng điều khiển shop | `SellerDashboardQuery`, seller `Bảng điều khiển` | e2e số 6 (ô "Yêu cầu huỷ" = 1) |
+| Hành trình vận đơn, tra cứu công khai | `shipments/shipment_events`, `/tra-cuu-van-don` | e2e số 5 (5 mốc, không lộ tên người nhận) |
+| Hãng giả lập đẩy trạng thái qua webhook có chữ ký, đúng một lần | 00 #59 | `Carrier_webhooks_need_the_signature_and_replays_change_nothing` |
+| Huỷ trước xác nhận / yêu cầu huỷ sau xác nhận / shop từ chối / tự chấp thuận | `CancelMyOrder`, `RequestCancel`, `DecideCancelRequest`, `OrderAutomationService` | `Buyer_cancels_before_confirmation_…`, `After_confirmation_the_buyer_must_ask_and_the_shop_may_refuse`, `An_unanswered_cancel_request_is_approved_automatically…`; e2e **số 6** |
+| Huỷ đã thanh toán online → hoàn tiền qua cổng | `OrderCanceller.RefundIfPaidAsync`, `sales.refunds` | `A_seller_cancelling_a_paid_order_refunds_it_to_the_gateway` |
+| Người mua huỷ và shop xác nhận cùng lúc → một bên thắng | khoá theo đơn (00 #60) | `Buyer_cancel_racing_the_seller_confirm_has_exactly_one_winner` (3 vòng song song) |
+| Tự hoàn thành sau N ngày; tự huỷ đơn shop chậm + điểm phạt | 00 #61 | `Delivered_orders_complete_themselves_and_late_shops_are_penalised_once` |
+| "Đã nhận được hàng", "Mua lại" | `ConfirmReceived`, `BuyAgain` | e2e số 5 |
+| Thông báo theo sự kiện | 00 #63, `/thong-bao`, chuông header | phép thử vòng đời kiểm 5 thông báo của người mua |
+| IDOR đơn / sản phẩm | lọc chủ sở hữu trong SQL | `Shops_and_buyers_only_reach_their_own_orders`; e2e **số 11** |
+| Thân dữ liệu thiếu trường không gây 500 | 00 #65 | `MalformedInputTests` |
+| **Dời lại** | đánh giá, trả hàng (Phase 7), giải ngân (Phase 8), đẩy tức thời (Phase 10) | 00 #67 |
 

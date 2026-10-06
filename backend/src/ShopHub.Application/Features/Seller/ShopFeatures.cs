@@ -99,9 +99,13 @@ public sealed class RegisterShopValidator : AbstractValidator<RegisterShopComman
         RuleFor(x => x.Name).NotEmpty().WithMessage("Vui lòng nhập tên shop.").Length(3, 50).WithMessage("Tên shop phải có từ 3 đến 50 ký tự.");
         RuleFor(x => x.Type).Must(t => t is ShopType.Personal or ShopType.Business).WithMessage("Loại shop không hợp lệ.");
         RuleFor(x => x.Description).MaximumLength(2000).WithMessage("Mô tả tối đa 2.000 ký tự.");
-        RuleFor(x => x.Warehouse.ContactName).NotEmpty().WithMessage("Vui lòng nhập tên người liên hệ lấy hàng.");
-        RuleFor(x => x.Warehouse.Phone).Must(p => Identifiers.NormalisePhone(p) is not null).WithMessage("Số điện thoại lấy hàng không hợp lệ.");
-        RuleFor(x => x.Warehouse.Street).NotEmpty().WithMessage("Vui lòng nhập địa chỉ lấy hàng cụ thể.");
+        RuleFor(x => x.Warehouse).NotNull().WithMessage("Vui lòng nhập địa chỉ lấy hàng.");
+        When(x => x.Warehouse is not null, () =>
+        {
+            RuleFor(x => x.Warehouse.ContactName).NotEmpty().WithMessage("Vui lòng nhập tên người liên hệ lấy hàng.");
+            RuleFor(x => x.Warehouse.Phone).Must(p => Identifiers.NormalisePhone(p) is not null).WithMessage("Số điện thoại lấy hàng không hợp lệ.");
+            RuleFor(x => x.Warehouse.Street).NotEmpty().WithMessage("Vui lòng nhập địa chỉ lấy hàng cụ thể.");
+        });
         When(x => x.Type == ShopType.Personal, () =>
         {
             RuleFor(x => x.Personal).NotNull().WithMessage("Shop cá nhân cần CCCD hai mặt.");
@@ -115,9 +119,13 @@ public sealed class RegisterShopValidator : AbstractValidator<RegisterShopComman
                 .When(x => x.Business is not null);
             RuleFor(x => x.Business!.LegalName).NotEmpty().WithMessage("Vui lòng nhập tên doanh nghiệp.").When(x => x.Business is not null);
         });
-        RuleFor(x => x.Bank.BankCode).NotEmpty().WithMessage("Vui lòng chọn ngân hàng.");
-        RuleFor(x => x.Bank.AccountNo).Matches(@"^\d{6,20}$").WithMessage("Số tài khoản gồm 6–20 chữ số.");
-        RuleFor(x => x.Bank.AccountName).NotEmpty().WithMessage("Vui lòng nhập tên chủ tài khoản.");
+        RuleFor(x => x.Bank).NotNull().WithMessage("Vui lòng nhập tài khoản ngân hàng nhận tiền.");
+        When(x => x.Bank is not null, () =>
+        {
+            RuleFor(x => x.Bank.BankCode).NotEmpty().WithMessage("Vui lòng chọn ngân hàng.");
+            RuleFor(x => x.Bank.AccountNo).Matches(@"^\d{6,20}$").WithMessage("Số tài khoản gồm 6–20 chữ số.");
+            RuleFor(x => x.Bank.AccountName).NotEmpty().WithMessage("Vui lòng nhập tên chủ tài khoản.");
+        });
     }
 }
 

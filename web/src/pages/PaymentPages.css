@@ -146,3 +146,58 @@
 .payment-retry {
   margin-top: 12px;
 }
+
+.tracking-page {
+  text-align: left;
+}
+
+.tracking-form {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+
+.tracking-form input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+}
+
+.shipment-timeline {
+  margin: 12px 0;
+  padding-left: 18px;
+  list-style: none;
+  border-left: 2px solid var(--border);
+}
+
+.shipment-timeline li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 0 14px 12px;
+  color: var(--text-light);
+}
+
+.shipment-timeline li::before {
+  content: '';
+  position: absolute;
+  left: -25px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.shipment-timeline li.current {
+  color: var(--sh-tone-teal);
+}
+
+.shipment-timeline li.current::before {
+  background: var(--sh-tone-teal);
+}
+
+.shipment-time {
+  font-size: 12px;
+}

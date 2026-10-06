@@ -5,9 +5,16 @@ namespace ShopHub.Application.Abstractions;
 
 // ---------- shipping (spec V) ----------
 
+public record CarrierParcel(Guid OrderId, string OrderCode, string FromProvince, string ToProvince, int WeightG, long CodAmount,
+    PickupMethod PickupMethod, string? PickupSlot);
+
+/// <summary>A verified status notification from a carrier.</summary>
+public record CarrierEvent(string EventId, string TrackingNo, ShipmentStatus Status, string? Location, string Description, DateTimeOffset OccurredAt,
+    string Raw);
+
 /// <summary>
-/// A shipping provider. SIMULATED reads the zone × weight table; GHN/GHTK sandboxes come in Phase 11.
-/// Shipment creation, labels and tracking are added with the order flow (Phase 6).
+/// A shipping provider. SIMULATED reads the zone × weight table, issues tracking numbers and pushes status events
+/// through the same webhook path a real carrier uses; GHN/GHTK sandboxes come in Phase 11.
 /// </summary>
 public interface ICarrier
 {
@@ -15,6 +22,69 @@ public interface ICarrier
 
     /// <summary>Fee for one parcel, or null when the carrier does not serve that zone / weight.</summary>
     Task<long?> QuoteFeeAsync(Carrier carrier, ShippingZone zone, int chargeableWeightG, CancellationToken ct);
+
+    /// <summary>Book the pickup / drop-off and get the tracking number.</summary>
+    Task<string> CreateShipmentAsync(Carrier carrier, CarrierParcel parcel, CancellationToken ct);
+
+    Task CancelShipmentAsync(Carrier carrier, string trackingNo, CancellationToken ct);
+
+    /// <summary>Check the carrier's signature and parse its notification; null when not authentic.</summary>
+    CarrierEvent? VerifyWebhook(IReadOnlyDictionary<string, string> headers, string body);
+}
+
+// ---------- shipping documents (ShopHub.Reporting) ----------
+
+public enum LabelSize
+{
+    A6,
+    A5,
+}
+
+public record ShippingLabelItem(string Name, string? Variant, int Quantity);
+
+public record ShippingLabel(
+    string TrackingNo,
+    string CarrierName,
+    string OrderCode,
+    string SenderName,
+    string SenderPhone,
+    string SenderAddress,
+    string ReceiverName,
+    string ReceiverPhone,
+    string ReceiverAddress,
+    long CodAmount,
+    int WeightG,
+    IReadOnlyList<ShippingLabelItem> Items,
+    string? BuyerNote,
+    DateTimeOffset CreatedAt);
+
+public record PickingLine(string? SellerSku, string Name, string? Variant, int Quantity, IReadOnlyList<string> OrderCodes);
+
+public record OrderExportRow(
+    string Code,
+    DateTimeOffset CreatedAt,
+    string Status,
+    string BuyerName,
+    string ReceiverPhone,
+    string Address,
+    string Items,
+    long Subtotal,
+    long ShopDiscount,
+    long ShippingFee,
+    long GrandTotal,
+    string PaymentMethod,
+    string? TrackingNo,
+    string? Carrier);
+
+public interface IShippingDocuments
+{
+    /// <summary>One page per parcel: barcode of the tracking number, order code, sender, receiver, COD, item list.</summary>
+    byte[] RenderLabels(IReadOnlyList<ShippingLabel> labels, LabelSize size);
+
+    /// <summary>Picking list grouping the same SKU across orders.</summary>
+    byte[] RenderPickingList(string shopName, IReadOnlyList<PickingLine> lines, DateTimeOffset printedAt);
+
+    byte[] ExportOrders(IReadOnlyList<OrderExportRow> rows);
 }
 
 // ---------- payment (spec IV) ----------

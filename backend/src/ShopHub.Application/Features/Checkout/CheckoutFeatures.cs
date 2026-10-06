@@ -42,8 +42,9 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
         RuleFor(x => x.IdempotencyKey).NotEmpty().WithMessage("Thiếu Idempotency-Key.")
             .MaximumLength(100).WithMessage("Idempotency-Key tối đa 100 ký tự.");
         RuleFor(x => x.ExpectedGrandTotal).GreaterThanOrEqualTo(0).WithMessage("Tổng thanh toán không hợp lệ.");
+        RuleFor(x => x.Request).NotNull().WithMessage("Thiếu thông tin đơn hàng.");
         RuleForEach(x => x.Request.Shops).ChildRules(s =>
-            s.RuleFor(c => c.Note).MaximumLength(200).WithMessage("Lời nhắn cho shop tối đa 200 ký tự."));
+            s.RuleFor(c => c.Note).MaximumLength(200).WithMessage("Lời nhắn cho shop tối đa 200 ký tự.")).When(x => x.Request is not null);
     }
 }
 
@@ -153,6 +154,7 @@ public sealed class PlaceOrderHandler(
                 OrderStateMachine.Start(order, OrderActor.Buyer, userId, now);
                 db.Orders.Add(order);
                 orders.Add(order);
+                outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Placed, null));
             }
 
             // ----- voucher uses (fixed order: shop vouchers by id, then platform ones) -----

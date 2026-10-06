@@ -95,7 +95,12 @@ public static class DependencyInjection
         services.AddScoped<OutboxCleanupJob>();
 
         // Commerce: carriers and payment gateways behind interfaces (real GHN / VNPay / MoMo arrive in Phase 11)
-        services.AddScoped<ICarrier, Commerce.SimulatedCarrier>();
+        services.AddScoped<Commerce.SimulatedCarrier>();
+        services.AddScoped<ICarrier>(sp => sp.GetRequiredService<Commerce.SimulatedCarrier>());
+        services.AddScoped<Commerce.CarrierSimulator>();
+        services.AddScoped<IOutboxHandler, OrderEventHandler>();
+        services.AddScoped<Jobs.OrderAutomationJob>();
+        services.AddScoped<Jobs.CarrierSimulatorJob>();
         services.AddScoped<Commerce.SimulatedGateway>();
         if (settings.PaymentSimulated)
         {

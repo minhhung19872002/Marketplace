@@ -4,6 +4,16 @@
     <ProjectReference Include="..\ShopHub.Application\ShopHub.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="QuestPDF" Version="2026.9.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Noto Sans (SIL Open Font License 1.1, see Fonts/OFL.txt): full Vietnamese coverage, embedded in every PDF -->
+    <EmbeddedResource Include="Fonts\*.ttf" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

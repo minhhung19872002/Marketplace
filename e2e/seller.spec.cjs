@@ -78,6 +78,8 @@ test.describe('Kênh Người Bán', () => {
     await page.getByLabel('Tên đăng nhập').fill(seller.phone);
     await page.getByLabel('Mật khẩu').fill(seller.password);
     await page.getByTestId('login-submit').click();
+    // The seller centre opens on the dashboard (III.2)
+    await page.getByRole('menuitem', { name: 'Sản phẩm', exact: true }).click();
     await page.getByTestId('add-product').click();
 
     await page.locator('[data-testid="product-upload"] input[type="file"]').setInputFiles(SAMPLE_PNG);

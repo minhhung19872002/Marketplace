@@ -15,6 +15,8 @@ public static class DependencyInjection
             cfg.RegisterServicesFromAssembly(assembly);
             cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
         });
+        // A rule stops at its first failure: NotNull() then guards the Must(...) after it (no 500 on a null list)
+        ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
         services.AddScoped<Identity.OtpService>();
         services.AddScoped<Identity.SessionService>();
@@ -33,6 +35,11 @@ public static class DependencyInjection
         services.AddScoped<Features.Payments.CheckoutReleaser>();
         services.AddScoped<Features.Payments.PaymentExpiryService>();
         services.AddScoped<Features.Payments.PaymentWebhookIntake>();
+        services.AddScoped<Features.Orders.OrderLocks>();
+        services.AddScoped<Features.Orders.OrderCanceller>();
+        services.AddScoped<Features.Orders.ShipmentEventProcessor>();
+        services.AddScoped<Features.Orders.CarrierWebhookIntake>();
+        services.AddScoped<Features.Orders.OrderAutomationService>();
         return services;
     }
 }

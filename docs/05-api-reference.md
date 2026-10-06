@@ -274,6 +274,48 @@ Thân voucher: `{ code, name, type: Amount|Percent|FreeShipping|CoinCashback, di
 minOrder, audience: Everyone|NewBuyer|ShopFollowers, categoryIds, productIds, startAt, endAt, totalQuota, perUserLimit,
 isPublic, channel }` (`discountPercentBp`: phần vạn, 1200 = 12%).
 
+## Đơn hàng & vận chuyển (Phase 6)
+
+**Người mua** (`/api/orders/{code}`, đơn của chính mình):
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| POST | `/cancel` | `{ reason }` — huỷ trực tiếp khi **Chờ thanh toán** (huỷ cả checkout) hoặc **Chờ xác nhận**; sau khi shop xác nhận → 409 "vui lòng gửi yêu cầu huỷ" |
+| POST | `/cancel-request` | `{ reason }` — khi **Chờ lấy hàng**; shop phản hồi trong `ORDER.CANCEL_REQUEST_HOURS`, quá hạn tự chấp thuận; mỗi đơn một yêu cầu đang chờ (409 nếu đã có / đã bị từ chối) |
+| POST | `/received` | "Đã nhận được hàng" → **Hoàn thành** |
+| POST | `/buy-again` | Đưa lại các dòng còn bán vào giỏ → `{ added, skipped }` |
+
+`GET /api/orders/{code}` bổ sung `shipment { trackingNo, carrierName, statusLabel, events[] }`, `cancelRequest`, `autoCompleteAt` và
+`actions { pay, cancel, requestCancel, confirmReceived, buyAgain }` (nút nào được bấm lúc này).
+
+**Kênh Người Bán** (`/api/seller`, nhân viên shop; `ORDER.VIEW` để xem, `ORDER.MANAGE` để thao tác; shop khác → 404):
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/shops/{shopId}/dashboard` | Việc cần làm (chờ xác nhận, chờ lấy hàng, đang giao, yêu cầu huỷ, giao lỗi, sản phẩm bị khoá, sắp hết hàng), điểm phạt, doanh số hôm nay / 7 / 30 ngày |
+| GET | `/shops/{shopId}/orders?tab=&q=&from=&to=&carrier=&paymentMethod=&page=` | `tab`: `All`, `Unpaid`, `ToConfirm`, `ToShip`, `Shipping`, `Delivered`, `Cancelled`, `CancelRequests`, `Failed`; `q` = mã đơn / mã vận đơn / tên người mua / tên sản phẩm |
+| GET | `/shops/{shopId}/orders/{orderId}` | Chi tiết + người mua, ghi chú nội bộ, hạn chuẩn bị hàng |
+| POST | `/shops/{shopId}/orders/prepare` | `{ orderIds[], pickupMethod: Pickup\|DropOff, pickupSlot }` → mỗi đơn `{ ok, trackingNo, error }` |
+| GET | `/pickup-slots` | Khung giờ lấy hàng |
+| GET | `/shops/{shopId}/orders/labels?ids=…&ids=…&size=A6\|A5` | **PDF** phiếu giao hàng (mỗi kiện một trang: mã vạch vận đơn, mã đơn, người gửi / nhận, COD, danh sách hàng) |
+| GET | `/shops/{shopId}/orders/picking-list?ids=…` | **PDF** phiếu soạn hàng gộp theo SKU |
+| GET | `/shops/{shopId}/orders/export?tab=&from=&to=` | **Excel** danh sách đơn (≤ 5.000 dòng) |
+| POST | `/shops/{shopId}/orders/{orderId}/cancel` | `{ reason }` — shop huỷ (nhả kho, hoàn tiền nếu đã trả online) |
+| POST | `/shops/{shopId}/orders/{orderId}/cancel-request` | `{ approve, rejectReason }` |
+| PUT | `/shops/{shopId}/orders/{orderId}/note` | `{ note }` — ghi chú nội bộ |
+
+**Vận chuyển & thông báo**
+
+| Phương thức | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/tracking/{trackingNo}` | công khai | Trạng thái + hành trình (không có thông tin cá nhân) |
+| POST | `/api/logistics/webhooks/{provider}` | chữ ký hãng | Sự kiện trạng thái vận đơn; hãng giả lập: thân `{ eventId, trackingNo, status, location, description, occurredAt }`, header `X-Sim-Carrier-Signature` |
+| GET | `/api/notifications?category=Order\|Promotion\|Wallet\|Activity&page=` | đăng nhập | Thông báo của mình |
+| GET | `/api/notifications/unread` | đăng nhập | `{ total, byCategory }` |
+| POST | `/api/notifications/{id}/read` · `/api/notifications/read-all` | đăng nhập | Đánh dấu đã đọc |
+
+Việc nền chạy ngay được bằng `POST /api/admin/job-runs/{id}`: thêm `sales.order-automation`, `logistics.carrier-simulator`.
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

@@ -3,12 +3,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { storefrontApi } from '../api/storefront';
 import { useAuth } from './AuthContext';
+import { refreshSession } from '../api/http';
+import { useAuthStore } from '../stores/auth';
 
 interface WishlistValue {
   ids: string[];
   has: (productId: string) => boolean;
   /** Likes / unlikes on the server; guests are sent to the login page first. */
-  toggle: (productId: string) => void;
+  toggle: (productId: string) => Promise<void>;
   count: number;
 }
 
@@ -44,14 +46,16 @@ export const useWishlist = (): WishlistValue => {
   });
 
   const toggle = useCallback(
-    (productId: string) => {
-      if (!isLoggedIn) {
+    async (productId: string) => {
+      // Right after a page load the session may still be restoring: wait for it instead of treating the user as a guest
+      if (useAuthStore.getState().status === 'checking') await refreshSession();
+      if (useAuthStore.getState().status !== 'authenticated') {
         navigate('/dang-nhap', { state: { from: window.location.pathname + window.location.search } });
         return;
       }
       mutation.mutate({ productId, on: !set.has(productId) });
     },
-    [isLoggedIn, navigate, mutation, set],
+    [navigate, mutation, set],
   );
 
   const has = useCallback((productId: string) => set.has(productId), [set]);

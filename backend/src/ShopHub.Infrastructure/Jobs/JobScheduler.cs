@@ -11,9 +11,25 @@ public static class JobIds
     public const string OutboxCleanup = "sys.outbox-cleanup";
     public const string CounterRecompute = "sys.counter-recompute";
     public const string PaymentExpiry = "sales.payment-expiry";
+    public const string OrderAutomation = "sales.order-automation";
+    public const string CarrierSimulator = "logistics.carrier-simulator";
 
     // Jobs an admin may trigger on demand (POST /api/admin/job-runs/{id})
-    public static readonly IReadOnlyList<string> Runnable = [OutboxDispatch, CounterRecompute, PaymentExpiry];
+    public static readonly IReadOnlyList<string> Runnable = [OutboxDispatch, CounterRecompute, PaymentExpiry, OrderAutomation, CarrierSimulator];
+}
+
+/// <summary>Hangfire entry for <see cref="Application.Features.Orders.OrderAutomationService"/>.</summary>
+public sealed class OrderAutomationJob(Application.Features.Orders.OrderAutomationService service)
+{
+    [DisableConcurrentExecution(timeoutInSeconds: 600)]
+    public Task RunJobAsync() => service.RunAsync(CancellationToken.None);
+}
+
+/// <summary>Hangfire entry for <see cref="Commerce.CarrierSimulator"/>.</summary>
+public sealed class CarrierSimulatorJob(Commerce.CarrierSimulator simulator)
+{
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
+    public Task RunJobAsync() => simulator.RunAsync(CancellationToken.None);
 }
 
 /// <summary>Hangfire entry for <see cref="Application.Features.Payments.PaymentExpiryService"/>.</summary>
@@ -49,6 +65,18 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
             JobIds.PaymentExpiry,
             j => j.RunJobAsync(),
             await parameters.GetStringAsync(ParameterKeys.JobPaymentExpiryCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<OrderAutomationJob>(
+            JobIds.OrderAutomation,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobOrderAutomationCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<CarrierSimulatorJob>(
+            JobIds.CarrierSimulator,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobCarrierSimulatorCron, ct),
             options);
 
         recurringJobs.AddOrUpdate<OutboxCleanupJob>(

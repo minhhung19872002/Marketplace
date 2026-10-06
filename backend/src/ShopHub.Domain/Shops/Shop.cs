@@ -286,3 +286,26 @@ public class ShopBankAccount : AuditableEntity
 
     public void MarkVerified(DateTimeOffset now) => VerifiedAt = now;
 }
+
+/// <summary>Penalty point given to a shop (late fulfilment, seller cancellation…); the shop's total is recomputed from these rows.</summary>
+public class ShopPenalty : Entity
+{
+    private ShopPenalty() { }
+
+    public ShopPenalty(Guid shopId, int points, string reason, Guid? orderId, DateTimeOffset now)
+    {
+        if (points <= 0) throw new BusinessRuleException("Điểm phạt phải lớn hơn 0.");
+        ShopId = shopId;
+        Points = points;
+        Reason = reason;
+        OrderId = orderId;
+        CreatedAt = now;
+    }
+
+    public Guid ShopId { get; private set; }
+    public int Points { get; private set; }
+    public string Reason { get; private set; } = string.Empty;
+    public Guid? OrderId { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+}
+

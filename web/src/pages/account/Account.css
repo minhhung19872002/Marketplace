@@ -611,3 +611,46 @@
 .coins-minus {
   color: var(--sh-primary);
 }
+
+.order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin: 12px 0;
+}
+
+.order-actions .account-message {
+  width: 100%;
+  text-align: right;
+}
+
+.order-cancel-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--border);
+}
+
+.order-cancel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.order-detail-shipment {
+  padding: 12px 0;
+  border-top: 1px dashed var(--border);
+}
+
+.order-detail-shipment h3 {
+  font-size: 15px;
+}
+
+.order-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ordersApi, walletApi, type OrderTab, type VoucherInfo, type WalletTab } from '../../api/commerce';
+import { ordersApi, walletApi, type OrderDetail, type OrderTab, type VoucherInfo, type WalletTab } from '../../api/commerce';
+import { CART_KEY } from '../../context/CartContext';
+import { ShipmentTimeline } from '../TrackingPage';
 import { ApiError } from '../../api/http';
 import { formatCount, formatPrice } from '../../lib/money';
 import { formatDate, formatDateTime } from '../../lib/datetime';
@@ -67,11 +69,10 @@ export const OrdersPage = () => {
               <span>Mã đơn <Link to={`/tai-khoan/don-mua/${o.code}`} data-testid="order-code">{o.code}</Link> · {formatDateTime(o.createdAt)}</span>
               <span>Thành tiền: <strong>{formatPrice(o.grandTotal)}</strong></span>
             </div>
-            {o.status === 'PendingPayment' && (
-              <div className="order-card-actions">
-                <Link to={`/thanh-toan/ket-qua/${o.checkoutId}`} className="account-btn">Thanh toán ngay</Link>
-              </div>
-            )}
+            <div className="order-card-actions">
+              {o.status === 'PendingPayment' && <Link to={`/thanh-toan/ket-qua/${o.checkoutId}`} className="account-btn">Thanh toán ngay</Link>}
+              <Link to={`/tai-khoan/don-mua/${o.code}`} className="account-btn-outline">Xem chi tiết</Link>
+            </div>
           </div>
         ))
       )}
@@ -86,10 +87,86 @@ export const OrdersPage = () => {
   );
 };
 
+const CANCEL_REASONS = [
+  'Muốn thay đổi địa chỉ giao hàng',
+  'Muốn thay đổi sản phẩm (kích cỡ, màu sắc, số lượng…)',
+  'Tìm thấy giá rẻ hơn ở chỗ khác',
+  'Đổi ý, không muốn mua nữa',
+  'Thủ tục thanh toán rắc rối',
+  'Lý do khác',
+];
+
+/** The buttons of an order, from what the server says is allowed now. */
+const OrderActions = ({ order }: { order: OrderDetail }) => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [asking, setAsking] = useState<'cancel' | 'request' | null>(null);
+  const [reason, setReason] = useState(CANCEL_REASONS[0]);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const run = async (action: () => Promise<{ message: string }>, then?: () => void) => {
+    setBusy(true);
+    setMessage('');
+    try {
+      setMessage((await action()).message);
+      setAsking(null);
+      void queryClient.invalidateQueries({ queryKey: ['order', order.code] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
+      then?.();
+    } catch (e) {
+      setMessage(e instanceof ApiError ? e.message : 'Không thực hiện được, vui lòng thử lại.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const a = order.actions;
+  return (
+    <div className="order-actions" data-testid="order-actions">
+      {message && <div className="account-message" role="status" data-testid="order-action-message">{message}</div>}
+      {a.pay && <Link to={`/thanh-toan/ket-qua/${order.checkoutId}`} className="account-btn">Thanh toán ngay</Link>}
+      {a.confirmReceived && (
+        <button className="account-btn" disabled={busy} onClick={() => run(() => ordersApi.received(order.code))} data-testid="confirm-received">
+          Đã nhận được hàng
+        </button>
+      )}
+      {a.cancel && <button className="account-btn-outline" onClick={() => setAsking('cancel')} data-testid="cancel-order">Huỷ đơn hàng</button>}
+      {a.requestCancel && <button className="account-btn-outline" onClick={() => setAsking('request')} data-testid="request-cancel">Yêu cầu huỷ</button>}
+      {a.buyAgain && (
+        <button className="account-btn-outline" disabled={busy} data-testid="buy-again"
+          onClick={() => run(() => ordersApi.buyAgain(order.code), () => {
+            void queryClient.invalidateQueries({ queryKey: CART_KEY });
+            navigate('/gio-hang');
+          })}>
+          Mua lại
+        </button>
+      )}
+      {asking && (
+        <div className="order-cancel-box" data-testid="cancel-box">
+          <strong>{asking === 'cancel' ? 'Chọn lý do huỷ' : 'Lý do yêu cầu huỷ (shop sẽ phản hồi trong 24 giờ)'}</strong>
+          {CANCEL_REASONS.map((r) => (
+            <label key={r} className="account-radio">
+              <input type="radio" name="cancel-reason" checked={reason === r} onChange={() => setReason(r)} /> {r}
+            </label>
+          ))}
+          <div className="order-cancel-actions">
+            <button className="account-btn-outline" onClick={() => setAsking(null)}>Không phải bây giờ</button>
+            <button className="account-btn" disabled={busy} data-testid="cancel-confirm"
+              onClick={() => run(() => asking === 'cancel' ? ordersApi.cancel(order.code, reason) : ordersApi.requestCancel(order.code, reason))}>
+              {asking === 'cancel' ? 'Huỷ đơn hàng' : 'Gửi yêu cầu'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /** /tai-khoan/don-mua/:code */
 export const OrderDetailPage = () => {
   const { code = '' } = useParams();
-  const { data, error } = useQuery({ queryKey: ['order', code], queryFn: () => ordersApi.get(code), retry: false });
+  const { data, error } = useQuery({ queryKey: ['order', code], queryFn: () => ordersApi.get(code), retry: false, staleTime: 0 });
   if (error) return <div className="account-card"><p>{error instanceof ApiError ? error.message : 'Không tải được đơn hàng.'}</p></div>;
   if (!data) return <div className="page-loader"><div className="loading-spinner" /></div>;
 
@@ -114,6 +191,28 @@ export const OrderDetailPage = () => {
         </div>
       )}
       {data.cancelReason && <div className="order-detail-alert">Lý do huỷ: {data.cancelReason}</div>}
+      {data.cancelRequest && (
+        <div className="order-detail-alert" data-testid="cancel-request-status">
+          Yêu cầu huỷ ({data.cancelRequest.reason}):{' '}
+          {data.cancelRequest.status === 'Pending' ? `đang chờ shop phản hồi (trước ${formatDateTime(data.cancelRequest.dueAt)})`
+            : data.cancelRequest.status === 'Rejected' ? `shop đã từ chối — ${data.cancelRequest.rejectReason ?? ''}` : 'đã được chấp thuận'}
+        </div>
+      )}
+      {data.status === 'Delivered' && data.autoCompleteAt && (
+        <div className="order-detail-alert">Đơn sẽ tự hoàn thành lúc {formatDateTime(data.autoCompleteAt)} nếu bạn không phản hồi.</div>
+      )}
+      <OrderActions order={data} />
+
+      {data.shipment && (
+        <div className="order-detail-shipment">
+          <h3>
+            Vận chuyển: {data.shipment.carrierName ?? data.shipment.carrierCode} · Mã vận đơn{' '}
+            <Link to={`/tra-cuu-van-don/${data.shipment.trackingNo}`} data-testid="tracking-no">{data.shipment.trackingNo}</Link>
+          </h3>
+          <p>Dự kiến giao: {formatDate(data.shipment.expectedDeliveryAt)}</p>
+          <ShipmentTimeline events={data.shipment.events} />
+        </div>
+      )}
 
       <ol className="order-timeline" data-testid="order-timeline">
         {data.history.map((h, i) => (

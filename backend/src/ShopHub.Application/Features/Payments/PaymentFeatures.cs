@@ -28,6 +28,7 @@ public static class WebhookResults
 public sealed class PaymentProcessor(
     IApplicationDbContext db,
     IPaymentGatewayRegistry gateways,
+    IOutbox outbox,
     IClock clock,
     ILogger<PaymentProcessor> logger)
 {
@@ -81,7 +82,10 @@ public sealed class PaymentProcessor(
             checkout.MarkPaid(now);
             var orders = await db.Orders.Include(o => o.History).Where(o => o.CheckoutId == checkout.Id).ToListAsync(ct);
             foreach (var order in orders.Where(o => o.Status == OrderStatus.PendingPayment))
+            {
                 OrderStateMachine.Transition(order, OrderStatus.PendingConfirmation, OrderActor.Gateway, null, "Đã thanh toán", now);
+                outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Paid, null));
+            }
             // Any other open attempt for this checkout can no longer be used
             foreach (var other in await db.Payments.Where(p => p.CheckoutId == checkout.Id && p.Id != payment.Id).ToListAsync(ct)) other.Expire();
             return WebhookResults.Paid;
@@ -99,7 +103,10 @@ public sealed class PaymentProcessor(
 public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vouchers, IOutbox outbox, IClock clock)
 {
     /// <summary>Must run inside a transaction holding the checkout lock.</summary>
-    public async Task ExpireAsync(CheckoutSession checkout, string reason, CancellationToken ct)
+    public async Task ExpireAsync(CheckoutSession checkout, string reason, CancellationToken ct) =>
+        await ExpireAsync(checkout, reason, OrderActor.System, null, ct);
+
+    public async Task ExpireAsync(CheckoutSession checkout, string reason, OrderActor actor, Guid? actorId, CancellationToken ct)
     {
         var now = clock.UtcNow;
         checkout.MarkExpired();
@@ -108,8 +115,9 @@ public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vou
         var orders = await db.Orders.Include(o => o.Items).Include(o => o.History).Where(o => o.CheckoutId == checkout.Id).ToListAsync(ct);
         foreach (var order in orders.Where(o => o.Status == OrderStatus.PendingPayment))
         {
-            OrderStateMachine.Transition(order, OrderStatus.Cancelled, OrderActor.System, null, reason, now);
+            OrderStateMachine.Transition(order, OrderStatus.Cancelled, actor, actorId, reason, now);
             await ReleaseStockAsync(order, now, ct);
+            outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Cancelled, reason));
         }
 
         var usages = await db.VoucherUsages.Where(u => u.CheckoutId == checkout.Id).ToListAsync(ct);

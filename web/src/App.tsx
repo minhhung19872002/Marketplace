@@ -22,6 +22,7 @@ const PaymentResult = lazy(() => import('./pages/PaymentPages').then((m) => ({ d
 const OrdersPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.OrdersPage })))
 const OrderDetailPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.OrderDetailPage })))
 const VouchersPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.VouchersPage })))
+const TrackingPage = lazy(() => import('./pages/TrackingPage'))
 const CoinsPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.CoinsPage })))
 const Wishlist = lazy(() => import('./pages/Wishlist'))
 const Notifications = lazy(() => import('./pages/Notifications'))
@@ -62,6 +63,8 @@ function App() {
                     <Route path="/thanh-toan/ket-qua/:checkoutId" element={<PaymentResult />} />
                     <Route path="/yeu-thich" element={<Wishlist />} />
                     <Route path="/thong-bao" element={<Notifications />} />
+                    <Route path="/tra-cuu-van-don" element={<TrackingPage />} />
+                    <Route path="/tra-cuu-van-don/:trackingNo" element={<TrackingPage />} />
                     <Route path="/shop/:slug" element={<ShopPage />} />
                     <Route path="/quen-mat-khau" element={<ForgotPassword />} />
                     <Route path="/tai-khoan" element={<AccountLayout />}>

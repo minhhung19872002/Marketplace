@@ -10,6 +10,8 @@ const SORTS = [
   { key: 'sold', label: 'Bán Chạy' },
 ];
 
+const CAT_LIMIT = 10;
+
 const SearchResults = () => {
   const [params] = useSearchParams();
   const q = params.get('q') || '';
@@ -23,6 +25,15 @@ const SearchResults = () => {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [minRating, setMinRating] = useState(0);
+  const [showAllCats, setShowAllCats] = useState(false);
+
+  // Mặc định hiện 10 danh mục đầu + danh mục từ URL / đang chọn
+  // (giữ dòng hiển thị cả sau khi bỏ chọn, không bị "nhảy mất")
+  const visibleCats = showAllCats
+    ? categories
+    : categories.filter(
+        (c, i) => i < CAT_LIMIT || c.id === category || selectedCats.includes(c.id)
+      );
 
   // Đồng bộ bộ lọc khi URL đổi mà component không remount (breadcrumb, link danh mục khác)
   useEffect(() => {
@@ -92,7 +103,7 @@ const SearchResults = () => {
           <div className="filter-group">
             <h4 className="filter-group-title">Theo Danh Mục</h4>
             <div className="filter-cats">
-              {categories.slice(0, 10).map((c) => (
+              {visibleCats.map((c) => (
                 <label key={c.id} className="filter-cat">
                   <input
                     type="checkbox"
@@ -104,6 +115,15 @@ const SearchResults = () => {
                 </label>
               ))}
             </div>
+            {categories.length > CAT_LIMIT && (
+              <button
+                className="filter-cats-more"
+                onClick={() => setShowAllCats((v) => !v)}
+                data-testid="filter-cats-more"
+              >
+                {showAllCats ? 'Thu gọn ▴' : 'Thêm ▾'}
+              </button>
+            )}
           </div>
 
           <div className="filter-group">

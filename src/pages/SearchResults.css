@@ -52,6 +52,20 @@
   cursor: pointer;
 }
 
+.filter-cats-more {
+  margin-top: 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+}
+
+.filter-cats-more:hover {
+  color: var(--shopee-orange);
+}
+
 .filter-cat input {
   width: 15px;
   height: 15px;

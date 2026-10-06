@@ -6,3 +6,7 @@ dist-ssr
 test-results
 playwright-report
 .DS_Store
+.env
+bin/
+obj/
+*.tsbuildinfo

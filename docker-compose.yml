@@ -1,0 +1,178 @@
+# ShopHub — môi trường dev/demo: `docker compose up -d`
+# Cổng mở ra máy chủ chỉ trên 127.0.0.1, dải 18xxx để không đụng dự án khác.
+name: shophub
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *restart
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${SH_DB_NAME:-shophub}
+      POSTGRES_USER: ${SH_DB_USER:-shophub}
+      POSTGRES_PASSWORD: ${SH_DB_PASSWORD:?Thiếu SH_DB_PASSWORD trong .env}
+      TZ: UTC
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:18432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SH_DB_USER:-shophub} -d ${SH_DB_NAME:-shophub}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    <<: *restart
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:18379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    <<: *restart
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${SH_MINIO_ACCESS_KEY:-shophub}
+      MINIO_ROOT_PASSWORD: ${SH_MINIO_SECRET_KEY:?Thiếu SH_MINIO_SECRET_KEY trong .env}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "127.0.0.1:18900:9000"
+      - "127.0.0.1:18901:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Create the buckets once MinIO is up (sh-kyc stays private)
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MC_HOST_sh: http://${SH_MINIO_ACCESS_KEY:-shophub}:${SH_MINIO_SECRET_KEY}@minio:9000
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for b in sh-products sh-reviews sh-kyc sh-chat sh-banners; do mc mb --ignore-existing sh/$$b; done
+        for b in sh-products sh-reviews sh-banners; do mc anonymous set download sh/$$b; done
+        mc anonymous set none sh/sh-kyc
+        mc anonymous set none sh/sh-chat
+    restart: "no"
+
+  meilisearch:
+    <<: *restart
+    image: getmeili/meilisearch:v1.11
+    environment:
+      MEILI_MASTER_KEY: ${SH_MEILI_MASTER_KEY:?Thiếu SH_MEILI_MASTER_KEY trong .env}
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meilidata:/meili_data
+    ports:
+      - "127.0.0.1:18700:7700"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7700/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    <<: *restart
+    image: axllent/mailpit:v1.30.0
+    ports:
+      - "127.0.0.1:18025:8025"
+      - "127.0.0.1:18125:1025"
+
+  api:
+    <<: *restart
+    image: shophub/api
+    build:
+      context: ./backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      SH_DB_HOST: postgres
+      SH_DB_PORT: 5432
+      SH_DB_NAME: ${SH_DB_NAME:-shophub}
+      SH_DB_USER: ${SH_DB_USER:-shophub}
+      SH_DB_PASSWORD: ${SH_DB_PASSWORD}
+      SH_REDIS_URL: redis:6379
+      SH_MINIO_ENDPOINT: minio:9000
+      SH_MINIO_ACCESS_KEY: ${SH_MINIO_ACCESS_KEY:-shophub}
+      SH_MINIO_SECRET_KEY: ${SH_MINIO_SECRET_KEY}
+      SH_MEILI_URL: http://meilisearch:7700
+      SH_MEILI_MASTER_KEY: ${SH_MEILI_MASTER_KEY}
+      SH_JWT_SECRET: ${SH_JWT_SECRET:?Thiếu SH_JWT_SECRET trong .env}
+      SH_SMTP_HOST: mailpit
+      SH_SMTP_PORT: 1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18080:8080"
+
+  web:
+    <<: *restart
+    image: shophub/web
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+      args:
+        APP_DIR: web
+
+  seller:
+    <<: *restart
+    image: shophub/seller
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+      args:
+        APP_DIR: seller
+
+  admin:
+    <<: *restart
+    image: shophub/admin
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+      args:
+        APP_DIR: admin
+
+  nginx:
+    <<: *restart
+    image: nginx:1.27-alpine
+    volumes:
+      - ./deploy/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - web
+      - seller
+      - admin
+    ports:
+      - "127.0.0.1:${SH_HTTP_PORT:-18000}:80"
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  meilidata:

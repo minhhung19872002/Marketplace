@@ -1,0 +1,24 @@
+.home-page {
+  padding-bottom: 30px;
+}
+
+.home-load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.home-load-more-btn {
+  background: #fff;
+  color: #555;
+  border: 1px solid #e0e0e0;
+  padding: 12px 90px;
+  border-radius: 2px;
+  font-size: 14px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.home-load-more-btn:hover {
+  color: var(--sh-primary);
+  border-color: var(--sh-primary);
+}

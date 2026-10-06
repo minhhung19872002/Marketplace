@@ -1,44 +1,59 @@
-# ShopHub - Sàn thương mại điện tử (Shopee clone)
+# ShopHub — Sàn thương mại điện tử đa người bán
 
-Trang sàn TMĐT mô phỏng [shopee.vn](https://shopee.vn), dựng theo cùng stack và convention của dự án `AmThucSaiGon` (React 18 + Vite, react-router v6, mỗi component 1 file `.jsx` + `.css`, test Playwright).
+Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** (`web/`), **Kênh Người Bán** (`seller/`),
+**Quản trị sàn** (`admin/`), chung một API .NET 8.
 
-## Tính năng
+Đặc tả và lộ trình: [`PROMPT-BUILD-SHOPHUB.md`](PROMPT-BUILD-SHOPHUB.md). Tiến độ từng phase:
+[`docs/07-bang-doi-chieu-chuc-nang.md`](docs/07-bang-doi-chieu-chuc-nang.md).
 
-- **Header** cam đặc trưng Shopee: thanh top, ô tìm kiếm, từ khóa hot, giỏ hàng có badge số lượng.
-- **Trang chủ**: banner carousel tự chạy, lưới danh mục (18 ngành hàng), **Flash Sale** với đồng hồ đếm ngược + thanh tiến trình, lưới "Gợi ý hôm nay".
-- **Chi tiết sản phẩm**: ảnh, giá/giảm giá, chọn số lượng, Thêm vào giỏ / Mua ngay, sản phẩm tương tự.
-- **Giỏ hàng**: cập nhật số lượng, xóa, tính tổng tiền, lưu `localStorage` (giữ giữa các lần load).
-- **Tìm kiếm & lọc**: tìm không dấu (cả ô gợi ý ở header), lọc theo danh mục / khoảng giá / đánh giá, sắp xếp (liên quan, mới nhất, bán chạy, giá tăng/giảm).
-- **Phân loại hàng** (size/màu/dung lượng): bắt buộc chọn trước khi thêm giỏ; số lượng giới hạn theo tồn kho.
-- **Thanh toán**: địa chỉ nhận hàng, phương thức vận chuyển, voucher (`SHOPHUB50`, `FREESHIP`, `SALE12`), phương thức thanh toán → trang đặt hàng thành công.
-- **Đăng nhập / Đăng ký** giả lập, **Yêu thích**, **Thông báo**, **Trang Shop**.
-- Responsive desktop / tablet / mobile.
-
-> Dữ liệu là mock (`src/data/products.js`), **không cần backend**. Ảnh sản phẩm lấy từ CDN demo (dummyjson); khi lỗi mạng sẽ tự đổi sang ảnh SVG data-URI dự phòng.
-> Giỏ hàng, yêu thích, tài khoản lưu ở `localStorage`.
-
-## Chạy dev
-
-```bash
-npm install
-npm run dev            # http://localhost:5173
-```
-
-## Test
-
-```bash
-npx playwright install chromium   # lần đầu
-npm run test:e2e                  # 19 test e2e
-```
+> **Trạng thái hiện tại: xong Phase 0** (chuyển đổi repo). Site người mua vẫn chạy trên dữ liệu giả
+> (`web/src/data/products.ts`) cho tới Phase 4.
 
 ## Cấu trúc
 
 ```
-src/
-  components/   Header, Footer, Banner, CategoryShortcuts, CategoryGrid, FlashSale,
-                MallBrands, ProductCard, ProductGrid, BackToTop, ScrollToTop
-  pages/        HomePage, ProductDetail, CartPage, Checkout, OrderSuccess, SearchResults,
-                Login, Register, Wishlist, Notifications, ShopPage
-  context/      CartContext, WishlistContext, AuthContext (lưu localStorage)
-  data/         products.js (mock data + helpers), images.js (URL ảnh sản phẩm)
+backend/   ShopHub.sln — Domain, Application, Infrastructure, Reporting, Api + tests (.NET 8)
+web/       Site người mua — React 18 + TypeScript + Vite (@shophub/web)
+seller/    Kênh Người Bán — React + TS + Ant Design 5 (@shophub/seller)
+admin/     Quản trị sàn — React + TS + Ant Design 5 (@shophub/admin)
+e2e/       Playwright (19 kịch bản người mua + smoke test stack)
+deploy/    nginx/ (gateway + SPA), postgres/init/ (extension), frontend.Dockerfile
+docs/      Quyết định kỹ thuật, đối chiếu chức năng, sổ lỗi…
+```
+
+## Chạy toàn bộ bằng Docker
+
+```bash
+cp .env.example .env      # sửa mật khẩu / khoá
+docker compose up -d --build
+```
+
+| Địa chỉ | Dịch vụ |
+|---|---|
+| http://localhost:18000/ | Site người mua |
+| http://localhost:18000/seller/ | Kênh Người Bán |
+| http://localhost:18000/admin/ | Quản trị sàn |
+| http://localhost:18000/health | Health check API |
+| http://localhost:18080/swagger | Swagger (môi trường Development) |
+| http://localhost:18025/ | Mailpit (thư bắt được khi dev) |
+| http://localhost:18901/ | MinIO console |
+
+Mọi cổng chỉ mở trên `127.0.0.1`, dải 18xxx (xem `docs/00-quyet-dinh-ky-thuat.md`).
+
+## Phát triển từng phần
+
+```bash
+cd backend && dotnet build && dotnet test
+cd web     && npm install && npm run dev        # http://localhost:5173
+cd seller  && npm install && npm run dev        # http://localhost:5174/seller/
+cd admin   && npm install && npm run dev        # http://localhost:5175/admin/
+```
+
+## Kiểm thử
+
+```bash
+cd web && npx tsc -b                             # kiểm kiểu
+cd e2e && npm install && npx playwright install chromium
+npx playwright test                              # tự chạy web dev server
+SH_E2E_BASE_URL=http://localhost:18000 npx playwright test   # chạy trên stack Docker (+ smoke test)
 ```

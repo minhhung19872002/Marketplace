@@ -1,0 +1,110 @@
+.shop-page {
+  padding-bottom: 40px;
+  min-height: 60vh;
+}
+
+.shop-banner {
+  background: linear-gradient(135deg, #f53d2d, #ff7337);
+  padding: 24px 0;
+  margin-bottom: 16px;
+}
+
+.shop-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  color: #fff;
+  flex-wrap: wrap;
+}
+
+.shop-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--sh-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.shop-info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.shop-name {
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shop-badge {
+  background: #fff;
+  color: var(--sh-primary);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.shop-online {
+  font-size: 13px;
+  opacity: 0.9;
+  margin: 6px 0 12px;
+}
+
+.shop-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.shop-follow,
+.shop-chat {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 7px 20px;
+  border-radius: 2px;
+  font-size: 13px;
+}
+
+.shop-stats {
+  display: flex;
+  gap: 30px;
+}
+
+.shop-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shop-stats strong {
+  font-size: 16px;
+}
+
+.shop-stats span {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.shop-section-head {
+  background: #fff;
+  border-radius: 4px;
+  padding: 14px 20px;
+  color: var(--sh-primary);
+  font-weight: 500;
+  border-bottom: 2px solid var(--sh-primary);
+  margin-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+  .shop-stats {
+    gap: 18px;
+  }
+}

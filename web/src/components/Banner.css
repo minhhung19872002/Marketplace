@@ -1,0 +1,143 @@
+.banner {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.banner-slider {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  aspect-ratio: 2.4 / 1;
+}
+
+.banner-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 48px;
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+}
+
+.banner-slide.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.banner-content {
+  color: #fff;
+  max-width: 60%;
+}
+
+.banner-title {
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.banner-subtitle {
+  font-size: 16px;
+  margin-bottom: 18px;
+  opacity: 0.95;
+}
+
+.banner-cta {
+  background: #fff;
+  color: var(--sh-primary);
+  border: none;
+  padding: 10px 26px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: transform 0.15s;
+}
+
+.banner-cta:hover {
+  transform: scale(1.04);
+}
+
+.banner-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.35);
+  border: none;
+  color: #fff;
+  width: 34px;
+  height: 48px;
+  font-size: 28px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.banner-arrow:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.banner-arrow-left {
+  left: 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.banner-arrow-right {
+  right: 0;
+  border-radius: 3px 0 0 3px;
+}
+
+.banner-dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+
+.banner-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 0;
+}
+
+.banner-dot.active {
+  background: #fff;
+}
+
+.banner-side {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+}
+
+.banner-side-item {
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .banner {
+    grid-template-columns: 1fr;
+  }
+  .banner-side {
+    display: none;
+  }
+  .banner-title {
+    font-size: 20px;
+  }
+}

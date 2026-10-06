@@ -5,6 +5,7 @@ using ShopHub.Domain.Logistics;
 using ShopHub.Domain.Promo;
 using ShopHub.Domain.Shops;
 using ShopHub.Infrastructure.Commerce;
+using ShopHub.Infrastructure.Configuration;
 using ShopHub.Infrastructure.Persistence;
 
 namespace ShopHub.Infrastructure.Seed;
@@ -13,14 +14,40 @@ namespace ShopHub.Infrastructure.Seed;
 /// Shipping channels and their rate table (reference data, always), plus sample vouchers: the three codes the old
 /// checkout had hard-coded (SHOPHUB50, FREESHIP, SALE12) and a couple of shop vouchers. Idempotent.
 /// </summary>
-public sealed class CommerceSeeder(ShopHubDbContext db, IClock clock, ILogger<CommerceSeeder> logger)
+public sealed class CommerceSeeder(ShopHubDbContext db, IClock clock, ShopHubSettings settings, ILogger<CommerceSeeder> logger)
 {
     private sealed record Band(int From, int? To, long Fee, long Extra = 0);
 
     public async Task SeedAsync(bool sampleData, CancellationToken ct)
     {
         await SeedCarriersAsync(ct);
+        await SeedRealCarriersAsync(ct);
         if (sampleData) await SeedVouchersAsync(ct);
+    }
+
+    /// <summary>
+    /// A shipping channel per real carrier whose keys are set (fees come from the carrier's API, not the rate table).
+    /// Without keys the row may stay from an earlier run: no ICarrier serves it, so checkout simply does not offer it.
+    /// </summary>
+    private async Task SeedRealCarriersAsync(CancellationToken ct)
+    {
+        var wanted = new List<(string Code, string Name, string Provider, string Description, int Order)>();
+        if (settings.Providers.Ghn is not null)
+            wanted.Add(("GHN_STD", "Giao Hàng Nhanh", Commerce.Providers.GhnCarrier.ProviderName, "GHN — giao tiêu chuẩn, phí theo bảng giá GHN", 10));
+        if (settings.Providers.Ghtk is not null)
+            wanted.Add(("GHTK_STD", "Giao Hàng Tiết Kiệm", Commerce.Providers.GhtkCarrier.ProviderName, "GHTK — đường bộ, phí theo bảng giá GHTK", 11));
+        var added = 0;
+        foreach (var w in wanted)
+        {
+            if (await db.Carriers.AnyAsync(c => c.Code == w.Code, ct)) continue;
+            var c = new Carrier(w.Code, w.Name, w.Provider, w.Order);
+            c.Configure(w.Name, w.Description, true, true, false, 1, 2, 4);
+            db.Carriers.Add(c);
+            added++;
+        }
+        if (added == 0) return;
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Seeded {Count} real carrier channel(s)", added);
     }
 
     private async Task SeedCarriersAsync(CancellationToken ct)

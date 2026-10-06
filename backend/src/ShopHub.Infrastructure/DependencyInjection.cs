@@ -97,14 +97,16 @@ public static class DependencyInjection
         services.AddScoped<OutboxDispatcher>();
         services.AddScoped<OutboxCleanupJob>();
 
-        // Commerce: carriers and payment gateways behind interfaces (real GHN / VNPay / MoMo arrive in Phase 11)
+        // Commerce: carriers and payment gateways behind interfaces; the real ones are on only when their keys are set
         services.AddScoped<Commerce.SimulatedCarrier>();
         services.AddScoped<ICarrier>(sp => sp.GetRequiredService<Commerce.SimulatedCarrier>());
+        AddRealProviders(services, settings.Providers);
         services.AddScoped<Commerce.CarrierSimulator>();
         services.AddScoped<IOutboxHandler, OrderEventHandler>();
         services.AddScoped<IOutboxHandler, NotificationDeliveryHandler>();
         services.AddScoped<IPushSender, SimulatedPushSender>();
         services.AddScoped<Jobs.RemindersJob>();
+        services.AddScoped<Jobs.CarrierSyncJob>();
         services.AddScoped<Jobs.OrderAutomationJob>();
         services.AddScoped<Jobs.CarrierSimulatorJob>();
         services.AddScoped<Commerce.SimulatedGateway>();
@@ -157,5 +159,37 @@ public static class DependencyInjection
                 $"{settings.MeiliUrl.TrimEnd('/')}/health");
 
         return services;
+    }
+
+    /// <summary>VNPay / MoMo / GHN / GHTK (sandbox or production endpoints), each only when its keys are configured.</summary>
+    private static void AddRealProviders(IServiceCollection services, ProviderSettings p)
+    {
+        services.AddSingleton(p);
+        services.AddMemoryCache();
+        services.AddScoped<Commerce.Providers.DivisionNameResolver>();
+        if (p.VnPay is { } vnpay)
+        {
+            services.AddSingleton(vnpay);
+            services.AddHttpClient(Commerce.Providers.VnPayGateway.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(20));
+            services.AddScoped<IPaymentGateway, Commerce.Providers.VnPayGateway>();
+        }
+        if (p.MoMo is { } momo)
+        {
+            services.AddSingleton(momo);
+            services.AddHttpClient(Commerce.Providers.MoMoGateway.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(30));
+            services.AddScoped<IPaymentGateway, Commerce.Providers.MoMoGateway>();
+        }
+        if (p.Ghn is { } ghn)
+        {
+            services.AddSingleton(ghn);
+            services.AddHttpClient(Commerce.Providers.GhnCarrier.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(15));
+            services.AddScoped<ICarrier, Commerce.Providers.GhnCarrier>();
+        }
+        if (p.Ghtk is { } ghtk)
+        {
+            services.AddSingleton(ghtk);
+            services.AddHttpClient(Commerce.Providers.GhtkCarrier.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(15));
+            services.AddScoped<ICarrier, Commerce.Providers.GhtkCarrier>();
+        }
     }
 }

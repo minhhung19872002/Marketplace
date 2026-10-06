@@ -481,6 +481,20 @@ Realtime: hub SignalR **`/hubs/realtime`** (JWT; trình duyệt gửi `?access_t
 
 Việc nền chạy ngay được: `engage.reminders`.
 
+## Cổng thanh toán & hãng vận chuyển thật (Phase 11)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET · POST | `/api/payments/webhooks/vnpay` | IPN của VNPay (GET, chữ ký trên query) → `{ "RspCode": "00" \| "01" \| "02" \| "04" \| "97", "Message" }` |
+| POST | `/api/payments/webhooks/momo` | IPN của MoMo (JSON ký HMAC-SHA256) → 204 khi nhận, 400 khi sai chữ ký |
+| POST | `/api/logistics/webhooks/GHN?token=…` | Trạng thái vận đơn GHN (JSON `{ OrderCode, Status, Time, Reason }`) |
+| POST | `/api/logistics/webhooks/GHTK?token=…` | Trạng thái vận đơn GHTK (form hoặc JSON `label_id, status_id, action_time, reason`) |
+| GET | `/api/wallet/topup-gateways` | Cổng đang bật để nạp ví: `[{ method: VnPay\|MoMo\|Simulated, name }]`; `POST /api/wallet/topups` nhận thêm `method` |
+| GET | `/api/seller/shops/{shopId}/orders/{orderId}/carrier-label` | Phiếu giao của hãng (PDF, GHTK); 404 khi hãng dùng phiếu ShopHub |
+
+`paymentMethod` của checkout nhận thêm `VnPay`, `MoMo` (chỉ khi cổng bật); `payment.redirectUrl` khi đó là URL tuyệt đối
+của cổng. Mã kênh vận chuyển thật: `GHN_STD`, `GHTK_STD`. Việc nền chạy ngay được: `logistics.carrier-sync`.
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

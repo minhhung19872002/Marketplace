@@ -5,6 +5,7 @@ import { BANKS, walletApi } from '../../api/wallet';
 import { ApiError } from '../../api/http';
 import { formatPrice } from '../../lib/money';
 import { formatDateTime } from '../../lib/datetime';
+import { goTo } from '../../lib/navigation';
 
 type Panel = 'topup' | 'pin' | 'bank' | 'withdraw' | null;
 
@@ -50,6 +51,8 @@ const WalletPage = () => {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [amount, setAmount] = useState('');
+  const [gateway, setGateway] = useState<string | null>(null);
+  const gateways = useQuery({ queryKey: ['topup-gateways'], queryFn: walletApi.topupGateways, enabled: panel === 'topup', staleTime: 600_000 });
   const [pin, setPin] = useState('');
   const [otp, setOtp] = useState('');
   const [bank, setBank] = useState({ bankCode: BANKS[0].code, accountNo: '', accountName: '' });
@@ -124,11 +127,22 @@ const WalletPage = () => {
           <label className="account-label" htmlFor="topup-amount">Số tiền nạp (₫)</label>
           <input id="topup-amount" className="account-input" inputMode="numeric" value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} data-testid="topup-amount" />
-          <button className="account-btn" disabled={money <= 0} data-testid="topup-submit" onClick={async () => {
+          {(gateways.data?.length ?? 0) > 1 && (
+            <div className="account-radios" role="radiogroup" aria-label="Cổng thanh toán">
+              {gateways.data!.map((g) => (
+                <label key={g.method} className="account-radio">
+                  <input type="radio" name="topup-gateway" checked={(gateway ?? gateways.data![0].method) === g.method}
+                    onChange={() => setGateway(g.method)} data-testid={`topup-gateway-${g.method}`} />
+                  {g.name}
+                </label>
+              ))}
+            </div>
+          )}
+          <button className="account-btn" disabled={money <= 0 || gateways.data?.length === 0} data-testid="topup-submit" onClick={async () => {
             setError('');
             try {
-              const r = await walletApi.topup(money);
-              navigate(r.redirectUrl);
+              const r = await walletApi.topup(money, gateway ?? undefined);
+              goTo(navigate, r.redirectUrl);
             } catch (e) {
               setError(message(e, 'Không nạp được tiền.'));
             }

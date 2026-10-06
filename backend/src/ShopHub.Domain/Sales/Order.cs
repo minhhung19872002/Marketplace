@@ -9,6 +9,15 @@ public enum PaymentMethod
     Simulated,
     // Ví ShopHub: paid from the buyer's wallet balance at once (6-digit PIN)
     Wallet,
+    // Real gateways (sandbox or production), switched on by their keys in .env
+    VnPay,
+    MoMo,
+}
+
+public static class PaymentMethods
+{
+    /// <summary>Paid through a payment gateway (redirect + IPN), as opposed to COD or Ví ShopHub.</summary>
+    public static bool IsOnline(this PaymentMethod method) => method is PaymentMethod.Simulated or PaymentMethod.VnPay or PaymentMethod.MoMo;
 }
 
 public enum CheckoutStatus

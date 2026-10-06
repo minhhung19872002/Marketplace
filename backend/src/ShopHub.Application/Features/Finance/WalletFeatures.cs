@@ -153,7 +153,18 @@ public sealed class SetWalletPinHandler(IApplicationDbContext db, OtpService otp
 
 public record TopupStarted(Guid TopupId, Guid PaymentId, string RedirectUrl);
 
-public record CreateTopupCommand(long Amount) : IRequest<TopupStarted>;
+public record GatewayOptionDto(PaymentMethod Method, string Name);
+
+public record TopupGatewaysQuery : IRequest<IReadOnlyList<GatewayOptionDto>>;
+
+public sealed class TopupGatewaysHandler(IPaymentGatewayRegistry gateways) : IRequestHandler<TopupGatewaysQuery, IReadOnlyList<GatewayOptionDto>>
+{
+    public Task<IReadOnlyList<GatewayOptionDto>> Handle(TopupGatewaysQuery request, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<GatewayOptionDto>>(gateways.Online.Select(g => new GatewayOptionDto(g.Method, g.DisplayName)).ToList());
+}
+
+// Method: which online gateway pays the top-up (null = the first one switched on)
+public record CreateTopupCommand(long Amount, PaymentMethod? Method = null) : IRequest<TopupStarted>;
 
 public sealed class CreateTopupHandler(
     IApplicationDbContext db,
@@ -169,17 +180,20 @@ public sealed class CreateTopupHandler(
         var max = await parameters.GetIntAsync(ParameterKeys.FinanceTopupMax, ct);
         if (request.Amount < min || request.Amount > max)
             throw new BusinessRuleException($"Số tiền nạp phải từ ₫{min:N0} đến ₫{max:N0}.");
-        if (!gateways.Supports(PaymentMethod.Simulated)) throw new ConflictException("Cổng thanh toán đang tắt, chưa nạp được tiền.", "NO_GATEWAY");
+        var gateway = request.Method is { } wanted
+            ? gateways.Online.FirstOrDefault(g => g.Method == wanted) ?? throw new ConflictException("Cổng thanh toán này hiện không khả dụng.", "NO_GATEWAY")
+            : gateways.Online.FirstOrDefault() ?? throw new ConflictException("Cổng thanh toán đang tắt, chưa nạp được tiền.", "NO_GATEWAY");
 
         var now = clock.UtcNow;
         var timeout = await parameters.GetIntAsync(ParameterKeys.PaymentTimeoutMinutes, ct);
         var topup = new WalletTopup(userId, request.Amount, now);
-        var payment = new Payment(topup.Id, PaymentMethod.Simulated, request.Amount, now.AddMinutes(timeout), now, PaymentPurpose.WalletTopup);
+        var payment = new Payment(topup.Id, gateway.Method, request.Amount, now.AddMinutes(timeout), now, PaymentPurpose.WalletTopup);
         topup.Attach(payment.Id);
         db.WalletTopups.Add(topup);
         db.Payments.Add(payment);
-        var start = await gateways.For(PaymentMethod.Simulated).CreatePaymentAsync(
-            new GatewayPaymentRequest(payment.Id, topup.Id, payment.Amount, $"Nạp ₫{request.Amount:N0} vào Ví ShopHub", payment.ExpiresAt), ct);
+        var start = await gateway.CreatePaymentAsync(
+            new GatewayPaymentRequest(payment.Id, topup.Id, payment.Amount, $"Nạp ₫{request.Amount:N0} vào Ví ShopHub", payment.ExpiresAt,
+                $"/tai-khoan/vi?topup={topup.Id}", currentUser.IpAddress, payment.CreatedAt), ct);
         payment.SetRedirect(start.RedirectUrl);
         await db.SaveChangesAsync(ct);
         return new TopupStarted(topup.Id, payment.Id, start.RedirectUrl);

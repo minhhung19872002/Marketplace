@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { CART_KEY } from '../context/CartContext';
 import { formatCount, formatPrice } from '../lib/money';
 import { formatDate } from '../lib/datetime';
+import { goTo } from '../lib/navigation';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import './Checkout.css';
 
@@ -142,7 +143,7 @@ const Checkout = () => {
       };
       const result = await checkoutApi.place(idempotencyKey.current, body, quote.grandTotal, method === 'Wallet' ? walletPin : undefined);
       void queryClient.invalidateQueries({ queryKey: CART_KEY });
-      if (result.payment?.redirectUrl) navigate(result.payment.redirectUrl);
+      if (result.payment?.redirectUrl) goTo(navigate, result.payment.redirectUrl);
       else navigate(`/dat-hang-thanh-cong?checkout=${result.checkoutId}`);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {

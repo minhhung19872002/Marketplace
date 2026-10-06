@@ -143,20 +143,15 @@ public sealed class PaymentsController(PaymentWebhookIntake intake) : ApiControl
     /// event is applied once. The reply body follows the gateway's own format.
     /// </summary>
     [HttpPost("webhooks/{provider}")]
+    [HttpGet("webhooks/{provider}")]
     [AllowAnonymous]
-    [Consumes("application/json")]
     public async Task<IActionResult> Webhook(string provider, CancellationToken ct)
     {
-        using var reader = new StreamReader(Request.Body);
-        var body = await reader.ReadToEndAsync(ct);
-        var headers = Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString(), StringComparer.OrdinalIgnoreCase);
-        var reply = await intake.HandleAsync(provider, headers, body, ct);
-        return new ContentResult
-        {
-            Content = reply.Body,
-            ContentType = "application/json",
-            StatusCode = reply.Accepted ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest,
-        };
+        // VNPay calls the IPN with GET + signed query string, MoMo and the simulated gateway POST a signed JSON body
+        var reply = await intake.HandleAsync(provider, await InboundWebhooks.ReadAsync(Request, ct), ct);
+        return reply.StatusCode == StatusCodes.Status204NoContent
+            ? NoContent()
+            : new ContentResult { Content = reply.Body, ContentType = "application/json", StatusCode = reply.StatusCode };
     }
 
     /// <summary>The fake gateway's page data (only when SH_PAYMENT_SIMULATED=true). Knowing the payment id is the "card".</summary>

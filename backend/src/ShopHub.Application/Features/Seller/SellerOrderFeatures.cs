@@ -196,9 +196,10 @@ public sealed class PrepareOrdersHandler(
             }
             try
             {
-                results.Add(new PrepareResultDto(orderId, code, true, await PrepareOneAsync(orderId, warehouse.ProvinceCode, request, ct), null));
+                results.Add(new PrepareResultDto(orderId, code, true, await PrepareOneAsync(orderId, warehouse, request, ct), null));
             }
             catch (Exception ex) when (ex is ConflictException or Domain.Common.BusinessRuleException)
+                // (a real carrier refusing the booking is a CarrierUnavailableException, i.e. a ConflictException)
             {
                 db.ClearTracking();
                 results.Add(new PrepareResultDto(orderId, code, false, null, ex.Message));
@@ -207,8 +208,9 @@ public sealed class PrepareOrdersHandler(
         return results;
     }
 
-    private async Task<string> PrepareOneAsync(Guid orderId, string fromProvince, PrepareOrdersCommand request, CancellationToken ct)
+    private async Task<string> PrepareOneAsync(Guid orderId, Domain.Shops.ShopWarehouse warehouse, PrepareOrdersCommand request, CancellationToken ct)
     {
+        var fromProvince = warehouse.ProvinceCode;
         var now = clock.UtcNow;
         await using var tx = await db.BeginTransactionAsync(ct);
         var order = await locks.LockAsync(orderId, ct);
@@ -217,7 +219,8 @@ public sealed class PrepareOrdersHandler(
         OrderStateMachine.Transition(order, OrderStatus.ReadyToShip, OrderActor.Seller, currentUser.UserId, "Shop đã xác nhận và chuẩn bị hàng", now);
 
         var checkout = await db.CheckoutSessions.AsNoTracking().SingleAsync(c => c.Id == order.CheckoutId, ct);
-        var toProvince = JsonDocument.Parse(checkout.AddressSnapshot).RootElement.GetProperty("provinceCode").GetString() ?? fromProvince;
+        var receiver = CarrierParties.FromSnapshot(checkout.AddressSnapshot);
+        var toProvince = receiver?.Point.ProvinceCode ?? fromProvince;
         var productIds = order.Items.Select(i => i.ProductId).ToList();
         var dims = await db.Products.IgnoreQueryFilters().Where(p => productIds.Contains(p.Id))
             .Select(p => new { p.Id, p.WeightG, p.LengthMm, p.WidthMm, p.HeightMm }).ToDictionaryAsync(p => p.Id, ct);
@@ -232,7 +235,10 @@ public sealed class PrepareOrdersHandler(
                        ?? throw new ConflictException("Đơn vị vận chuyển của đơn này hiện không khả dụng.", "NO_CARRIER");
         var cod = order.PaymentMethod == PaymentMethod.Cod ? order.GrandTotal : 0;
         var tracking = await provider.CreateShipmentAsync(carrier,
-            new CarrierParcel(order.Id, order.Code, fromProvince, toProvince, weight, cod, request.PickupMethod, request.PickupSlot), ct);
+            new CarrierParcel(order.Id, order.Code, fromProvince, toProvince, weight, cod, request.PickupMethod, request.PickupSlot,
+                CarrierParties.FromWarehouse(warehouse), receiver, order.Subtotal,
+                order.Items.Select(i => new CarrierItem(i.NameSnapshot, i.Quantity, skuWeights.GetValueOrDefault(i.SkuId) ?? dims[i.ProductId].WeightG)).ToList(),
+                order.BuyerNote), ct);
         var days = carrier.DaysFor(ShippingCalculator.ZoneOf(fromProvince, toProvince));
         var expected = VietnamTime.AddWorkingDays(VietnamTime.Today(now), days, new HashSet<DateOnly>());
         var expectedAt = new DateTimeOffset(expected.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(7)).ToUniversalTime();
@@ -261,6 +267,27 @@ public sealed class ShippingLabelsValidator : AbstractValidator<ShippingLabelsQu
 {
     public ShippingLabelsValidator() =>
         RuleFor(x => x.OrderIds).NotEmpty().WithMessage("Chọn ít nhất một đơn.").Must(i => i.Count <= 200).WithMessage("Mỗi lần in tối đa 200 đơn.");
+}
+
+/// <summary>The carrier's own label for one order (GHTK prints its own); 404 when the carrier relies on ShopHub's label.</summary>
+public record CarrierLabelQuery(Guid ShopId, Guid OrderId) : IRequest<byte[]>;
+
+public sealed class CarrierLabelHandler(IApplicationDbContext db, SellerAccess access, IEnumerable<ICarrier> carriers)
+    : IRequestHandler<CarrierLabelQuery, byte[]>
+{
+    public async Task<byte[]> Handle(CarrierLabelQuery request, CancellationToken ct)
+    {
+        await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
+        var shipment = await db.Shipments.AsNoTracking()
+                           .Where(s => s.OrderId == request.OrderId && s.Direction == ShipmentDirection.Outbound
+                                       && db.Orders.Any(o => o.Id == request.OrderId && o.ShopId == request.ShopId))
+                           .OrderByDescending(s => s.CreatedAt).FirstOrDefaultAsync(ct)
+                       ?? throw new NotFoundException("Đơn hàng chưa có vận đơn.");
+        var carrier = await db.Carriers.AsNoTracking().SingleAsync(c => c.Code == shipment.CarrierCode, ct);
+        var provider = carriers.FirstOrDefault(c => c.Provider == carrier.Provider);
+        var pdf = provider is null ? null : await provider.GetLabelAsync(carrier, shipment.TrackingNo, ct);
+        return pdf ?? throw new NotFoundException("Đơn vị vận chuyển này dùng phiếu giao hàng của ShopHub.");
+    }
 }
 
 public sealed class ShippingLabelsHandler(IApplicationDbContext db, SellerAccess access, IShippingDocuments documents, IClock clock)

@@ -219,3 +219,16 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Thông báo hàng loạt theo phân khúc, ≤ 1 khuyến mãi / người / ngày | 00 #95, quản trị → Marketing → Thông báo đẩy | `A_broadcast_reaches_its_segment_once_and_nobody_gets_two_promotions_the_same_day` |
 | Nhắc việc: đơn sắp tự hoàn thành, voucher sắp hết hạn, yêu thích giảm giá | `ReminderService` (`engage.reminders`) | `Reminders_tell_about_orders_completing_soon_once` |
 | **Dời lại** | push FCM thật, SMS thật (Phase 11), quản trị xem chat bị báo cáo (Phase 12) | 00 #96 |
+
+## Phase 11 — Cổng thanh toán & hãng vận chuyển thật
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| VNPay sandbox: tạo URL ký, IPN đúng một lần, mã trả lời đúng khuôn, hoàn tiền | 00 #98, `VnPayGateway` | `Vnpay_pays_through_a_signed_url_and_ipn_once_and_refunds_on_cancel` (sai chữ ký → 97, sai số tiền → 04, lặp → 02, huỷ đơn → refund 02); `ProviderRulesTests` (chuỗi ký, IPN, mã trả lời) |
+| Đối chiếu giao dịch treo bằng cách hỏi lại cổng | `querydr` / MoMo `query` trong `PaymentExpiryService` | `A_vnpay_payment_whose_ipn_never_came_is_found_by_querying_vnpay_before_the_order_expires` |
+| MoMo sandbox: tạo giao dịch, IPN ký HMAC-SHA256 (204), nạp Ví ShopHub | 00 #99, `MoMoGateway`, chọn cổng khi nạp ví | `A_momo_wallet_topup_is_credited_once_from_the_signed_ipn`; `ProviderRulesTests.Momo_ipn_signature_…` |
+| GHN sandbox: phí, tạo đơn với mã quận / phường của GHN, huỷ, webhook, đồng bộ bù | 00 #100–101, `GhnCarrier`, `CarrierSyncService` | `Ghn_quotes_books_with_its_own_district_ids_and_follows_webhooks_and_missed_events` |
+| GHTK sandbox: phí theo tên địa danh, tạo đơn (lấy tận nơi / gửi bưu cục), phiếu PDF, webhook form | 00 #100–102, `GhtkCarrier`, nút "Phiếu GHTK" | `Ghtk_books_by_place_names_serves_its_own_label_and_takes_form_webhooks` |
+| Không có khoá thì giả lập vẫn chạy; hãng lỗi không chặn thanh toán | 00 #97, #102 | toàn bộ bộ test cũ (kênh thật tắt) + `A_carrier_outage_drops_only_that_option_and_checkout_goes_on`; e2e trên stack không có khoá |
+| Ánh xạ trạng thái hãng → trạng thái vận đơn, chuẩn hoá tên địa danh | `GhnCarrier.Map`, `GhtkCarrier.Map`, `DivisionNameResolver` | `ProviderRulesTests` (9 + 8 + 8 trường hợp) |
+| **Chưa kiểm với sandbox thật** | cần tài khoản thử của từng nhà cung cấp | 00 #103, `docs/04` |

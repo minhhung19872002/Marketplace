@@ -28,12 +28,12 @@ public sealed class SimulatedCarrier(ShopHubDbContext db, ShopHubSettings settin
 
     public string Provider => ProviderName;
 
-    public async Task<long?> QuoteFeeAsync(Carrier carrier, ShippingZone zone, int chargeableWeightG, CancellationToken ct)
+    public async Task<long?> QuoteFeeAsync(Carrier carrier, CarrierQuote quote, CancellationToken ct)
     {
-        var rates = await db.ShippingRates.AsNoTracking().Where(r => r.CarrierId == carrier.Id && r.Zone == zone)
+        var rates = await db.ShippingRates.AsNoTracking().Where(r => r.CarrierId == carrier.Id && r.Zone == quote.Zone)
             .OrderBy(r => r.WeightFromG).ToListAsync(ct);
-        var rate = rates.FirstOrDefault(r => r.Covers(chargeableWeightG));
-        return rate?.FeeFor(chargeableWeightG);
+        var rate = rates.FirstOrDefault(r => r.Covers(quote.ChargeableWeightG));
+        return rate?.FeeFor(quote.ChargeableWeightG);
     }
 
     public Task<string> CreateShipmentAsync(Carrier carrier, CarrierParcel parcel, CancellationToken ct) =>
@@ -47,9 +47,10 @@ public sealed class SimulatedCarrier(ShopHubDbContext db, ShopHubSettings settin
 
     public string Serialize(WebhookBody body) => JsonSerializer.Serialize(body, Json);
 
-    public CarrierEvent? VerifyWebhook(IReadOnlyDictionary<string, string> headers, string body)
+    public CarrierEvent? VerifyWebhook(InboundWebhook webhook)
     {
-        var signature = headers.FirstOrDefault(h => string.Equals(h.Key, SignatureHeader, StringComparison.OrdinalIgnoreCase)).Value;
+        var body = webhook.Body;
+        var signature = webhook.Header(SignatureHeader);
         if (string.IsNullOrEmpty(signature)) return null;
         if (!CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(Sign(body)), Encoding.ASCII.GetBytes(signature.Trim().ToLowerInvariant())))
             return null;
@@ -116,7 +117,7 @@ public sealed class CarrierSimulator(
             try
             {
                 var (_, result) = await intake.HandleAsync(SimulatedCarrier.ProviderName,
-                    new Dictionary<string, string> { [SimulatedCarrier.SignatureHeader] = carrier.Sign(body) }, body, ct);
+                    InboundWebhook.FromBody(new Dictionary<string, string> { [SimulatedCarrier.SignatureHeader] = carrier.Sign(body) }, body), ct);
                 if (result == "APPLIED") moved++;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

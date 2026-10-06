@@ -5,6 +5,7 @@ import { checkoutApi, gatewayApi } from '../api/commerce';
 import { ApiError } from '../api/http';
 import { formatPrice } from '../lib/money';
 import { formatDateTime } from '../lib/datetime';
+import { goTo } from '../lib/navigation';
 import './PaymentPages.css';
 
 const useSecondsLeft = (until: string | null | undefined) => {
@@ -89,7 +90,7 @@ export const PaymentResultPage = () => {
     setError('');
     try {
       const r = await checkoutApi.retryPayment(checkoutId);
-      if (r.payment?.redirectUrl) navigate(r.payment.redirectUrl);
+      if (r.payment?.redirectUrl) goTo(navigate, r.payment.redirectUrl);
       else void refetch();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Không tạo được giao dịch mới.');

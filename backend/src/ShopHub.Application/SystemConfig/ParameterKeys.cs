@@ -92,6 +92,8 @@ public static class ParameterKeys
 
     public const string ChatContactPatterns = "CHAT.CONTACT_PATTERNS";
     public const string JobRemindersCron = "JOB.REMINDERS_CRON";
+    public const string JobCarrierSyncCron = "JOB.CARRIER_SYNC_CRON";
+    public const string LogisticsSyncStaleMinutes = "LOGISTICS.SYNC_STALE_MINUTES";
     public const string ChatResponseWindowDays = "CHAT.RESPONSE_WINDOW_DAYS";
     public const string SitePublicUrl = "SITE.PUBLIC_URL";
 }
@@ -297,6 +299,10 @@ public static class ParameterCatalog
         new(ParameterKeys.ChatResponseWindowDays, "30", ParameterDataType.Int, ParameterGroups.Chat,
             "Kỳ tính tỉ lệ phản hồi chat (ngày)", "Tỉ lệ và thời gian phản hồi chat của shop tính trên các cuộc trò chuyện trong bấy nhiêu ngày gần nhất."),
         new(ParameterKeys.SitePublicUrl, "http://localhost:18000", ParameterDataType.String, ParameterGroups.Site,
-            "Địa chỉ trang người mua", "Dùng để dựng liên kết tuyệt đối trong thư thông báo."),
+            "Địa chỉ trang người mua", "Dùng để dựng liên kết tuyệt đối trong thư thông báo và địa chỉ quay về sau cổng thanh toán (VNPay, MoMo)."),
+        new(ParameterKeys.JobCarrierSyncCron, "*/30 * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch đồng bộ vận đơn với hãng", "Cron (giờ UTC) hỏi lại GHN / GHTK trạng thái các vận đơn lâu không có cập nhật (bù webhook bị lỡ)."),
+        new(ParameterKeys.LogisticsSyncStaleMinutes, "60", ParameterDataType.Int, ParameterGroups.Logistics,
+            "Vận đơn \"lâu không cập nhật\" (phút)", "Vận đơn của hãng thật không có sự kiện mới quá số phút này sẽ được hỏi lại hãng."),
     ];
 }

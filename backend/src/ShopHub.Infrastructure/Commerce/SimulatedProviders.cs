@@ -30,6 +30,7 @@ public sealed class SimulatedGateway(ShopHubDbContext db, ShopHubSettings settin
 
     public PaymentMethod Method => PaymentMethod.Simulated;
     public string Provider => ProviderName;
+    public string DisplayName => "Thẻ / Ví điện tử (cổng thanh toán giả lập)";
 
     public Task<GatewayPaymentStart> CreatePaymentAsync(GatewayPaymentRequest request, CancellationToken ct) =>
         Task.FromResult(new GatewayPaymentStart($"/cong-thanh-toan/{request.PaymentId}"));
@@ -38,9 +39,10 @@ public sealed class SimulatedGateway(ShopHubDbContext db, ShopHubSettings settin
 
     public string Sign(string body) => Convert.ToHexString(HMACSHA256.HashData(Key, Encoding.UTF8.GetBytes(body))).ToLowerInvariant();
 
-    public GatewayCallback? VerifyCallback(IReadOnlyDictionary<string, string> headers, string body)
+    public GatewayCallback? VerifyCallback(InboundWebhook webhook)
     {
-        var signature = headers.FirstOrDefault(h => string.Equals(h.Key, SignatureHeader, StringComparison.OrdinalIgnoreCase)).Value;
+        var body = webhook.Body;
+        var signature = webhook.Header(SignatureHeader);
         if (string.IsNullOrEmpty(signature)) return null;
         var expected = Encoding.ASCII.GetBytes(Sign(body));
         if (!CryptographicOperations.FixedTimeEquals(expected, Encoding.ASCII.GetBytes(signature.Trim().ToLowerInvariant()))) return null;
@@ -113,7 +115,7 @@ public sealed class SimulatedGatewayDesk(ShopHubDbContext db, SimulatedGateway g
         var body = JsonSerializer.Serialize(new SimulatedGateway.CallbackBody(Guid.NewGuid().ToString("N"), paymentId, txnId, view.Amount,
             success ? "SUCCESS" : "FAILED", success ? null : "Khách hàng huỷ hoặc thẻ bị từ chối (giả lập)."), Json);
         await intake.HandleAsync(SimulatedGateway.ProviderName,
-            new Dictionary<string, string> { [SimulatedGateway.SignatureHeader] = gateway.Sign(body) }, body, ct);
+            InboundWebhook.FromBody(new Dictionary<string, string> { [SimulatedGateway.SignatureHeader] = gateway.Sign(body) }, body), ct);
         return await ViewAsync(paymentId, ct);
     }
 }
@@ -127,4 +129,7 @@ public sealed class PaymentGatewayRegistry(IEnumerable<IPaymentGateway> gateways
         gateways.FirstOrDefault(g => string.Equals(g.Provider, provider, StringComparison.OrdinalIgnoreCase));
 
     public bool Supports(PaymentMethod method) => gateways.Any(g => g.Method == method);
+
+    // Real gateways first, the simulated one last
+    public IReadOnlyList<IPaymentGateway> Online => gateways.OrderBy(g => g.Method == PaymentMethod.Simulated).ThenBy(g => g.Method).ToList();
 }

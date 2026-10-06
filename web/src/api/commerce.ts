@@ -50,7 +50,7 @@ export const cartApi = {
 
 // ---------- checkout ----------
 
-export type PaymentMethod = 'Cod' | 'Simulated' | 'Wallet';
+export type PaymentMethod = 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo';
 export type VoucherType = 'Amount' | 'Percent' | 'FreeShipping' | 'CoinCashback';
 
 export interface CheckoutShopChoice {

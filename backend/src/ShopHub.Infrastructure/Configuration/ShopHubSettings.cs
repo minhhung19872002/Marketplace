@@ -40,6 +40,9 @@ public sealed class ShopHubSettings
     // SimulatedGateway (fake payment page that can mark any payment as paid): demo/test only, off unless set
     public bool PaymentSimulated { get; init; }
 
+    // VNPay / MoMo / GHN / GHTK: each on only when its keys are set
+    public ProviderSettings Providers { get; init; } = new();
+
     public static ShopHubSettings FromConfiguration(IConfiguration config)
     {
         var csb = new NpgsqlConnectionStringBuilder
@@ -79,6 +82,7 @@ public sealed class ShopHubSettings
             PaymentSimulated = string.Equals(config["SH_PAYMENT_SIMULATED"], "true", StringComparison.OrdinalIgnoreCase),
             LoadUsers = int.TryParse(config["SH_SEED_LOAD_USERS"], out var loadUsers) ? Math.Clamp(loadUsers, 0, 10_000) : 0,
             LoadUserPassword = string.IsNullOrWhiteSpace(config["SH_LOAD_USER_PASSWORD"]) ? null : config["SH_LOAD_USER_PASSWORD"],
+            Providers = ProviderSettings.FromConfiguration(config),
         };
     }
 

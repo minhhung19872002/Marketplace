@@ -205,7 +205,7 @@ public sealed class PlaceOrderHandler(
                 pricing.CoinUsed, pricing.GrandTotal, plan.PlatformVoucher?.Id, plan.FreeshipVoucher?.Id, expiresAt);
 
             // ----- payment attempt -----
-            if (method == PaymentMethod.Simulated) await payments.StartAsync(checkout, orders.Select(o => o.Code), ct);
+            if (method.IsOnline()) await payments.StartAsync(checkout, orders.Select(o => o.Code), ct);
             if (method == PaymentMethod.Wallet) await PayFromWalletAsync(checkout, orders, userId, now, ct);
 
             // ----- the bought lines leave the cart -----
@@ -345,14 +345,14 @@ public sealed class RetryPaymentHandler(IApplicationDbContext db, CheckoutReader
 }
 
 /// <summary>Creates a payment attempt at the gateway for the checkout's amount, valid until the checkout's deadline.</summary>
-public sealed class PaymentStarter(IApplicationDbContext db, IPaymentGatewayRegistry gateways, IClock clock)
+public sealed class PaymentStarter(IApplicationDbContext db, IPaymentGatewayRegistry gateways, ICurrentUser currentUser, IClock clock)
 {
     public async Task<Payment> StartAsync(CheckoutSession checkout, IEnumerable<string> orderCodes, CancellationToken ct)
     {
         var payment = new Payment(checkout.Id, checkout.PaymentMethod, checkout.GrandTotal, checkout.PaymentExpiresAt!.Value, clock.UtcNow);
         db.Payments.Add(payment);
         var start = await gateways.For(payment.Method).CreatePaymentAsync(new GatewayPaymentRequest(payment.Id, checkout.Id, payment.Amount,
-            $"Thanh toán đơn hàng {string.Join(", ", orderCodes)}", payment.ExpiresAt), ct);
+            $"Thanh toán đơn hàng {string.Join(", ", orderCodes)}", payment.ExpiresAt, $"/thanh-toan/ket-qua/{checkout.Id}", currentUser.IpAddress, payment.CreatedAt), ct);
         payment.SetRedirect(start.RedirectUrl);
         return payment;
     }

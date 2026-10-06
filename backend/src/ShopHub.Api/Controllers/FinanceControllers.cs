@@ -36,11 +36,17 @@ public sealed class ShopHubWalletController : ApiControllerBase
         return OkData<object?>(null, "Đã đặt mật khẩu Ví ShopHub.");
     }
 
-    public record TopupBody(long Amount);
+    public record TopupBody(long Amount, Domain.Sales.PaymentMethod? Method);
 
     [HttpPost("topups")]
     [ProducesResponseType<ApiResponse<TopupStarted>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Topup([FromBody] TopupBody body, CancellationToken ct) => OkData(await Sender.Send(new CreateTopupCommand(body.Amount), ct));
+    public async Task<IActionResult> Topup([FromBody] TopupBody body, CancellationToken ct) =>
+        OkData(await Sender.Send(new CreateTopupCommand(body.Amount, body.Method), ct));
+
+    /// <summary>Online gateways a top-up can go through (those switched on by their keys).</summary>
+    [HttpGet("topup-gateways")]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<GatewayOptionDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TopupGateways(CancellationToken ct) => OkData(await Sender.Send(new TopupGatewaysQuery(), ct));
 
     [HttpGet("topups/{topupId:guid}")]
     [ProducesResponseType<ApiResponse<TopupDto>>(StatusCodes.Status200OK)]

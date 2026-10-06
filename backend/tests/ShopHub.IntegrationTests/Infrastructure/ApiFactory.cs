@@ -63,11 +63,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <summary>Mails "sent" by the API during the tests (no SMTP server in the suite).</summary>
     public RecordingEmailSender Emails { get; } = new();
 
+    /// <summary>VNPay / MoMo / GHN / GHTK sandboxes, in process.</summary>
+    public FakeProviders Providers { get; } = new();
+
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder) =>
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<ShopHub.Infrastructure.Notifications.IEmailSender>();
             services.AddSingleton<ShopHub.Infrastructure.Notifications.IEmailSender>(Emails);
+            foreach (var name in new[] { "vnpay", "momo", "ghn", "ghtk" })
+                services.AddHttpClient(name).ConfigurePrimaryHttpMessageHandler(() => new FakeProvidersHandler(Providers));
         });
 
     public string ConnectionString => _postgres.GetConnectionString();
@@ -102,9 +107,41 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_GLOBAL", "1000000");
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_OTP", "100000");
 
+        // Real gateways / carriers switched on with test keys, answered by FakeProviders
+        Environment.SetEnvironmentVariable("SH_VNPAY_TMN_CODE", FakeProviders.VnPayTmn);
+        Environment.SetEnvironmentVariable("SH_VNPAY_HASH_SECRET", FakeProviders.VnPaySecret);
+        Environment.SetEnvironmentVariable("SH_VNPAY_API_URL", $"https://{FakeProviders.VnPayHost}/merchant_webapi/api/transaction");
+        Environment.SetEnvironmentVariable("SH_MOMO_PARTNER_CODE", FakeProviders.MoMoPartner);
+        Environment.SetEnvironmentVariable("SH_MOMO_ACCESS_KEY", FakeProviders.MoMoAccess);
+        Environment.SetEnvironmentVariable("SH_MOMO_SECRET_KEY", FakeProviders.MoMoSecret);
+        Environment.SetEnvironmentVariable("SH_MOMO_ENDPOINT", $"https://{FakeProviders.MoMoHost}");
+        Environment.SetEnvironmentVariable("SH_GHN_TOKEN", FakeProviders.GhnToken);
+        Environment.SetEnvironmentVariable("SH_GHN_SHOP_ID", FakeProviders.GhnShopId.ToString());
+        Environment.SetEnvironmentVariable("SH_GHN_ENDPOINT", $"https://{FakeProviders.GhnHost}/shiip/public-api");
+        Environment.SetEnvironmentVariable("SH_GHN_WEBHOOK_TOKEN", FakeProviders.GhnWebhookToken);
+        Environment.SetEnvironmentVariable("SH_GHTK_TOKEN", FakeProviders.GhtkToken);
+        Environment.SetEnvironmentVariable("SH_GHTK_ENDPOINT", $"https://{FakeProviders.GhtkHost}");
+        Environment.SetEnvironmentVariable("SH_GHTK_WEBHOOK_TOKEN", FakeProviders.GhtkWebhookToken);
+        Environment.SetEnvironmentVariable("SH_CALLBACK_BASE_URL", "https://callback.shophub.test");
+        Providers.Divisions = parent => WithDbAsync<IReadOnlyList<(string, string)>>(async db =>
+            (await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == parent).Select(d => new { d.Code, d.Name }).ToListAsync())
+            .Select(d => (d.Code, d.Name)).ToList());
+
         // Force host start (migrations + seed) before tests run
         _ = Server;
+
+        // The real carriers' channels exist (keys are set) but stay off, so every other test keeps the simulated
+        // channels only; ProviderTests switch them on one at a time
+        foreach (var code in new[] { "GHN_STD", "GHTK_STD" }) await SetCarrierActiveAsync(code, false);
     }
+
+    public Task SetCarrierActiveAsync(string code, bool active) =>
+        WithDbAsync(async db =>
+        {
+            var c = await db.Carriers.SingleAsync(x => x.Code == code);
+            c.Configure(c.Name, c.Description, active, c.SupportsCod, c.SameProvinceOnly, c.DaysSameProvince, c.DaysSameRegion, c.DaysCrossRegion);
+            await db.SaveChangesAsync();
+        });
 
     public new async Task DisposeAsync()
     {

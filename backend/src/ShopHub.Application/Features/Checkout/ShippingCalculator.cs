@@ -37,9 +37,11 @@ public sealed class ShippingCalculator(IApplicationDbContext db, IEnumerable<ICa
         return (int)Math.Clamp(Math.Max(Math.Max(actual, volumetric), 100), 100, int.MaxValue);
     }
 
-    public async Task<IReadOnlyList<ShippingOption>> QuoteAsync(string fromProvince, string toProvince, int chargeableWeightG, CancellationToken ct)
+    /// <summary>Options for one parcel; parcelValue (goods value) is what real carriers insure.</summary>
+    public async Task<IReadOnlyList<ShippingOption>> QuoteAsync(RoutePoint from, RoutePoint to, int chargeableWeightG, long parcelValue, CancellationToken ct)
     {
-        var zone = ZoneOf(fromProvince, toProvince);
+        var zone = ZoneOf(from.ProvinceCode, to.ProvinceCode);
+        var quote = new CarrierQuote(zone, chargeableWeightG, from, to, parcelValue);
         var holidays = await HolidaysAsync(ct);
         var today = VietnamTime.Today(clock.UtcNow);
         var options = new List<ShippingOption>();
@@ -48,7 +50,16 @@ public sealed class ShippingCalculator(IApplicationDbContext db, IEnumerable<ICa
             if (carrier.SameProvinceOnly && zone != ShippingZone.SameProvince) continue;
             var provider = carriers.FirstOrDefault(c => c.Provider == carrier.Provider);
             if (provider is null) continue;
-            var fee = await provider.QuoteFeeAsync(carrier, zone, chargeableWeightG, ct);
+            long? fee;
+            try
+            {
+                fee = await provider.QuoteFeeAsync(carrier, quote, ct);
+            }
+            catch (CarrierUnavailableException)
+            {
+                // A real carrier being down must not block checkout: its option is just not offered this time
+                continue;
+            }
             if (fee is null) continue;
             var days = carrier.DaysFor(zone);
             options.Add(new ShippingOption(carrier.Code, carrier.Name, carrier.Description, fee.Value, days,

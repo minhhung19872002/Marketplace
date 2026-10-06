@@ -11,7 +11,7 @@ export interface ShopOrderRow {
   createdAt: string
   status: OrderStatus
   statusLabel: string
-  paymentMethod: 'Cod' | 'Simulated'
+  paymentMethod: 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo'
   paymentStatus: 'Unpaid' | 'Paid' | 'Refunded'
   buyerName: string
   itemCount: number
@@ -32,7 +32,7 @@ export interface OrderDetail {
   code: string
   status: OrderStatus
   statusLabel: string
-  paymentMethod: 'Cod' | 'Simulated'
+  paymentMethod: 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo'
   paymentStatus: string
   carrierCode: string
   carrierName: string | null
@@ -110,6 +110,8 @@ export const ordersApi = {
   note: (shopId: string, id: string, note: string) => apiCommand(`${base(shopId)}/orders/${id}/note`, { method: 'PUT', body: { note } }),
   labels: (shopId: string, ids: string[], size: 'A6' | 'A5' = 'A6') =>
     download(`${base(shopId)}/orders/labels?${ids.map((i) => `ids=${i}`).join('&')}&size=${size}`),
+  // The carrier's own label (GHTK); 404 when the carrier uses ShopHub's label
+  carrierLabel: (shopId: string, id: string) => download(`${base(shopId)}/orders/${id}/carrier-label`),
   pickingList: (shopId: string, ids: string[]) => download(`${base(shopId)}/orders/picking-list?${ids.map((i) => `ids=${i}`).join('&')}`),
   export: (shopId: string, tab: ShopOrderTab) => download(`${base(shopId)}/orders/export?tab=${tab}`),
 }

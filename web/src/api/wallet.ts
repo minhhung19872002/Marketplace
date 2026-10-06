@@ -66,7 +66,9 @@ export const walletApi = {
   get: (page: number) => apiRequest<WalletInfo>(`/wallet?page=${page}&pageSize=20`),
   otp: () => apiCommand<{ expiresInSeconds: number; resendAfterSeconds: number }>('/wallet/otp', { method: 'POST' }),
   setPin: (otpCode: string, pin: string) => apiCommand('/wallet/pin', { method: 'POST', body: { otpCode, pin } }),
-  topup: (amount: number) => apiRequest<{ topupId: string; paymentId: string; redirectUrl: string }>('/wallet/topups', { method: 'POST', body: { amount } }),
+  topup: (amount: number, method?: string) =>
+    apiRequest<{ topupId: string; paymentId: string; redirectUrl: string }>('/wallet/topups', { method: 'POST', body: { amount, method } }),
+  topupGateways: () => apiRequest<{ method: string; name: string }[]>('/wallet/topup-gateways'),
   getTopup: (id: string) => apiRequest<Topup>(`/wallet/topups/${id}`),
   addBank: (body: { bankCode: string; accountNo: string; accountName: string; otpCode: string }) =>
     apiCommand<string>('/wallet/bank-accounts', { method: 'POST', body }),

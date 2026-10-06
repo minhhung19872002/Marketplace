@@ -210,12 +210,11 @@ public sealed class ShipmentEventProcessor(
 /// <summary>Verifies a carrier's notification with its own rules, then applies it once.</summary>
 public sealed class CarrierWebhookIntake(IEnumerable<ICarrier> carriers, ShipmentEventProcessor processor)
 {
-    public async Task<(bool Accepted, string Result)> HandleAsync(string provider, IReadOnlyDictionary<string, string> headers, string body,
-        CancellationToken ct)
+    public async Task<(bool Accepted, string Result)> HandleAsync(string provider, InboundWebhook webhook, CancellationToken ct)
     {
         var carrier = carriers.FirstOrDefault(c => string.Equals(c.Provider, provider, StringComparison.OrdinalIgnoreCase))
                       ?? throw new NotFoundException("Không tìm thấy đơn vị vận chuyển.");
-        var e = carrier.VerifyWebhook(headers, body);
+        var e = carrier.VerifyWebhook(webhook);
         if (e is null) return (false, "INVALID_SIGNATURE");
         return (true, await processor.ApplyAsync(e, ct));
     }

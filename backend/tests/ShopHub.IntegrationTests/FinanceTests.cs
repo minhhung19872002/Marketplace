@@ -403,7 +403,7 @@ public class FinanceTests(ApiFactory factory)
 
     private async Task TopupAsync(TestUser user, long amount)
     {
-        var started = (await (await user.Client.PostAsJsonAsync("/api/wallet/topups", new { amount })).ReadEnvelopeAsync()).Data;
+        var started = (await (await user.Client.PostAsJsonAsync("/api/wallet/topups", new { amount, method = "Simulated" })).ReadEnvelopeAsync()).Data;
         (await factory.CreateClient().PostAsync($"/api/payments/simulated/{started.Str("paymentId")}/success", null)).EnsureSuccessStatusCode();
     }
 
@@ -551,7 +551,7 @@ public class FinanceTests(ApiFactory factory)
 
         var a = await factory.CreateUserAsync();
         var b = await factory.CreateUserAsync();
-        var topup = (await (await a.Client.PostAsJsonAsync("/api/wallet/topups", new { amount = 50_000 })).ReadEnvelopeAsync()).Data.Str("topupId");
+        var topup = (await (await a.Client.PostAsJsonAsync("/api/wallet/topups", new { amount = 50_000, method = "Simulated" })).ReadEnvelopeAsync()).Data.Str("topupId");
         (await b.Client.GetAsync($"/api/wallet/topups/{topup}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
 
         var admin = await factory.ClientWithPermissionsAsync(Permissions.FinanceFeeManage);

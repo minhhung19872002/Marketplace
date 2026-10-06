@@ -50,6 +50,12 @@ public sealed class SellerOrdersController : ApiControllerBase
     [ProducesResponseType<ApiResponse<IReadOnlyList<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PickupSlots(CancellationToken ct) => OkData(await Sender.Send(new PickupSlotsQuery(), ct));
 
+    /// <summary>The carrier's own label (PDF) of one order, when the carrier provides one (GHTK).</summary>
+    [HttpGet("shops/{shopId:guid}/orders/{orderId:guid}/carrier-label")]
+    [Produces(Pdf, "application/json")]
+    public async Task<IActionResult> CarrierLabel(Guid shopId, Guid orderId, CancellationToken ct) =>
+        File(await Sender.Send(new CarrierLabelQuery(shopId, orderId), ct), Pdf, $"phieu-hang-van-chuyen-{orderId:N}.pdf");
+
     /// <summary>Shipping labels (PDF, one page per parcel, A6 or A5) for one or many orders: <c>?ids=…&amp;ids=…</c>.</summary>
     [HttpGet("shops/{shopId:guid}/orders/labels")]
     [Produces(Pdf, "application/json")]
@@ -149,13 +155,10 @@ public sealed class LogisticsController(CarrierWebhookIntake intake) : ApiContro
     /// <summary>Carrier → ShopHub status notification. Authenticity comes from the carrier's signature; replays are ignored.</summary>
     [HttpPost("logistics/webhooks/{provider}")]
     [AllowAnonymous]
-    [Consumes("application/json")]
     public async Task<IActionResult> Webhook(string provider, CancellationToken ct)
     {
-        using var reader = new StreamReader(Request.Body);
-        var body = await reader.ReadToEndAsync(ct);
-        var headers = Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString(), StringComparer.OrdinalIgnoreCase);
-        var (accepted, result) = await intake.HandleAsync(provider, headers, body, ct);
+        // GHN posts JSON, GHTK posts a form; both are authenticated by the secret token in the callback URL
+        var (accepted, result) = await intake.HandleAsync(provider, await InboundWebhooks.ReadAsync(Request, ct), ct);
         return accepted ? Ok(new { code = 200, result }) : BadRequest(new { code = 400, result });
     }
 }

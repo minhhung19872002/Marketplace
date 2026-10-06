@@ -122,7 +122,7 @@ public sealed class ReturnRefunder(
         if (money > 0)
         {
             // Paid through a gateway → refund there; COD and Ví ShopHub → into the wallet (credited by the finance sync)
-            var online = order.PaymentMethod == PaymentMethod.Simulated;
+            var online = order.PaymentMethod.IsOnline();
             var payment = online
                 ? await db.Payments.Where(p => p.CheckoutId == order.CheckoutId && p.Status == PaymentStatus.Succeeded).OrderByDescending(p => p.PaidAt).FirstOrDefaultAsync(ct)
                 : null;
@@ -171,16 +171,22 @@ public sealed class ReturnRefunder(
     {
         var order = await db.Orders.AsNoTracking().Include(o => o.Items).SingleAsync(o => o.Id == r.OrderId, ct);
         var checkout = await db.CheckoutSessions.AsNoTracking().SingleAsync(c => c.Id == order.CheckoutId, ct);
-        var fromProvince = JsonDocument.Parse(checkout.AddressSnapshot).RootElement.GetProperty("provinceCode").GetString() ?? "01";
-        var toProvince = await db.ShopWarehouses.Where(w => w.ShopId == r.ShopId).OrderByDescending(w => w.IsReturnDefault).ThenBy(w => w.Id)
-            .Select(w => w.ProvinceCode).FirstAsync(ct);
+        var buyer = CarrierParties.FromSnapshot(checkout.AddressSnapshot);
+        var fromProvince = buyer?.Point.ProvinceCode ?? "01";
+        var warehouse = await db.ShopWarehouses.AsNoTracking().Where(w => w.ShopId == r.ShopId).OrderByDescending(w => w.IsReturnDefault).ThenBy(w => w.Id)
+            .FirstAsync(ct);
+        var toProvince = warehouse.ProvinceCode;
         var carrier = await db.Carriers.AsNoTracking().SingleAsync(c => c.Code == order.CarrierCode, ct);
         var provider = carriers.First(c => c.Provider == carrier.Provider);
         var units = r.Items.Sum(i => i.Quantity);
         var weight = Math.Max(100, units * 300);
         var now = clock.UtcNow;
+        var items = r.Items.Select(i => (Line: order.Items.First(o => o.Id == i.OrderItemId), i.Quantity))
+            .Select(x => new CarrierItem(x.Line.NameSnapshot, x.Quantity, 300)).ToList();
         var tracking = await provider.CreateShipmentAsync(carrier,
-            new CarrierParcel(order.Id, order.Code, fromProvince, toProvince, weight, 0, PickupMethod.DropOff, null), ct);
+            new CarrierParcel(order.Id, $"{order.Code}-{r.Code}", fromProvince, toProvince, weight, 0, PickupMethod.DropOff, null,
+                buyer, CarrierParties.FromWarehouse(warehouse), r.Items.Sum(i => order.Items.First(o => o.Id == i.OrderItemId).UnitPrice * i.Quantity),
+                items, $"Hàng trả của đơn {order.Code}"), ct);
         var expected = VietnamTime.AddWorkingDays(VietnamTime.Today(now), carrier.DaysFor(ShippingCalculator.ZoneOf(fromProvince, toProvince)) + 1, new HashSet<DateOnly>());
         var shipment = new Shipment(order.Id, carrier.Code, tracking, ShipmentDirection.Return, 0, 0, weight, PickupMethod.DropOff, null,
             new DateTimeOffset(expected.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(7)).ToUniversalTime(), now);

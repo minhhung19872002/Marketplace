@@ -138,6 +138,24 @@ services:
       # Load-test buyers for e2e/load (k6): off unless both are set in .env
       SH_SEED_LOAD_USERS: ${SH_SEED_LOAD_USERS:-0}
       SH_LOAD_USER_PASSWORD: ${SH_LOAD_USER_PASSWORD:-}
+      # Real gateways / carriers (Phase 11): each one is on only when its keys are set in .env
+      SH_CALLBACK_BASE_URL: ${SH_CALLBACK_BASE_URL:-}
+      SH_VNPAY_TMN_CODE: ${SH_VNPAY_TMN_CODE:-}
+      SH_VNPAY_HASH_SECRET: ${SH_VNPAY_HASH_SECRET:-}
+      SH_VNPAY_PAY_URL: ${SH_VNPAY_PAY_URL:-}
+      SH_VNPAY_API_URL: ${SH_VNPAY_API_URL:-}
+      SH_MOMO_PARTNER_CODE: ${SH_MOMO_PARTNER_CODE:-}
+      SH_MOMO_ACCESS_KEY: ${SH_MOMO_ACCESS_KEY:-}
+      SH_MOMO_SECRET_KEY: ${SH_MOMO_SECRET_KEY:-}
+      SH_MOMO_ENDPOINT: ${SH_MOMO_ENDPOINT:-}
+      SH_GHN_TOKEN: ${SH_GHN_TOKEN:-}
+      SH_GHN_SHOP_ID: ${SH_GHN_SHOP_ID:-}
+      SH_GHN_WEBHOOK_TOKEN: ${SH_GHN_WEBHOOK_TOKEN:-}
+      SH_GHN_ENDPOINT: ${SH_GHN_ENDPOINT:-}
+      SH_GHTK_TOKEN: ${SH_GHTK_TOKEN:-}
+      SH_GHTK_CLIENT_SOURCE: ${SH_GHTK_CLIENT_SOURCE:-}
+      SH_GHTK_WEBHOOK_TOKEN: ${SH_GHTK_WEBHOOK_TOKEN:-}
+      SH_GHTK_ENDPOINT: ${SH_GHTK_ENDPOINT:-}
     volumes:
       - apilogs:/app/logs
     depends_on:

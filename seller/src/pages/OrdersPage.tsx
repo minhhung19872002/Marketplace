@@ -230,6 +230,15 @@ const OrdersPage = ({ shopId }: { shopId: string }) => {
                   <Button size="small" type="primary" onClick={() => setPreparing([r.id])} data-testid="prepare-order">Chuẩn bị hàng</Button>
                 )}
                 {r.status === 'ReadyToShip' && <Button size="small" onClick={() => print('labels', [r.id])} data-testid="print-label">In phiếu</Button>}
+                {r.status === 'ReadyToShip' && r.carrierCode.startsWith('GHTK') && (
+                  <Button size="small" onClick={async () => {
+                    try {
+                      openBlob(await ordersApi.carrierLabel(shopId, r.id), `phieu-ghtk-${r.code}.pdf`)
+                    } catch (e) {
+                      fail(e)
+                    }
+                  }}>Phiếu GHTK</Button>
+                )}
                 {selectable(r) && <Button size="small" danger onClick={() => setCancelling(r)}>Huỷ</Button>}
               </Space>
             ),

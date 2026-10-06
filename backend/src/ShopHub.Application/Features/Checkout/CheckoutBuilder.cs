@@ -168,7 +168,7 @@ public sealed class CheckoutBuilder(
         foreach (var shop in shops)
         {
             var from = await db.ShopWarehouses.AsNoTracking().Where(w => w.ShopId == shop.Id).OrderByDescending(w => w.IsPickupDefault).ThenBy(w => w.Id)
-                .Select(w => w.ProvinceCode).FirstOrDefaultAsync(ct);
+                .Select(w => new RoutePoint(w.ProvinceCode, w.DistrictCode, w.WardCode)).FirstOrDefaultAsync(ct);
             if (from is null || address is null)
             {
                 shippingOptions[shop.Id] = [];
@@ -177,7 +177,8 @@ public sealed class CheckoutBuilder(
             }
             var weight = ShippingCalculator.ChargeableWeightG(buyable.Where(l => l.Shop.Id == shop.Id).Select(l =>
                 new ParcelItem(l.Sku.WeightG ?? l.Product.WeightG, l.Product.LengthMm, l.Product.WidthMm, l.Product.HeightMm, l.Item.Quantity)));
-            var options = await shipping.QuoteAsync(from, address.ProvinceCode, weight, ct);
+            var value = buyable.Where(l => l.Shop.Id == shop.Id).Sum(l => UnitPrice(l) * l.Item.Quantity);
+            var options = await shipping.QuoteAsync(from, new RoutePoint(address.ProvinceCode, address.DistrictCode, address.WardCode), weight, value, ct);
             shippingOptions[shop.Id] = options;
             if (options.Count == 0)
             {
@@ -340,15 +341,15 @@ public sealed class CheckoutBuilder(
             .Select(a => (long?)a.Balance).FirstOrDefaultAsync(ct) ?? 0;
         var walletProblem = !hasWallet ? "Bạn chưa kích hoạt Ví ShopHub (tạo mật khẩu ví ở Tài khoản → Ví ShopHub)."
             : walletBalance < grand ? $"Số dư Ví ShopHub ({Domain.Common.Money.Vnd(walletBalance)}) không đủ cho đơn này." : null;
-        var methods = new List<PaymentMethodDto>
-        {
-            new(PaymentMethod.Cod, "Thanh toán khi nhận hàng", codProblem is null, codProblem),
-            new(PaymentMethod.Simulated, "Thẻ / Ví điện tử (cổng thanh toán giả lập)", gateways.Supports(PaymentMethod.Simulated),
-                gateways.Supports(PaymentMethod.Simulated) ? null : "Cổng thanh toán giả lập đang tắt."),
-            new(PaymentMethod.Wallet, $"Ví ShopHub (số dư {Domain.Common.Money.Vnd(walletBalance)})", walletProblem is null, walletProblem),
-        };
-        var method = methods.First(m => m.Code == request.PaymentMethod);
-        if (!method.Available) problems.Add(method.Reason!);
+        var methods = new List<PaymentMethodDto> { new(PaymentMethod.Cod, "Thanh toán khi nhận hàng", codProblem is null, codProblem) };
+        // Real gateways (VNPay, MoMo) appear only when their keys are configured; the simulated one says when it is off
+        methods.AddRange(gateways.Online.Where(g => g.Method != PaymentMethod.Simulated).Select(g => new PaymentMethodDto(g.Method, g.DisplayName, true, null)));
+        methods.Add(new(PaymentMethod.Simulated, "Thẻ / Ví điện tử (cổng thanh toán giả lập)", gateways.Supports(PaymentMethod.Simulated),
+            gateways.Supports(PaymentMethod.Simulated) ? null : "Cổng thanh toán giả lập đang tắt."));
+        methods.Add(new(PaymentMethod.Wallet, $"Ví ShopHub (số dư {Domain.Common.Money.Vnd(walletBalance)})", walletProblem is null, walletProblem));
+        var method = methods.FirstOrDefault(m => m.Code == request.PaymentMethod);
+        if (method is null) problems.Add("Phương thức thanh toán này hiện không khả dụng.");
+        else if (!method.Available) problems.Add(method.Reason!);
         if (grand == 0 && request.PaymentMethod != PaymentMethod.Cod && lines.Count > 0)
             problems.Add("Đơn hàng 0₫ vui lòng chọn thanh toán khi nhận hàng.");
 

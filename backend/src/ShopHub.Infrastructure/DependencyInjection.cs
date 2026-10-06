@@ -87,6 +87,8 @@ public static class DependencyInjection
         services.AddScoped<ICounterRecomputer>(sp => sp.GetRequiredService<SqlCounterRecomputer>());
         services.AddScoped<IOutboxHandler, SearchSyncProductsHandler>();
         services.AddScoped<IOutboxHandler, SearchSyncShopHandler>();
+        services.AddScoped<IOutboxHandler, SearchSyncSkusHandler>();
+        services.AddScoped<PriceIndexJob>();
 
         // Identity
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();

@@ -20,6 +20,7 @@ public static class JobIds
     public const string Reminders = "engage.reminders";
     public const string CarrierSync = "logistics.carrier-sync";
     public const string BulkSweep = "seller.bulk-sweep";
+    public const string PriceIndex = "search.price-index";
 
     // Jobs an admin may trigger on demand (POST /api/admin/job-runs/{id})
     public static readonly IReadOnlyList<string> Runnable =
@@ -128,6 +129,12 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
             JobIds.CoinExpiry,
             j => j.RunJobAsync(),
             await parameters.GetStringAsync(ParameterKeys.JobCoinExpiryCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<Search.PriceIndexJob>(
+            JobIds.PriceIndex,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobPriceIndexCron, ct),
             options);
 
         recurringJobs.AddOrUpdate<BulkTaskJob>(

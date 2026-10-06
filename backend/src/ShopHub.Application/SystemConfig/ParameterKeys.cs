@@ -94,6 +94,7 @@ public static class ParameterKeys
     public const string CheckInRewards = "CHECKIN.REWARDS";
     public const string JobCoinExpiryCron = "JOB.COIN_EXPIRY_CRON";
     public const string JobBulkSweepCron = "JOB.BULK_SWEEP_CRON";
+    public const string JobPriceIndexCron = "JOB.PRICE_INDEX_CRON";
 
     public const string ChatContactPatterns = "CHAT.CONTACT_PATTERNS";
     public const string JobRemindersCron = "JOB.REMINDERS_CRON";
@@ -302,6 +303,8 @@ public static class ParameterCatalog
             "Chi tiêu tối thiểu hạng Kim cương (₫)", "Từ mức này trở lên là hạng Kim cương."),
         new(ParameterKeys.CheckInRewards, "100,100,100,200,200,200,500", ParameterDataType.String, ParameterGroups.Coin,
             "Xu điểm danh 7 ngày", "Số xu nhận ở ngày 1…7 của chuỗi điểm danh liên tục (bỏ một ngày thì quay lại ngày 1)."),
+        new(ParameterKeys.JobPriceIndexCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch cập nhật giá trong tìm kiếm", "Cron (giờ UTC) đánh lại chỉ mục tìm kiếm cho sản phẩm có chương trình giá vừa bắt đầu / kết thúc, để lọc và sắp xếp theo giá đúng giá đang bán."),
         new(ParameterKeys.JobBulkSweepCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch quét việc hàng loạt bị sót", "Cron (giờ UTC) chạy các việc Excel hàng loạt đã xếp hàng quá 1 phút mà chưa bắt đầu (bình thường việc chạy ngay khi tải tệp)."),
         new(ParameterKeys.JobCoinExpiryCron, "15 17 * * *", ParameterDataType.Cron, ParameterGroups.Job,

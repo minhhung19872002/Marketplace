@@ -19,6 +19,8 @@ public static class OutboxTypes
     // Push product / shop changes into the search index (after commit, retried by the outbox)
     public const string SearchSyncProducts = "search.sync.products";
     public const string SearchSyncShop = "search.sync.shop";
+    // A SKU's price in force changed (programme added / stopped / started / ended, flash quota used up): its product's document
+    public const string SearchSyncSkus = "search.sync.skus";
 
     // Order lifecycle (placed, paid, confirmed, shipped, delivered, completed, cancelled, cancel request…) → notifications
     public const string OrderEvent = "sales.order.event";
@@ -42,6 +44,8 @@ public record ShopEventPayload(Guid ShopId, string Event, string? Reason);
 public record ProductEventPayload(Guid ProductId, string Event, string? Reason);
 
 public record SearchSyncProductsPayload(IReadOnlyList<Guid> ProductIds);
+
+public record SearchSyncSkusPayload(IReadOnlyList<Guid> SkuIds);
 
 public record SearchSyncShopPayload(Guid ShopId);
 

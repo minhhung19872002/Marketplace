@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
+using ShopHub.Application.SystemConfig;
 using ShopHub.Domain.Promo;
 
 namespace ShopHub.Application.Features.Marketing;
@@ -65,7 +66,7 @@ public sealed class PriceBook(IApplicationDbContext db)
 /// transaction — <c>sold + n &lt;= quota</c> and the buyer's own counter <c>quantity + n &lt;= per_user_limit</c>.
 /// The database decides; Redis only spares it the crowd.
 /// </summary>
-public sealed class FlashSaleQuota(IApplicationDbContext db, IFlashSaleCounter counter, ILogger<FlashSaleQuota> logger)
+public sealed class FlashSaleQuota(IApplicationDbContext db, IFlashSaleCounter counter, IOutbox outbox, ILogger<FlashSaleQuota> logger)
 {
     public record Taken(Guid ItemId, Guid UserId, int Quantity, bool InRedis);
 
@@ -99,6 +100,9 @@ public sealed class FlashSaleQuota(IApplicationDbContext db, IFlashSaleCounter c
                 """, ct);
             if (mine == 0 || quantity > flash.PerUserLimit)
                 throw new ConflictException($"Mỗi người chỉ mua tối đa {flash.PerUserLimit} suất Flash Sale \"{productName}\".", "FLASH_USER_LIMIT");
+            // The last unit: the SKU sells at its normal price from now on — the search index follows (same transaction)
+            if (await db.FlashSaleItems.AnyAsync(i => i.Id == flash.ItemId && i.Sold >= i.Quota, ct))
+                outbox.Enqueue(OutboxTypes.SearchSyncSkus, new SearchSyncSkusPayload([await SkuOfAsync(flash.ItemId, ct)]));
         }
         catch
         {
@@ -156,8 +160,13 @@ public sealed class FlashSaleQuota(IApplicationDbContext db, IFlashSaleCounter c
                 WHERE item_id = {itemId} AND user_id = {userId} AND quantity >= {quantity}
                 """, ct);
             await GiveBackRedisAsync([new Taken(itemId, userId, quantity, true)], ct);
+            // Units back on a sold-out item bring the flash price back
+            outbox.Enqueue(OutboxTypes.SearchSyncSkus, new SearchSyncSkusPayload([await SkuOfAsync(itemId, ct)]));
         }
     }
+
+    private Task<Guid> SkuOfAsync(Guid itemId, CancellationToken ct) =>
+        db.FlashSaleItems.AsNoTracking().Where(i => i.Id == itemId).Select(i => i.SkuId).FirstAsync(ct);
 
     public async Task ReloadAsync(Guid itemId, CancellationToken ct)
     {

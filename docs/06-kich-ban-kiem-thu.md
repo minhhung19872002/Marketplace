@@ -11,7 +11,7 @@ cd e2e && SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=… SH_E2E_AD
 (gateway e2e nên nâng giới hạn: `SH_GATEWAY_RATE=100r/s SH_GATEWAY_BURST=200`, mọi trình duyệt cùng một IP.)
 
 Lần chạy gần nhất: **2026-10-07**, 61 kịch bản, 61 đạt (trên dữ liệu mẫu đầy đủ: ~600 đơn, 800 đánh giá). Phần phụ trợ: backend
-`dotnet test` 151 unit + 174 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
+`dotnet test` 151 unit + 175 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
 
 ## A. Mục 9 của đặc tả (bắt buộc)
 

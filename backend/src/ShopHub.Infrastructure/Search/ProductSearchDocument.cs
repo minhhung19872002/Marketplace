@@ -45,7 +45,7 @@ public static class ProductSearchProjection
 {
     /// <summary>Build documents for the given products; ids that are no longer buyable come back in <c>Removed</c>.</summary>
     public static async Task<(List<ProductSearchDocument> Documents, List<Guid> Removed)> BuildAsync(ShopHubDbContext db, IReadOnlyCollection<Guid> ids,
-        CancellationToken ct)
+        Application.Features.Marketing.PriceBook prices, DateTimeOffset now, CancellationToken ct)
     {
         var categories = await db.Categories.AsNoTracking().Select(c => new { c.Id, c.ParentId, c.Name }).ToDictionaryAsync(c => c.Id, ct);
         var products = await db.Products.AsNoTracking().IgnoreQueryFilters()
@@ -68,6 +68,8 @@ public static class ProductSearchProjection
         var attributeIds = products.SelectMany(p => p.Attributes.Select(a => a.AttributeId)).Distinct().ToList();
         var attributeNames = await db.CategoryAttributes.AsNoTracking().Where(a => attributeIds.Contains(a.Id) && a.IsFilterable)
             .ToDictionaryAsync(a => a.Id, a => a.Name, ct);
+        // Prices in force (shop discount, flash sale) — what the cards and the checkout charge, so price filters and sorting agree
+        var effective = await prices.ForSkusAsync(products.SelectMany(p => p.Skus.Where(s => s.IsActive).Select(s => s.Id)).ToList(), now, ct);
 
         var docs = new List<ProductSearchDocument>();
         foreach (var p in products)
@@ -78,13 +80,16 @@ public static class ProductSearchProjection
             for (var cur = categories.GetValueOrDefault(p.CategoryId); cur is not null; cur = cur.ParentId is { } pid ? categories.GetValueOrDefault(pid) : null)
                 chain.Add((cur.Id, cur.Name));
             var activeSkus = p.Skus.Where(s => s.IsActive).ToList();
-            var cheapest = activeSkus.OrderBy(s => s.Price).FirstOrDefault();
-            var original = cheapest?.OriginalPrice ?? p.MinPrice;
+            long PriceOf(Domain.Catalog.Sku s) => effective.TryGetValue(s.Id, out var e) ? e.Price : s.Price;
+            var cheapest = activeSkus.OrderBy(PriceOf).ThenBy(s => s.Id).FirstOrDefault();
+            var minPrice = cheapest is null ? p.MinPrice : PriceOf(cheapest);
+            var maxPrice = activeSkus.Count == 0 ? p.MaxPrice : activeSkus.Max(PriceOf);
+            var original = cheapest is null ? p.MinPrice : Math.Max(cheapest.OriginalPrice, cheapest.Price);
 
             docs.Add(new ProductSearchDocument(
                 p.Id.ToString(), p.Name, Slug.Fold(p.Name), p.Slug,
                 p.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.SortOrder).Select(m => m.Url).FirstOrDefault(),
-                p.MinPrice, p.MaxPrice, original, ProductCards.DiscountPercent(p.MinPrice, original),
+                minPrice, maxPrice, original, ProductCards.DiscountPercent(minPrice, original),
                 p.RatingAvg, (int)Math.Floor(p.RatingAvg), p.RatingCount, p.SoldCount,
                 activeSkus.Any(s => s.Stock - s.Reserved > 0),
                 shop.Id.ToString(), shop.Name, Slug.Fold(shop.Name), shop.Type == ShopType.Mall, shop.IsPreferred,

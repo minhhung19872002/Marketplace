@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,7 @@ using ShopHub.Application.Common;
 using ShopHub.Application.Features.Storefront;
 using ShopHub.Application.SystemConfig;
 using ShopHub.Domain.Catalog;
+using ShopHub.Domain.Promo;
 using ShopHub.Domain.Shops;
 using ShopHub.Infrastructure.Persistence;
 
@@ -158,18 +160,19 @@ public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
 /// Same contract on PostgreSQL (unaccent + per-word LIKE, trigram-indexed). No typo tolerance or synonyms — it only
 /// has to keep the site usable while Meilisearch is down.
 /// </summary>
-public sealed class PostgresProductSearch(ShopHubDbContext db)
+public sealed class PostgresProductSearch(ShopHubDbContext db, IClock clock)
 {
     public async Task<ProductSearchResult> SearchAsync(ProductSearchRequest r, CancellationToken ct)
     {
-        var filtered = await FilterAsync(r, ct);
+        var (minPrice, maxPrice) = await PriceExpressionsAsync(ct);
+        var filtered = await FilterAsync(r, minPrice, maxPrice, ct);
 
         IOrderedQueryable<Product> ordered = r.Sort switch
         {
             ProductSort.Newest => filtered.OrderByDescending(p => p.PublishedAt),
             ProductSort.BestSelling => filtered.OrderByDescending(p => p.SoldCount),
-            ProductSort.PriceAsc => filtered.OrderBy(p => p.MinPrice),
-            ProductSort.PriceDesc => filtered.OrderByDescending(p => p.MinPrice),
+            ProductSort.PriceAsc => filtered.OrderBy(minPrice),
+            ProductSort.PriceDesc => filtered.OrderByDescending(minPrice),
             _ => filtered.OrderByDescending(p => p.SoldCount).ThenByDescending(p => p.PublishedAt),
         };
         var page = await ordered.ThenBy(p => p.Id).ToPagedResultAsync(ProductCards.Row(db), new Paging(r.Page, r.PageSize), ct);
@@ -210,7 +213,32 @@ public sealed class PostgresProductSearch(ShopHubDbContext db)
         return new ProductSearchResult(page.Items.Select(ProductCards.ToDto).ToList(), page.TotalCount, r.Page, r.PageSize, facets, "postgres");
     }
 
-    private async Task<IQueryable<Product>> FilterAsync(ProductSearchRequest r, CancellationToken ct)
+    /// <summary>
+    /// The product's lowest / highest price in force, like the index (PriceBook rules): a running programme below the list
+    /// price — a flash one only while approved, its slot open and quota left. Plain columns when no programme runs at all.
+    /// </summary>
+    private async Task<(Expression<Func<Product, long>> Min, Expression<Func<Product, long>> Max)> PriceExpressionsAsync(CancellationToken ct)
+    {
+        var now = clock.UtcNow;
+        if (!await db.PricePrograms.AnyAsync(pp => pp.IsActive && pp.StartAt <= now && pp.EndAt > now, ct))
+            return (p => p.MinPrice, p => p.MaxPrice);
+        return (p => p.Skus.Where(s => s.IsActive).Select(s => (long?)(db.PricePrograms
+                    .Where(pp => pp.SkuId == s.Id && pp.IsActive && pp.StartAt <= now && pp.EndAt > now && pp.Price < s.Price
+                        && (pp.Kind == PriceProgramKind.Discount || db.FlashSaleItems.Any(i => i.Id == pp.RefId && i.Status == FlashItemStatus.Approved
+                            && i.Sold < i.Quota && db.FlashSaleSlots.Any(sl => sl.Id == i.SlotId && sl.Status == FlashSlotStatus.Open))))
+                    .Select(pp => (long?)pp.Price).Min() ?? s.Price)).Min() ?? p.MinPrice,
+                p => p.Skus.Where(s => s.IsActive).Select(s => (long?)(db.PricePrograms
+                    .Where(pp => pp.SkuId == s.Id && pp.IsActive && pp.StartAt <= now && pp.EndAt > now && pp.Price < s.Price
+                        && (pp.Kind == PriceProgramKind.Discount || db.FlashSaleItems.Any(i => i.Id == pp.RefId && i.Status == FlashItemStatus.Approved
+                            && i.Sold < i.Quota && db.FlashSaleSlots.Any(sl => sl.Id == i.SlotId && sl.Status == FlashSlotStatus.Open))))
+                    .Select(pp => (long?)pp.Price).Min() ?? s.Price)).Max() ?? p.MaxPrice);
+    }
+
+    private static Expression<Func<Product, bool>> Compare(Expression<Func<Product, long>> price, Func<Expression, Expression, BinaryExpression> op, long bound) =>
+        Expression.Lambda<Func<Product, bool>>(op(price.Body, Expression.Constant(bound)), price.Parameters);
+
+    private async Task<IQueryable<Product>> FilterAsync(ProductSearchRequest r, Expression<Func<Product, long>> minPrice,
+        Expression<Func<Product, long>> maxPrice, CancellationToken ct)
     {
         var q = ProductCards.Visible(db).AsNoTracking();
         var categories = await db.Categories.AsNoTracking().Select(c => new { c.Id, c.ParentId, c.Name }).ToListAsync(ct);
@@ -247,8 +275,8 @@ public sealed class PostgresProductSearch(ShopHubDbContext db)
         if (r.ProvinceCodes.Count > 0)
             q = q.Where(p => db.ShopWarehouses.Any(w => w.ShopId == p.ShopId && w.IsPickupDefault && r.ProvinceCodes.Contains(w.ProvinceCode)));
         if (r.BrandIds.Count > 0) q = q.Where(p => p.BrandId != null && r.BrandIds.Contains(p.BrandId.Value));
-        if (r.MinPrice is { } min) q = q.Where(p => p.MaxPrice >= min);
-        if (r.MaxPrice is { } max) q = q.Where(p => p.MinPrice <= max);
+        if (r.MinPrice is { } min) q = q.Where(Compare(maxPrice, Expression.GreaterThanOrEqual, min));
+        if (r.MaxPrice is { } max) q = q.Where(Compare(minPrice, Expression.LessThanOrEqual, max));
         if (r.MinRating is { } rating) q = q.Where(p => p.RatingAvg >= rating);
         if (r.MallOnly) q = q.Where(p => db.Shops.Any(s => s.Id == p.ShopId && s.Type == ShopType.Mall));
         if (r.PreferredOnly) q = q.Where(p => db.Shops.Any(s => s.Id == p.ShopId && s.IsPreferred));
@@ -288,7 +316,8 @@ public sealed class ResilientProductSearch(MeiliProductSearch meili, PostgresPro
 // Indexer
 // ---------------------------------------------------------------------------------------------------------------
 
-public sealed class MeiliSearchIndexer(MeiliClient meili, ShopHubDbContext db, ISystemParameters parameters, ILogger<MeiliSearchIndexer> logger)
+public sealed class MeiliSearchIndexer(MeiliClient meili, ShopHubDbContext db, ISystemParameters parameters, Application.Features.Marketing.PriceBook prices,
+    IClock clock, ILogger<MeiliSearchIndexer> logger)
     : ISearchIndexer
 {
     private const int Batch = 500;
@@ -306,7 +335,7 @@ public sealed class MeiliSearchIndexer(MeiliClient meili, ShopHubDbContext db, I
     {
         foreach (var chunk in productIds.Distinct().Chunk(Batch))
         {
-            var (docs, removed) = await ProductSearchProjection.BuildAsync(db, chunk, ct);
+            var (docs, removed) = await ProductSearchProjection.BuildAsync(db, chunk, prices, clock.UtcNow, ct);
             await meili.AddOrReplaceAsync(MeiliClient.ProductsIndex, docs, ct);
             await meili.DeleteAsync(MeiliClient.ProductsIndex, removed.Select(id => id.ToString()).ToList(), ct);
         }
@@ -336,6 +365,18 @@ public sealed class MeiliSearchIndexer(MeiliClient meili, ShopHubDbContext db, I
         await meili.WaitIdleAsync(MeiliClient.ProductsIndex, TimeSpan.FromMinutes(30), ct);
         var indexed = await meili.CountAsync(MeiliClient.ProductsIndex, ct);
         var expected = await ProductCards.Visible(db).CountAsync(ct);
-        if (indexed != expected) await ReindexAllAsync(ct);
+        if (indexed != expected)
+        {
+            await ReindexAllAsync(ct);
+            return;
+        }
+        // Prices in force move on the clock: programmes running now or ended while the API may have been down get re-priced
+        var now = clock.UtcNow;
+        var since = now.AddDays(-7);
+        var repriced = await (from pp in db.PricePrograms.AsNoTracking()
+                              join s in db.Skus.AsNoTracking().IgnoreQueryFilters() on pp.SkuId equals s.Id
+                              where pp.StartAt <= now && pp.EndAt > since
+                              select s.ProductId).Distinct().ToListAsync(ct);
+        if (repriced.Count > 0) await SyncProductsAsync(repriced, ct);
     }
 }

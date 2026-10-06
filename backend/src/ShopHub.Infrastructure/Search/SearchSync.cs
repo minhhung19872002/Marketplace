@@ -41,6 +41,7 @@ public sealed class SearchSyncInterceptor(IClock clock) : SaveChangesInterceptor
         var changed = context.ChangeTracker.Entries().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToList();
         var products = new HashSet<Guid>();
         var shops = new HashSet<Guid>();
+        var skus = new HashSet<Guid>();
         foreach (var e in changed)
         {
             switch (e.Entity)
@@ -50,16 +51,60 @@ public sealed class SearchSyncInterceptor(IClock clock) : SaveChangesInterceptor
                 case ProductMedia m: products.Add(m.ProductId); break;
                 case ProductAttribute a: products.Add(a.ProductId); break;
                 case Shop s when e.State != EntityState.Added: shops.Add(s.Id); break;
+                // The index carries the price in force: a programme added or stopped changes it
+                case Domain.Promo.PriceProgram pp: skus.Add(pp.SkuId); break;
             }
         }
-        if (products.Count == 0 && shops.Count == 0) return;
+        if (products.Count == 0 && shops.Count == 0 && skus.Count == 0) return;
 
         var outbox = context.Set<OutboxMessage>();
         if (products.Count > 0)
             outbox.Add(new OutboxMessage(OutboxTypes.SearchSyncProducts, JsonSerializer.Serialize(new SearchSyncProductsPayload(products.ToList()), Json), clock.UtcNow));
         foreach (var shopId in shops)
             outbox.Add(new OutboxMessage(OutboxTypes.SearchSyncShop, JsonSerializer.Serialize(new SearchSyncShopPayload(shopId), Json), clock.UtcNow));
+        if (skus.Count > 0)
+            outbox.Add(new OutboxMessage(OutboxTypes.SearchSyncSkus, JsonSerializer.Serialize(new SearchSyncSkusPayload(skus.ToList()), Json), clock.UtcNow));
     }
+}
+
+public sealed class SearchSyncSkusHandler(ShopHubDbContext db, ISearchIndexer indexer) : IOutboxHandler
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    public string Type => OutboxTypes.SearchSyncSkus;
+
+    public async Task HandleAsync(string payload, CancellationToken ct)
+    {
+        var skus = (JsonSerializer.Deserialize<SearchSyncSkusPayload>(payload, Json) ?? throw new InvalidOperationException("Tin rỗng.")).SkuIds;
+        var products = await db.Skus.AsNoTracking().IgnoreQueryFilters().Where(s => skus.Contains(s.Id)).Select(s => s.ProductId).Distinct().ToListAsync(ct);
+        if (products.Count > 0) await indexer.SyncProductsAsync(products, ct);
+    }
+}
+
+/// <summary>
+/// Programmes start and end on the clock, with no write to notice: every minute, the SKUs whose programme crossed its
+/// start or end in the last few minutes are re-indexed (overlapping windows; a repeat is harmless).
+/// </summary>
+public sealed class PriceIndexJob(ShopHubDbContext db, IClock clock)
+{
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 300)]
+    [Hangfire.AutomaticRetry(Attempts = 0)]
+    public Task RunJobAsync() => RunAsync(CancellationToken.None);
+
+    public async Task<int> RunAsync(CancellationToken ct)
+    {
+        var now = clock.UtcNow;
+        var since = now.AddMinutes(-5);
+        var skus = await db.PricePrograms.AsNoTracking()
+            .Where(p => (p.StartAt > since && p.StartAt <= now) || (p.EndAt > since && p.EndAt <= now))
+            .Select(p => p.SkuId).Distinct().ToListAsync(ct);
+        if (skus.Count == 0) return 0;
+        db.OutboxMessages.Add(new OutboxMessage(OutboxTypes.SearchSyncSkus, JsonSerializer.Serialize(new SearchSyncSkusPayload(skus), Json), now));
+        await db.SaveChangesAsync(ct);
+        return skus.Count;
+    }
+
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 }
 
 public sealed class SearchSyncProductsHandler(ISearchIndexer indexer) : IOutboxHandler

@@ -226,6 +226,11 @@ export const handleImgError = (e, fallback) => {
   }
 };
 
+// Bỏ dấu tiếng Việt để tìm kiếm không dấu ("ao thun" khớp "Áo Thun")
+const COMBINING = new RegExp('[\\u0300-\\u036f]', 'g');
+export const removeTones = (str) =>
+  str.normalize('NFD').replace(COMBINING, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+
 export const formatPrice = (value) => `₫${value.toLocaleString('vi-VN')}`;
 
 export const formatSold = (sold) => {

@@ -117,11 +117,18 @@ const CartPage = () => {
                 <input
                   type="number"
                   min="1"
+                  max={item.stock}
                   value={item.quantity}
                   onChange={(e) => updateQuantity(item.cartKey, Math.max(1, Number(e.target.value) || 1))}
                   aria-label="Số lượng"
                 />
-                <button onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} aria-label="Tăng">+</button>
+                <button
+                  onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
+                  disabled={item.stock != null && item.quantity >= item.stock}
+                  aria-label="Tăng"
+                >
+                  +
+                </button>
               </div>
               <span className="cart-col-total cart-item-total">{formatPrice(item.price * item.quantity)}</span>
               <div className="cart-col-action">

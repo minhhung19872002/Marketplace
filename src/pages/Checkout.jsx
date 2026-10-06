@@ -70,6 +70,12 @@ const Checkout = () => {
       return;
     }
     const count = orderItems.reduce((s, it) => s + it.quantity, 0);
+    // Lưu đơn vừa đặt để trang thành công vẫn hiển thị khi reload
+    try {
+      sessionStorage.setItem('shophub_last_order', JSON.stringify({ total, count }));
+    } catch {
+      // storage bị chặn -> chỉ dùng location.state
+    }
     removeMany(orderItems.map((it) => it.cartKey));
     navigate('/dat-hang-thanh-cong', { state: { total, count } });
   };

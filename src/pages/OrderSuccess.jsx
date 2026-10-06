@@ -3,10 +3,20 @@ import { Link, useLocation } from 'react-router-dom';
 import { formatPrice } from '../data/products';
 import './OrderSuccess.css';
 
+// Đọc đơn vừa đặt từ sessionStorage (fallback khi reload mất location.state)
+const readLastOrder = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem('shophub_last_order')) || null;
+  } catch {
+    return null;
+  }
+};
+
 const OrderSuccess = () => {
   const { state } = useLocation();
-  const total = state?.total;
-  const count = state?.count;
+  const order = state || readLastOrder();
+  const total = order?.total;
+  const count = order?.count;
   const orderCode = 'SH' + String(Math.abs(((total || 0) * 7 + (count || 0) * 13) % 1000000)).padStart(6, '0');
 
   return (

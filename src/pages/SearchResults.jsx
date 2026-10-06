@@ -1,12 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { products, categories } from '../data/products';
+import { products, categories, removeTones } from '../data/products';
 import ProductGrid from '../components/ProductGrid';
 import './SearchResults.css';
-
-const COMBINING = new RegExp('[\\u0300-\\u036f]', 'g');
-const removeTones = (str) =>
-  str.normalize('NFD').replace(COMBINING, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
 
 const SORTS = [
   { key: 'relevant', label: 'Liên Quan' },
@@ -18,13 +14,25 @@ const SearchResults = () => {
   const [params] = useSearchParams();
   const q = params.get('q') || '';
   const category = params.get('category') || '';
+  // ?sort=discount: "Xem tất cả" của Flash Sale -> giảm giá sâu nhất lên đầu
+  const sortParam = params.get('sort') || 'relevant';
 
-  const [sort, setSort] = useState('relevant');
+  const [sort, setSort] = useState(sortParam);
   const [priceSort, setPriceSort] = useState(''); // '', 'asc', 'desc'
   const [selectedCats, setSelectedCats] = useState(category ? [category] : []);
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [minRating, setMinRating] = useState(0);
+
+  // Đồng bộ bộ lọc khi URL đổi mà component không remount (breadcrumb, link danh mục khác)
+  useEffect(() => {
+    setSelectedCats(category ? [category] : []);
+  }, [category]);
+
+  useEffect(() => {
+    setSort(sortParam);
+    setPriceSort('');
+  }, [sortParam]);
 
   const toggleCat = (id) => {
     setSelectedCats((prev) =>
@@ -58,6 +66,7 @@ const SearchResults = () => {
     else if (priceSort === 'desc') sorted.sort((a, b) => b.price - a.price);
     else if (sort === 'newest') sorted.sort((a, b) => b.id - a.id);
     else if (sort === 'sold') sorted.sort((a, b) => b.sold - a.sold);
+    else if (sort === 'discount') sorted.sort((a, b) => b.discount - a.discount);
 
     return sorted;
   }, [q, selectedCats, minPrice, maxPrice, minRating, sort, priceSort]);
@@ -67,7 +76,9 @@ const SearchResults = () => {
     ? `Kết quả tìm kiếm cho "${q}"`
     : categoryName
       ? `Danh mục: ${categoryName}`
-      : 'Tất cả sản phẩm';
+      : sortParam === 'discount'
+        ? 'Flash Sale - Giảm giá sốc'
+        : 'Tất cả sản phẩm';
 
   return (
     <div className="search-results">

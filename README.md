@@ -8,10 +8,14 @@ Trang sàn TMĐT mô phỏng [shopee.vn](https://shopee.vn), dựng theo cùng s
 - **Trang chủ**: banner carousel tự chạy, lưới danh mục (18 ngành hàng), **Flash Sale** với đồng hồ đếm ngược + thanh tiến trình, lưới "Gợi ý hôm nay".
 - **Chi tiết sản phẩm**: ảnh, giá/giảm giá, chọn số lượng, Thêm vào giỏ / Mua ngay, sản phẩm tương tự.
 - **Giỏ hàng**: cập nhật số lượng, xóa, tính tổng tiền, lưu `localStorage` (giữ giữa các lần load).
-- **Tìm kiếm & lọc**: tìm không dấu, lọc theo danh mục, sắp xếp (mới nhất, bán chạy, giá tăng/giảm).
+- **Tìm kiếm & lọc**: tìm không dấu (cả ô gợi ý ở header), lọc theo danh mục / khoảng giá / đánh giá, sắp xếp (liên quan, mới nhất, bán chạy, giá tăng/giảm).
+- **Phân loại hàng** (size/màu/dung lượng): bắt buộc chọn trước khi thêm giỏ; số lượng giới hạn theo tồn kho.
+- **Thanh toán**: địa chỉ nhận hàng, phương thức vận chuyển, voucher (`SHOPHUB50`, `FREESHIP`, `SALE12`), phương thức thanh toán → trang đặt hàng thành công.
+- **Đăng nhập / Đăng ký** giả lập, **Yêu thích**, **Thông báo**, **Trang Shop**.
 - Responsive desktop / tablet / mobile.
 
-> Dữ liệu là mock (`src/data/products.js`), ảnh dùng SVG data-URI inline nên **không cần backend / không phụ thuộc mạng**.
+> Dữ liệu là mock (`src/data/products.js`), **không cần backend**. Ảnh sản phẩm lấy từ CDN demo (dummyjson); khi lỗi mạng sẽ tự đổi sang ảnh SVG data-URI dự phòng.
+> Giỏ hàng, yêu thích, tài khoản lưu ở `localStorage`.
 
 ## Chạy dev
 
@@ -24,15 +28,17 @@ npm run dev            # http://localhost:5173
 
 ```bash
 npx playwright install chromium   # lần đầu
-npm run test:e2e                  # 11 test e2e
+npm run test:e2e                  # 19 test e2e
 ```
 
 ## Cấu trúc
 
 ```
 src/
-  components/   Header, Footer, Banner, CategoryGrid, FlashSale, ProductCard, ProductGrid
-  pages/        HomePage, ProductDetail, CartPage, SearchResults
-  context/      CartContext (giỏ hàng + localStorage)
-  data/         products.js (mock data)
+  components/   Header, Footer, Banner, CategoryShortcuts, CategoryGrid, FlashSale,
+                MallBrands, ProductCard, ProductGrid, BackToTop, ScrollToTop
+  pages/        HomePage, ProductDetail, CartPage, Checkout, OrderSuccess, SearchResults,
+                Login, Register, Wishlist, Notifications, ShopPage
+  context/      CartContext, WishlistContext, AuthContext (lưu localStorage)
+  data/         products.js (mock data + helpers), images.js (URL ảnh sản phẩm)
 ```

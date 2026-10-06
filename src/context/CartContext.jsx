@@ -7,6 +7,9 @@ const STORAGE_KEY = 'shophub_cart';
 // Khóa dòng giỏ hàng: cùng SP khác phân loại -> 2 dòng riêng (như Shopee)
 const makeKey = (product) => `${product.id}::${product.selectedVariant || ''}`;
 
+// Số lượng hợp lệ: tối thiểu 1, tối đa bằng tồn kho (nếu có)
+const clampQty = (item, quantity) => Math.max(1, Math.min(item.stock ?? Infinity, quantity));
+
 export const CartProvider = ({ children }) => {
   const [items, setItems] = useState(() => {
     try {
@@ -27,10 +30,10 @@ export const CartProvider = ({ children }) => {
       const existing = prev.find((it) => it.cartKey === key);
       if (existing) {
         return prev.map((it) =>
-          it.cartKey === key ? { ...it, quantity: it.quantity + quantity } : it
+          it.cartKey === key ? { ...it, quantity: clampQty(it, it.quantity + quantity) } : it
         );
       }
-      return [...prev, { ...product, cartKey: key, quantity }];
+      return [...prev, { ...product, cartKey: key, quantity: clampQty(product, quantity) }];
     });
   }, []);
 
@@ -40,7 +43,7 @@ export const CartProvider = ({ children }) => {
 
   const updateQuantity = useCallback((cartKey, quantity) => {
     setItems((prev) =>
-      prev.map((it) => (it.cartKey === cartKey ? { ...it, quantity: Math.max(1, quantity) } : it))
+      prev.map((it) => (it.cartKey === cartKey ? { ...it, quantity: clampQty(it, quantity) } : it))
     );
   }, []);
 

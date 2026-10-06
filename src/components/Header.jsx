@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
-import { products, formatPrice } from '../data/products';
+import { products, formatPrice, removeTones } from '../data/products';
 import './Header.css';
 
 const TOP_LINKS = ['Kênh Người Bán', 'Trở thành Người bán', 'Tải ứng dụng', 'Kết nối'];
@@ -41,11 +41,12 @@ const Header = () => {
     goSearch(keyword);
   };
 
-  // Gợi ý sản phẩm khớp từ khóa (như Shopee)
+  // Gợi ý sản phẩm khớp từ khóa (như Shopee) — so khớp không dấu như trang tìm kiếm
+  const needle = removeTones(keyword.trim().toLowerCase());
   const suggestions =
-    keyword.trim().length >= 1
+    needle.length >= 1
       ? products
-          .filter((p) => p.name.toLowerCase().includes(keyword.trim().toLowerCase()))
+          .filter((p) => removeTones(p.name.toLowerCase()).includes(needle))
           .slice(0, 6)
       : [];
 

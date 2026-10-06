@@ -41,7 +41,7 @@ const FlashSale = () => {
             <span className="countdown-box">{pad(s)}</span>
           </div>
         </div>
-        <Link to="/tim-kiem?q=flash-sale" className="flash-sale-more">Xem tất cả ›</Link>
+        <Link to="/tim-kiem?sort=discount" className="flash-sale-more">Xem tất cả ›</Link>
       </div>
 
       <div className="flash-sale-list">

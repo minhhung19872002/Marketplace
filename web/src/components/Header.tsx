@@ -107,8 +107,8 @@ const Header = () => {
         <Link to="/" className="header-logo">
           <svg width="42" height="42" viewBox="0 0 32 32" aria-hidden="true">
             <path d="M10 11h12l-1 12a2 2 0 0 1-2 1.8H13a2 2 0 0 1-2-1.8L10 11z"
-              fill="none" stroke="#fff" strokeWidth="1.8" />
-            <path d="M12.5 11a3.5 3.5 0 0 1 7 0" fill="none" stroke="#fff" strokeWidth="1.8" />
+              fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M12.5 11a3.5 3.5 0 0 1 7 0" fill="none" stroke="currentColor" strokeWidth="1.8" />
           </svg>
           <span className="header-logo-text">ShopHub</span>
         </Link>
@@ -128,7 +128,7 @@ const Header = () => {
               aria-label="Tìm kiếm sản phẩm"
             />
             <button type="submit" className="header-search-btn" aria-label="Tìm kiếm">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
               </svg>
@@ -148,7 +148,7 @@ const Header = () => {
                       navigate(`/san-pham/${p.id}`);
                     }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2">
+                    <svg className="header-suggest-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
                     </svg>
                     <span>{p.name}</span>
@@ -186,7 +186,7 @@ const Header = () => {
           {/* Giỏ hàng + xem nhanh khi hover */}
           <div className="header-cart-wrapper">
             <Link to="/gio-hang" className="header-cart" aria-label="Giỏ hàng">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.6">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
                 <circle cx="9" cy="21" r="1" />
                 <circle cx="20" cy="21" r="1" />
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />

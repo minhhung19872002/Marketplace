@@ -11,8 +11,11 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="FluentAssertions" Version="6.12.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.11" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
   </ItemGroup>
@@ -23,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ShopHub.Api\ShopHub.Api.csproj" />
+    <ProjectReference Include="..\..\src\ShopHub.Infrastructure\ShopHub.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -27,6 +27,9 @@ const placeholder = (label: string, bg = '#f5f5f5', fg = '#bdbdbd'): string => {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 };
 
+// Ảnh dự phòng cho logo thương hiệu Mall
+export const brandPlaceholder = placeholder('', '#fbe9e7');
+
 // Ảnh thật khớp từ khóa, khóa theo id để ổn định giữa các lần load
 const photoUrl = (keyword: string, id: number): string => `https://loremflickr.com/400/400/${keyword}?lock=${id}`;
 

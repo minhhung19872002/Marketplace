@@ -1,12 +1,7 @@
 import { Link } from 'react-router-dom';
-import { mallBrands, handleImgError } from '../data/products';
+import { mallBrands, brandPlaceholder, handleImgError } from '../data/products';
 import { BRAND_IMAGES } from '../data/images';
 import './MallBrands.css';
-
-const brandFallback = 'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><rect width='120' height='120' fill='#fbe9e7'/></svg>"
-  );
 
 // Khu thương hiệu chính hãng - như "ShopHub Mall"
 const MallBrands = () => {
@@ -27,10 +22,10 @@ const MallBrands = () => {
             data-testid="mall-brand"
           >
             <img
-              src={BRAND_IMAGES[i] || brandFallback}
+              src={BRAND_IMAGES[i] || brandPlaceholder}
               alt={b.name}
               loading="lazy"
-              onError={(e) => handleImgError(e, brandFallback)}
+              onError={(e) => handleImgError(e, brandPlaceholder)}
             />
             <span className="mall-brand-name">{b.name}</span>
           </Link>

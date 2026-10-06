@@ -46,10 +46,10 @@ const Banner = () => {
       </div>
 
       <div className="banner-side">
-        <div className="banner-side-item" style={{ background: 'linear-gradient(135deg,#7b4397,#dc2430)' }}>
+        <div className="banner-side-item banner-side-item--voucher">
           <span>Mã Giảm 50%</span>
         </div>
-        <div className="banner-side-item" style={{ background: 'linear-gradient(135deg,#11998e,#38ef7d)' }}>
+        <div className="banner-side-item banner-side-item--freeship">
           <span>Freeship Xtra</span>
         </div>
       </div>

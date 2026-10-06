@@ -6,8 +6,8 @@ Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** 
 Đặc tả và lộ trình: [`PROMPT-BUILD-SHOPHUB.md`](PROMPT-BUILD-SHOPHUB.md). Tiến độ từng phase:
 [`docs/07-bang-doi-chieu-chuc-nang.md`](docs/07-bang-doi-chieu-chuc-nang.md).
 
-> **Trạng thái hiện tại: xong Phase 0** (chuyển đổi repo). Site người mua vẫn chạy trên dữ liệu giả
-> (`web/src/data/products.ts`) cho tới Phase 4.
+> **Trạng thái hiện tại: xong Phase 0 (chuyển đổi repo) và Phase 1 (nền móng backend).** Site người mua vẫn chạy
+> trên dữ liệu giả (`web/src/data/products.ts`) cho tới Phase 4. Tài liệu API: [`docs/05-api-reference.md`](docs/05-api-reference.md).
 
 ## Cấu trúc
 
@@ -33,7 +33,9 @@ docker compose up -d --build
 | http://localhost:18000/ | Site người mua |
 | http://localhost:18000/seller/ | Kênh Người Bán |
 | http://localhost:18000/admin/ | Quản trị sàn |
-| http://localhost:18000/health | Health check API |
+| http://localhost:18000/health | Health check API (sống) |
+| http://localhost:18000/health/ready | Trạng thái PostgreSQL, Redis, MinIO, Meilisearch |
+| http://localhost:18000/api/site/info | Thông tin sàn (từ tham số hệ thống) |
 | http://localhost:18080/swagger | Swagger (môi trường Development) |
 | http://localhost:18025/ | Mailpit (thư bắt được khi dev) |
 | http://localhost:18901/ | MinIO console |
@@ -52,7 +54,8 @@ cd admin   && npm install && npm run dev        # http://localhost:5175/admin/
 ## Kiểm thử
 
 ```bash
-cd web && npx tsc -b                             # kiểm kiểu
+cd backend && dotnet test                        # unit + quét mã nguồn + tích hợp (Testcontainers, cần Docker)
+cd web && npx tsc -b && npx vitest run           # tương tự cho seller/, admin/
 cd e2e && npm install && npx playwright install chromium
 npx playwright test                              # tự chạy web dev server
 SH_E2E_BASE_URL=http://localhost:18000 npx playwright test   # chạy trên stack Docker (+ smoke test)

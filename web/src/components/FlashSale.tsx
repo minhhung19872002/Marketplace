@@ -1,16 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { flashSaleProducts, formatPrice, handleImgError } from '../data/products';
+import { secondsToNextSlot } from '../lib/datetime';
 import './FlashSale.css';
 
-// Đếm ngược tới cuối khung giờ (mốc tiếp theo theo 2 tiếng)
-const getSecondsToNextSlot = () => {
-  const now = new Date();
-  const next = new Date(now);
-  const nextHour = Math.ceil((now.getHours() + 1) / 2) * 2;
-  next.setHours(nextHour, 0, 0, 0);
-  return Math.max(1, Math.floor((next.getTime() - now.getTime()) / 1000));
-};
+// Đếm ngược tới cuối khung giờ (mốc tiếp theo theo 2 tiếng, giờ Việt Nam)
+const getSecondsToNextSlot = () => secondsToNextSlot(Date.now(), 2);
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 

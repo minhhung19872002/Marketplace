@@ -119,6 +119,11 @@ services:
       SH_JWT_SECRET: ${SH_JWT_SECRET:?Thiếu SH_JWT_SECRET trong .env}
       SH_SMTP_HOST: mailpit
       SH_SMTP_PORT: 1025
+      # Only the gateway's Docker network may set X-Forwarded-For
+      SH_TRUSTED_PROXIES: 172.16.0.0/12,10.0.0.0/8,192.168.0.0/16
+      SH_LOG_DIR: /app/logs
+    volumes:
+      - apilogs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -172,6 +177,7 @@ services:
       - "127.0.0.1:${SH_HTTP_PORT:-18000}:80"
 
 volumes:
+  apilogs:
   pgdata:
   redisdata:
   miniodata:

@@ -141,3 +141,11 @@
     font-size: 20px;
   }
 }
+
+.banner-side-item--voucher {
+  background: var(--sh-gradient-voucher);
+}
+
+.banner-side-item--freeship {
+  background: var(--sh-gradient-freeship);
+}

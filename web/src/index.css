@@ -1,6 +1,10 @@
 :root {
   --sh-primary: #ee4d2d;
   --sh-primary-dark: #d73211;
+  --sh-on-primary: #fff;
+  --sh-text-muted: #999;
+  --sh-gradient-voucher: linear-gradient(135deg, #7b4397, #dc2430);
+  --sh-gradient-freeship: linear-gradient(135deg, #11998e, #38ef7d);
   --bg: #f5f5f5;
   --text: #333;
   --text-light: #757575;

@@ -311,4 +311,20 @@ test.describe('Đơn hàng & vận chuyển', () => {
     const orders = await request.get(`${BASE}/api/seller/shops/${shop.shopId}/orders`, { headers: { Authorization: `Bearer ${other.token}` } });
     expect(orders.status()).toBe(404);
   });
+
+  test('Đơn mua → "Liên hệ shop": chat mở đúng shop kèm thẻ đơn hàng; shop thấy đơn trong hộp chat', async ({ page, request }) => {
+    const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
+    const shop = await shopWithProduct(request, admin);
+    const buyer = await newBuyer(request, 'Người Mua Hỏi Đơn');
+    const code = await buyCod(page, request, shop.productId, buyer);
+
+    await page.goto(`${BASE}/tai-khoan/don-mua/${code}`);
+    await page.getByTestId('contact-shop').click();
+    const thread = page.getByTestId('chat-thread');
+    await expect(thread).toContainText(shop.shopName);
+    await expect(page.getByTestId('chat-message').last()).toContainText(code);
+
+    const inbox = await apiAs(request, shop.token, 'GET', `/seller/shops/${shop.shopId}/chat/conversations`);
+    expect(inbox.items[0].lastMessagePreview ?? '').toMatch(/đơn|Đơn/);
+  });
 });

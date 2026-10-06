@@ -20,6 +20,8 @@ interface ChatState {
 
 interface ChatApi extends ChatState {
   openWith: (shopId: string, productId?: string) => Promise<void>;
+  /** Opens the conversation with the shop and posts the order card (Đơn mua, Trả hàng). */
+  openAboutOrder: (shopId: string, orderCode: string) => Promise<void>;
   show: (conversationId?: string) => void;
   close: () => void;
 }
@@ -38,9 +40,14 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const c = await chatApi.start(shopId);
     setState({ open: true, conversationId: c.id, productId: productId ?? null });
   }, []);
+  const openAboutOrder = useCallback(async (shopId: string, orderCode: string) => {
+    const c = await chatApi.start(shopId);
+    await chatApi.send(c.id, { type: 'Order', orderCode });
+    setState({ open: true, conversationId: c.id, productId: null });
+  }, []);
   const show = useCallback((conversationId?: string) => setState((s) => ({ ...s, open: true, conversationId: conversationId ?? s.conversationId })), []);
   const close = useCallback(() => setState((s) => ({ ...s, open: false })), []);
-  const value = useMemo(() => ({ ...state, openWith, show, close }), [state, openWith, show, close]);
+  const value = useMemo(() => ({ ...state, openWith, openAboutOrder, show, close }), [state, openWith, openAboutOrder, show, close]);
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
 
@@ -325,6 +332,25 @@ export const ChatNowButton = ({ shopId, productId, className }: { shopId: string
           setError(e instanceof ApiError ? e.message : 'Không mở được chat.');
         }
       }}>💬 Chat Ngay</button>
+      {error && <span className="chat-error" role="alert">{error}</span>}
+    </>
+  );
+};
+
+/** "Liên hệ shop" from an order or a return request: the chat opens on that shop with the order card. */
+export const ContactShopButton = ({ shopId, orderCode, className }: { shopId: string; orderCode: string; className?: string }) => {
+  const chat = useChat();
+  const [error, setError] = useState('');
+  return (
+    <>
+      <button type="button" className={className} data-testid="contact-shop" onClick={async () => {
+        try {
+          setError('');
+          await chat.openAboutOrder(shopId, orderCode);
+        } catch (e) {
+          setError(e instanceof ApiError ? e.message : 'Không mở được chat.');
+        }
+      }}>Liên hệ shop</button>
       {error && <span className="chat-error" role="alert">{error}</span>}
     </>
   );

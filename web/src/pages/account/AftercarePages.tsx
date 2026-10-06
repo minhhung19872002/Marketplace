@@ -15,6 +15,7 @@ import {
 import { ApiError } from '../../api/http';
 import { formatCount, formatPrice } from '../../lib/money';
 import { formatDateTime } from '../../lib/datetime';
+import { ContactShopButton } from '../../components/chat/Chat';
 import { handleImgError, imageOrPlaceholder } from '../../lib/image';
 
 /** Pick photos / a short video; each file is uploaded right away and kept as an asset id. */
@@ -283,6 +284,7 @@ export const ReturnDetailPage = () => {
         <span>Yêu cầu <strong>{data.code}</strong> · <span data-testid="return-status">{data.statusLabel}</span></span>
       </div>
       <p>Đơn {data.orderCode} · {data.shopName} · {data.type === 'RefundOnly' ? 'Chỉ hoàn tiền' : 'Trả hàng & hoàn tiền'}</p>
+      <ContactShopButton shopId={data.shopId} orderCode={data.orderCode} className="account-btn-outline" />
       <p>Yêu cầu hoàn: <strong>{formatPrice(data.requestedAmount)}</strong>{data.requestedCoins > 0 && ` + ${formatCount(data.requestedCoins)} xu`} · Hoàn về: {data.refundDestination}</p>
       {data.offeredAmount !== null && data.status === 'PartialOffered' && (
         <div className="order-detail-alert" data-testid="partial-offer">

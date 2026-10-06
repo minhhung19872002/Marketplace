@@ -106,6 +106,7 @@ export interface ReturnInfo {
   code: string;
   orderId: string;
   orderCode: string;
+  shopId: string;
   shopName: string;
   type: ReturnType;
   reason: ReturnReason;

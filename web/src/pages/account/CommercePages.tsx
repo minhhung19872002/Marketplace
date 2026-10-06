@@ -8,6 +8,7 @@ import { ShipmentTimeline } from '../TrackingPage';
 import { ApiError } from '../../api/http';
 import { formatCount, formatPrice } from '../../lib/money';
 import { formatDate, formatDateTime } from '../../lib/datetime';
+import { ContactShopButton } from '../../components/chat/Chat';
 import { handleImgError, imageOrPlaceholder } from '../../lib/image';
 
 const ORDER_TABS: { key: OrderTab; label: string }[] = [
@@ -145,6 +146,7 @@ const OrderActions = ({ order }: { order: OrderDetail }) => {
           Mua lại
         </button>
       )}
+      <ContactShopButton shopId={order.shopId} orderCode={order.code} className="account-btn-outline" />
       {asking && (
         <div className="order-cancel-box" data-testid="cancel-box">
           <strong>{asking === 'cancel' ? 'Chọn lý do huỷ' : 'Lý do yêu cầu huỷ (shop sẽ phản hồi trong 24 giờ)'}</strong>

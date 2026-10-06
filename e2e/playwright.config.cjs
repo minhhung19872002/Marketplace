@@ -5,8 +5,10 @@ const BASE_URL = process.env.SH_E2E_BASE_URL || 'http://localhost:5173';
 module.exports = defineConfig({
   testDir: '.',
   testMatch: ['*.spec.cjs', '*.spec.ts'],
+  globalSetup: require.resolve('./global-setup.cjs'),
   use: {
     baseURL: BASE_URL,
+    storageState: require('./global-setup.cjs').STATE,
     headless: true,
     viewport: { width: 1280, height: 720 },
     ignoreHTTPSErrors: true,

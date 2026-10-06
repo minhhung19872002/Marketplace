@@ -67,6 +67,7 @@ public sealed class PlaceOrderHandler(
     PaymentStarter payments,
     WalletPins walletPins,
     Ledger ledger,
+    Marketing.FlashSaleQuota flashQuota,
     IOutbox outbox,
     ISystemParameters parameters,
     ICurrentUser currentUser,
@@ -79,6 +80,7 @@ public sealed class PlaceOrderHandler(
 
         // A retry of a request that already went through gets the same answer
         if (await reader.FindByKeyAsync(userId, key, ct) is { } existing) return existing;
+        await flashQuota.RefuseIfSoldOutAsync(userId, clock.UtcNow, ct);
 
         var plan = await builder.BuildAsync(userId, request.Request, ct);
         if (!plan.Quote.CanPlace || plan.Pricing is null)
@@ -97,7 +99,10 @@ public sealed class PlaceOrderHandler(
         var pricing = plan.Pricing;
         CheckoutSession checkout;
         var orders = new List<Order>();
+        var flashTaken = new List<Marketing.FlashSaleQuota.Taken>();
 
+        try
+        {
         await using (var tx = await db.BeginTransactionAsync(ct))
         {
             checkout = new CheckoutSession(userId, key, plan.AddressSnapshot, method, now);
@@ -124,8 +129,15 @@ public sealed class PlaceOrderHandler(
                 db.CoinLedger.Add(new CoinEntry(userId, -pricing.CoinUsed, CoinReason.CheckoutSpend, "checkout", checkout.Id, null, "Dùng xu khi đặt hàng", now));
             }
 
-            // ----- stock holds -----
-            foreach (var line in plan.Lines.Values.OrderBy(l => l.SkuId))
+            // ----- Flash Sale quota (Redis Lua, then the database row — spec 3.10) -----
+            foreach (var line in plan.Lines.Values.Where(l => l.Price?.Flash is not null).OrderBy(l => l.Price!.Flash!.ItemId))
+                flashTaken.Add(await flashQuota.TakeAsync(line.Price!.Flash!, userId, line.Quantity, line.Name, ct));
+
+            // ----- stock holds (cart lines and free gifts, in SKU order) -----
+            var holds = plan.Lines.Values.Select(l => (l.SkuId, l.Quantity, l.Name))
+                .Concat((plan.Gifts ?? []).Select(g => (g.SkuId, g.Quantity, Name: $"Quà tặng {g.Name}")))
+                .GroupBy(h => h.SkuId).Select(g => (SkuId: g.Key, Quantity: g.Sum(x => x.Quantity), g.First().Name)).OrderBy(h => h.SkuId);
+            foreach (var line in holds)
             {
                 var held = await db.ExecuteSqlAsync($"""
                     UPDATE catalog.skus SET reserved = reserved + {line.Quantity}
@@ -147,7 +159,8 @@ public sealed class PlaceOrderHandler(
                 var carrier = plan.Carriers[shop.ShopId];
                 var order = new Order(checkout.Id, userId, shop.ShopId, await NewCodeAsync(ct), method, carrier.Code,
                     string.IsNullOrWhiteSpace(choices.GetValueOrDefault(shop.ShopId)?.Note) ? null : choices[shop.ShopId].Note!.Trim(), now);
-                order.SetTotals(shop.Subtotal, shop.ShopDiscount, shop.PlatformDiscount, shop.ShippingFee, shop.ShippingDiscount, shop.CoinUsed,
+                // The order's shop discount is everything the shop bears: its voucher and its combos
+                order.SetTotals(shop.Subtotal, shop.ShopDiscount + shop.ComboDiscount, shop.PlatformDiscount, shop.ShippingFee, shop.ShippingDiscount, shop.CoinUsed,
                     shop.ShopVoucherId, carrier.Days);
                 foreach (var pl in shop.Lines)
                 {
@@ -158,7 +171,15 @@ public sealed class PlaceOrderHandler(
                     if (pl.PlatformDiscount > 0)
                         item.Discounts.Add(new OrderItemDiscount(item.Id, DiscountSource.Platform, plan.PlatformVoucher?.Id, pl.PlatformDiscount));
                     if (pl.CoinDiscount > 0) item.Discounts.Add(new OrderItemDiscount(item.Id, DiscountSource.Coin, null, pl.CoinDiscount));
+                    if (pl.ComboDiscount > 0) item.Discounts.Add(new OrderItemDiscount(item.Id, DiscountSource.Combo, pl.ComboId, pl.ComboDiscount));
+                    if (info.Price is { Kind: { } kind, RefId: { } refId }) item.FromPriceProgram(kind, refId);
                     order.Items.Add(item);
+                }
+                foreach (var g in (plan.Gifts ?? []).Where(g => g.ShopId == shop.ShopId))
+                {
+                    var gift = new OrderItem(order.Id, g.SkuId, g.ProductId, $"[Quà tặng] {g.Name}", g.Variant, g.ImageUrl, 0, g.OriginalPrice, g.Quantity);
+                    gift.AsGiftOf(g.PromotionId);
+                    order.Items.Add(gift);
                 }
                 OrderStateMachine.Start(order, OrderActor.Buyer, userId, now);
                 db.Orders.Add(order);
@@ -170,7 +191,7 @@ public sealed class PlaceOrderHandler(
             foreach (var (shopId, v) in plan.ShopVouchers.OrderBy(kv => kv.Value.Id))
             {
                 var order = orders.Single(o => o.ShopId == shopId);
-                await voucherLedger.ConsumeAsync(v, userId, checkout.Id, order.Id, order.ShopDiscount, ct);
+                await voucherLedger.ConsumeAsync(v, userId, checkout.Id, order.Id, pricing.Shops.Single(s => s.ShopId == shopId).ShopDiscount, ct);
             }
             foreach (var v in new[] { plan.PlatformVoucher, plan.FreeshipVoucher }.Where(v => v is not null).OrderBy(v => v!.Id))
             {
@@ -180,7 +201,7 @@ public sealed class PlaceOrderHandler(
             }
 
             var expiresAt = method is PaymentMethod.Cod or PaymentMethod.Wallet ? (DateTimeOffset?)null : now.AddMinutes(timeout);
-            checkout.SetTotals(pricing.Subtotal, pricing.ShippingFee, pricing.ShippingDiscount, pricing.ShopDiscount + pricing.PlatformDiscount,
+            checkout.SetTotals(pricing.Subtotal, pricing.ShippingFee, pricing.ShippingDiscount, pricing.ShopDiscount + pricing.ComboDiscount + pricing.PlatformDiscount,
                 pricing.CoinUsed, pricing.GrandTotal, plan.PlatformVoucher?.Id, plan.FreeshipVoucher?.Id, expiresAt);
 
             // ----- payment attempt -----
@@ -196,6 +217,13 @@ public sealed class PlaceOrderHandler(
             outbox.Enqueue(OutboxTypes.SearchSyncProducts, new SearchSyncProductsPayload(plan.Lines.Values.Select(l => l.ProductId).Distinct().ToList()));
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+        }
+        }
+        catch
+        {
+            // The transaction rolled back: the units taken in Redis go back too
+            await flashQuota.GiveBackRedisAsync(flashTaken, CancellationToken.None);
+            throw;
         }
 
         return await reader.FindByKeyAsync(userId, key, ct) ?? throw new InvalidOperationException("Checkout vanished after commit.");

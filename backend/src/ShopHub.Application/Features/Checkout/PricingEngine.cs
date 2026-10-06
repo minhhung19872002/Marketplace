@@ -30,6 +30,9 @@ public record PricingVoucher(
         new(v.Id, v.Code, v.Owner, v.ShopId, v.Type, v.DiscountValue, v.DiscountPercentBp, v.MaxDiscount, v.MinOrder, v.CategoryIds, v.ProductIds);
 }
 
+/// <summary>Shop combo: at least <see cref="MinQuantity"/> units of the listed products → % or amount off those lines (the shop bears it).</summary>
+public record PricingCombo(Guid PromotionId, Guid ShopId, IReadOnlyCollection<Guid> ProductIds, int MinQuantity, int DiscountBp, long DiscountAmount);
+
 public record PricingInput(
     IReadOnlyList<PricingLine> Lines,
     IReadOnlyDictionary<Guid, long> ShippingFees,
@@ -37,11 +40,12 @@ public record PricingInput(
     PricingVoucher? FreeshipVoucher,
     PricingVoucher? PlatformVoucher,
     long CoinsAvailable,
-    int CoinMaxBp);
+    int CoinMaxBp,
+    IReadOnlyList<PricingCombo>? Combos = null);
 
-public record PricedLine(PricingLine Line, long ShopDiscount, long PlatformDiscount, long CoinDiscount)
+public record PricedLine(PricingLine Line, long ShopDiscount, long PlatformDiscount, long CoinDiscount, long ComboDiscount = 0, Guid? ComboId = null)
 {
-    public long Payable => Line.LineTotal - ShopDiscount - PlatformDiscount - CoinDiscount;
+    public long Payable => Line.LineTotal - ComboDiscount - ShopDiscount - PlatformDiscount - CoinDiscount;
 }
 
 public record PricedShop(
@@ -53,9 +57,10 @@ public record PricedShop(
     long ShippingDiscount,
     long PlatformDiscount,
     long CoinUsed,
-    Guid? ShopVoucherId)
+    Guid? ShopVoucherId,
+    long ComboDiscount = 0)
 {
-    public long GrandTotal => Subtotal - ShopDiscount + ShippingFee - ShippingDiscount - PlatformDiscount - CoinUsed;
+    public long GrandTotal => Subtotal - ComboDiscount - ShopDiscount + ShippingFee - ShippingDiscount - PlatformDiscount - CoinUsed;
 }
 
 /// <summary>Whether a voucher took effect; when not, <see cref="Problem"/> says why in Vietnamese.</summary>
@@ -73,6 +78,7 @@ public record PricingResult(
 {
     public long Subtotal => Shops.Sum(s => s.Subtotal);
     public long ShopDiscount => Shops.Sum(s => s.ShopDiscount);
+    public long ComboDiscount => Shops.Sum(s => s.ComboDiscount);
     public long ShippingFee => Shops.Sum(s => s.ShippingFee);
     public long ShippingDiscount => Shops.Sum(s => s.ShippingDiscount);
     public long PlatformDiscount => Shops.Sum(s => s.PlatformDiscount);
@@ -82,7 +88,7 @@ public record PricingResult(
 /// <summary>
 /// The one place money is computed for a checkout (spec 3.6). Order of operations:
 /// <code>
-/// line totals − shop voucher (≤ 1 per shop) = shop subtotal
+/// line totals − shop combo deals − shop voucher (≤ 1 per shop) = shop subtotal
 /// + shipping per shop − platform free-shipping voucher (split by shipping fee)
 /// − platform discount voucher (split by line value after shop discounts)
 /// − ShopHub Xu (≤ CoinMaxBp of the goods value after discounts)
@@ -100,6 +106,8 @@ public static class PricingEngine
         if (input.Lines.Any(l => l.Quantity < 1 || l.UnitPrice < 0)) throw new BusinessRuleException("Số lượng hoặc đơn giá không hợp lệ.");
 
         var lines = input.Lines.ToList();
+        var comboDiscount = new long[lines.Count];
+        var comboOf = new Guid?[lines.Count];
         var shopDiscount = new long[lines.Count];
         var platformDiscount = new long[lines.Count];
         var coinDiscount = new long[lines.Count];
@@ -107,16 +115,36 @@ public static class PricingEngine
         var shopIds = lines.Select(l => l.ShopId).Distinct().ToList();
         var shopVoucherApplied = new Dictionary<Guid, Guid>();
 
-        // 1) Shop vouchers, each on its own shop's covered lines
+        // 0) Shop combos: each line counts for one combo at most (the one that saves the buyer most goes first)
+        var combos = (input.Combos ?? []).Select(c =>
+        {
+            var idx = Indexes(lines, i => lines[i].ShopId == c.ShopId && c.ProductIds.Contains(lines[i].ProductId));
+            var value = idx.Sum(i => lines[i].LineTotal);
+            var qualifies = idx.Sum(i => lines[i].Quantity) >= c.MinQuantity;
+            var amount = !qualifies ? 0 : c.DiscountBp > 0 ? Money.Vnd(value).PercentBp(c.DiscountBp).Value : Math.Min(c.DiscountAmount, value);
+            return (Combo: c, Amount: amount);
+        }).Where(x => x.Amount > 0).OrderByDescending(x => x.Amount).ThenBy(x => x.Combo.PromotionId).ToList();
+        foreach (var (combo, _) in combos)
+        {
+            var idx = Indexes(lines, i => comboOf[i] is null && lines[i].ShopId == combo.ShopId && combo.ProductIds.Contains(lines[i].ProductId));
+            if (idx.Sum(i => lines[i].Quantity) < combo.MinQuantity) continue;
+            var value = idx.Sum(i => lines[i].LineTotal);
+            var amount = combo.DiscountBp > 0 ? Money.Vnd(value).PercentBp(combo.DiscountBp).Value : Math.Min(combo.DiscountAmount, value);
+            if (amount <= 0) continue;
+            Spread(amount, idx, i => lines[i].LineTotal, comboDiscount);
+            foreach (var i in idx) comboOf[i] = combo.PromotionId;
+        }
+
+        // 1) Shop vouchers, each on its own shop's covered lines (after combos)
         foreach (var shopId in shopIds)
         {
             if (!input.ShopVouchers.TryGetValue(shopId, out var voucher)) continue;
             var covered = Indexes(lines, i => lines[i].ShopId == shopId && voucher.Covers(lines[i]));
-            var baseAmount = covered.Sum(i => lines[i].LineTotal);
+            var baseAmount = covered.Sum(i => lines[i].LineTotal - comboDiscount[i]);
             var outcome = Discount(voucher, covered.Count, baseAmount);
             outcomes.Add(outcome);
             if (!outcome.Applied || outcome.Discount == 0) continue;
-            Spread(outcome.Discount, covered, i => lines[i].LineTotal, shopDiscount);
+            Spread(outcome.Discount, covered, i => lines[i].LineTotal - comboDiscount[i], shopDiscount);
             shopVoucherApplied[shopId] = voucher.Id;
         }
 
@@ -126,7 +154,7 @@ public static class PricingEngine
         if (input.FreeshipVoucher is { } freeship)
         {
             var covered = Indexes(lines, i => freeship.Covers(lines[i]));
-            var goods = covered.Sum(i => lines[i].LineTotal - shopDiscount[i]);
+            var goods = covered.Sum(i => lines[i].LineTotal - comboDiscount[i] - shopDiscount[i]);
             var shopsCovered = covered.Select(i => lines[i].ShopId).Distinct().Where(s => shippingFee[s] > 0).ToList();
             var totalShipping = shopsCovered.Sum(s => shippingFee[s]);
             string? problem = covered.Count == 0 ? "Không có sản phẩm phù hợp với mã này."
@@ -146,7 +174,7 @@ public static class PricingEngine
         if (input.PlatformVoucher is { } platform)
         {
             var covered = Indexes(lines, i => platform.Covers(lines[i]));
-            var baseAmount = covered.Sum(i => lines[i].LineTotal - shopDiscount[i]);
+            var baseAmount = covered.Sum(i => lines[i].LineTotal - comboDiscount[i] - shopDiscount[i]);
             var outcome = Discount(platform, covered.Count, baseAmount);
             if (platform.Type == VoucherType.CoinCashback)
             {
@@ -158,12 +186,12 @@ public static class PricingEngine
             {
                 outcomes.Add(outcome);
                 if (outcome.Applied && outcome.Discount > 0)
-                    Spread(outcome.Discount, covered, i => lines[i].LineTotal - shopDiscount[i], platformDiscount);
+                    Spread(outcome.Discount, covered, i => lines[i].LineTotal - comboDiscount[i] - shopDiscount[i], platformDiscount);
             }
         }
 
         // 4) Coins, capped at a share of the goods value after every discount
-        var goodsAfter = Enumerable.Range(0, lines.Count).Select(i => lines[i].LineTotal - shopDiscount[i] - platformDiscount[i]).ToList();
+        var goodsAfter = Enumerable.Range(0, lines.Count).Select(i => lines[i].LineTotal - comboDiscount[i] - shopDiscount[i] - platformDiscount[i]).ToList();
         var coinMax = (long)((Int128)goodsAfter.Sum() * input.CoinMaxBp / 10_000);
         var coinUsed = Math.Max(0, Math.Min(input.CoinsAvailable, coinMax));
         if (coinUsed > 0) Spread(coinUsed, Enumerable.Range(0, lines.Count).ToList(), i => goodsAfter[i], coinDiscount);
@@ -171,11 +199,12 @@ public static class PricingEngine
         var shops = shopIds.Select(shopId =>
         {
             var idx = Indexes(lines, i => lines[i].ShopId == shopId);
-            var priced = idx.Select(i => new PricedLine(lines[i], shopDiscount[i], platformDiscount[i], coinDiscount[i])).ToList();
+            var priced = idx.Select(i => new PricedLine(lines[i], shopDiscount[i], platformDiscount[i], coinDiscount[i], comboDiscount[i], comboOf[i]))
+                .ToList();
             return new PricedShop(shopId, priced,
                 priced.Sum(p => p.Line.LineTotal), priced.Sum(p => p.ShopDiscount),
                 shippingFee[shopId], shippingDiscount[shopId], priced.Sum(p => p.PlatformDiscount), priced.Sum(p => p.CoinDiscount),
-                shopVoucherApplied.TryGetValue(shopId, out var vid) ? vid : null);
+                shopVoucherApplied.TryGetValue(shopId, out var vid) ? vid : null, priced.Sum(p => p.ComboDiscount));
         }).ToList();
 
         if (shops.Any(s => s.GrandTotal < 0)) throw new InvalidOperationException("PricingEngine produced a negative total.");

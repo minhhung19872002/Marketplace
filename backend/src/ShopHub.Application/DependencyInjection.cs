@@ -51,6 +51,13 @@ public static class DependencyInjection
         services.AddScoped<Features.Finance.WithdrawalService>();
         services.AddScoped<Features.Finance.WalletPins>();
         services.AddScoped<Features.Finance.TopupProcessor>();
+        services.AddScoped<Features.Marketing.PriceBook>();
+        services.AddScoped<Features.Marketing.DealsBook>();
+        services.AddScoped<Features.Marketing.FlashSaleQuota>();
+        services.AddScoped<Features.Marketing.FlashSaleReconciler>();
+        services.AddScoped<Features.Marketing.Membership>();
+        services.AddScoped<Features.Marketing.CashbackService>();
+        services.AddScoped<Features.Marketing.CoinExpiryService>();
         return services;
     }
 }

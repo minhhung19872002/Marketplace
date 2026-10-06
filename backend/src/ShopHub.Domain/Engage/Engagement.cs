@@ -76,3 +76,25 @@ public class SearchLog : Entity
     public int ResultCount { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
 }
+
+/// <summary>Daily check-in (điểm danh) of a buyer: one row per Vietnam calendar day; the streak gives the xu reward (spec VIII).</summary>
+public class CheckIn : Entity
+{
+    private CheckIn() { }
+
+    public CheckIn(Guid userId, DateOnly day, int streakDay, long coins, DateTimeOffset now)
+    {
+        UserId = userId;
+        Day = day;
+        StreakDay = streakDay;
+        Coins = coins;
+        CreatedAt = now;
+    }
+
+    public Guid UserId { get; private set; }
+    public DateOnly Day { get; private set; }
+    // 1..7: position in the 7-day cycle (missing a day starts again at 1)
+    public int StreakDay { get; private set; }
+    public long Coins { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+}

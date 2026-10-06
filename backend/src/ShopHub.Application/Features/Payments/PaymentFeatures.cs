@@ -111,7 +111,7 @@ public sealed class PaymentProcessor(
 }
 
 /// <summary>Gives back everything an unpaid checkout was holding: stock, voucher uses, xu.</summary>
-public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vouchers, IOutbox outbox, IClock clock)
+public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vouchers, Marketing.FlashSaleQuota flash, IOutbox outbox, IClock clock)
 {
     /// <summary>Must run inside a transaction holding the checkout lock.</summary>
     public async Task ExpireAsync(CheckoutSession checkout, string reason, CancellationToken ct) =>
@@ -153,6 +153,11 @@ public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vou
             db.InventoryMovements.Add(new InventoryMovement(item.SkuId, 0, -item.Quantity, InventoryReason.OrderRelease, "order", order.Id, null,
                 order.CancelReason, now));
         }
+        // Flash Sale units bought by this order go back to the slot
+        var flashLines = order.Items.Where(i => i.PriceSource is Domain.Promo.PriceProgramKind.ShopFlash or Domain.Promo.PriceProgramKind.PlatformFlash
+                                                && i.PriceRefId is not null)
+            .GroupBy(i => i.PriceRefId!.Value).Select(g => (g.Key, g.Sum(i => i.Quantity))).ToList();
+        if (flashLines.Count > 0) await flash.ReleaseAsync(order.BuyerId, flashLines, ct);
     }
 }
 

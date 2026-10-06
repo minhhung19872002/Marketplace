@@ -193,21 +193,3 @@ export interface ShopPage {
   coverUrl: string | null;
   isFollowing: boolean;
 }
-
-// ---------- static home config (banners / shortcuts are marketing content until Phase 9) ----------
-
-export interface FeatureShortcut {
-  id: string;
-  label: string;
-  icon: string;
-  tone: string;
-  to: string;
-}
-
-export interface BannerSlide {
-  id: number;
-  title: string;
-  subtitle: string;
-  tone: string;
-  to: string;
-}

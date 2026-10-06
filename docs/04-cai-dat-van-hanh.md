@@ -36,6 +36,18 @@ Lỡ mất mật khẩu quản trị: dùng "Quên mật khẩu" với `admin@sh
 Xem chú thích trong `.env.example`. Riêng cho môi trường production: `SH_SEED_SAMPLE=false`, `SH_RATE_LIMIT_AUTH` /
 `SH_RATE_LIMIT_OTP` để mặc định (bỏ dòng), `ASPNETCORE_ENVIRONMENT=Production` (tắt Swagger và hộp SMS giả lập).
 
+Gateway: `SH_GATEWAY_RATE` / `SH_GATEWAY_BURST` (mặc định 30r/s, burst 60 — giữ nguyên ở production). Chạy bộ e2e trên
+stack (mọi trình duyệt cùng một IP): `SH_GATEWAY_RATE=100r/s SH_GATEWAY_BURST=200 docker compose up -d nginx`.
+
+## Đo tải Flash Sale (k6, 1.000 người)
+
+1. Khởi động API với tài khoản tải và giới hạn per-IP nâng (người mua thật đến từ nhiều IP, k6 chỉ có một):
+   `SH_SEED_LOAD_USERS=1000 SH_LOAD_USER_PASSWORD=<mật khẩu tự chọn> SH_RATE_LIMIT_AUTH=100000 SH_RATE_LIMIT_GLOBAL=1000000 docker compose up -d api`
+   (tài khoản `0970000000`…`0970000999`, có sẵn địa chỉ giao hàng; mật khẩu không ghi vào repo).
+2. Cần một khung Flash Sale đang chạy (dữ liệu mẫu có sẵn).
+3. `docker run --rm --network shophub_default -v "$PWD/e2e/load:/scripts" -e BASE_URL=http://api:8080 -e LOAD_PASSWORD=<như trên> -e USERS=1000 grafana/k6 run /scripts/flash-sale.js`
+4. Đạt khi: không lỗi máy chủ, số suất bán ra = số đơn và không vượt suất, p95 đặt hàng < 3 s.
+
 ## Chẩn đoán
 
 | Việc | Lệnh |

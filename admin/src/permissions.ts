@@ -27,6 +27,7 @@ export const P = {
   FinanceFeeManage: 'FINANCE.FEE.MANAGE',
   FinanceWithdrawalApprove: 'FINANCE.WITHDRAWAL.APPROVE',
   FinanceReconcile: 'FINANCE.RECONCILE',
+  MarketingManage: 'PROMO.MARKETING.MANAGE',
 } as const
 
 export const can = (permissions: readonly string[] | undefined, code: string): boolean =>

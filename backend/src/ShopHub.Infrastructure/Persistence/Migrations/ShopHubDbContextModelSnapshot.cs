@@ -690,6 +690,46 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Engage.CheckIn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<long>("Coins")
+                        .HasColumnType("bigint")
+                        .HasColumnName("coins");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date")
+                        .HasColumnName("day");
+
+                    b.Property<int>("StreakDay")
+                        .HasColumnType("integer")
+                        .HasColumnName("streak_day");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_check_ins");
+
+                    b.HasIndex("UserId", "Day")
+                        .IsUnique()
+                        .HasDatabaseName("ux_check_ins_user_day");
+
+                    b.ToTable("check_ins", "engage", t =>
+                        {
+                            t.HasCheckConstraint("ck_check_ins_streak", "streak_day BETWEEN 1 AND 7");
+                        });
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Engage.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2654,6 +2694,126 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("media_assets", "catalog");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Promo.Banner", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("EndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Link")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("link");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("position");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTimeOffset>("StartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("pk_banners");
+
+                    b.HasIndex("Position", "StartAt", "EndAt")
+                        .HasDatabaseName("ix_banners_position");
+
+                    b.ToTable("banners", "promo", t =>
+                        {
+                            t.HasCheckConstraint("ck_banners_period", "end_at > start_at");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.Campaign", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Blocks")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("blocks");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("EndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("slug");
+
+                    b.Property<DateTimeOffset>("StartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_campaigns");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_campaigns_slug");
+
+                    b.ToTable("campaigns", "promo", t =>
+                        {
+                            t.HasCheckConstraint("ck_campaigns_period", "end_at > start_at");
+                        });
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Promo.CoinEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2706,6 +2866,402 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("coin_ledger", "promo", t =>
                         {
                             t.HasCheckConstraint("ck_coin_ledger_delta", "delta <> 0");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.FlashSaleBuyer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_flash_sale_buyers");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_flash_sale_buyers_user_id");
+
+                    b.HasIndex("ItemId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_flash_sale_buyers");
+
+                    b.ToTable("flash_sale_buyers", "promo", t =>
+                        {
+                            t.HasCheckConstraint("ck_flash_sale_buyers_quantity", "quantity >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.FlashSaleItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<long>("FlashPrice")
+                        .HasColumnType("bigint")
+                        .HasColumnName("flash_price");
+
+                    b.Property<int>("PerUserLimit")
+                        .HasColumnType("integer")
+                        .HasColumnName("per_user_limit");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quota")
+                        .HasColumnType("integer")
+                        .HasColumnName("quota");
+
+                    b.Property<string>("RejectReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reject_reason");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<Guid>("SkuId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sku_id");
+
+                    b.Property<Guid>("SlotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("slot_id");
+
+                    b.Property<int>("Sold")
+                        .HasColumnType("integer")
+                        .HasColumnName("sold");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_flash_sale_items");
+
+                    b.HasIndex("SkuId")
+                        .HasDatabaseName("ix_flash_sale_items_sku_id");
+
+                    b.HasIndex("ShopId", "CreatedAt")
+                        .HasDatabaseName("ix_flash_sale_items_shop");
+
+                    b.HasIndex("SlotId", "SkuId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_flash_sale_items_slot_sku");
+
+                    b.ToTable("flash_sale_items", "promo", t =>
+                        {
+                            t.HasCheckConstraint("ck_flash_sale_items_sold", "sold >= 0 AND sold <= quota");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.FlashSaleSlot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<List<Guid>>("CategoryIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]")
+                        .HasColumnName("category_ids");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("EndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at");
+
+                    b.Property<int>("MinDiscountBp")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_discount_bp");
+
+                    b.Property<double>("MinRating")
+                        .HasColumnType("double precision")
+                        .HasColumnName("min_rating");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("owner");
+
+                    b.Property<Guid?>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<DateTimeOffset>("StartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_flash_sale_slots");
+
+                    b.HasIndex("ShopId")
+                        .HasDatabaseName("ix_flash_sale_slots_shop_id");
+
+                    b.HasIndex("Owner", "StartAt")
+                        .HasDatabaseName("ix_flash_sale_slots_start");
+
+                    b.ToTable("flash_sale_slots", "promo", t =>
+                        {
+                            t.HasCheckConstraint("ck_flash_sale_slots_period", "end_at > start_at");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.PriceProgram", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("EndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<long>("Price")
+                        .HasColumnType("bigint")
+                        .HasColumnName("price");
+
+                    b.Property<Guid>("RefId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ref_id");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<Guid>("SkuId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sku_id");
+
+                    b.Property<DateTimeOffset>("StartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_price_programs");
+
+                    b.HasIndex("Kind", "RefId")
+                        .HasDatabaseName("ix_price_programs_ref");
+
+                    b.HasIndex("SkuId", "StartAt", "EndAt")
+                        .HasDatabaseName("ix_price_programs_sku")
+                        .HasFilter("is_active");
+
+                    b.ToTable("price_programs", "promo", t =>
+                        {
+                            t.HasCheckConstraint("ck_price_programs_period", "end_at > start_at");
+
+                            t.HasCheckConstraint("ck_price_programs_price", "price > 0");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.Promotion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<long>("DiscountAmount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("discount_amount");
+
+                    b.Property<int>("DiscountBp")
+                        .HasColumnType("integer")
+                        .HasColumnName("discount_bp");
+
+                    b.Property<DateTimeOffset>("EndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at");
+
+                    b.Property<int>("GiftQuantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("gift_quantity");
+
+                    b.Property<Guid?>("GiftSkuId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("gift_sku_id");
+
+                    b.Property<int>("MaxAddOnQuantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_add_on_quantity");
+
+                    b.Property<int>("MinQuantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_quantity");
+
+                    b.Property<long>("MinSpend")
+                        .HasColumnType("bigint")
+                        .HasColumnName("min_spend");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<DateTimeOffset>("StartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("StoppedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("stopped_at");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_promotions");
+
+                    b.HasIndex("ShopId", "Status", "EndAt")
+                        .HasDatabaseName("ix_promotions_shop");
+
+                    b.ToTable("promotions", "promo", t =>
+                        {
+                            t.HasCheckConstraint("ck_promotions_period", "end_at > start_at");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.PromotionProduct", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<Guid>("PromotionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("promotion_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_promotion_products");
+
+                    b.HasIndex("ProductId")
+                        .HasDatabaseName("ix_promotion_products_product");
+
+                    b.HasIndex("PromotionId", "ProductId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_promotion_products");
+
+                    b.ToTable("promotion_products", "promo");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.PromotionSku", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int?>("PerUserLimit")
+                        .HasColumnType("integer")
+                        .HasColumnName("per_user_limit");
+
+                    b.Property<long>("Price")
+                        .HasColumnType("bigint")
+                        .HasColumnName("price");
+
+                    b.Property<Guid>("PromotionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("promotion_id");
+
+                    b.Property<Guid>("SkuId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sku_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_promotion_skus");
+
+                    b.HasIndex("SkuId")
+                        .HasDatabaseName("ix_promotion_skus_sku");
+
+                    b.HasIndex("PromotionId", "SkuId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_promotion_skus");
+
+                    b.ToTable("promotion_skus", "promo", t =>
+                        {
+                            t.HasCheckConstraint("ck_promotion_skus_price", "price > 0");
                         });
                 });
 
@@ -3455,6 +4011,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<Guid?>("GiftPromotionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("gift_promotion_id");
+
                     b.Property<string>("ImageSnapshot")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -3477,6 +4037,14 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.Property<long>("OriginalPrice")
                         .HasColumnType("bigint")
                         .HasColumnName("original_price");
+
+                    b.Property<Guid?>("PriceRefId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("price_ref_id");
+
+                    b.Property<int?>("PriceSource")
+                        .HasColumnType("integer")
+                        .HasColumnName("price_source");
 
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid")
@@ -4901,6 +5469,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_variant_tiers_products_product_id");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Engage.CheckIn", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_check_ins_users_user_id");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Engage.Notification", b =>
                 {
                     b.HasOne("ShopHub.Domain.Iam.User", null)
@@ -5207,6 +5785,103 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_coin_ledger_users_user_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.FlashSaleBuyer", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Promo.FlashSaleItem", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_flash_sale_buyers_flash_sale_items_item_id");
+
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_flash_sale_buyers_users_user_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.FlashSaleItem", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Catalog.Sku", null)
+                        .WithMany()
+                        .HasForeignKey("SkuId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_flash_sale_items_skus_sku_id");
+
+                    b.HasOne("ShopHub.Domain.Promo.FlashSaleSlot", null)
+                        .WithMany()
+                        .HasForeignKey("SlotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_flash_sale_items_flash_sale_slots_slot_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.FlashSaleSlot", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_flash_sale_slots_shops_shop_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.PriceProgram", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Catalog.Sku", null)
+                        .WithMany()
+                        .HasForeignKey("SkuId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_price_programs_skus_sku_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.Promotion", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_promotions_shops_shop_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.PromotionProduct", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_promotion_products_products_product_id");
+
+                    b.HasOne("ShopHub.Domain.Promo.Promotion", null)
+                        .WithMany("Products")
+                        .HasForeignKey("PromotionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_promotion_products_promotions_promotion_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.PromotionSku", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Promo.Promotion", null)
+                        .WithMany("Skus")
+                        .HasForeignKey("PromotionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_promotion_skus_promotions_promotion_id");
+
+                    b.HasOne("ShopHub.Domain.Catalog.Sku", null)
+                        .WithMany()
+                        .HasForeignKey("SkuId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_promotion_skus_skus_sku_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Promo.Voucher", b =>
@@ -5562,6 +6237,13 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Logistics.Shipment", b =>
                 {
                     b.Navigation("Events");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.Promotion", b =>
+                {
+                    b.Navigation("Products");
+
+                    b.Navigation("Skus");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Sales.Cart", b =>

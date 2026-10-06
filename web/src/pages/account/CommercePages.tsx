@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ordersApi, walletApi, type OrderDetail, type OrderTab, type VoucherInfo, type WalletTab } from '../../api/commerce';
 import { CART_KEY } from '../../context/CartContext';
+import { marketingApi } from '../../api/marketing';
 import { ShipmentTimeline } from '../TrackingPage';
 import { ApiError } from '../../api/http';
 import { formatCount, formatPrice } from '../../lib/money';
@@ -338,9 +339,55 @@ const REASONS: Record<string, string> = {
   ReviewReward: 'Thưởng đánh giá',
   VoucherCashback: 'Hoàn xu từ voucher',
   Expired: 'Xu hết hạn',
+  CheckIn: 'Điểm danh',
 };
 
 /** /tai-khoan/xu */
+/** Điểm danh 7 ngày + hạng thành viên (spec VIII). */
+const LoyaltyPanel = () => {
+  const queryClient = useQueryClient();
+  const [message, setMessage] = useState('');
+  const checkIn = useQuery({ queryKey: ['check-in'], queryFn: marketingApi.checkIn });
+  const membership = useQuery({ queryKey: ['membership'], queryFn: marketingApi.membership });
+  const press = async () => {
+    try {
+      queryClient.setQueryData(['check-in'], await marketingApi.doCheckIn());
+      setMessage('Điểm danh thành công!');
+      void queryClient.invalidateQueries({ queryKey: ['coins'] });
+    } catch (e) {
+      setMessage(e instanceof ApiError ? e.message : 'Không điểm danh được.');
+    }
+  };
+  const m = membership.data;
+  return (
+    <div className="loyalty" data-testid="loyalty">
+      {m && (
+        <div className={`member-card member-${m.tier.toLowerCase()}`} data-testid="member-tier">
+          <strong>Hạng {m.tierLabel}</strong>
+          <span>Chi tiêu {m.windowDays} ngày: {formatPrice(m.spend)}</span>
+          {m.nextTierSpend !== null && <small>Còn {formatPrice(Math.max(0, m.nextTierSpend - m.spend))} để lên hạng tiếp theo</small>}
+        </div>
+      )}
+      {checkIn.data && (
+        <div className="checkin">
+          <div className="checkin-days">
+            {checkIn.data.days.map((d) => (
+              <span key={d.day} className={`checkin-day ${d.done ? 'done' : ''} ${d.today ? 'today' : ''}`}>
+                <b>+{formatCount(d.coins)}</b>
+                <small>Ngày {d.day}</small>
+              </span>
+            ))}
+          </div>
+          <button className="account-btn" disabled={checkIn.data.doneToday} onClick={press} data-testid="check-in">
+            {checkIn.data.doneToday ? 'Đã điểm danh hôm nay' : 'Điểm danh nhận xu'}
+          </button>
+          {message && <small role="status">{message}</small>}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const CoinsPage = () => {
   const [page, setPage] = useState(1);
   const { data } = useQuery({ queryKey: ['coins', page], queryFn: () => walletApi.coins(page), placeholderData: keepPreviousData });
@@ -349,6 +396,7 @@ export const CoinsPage = () => {
   return (
     <div className="account-card" data-testid="coins-page">
       <h2 className="account-title">ShopHub Xu</h2>
+      <LoyaltyPanel />
       <div className="coins-balance">
         <span className="coins-amount" data-testid="coin-balance">{formatCount(data.balance)}</span> xu đang có
         {data.expiringSoon > 0 && <span className="coins-expiring"> · {formatCount(data.expiringSoon)} xu sẽ hết hạn trong 30 ngày</span>}

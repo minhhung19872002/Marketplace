@@ -18,6 +18,8 @@ export interface CartLine {
   isSelected: boolean;
   canBuy: boolean;
   problem: string | null;
+  // "Flash Sale" / "Giảm giá" when a price programme gives the price
+  priceLabel: string | null;
 }
 
 export interface CartShop {
@@ -106,6 +108,16 @@ export interface QuoteLine {
   shopDiscount: number;
   platformDiscount: number;
   coinDiscount: number;
+  comboDiscount: number;
+  priceLabel: string | null;
+}
+
+export interface QuoteGift {
+  skuId: string;
+  name: string;
+  variant: string | null;
+  quantity: number;
+  value: number;
 }
 
 export interface QuoteShop {
@@ -125,6 +137,8 @@ export interface QuoteShop {
   shopVoucher: VoucherOption | null;
   shopVoucherOptions: VoucherOption[];
   note: string | null;
+  comboDiscount: number;
+  gifts: QuoteGift[] | null;
 }
 
 export interface CheckoutQuote {
@@ -145,6 +159,7 @@ export interface CheckoutQuote {
   coinCashback: number;
   problems: string[];
   canPlace: boolean;
+  comboDiscount: number;
 }
 
 export type OrderStatus =

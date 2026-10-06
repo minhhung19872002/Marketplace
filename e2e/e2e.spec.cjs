@@ -25,8 +25,10 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('.mall-brands')).toBeVisible();
     await expect(page.locator('.top-categories')).toBeVisible();
     await expect(page.locator('.product-grid-section')).toBeVisible();
-    // Flash Sale comes back with real campaigns in Phase 9
-    await expect(page.locator('.flash-sale')).toHaveCount(0);
+    // Flash Sale of the platform (seeded slot running now): real items, countdown on the server's clock
+    await expect(page.getByTestId('flash-sale')).toBeVisible();
+    await expect(page.getByTestId('flash-item').first()).toBeVisible();
+    await expect(page.getByTestId('countdown').first()).toHaveText(/\d{2}:\d{2}:\d{2}/);
 
     expect(filterRealErrors(errors)).toHaveLength(0);
   });
@@ -393,6 +395,18 @@ test.describe('ShopHub Marketplace', () => {
     await page.goto(`${BASE}/thong-bao`);
     await expect(page.locator('[data-testid="noti-list"]')).toBeVisible();
     await expect(page.locator('[data-testid="noti-empty"]')).toBeVisible();
+  });
+
+  test('Popup quảng cáo hiện cho khách mới, đóng được và không hiện lại khi tải lại', async ({ browser }) => {
+    // A fresh browser (no remembered popup), unlike the returning visitor of the other tests (config storageState)
+    const page = await (await browser.newContext({ storageState: { cookies: [], origins: [] } })).newPage();
+    await page.goto(BASE);
+    await expect(page.getByTestId('home-popup')).toBeVisible();
+    await page.getByRole('button', { name: 'Đóng' }).click();
+    await expect(page.getByTestId('home-popup')).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId('home-banners')).toBeVisible();
+    await expect(page.getByTestId('home-popup')).toHaveCount(0);
   });
 
   test('Footer hiển thị đầy đủ', async ({ page }) => {

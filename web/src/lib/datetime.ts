@@ -21,6 +21,13 @@ const dateFormat = new Intl.DateTimeFormat('vi-VN', {
   year: 'numeric',
 });
 
+const clockFormat = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: VN_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
 type DateInput = string | number | Date;
 
 const toDate = (value: DateInput): Date => (value instanceof Date ? value : new Date(value));
@@ -41,3 +48,13 @@ export const secondsToNextSlot = (nowMs: number, slotHours: number): number => {
   const nextBoundary = Math.floor(vnWallMs / slotMs) * slotMs + slotMs;
   return Math.max(1, Math.floor((nextBoundary - vnWallMs) / 1000));
 };
+
+/** Remaining time as ["02", "05", "09"] (hours may exceed 24) — for Flash Sale countdowns. */
+export const countdownParts = (remainingMs: number): [string, string, string] => {
+  const total = Math.max(0, Math.floor(remainingMs / 1000));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return [pad(Math.floor(total / 3600)), pad(Math.floor((total % 3600) / 60)), pad(total % 60)];
+};
+
+/** "14:00" — the Vietnam wall-clock hour of an instant (Flash Sale slot labels). */
+export const formatClock = (value: DateInput): string => clockFormat.format(toDate(value));

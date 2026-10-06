@@ -7,6 +7,8 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import ProductGrid from '../components/ProductGrid';
 import ProductReviews from '../components/ProductReviews';
+import Countdown from '../components/Countdown';
+import { clockSkew, marketingApi } from '../api/marketing';
 import { formatPrice, formatSold } from '../lib/money';
 import { formatDate } from '../lib/datetime';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
@@ -42,6 +44,17 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     return matching(product.skus, picked)[0] ?? null;
   }, [tiers.length, picked, product.skus]);
   const available = sku ? sku.available : product.totalAvailable;
+
+  // Programme prices (discount / Flash Sale) and shop offers; the countdown runs on the server's clock
+  const deals = useQuery({ queryKey: ['deals', product.id], queryFn: () => marketingApi.deals(product.id), staleTime: 30_000 });
+  const [receivedAt, setReceivedAt] = useState(0);
+  useEffect(() => {
+    if (deals.data) setReceivedAt(Date.now());
+  }, [deals.data]);
+  const dealOf = (skuId: string) => deals.data?.skus.find((d) => d.skuId === skuId && d.price < d.basePrice);
+  const skuDeal = sku ? dealOf(sku.id) : undefined;
+  const dealPrices = product.skus.map((s) => dealOf(s.id)?.price ?? s.price);
+  const flash = deals.data?.flash;
 
   /** An option is selectable when some SKU with it (and the other tier's choice) still has stock. */
   const optionAvailable = (tierIndex: number, value: string) => {
@@ -161,14 +174,33 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               <span className="stat-sold">{formatSold(product.soldCount)} Đã Bán</span>
             </div>
 
+            {flash && deals.data && receivedAt > 0 && (
+              <div className="pd-flash" data-testid="pd-flash">
+                <span className="pd-flash-title">⚡ {flash.platform ? 'FLASH SALE' : 'FLASH SALE CỦA SHOP'}</span>
+                <span>Kết thúc sau <Countdown endAt={flash.endAt} skewMs={clockSkew(deals.data.serverTime, receivedAt)} /></span>
+                <span className="pd-flash-sold">Đã bán {flash.sold}/{flash.quota} · tối đa {flash.perUserLimit} sản phẩm/người</span>
+              </div>
+            )}
             <div className="product-detail-price-box">
-              {sku ? (
+              {sku && skuDeal ? (
+                <>
+                  <span className="price-original">{formatPrice(Math.max(sku.originalPrice, sku.price))}</span>
+                  <span className="price-current" data-testid="pd-price">{formatPrice(skuDeal.price)}</span>
+                  <span className="price-discount">{skuDeal.label}</span>
+                </>
+              ) : sku ? (
                 <>
                   {sku.originalPrice > sku.price && <span className="price-original">{formatPrice(sku.originalPrice)}</span>}
                   <span className="price-current" data-testid="pd-price">{formatPrice(sku.price)}</span>
                   {sku.originalPrice > sku.price && (
                     <span className="price-discount">{Math.floor(((sku.originalPrice - sku.price) * 100) / sku.originalPrice)}% GIẢM</span>
                   )}
+                </>
+              ) : dealPrices.some((d, i) => d < product.skus[i].price) ? (
+                <>
+                  <span className="price-original">{priceRange(product.minPrice, product.maxPrice)}</span>
+                  <span className="price-current" data-testid="pd-price">{priceRange(Math.min(...dealPrices), Math.max(...dealPrices))}</span>
+                  <span className="price-discount">{flash ? 'Flash Sale' : 'Giảm giá'}</span>
                 </>
               ) : (
                 <>
@@ -180,6 +212,15 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                 </>
               )}
             </div>
+
+            {(deals.data?.offers.length ?? 0) > 0 && (
+              <div className="product-detail-row" data-testid="pd-offers">
+                <span className="row-label">Ưu Đãi Shop</span>
+                <span className="pd-offers">
+                  {deals.data!.offers.map((o) => <span key={o.promotionId} className="pd-offer">{o.text}</span>)}
+                </span>
+              </div>
+            )}
 
             {product.isPreorder && (
               <div className="product-detail-row">

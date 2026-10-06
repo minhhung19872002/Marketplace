@@ -399,6 +399,43 @@ Thanh toán bằng ví: `POST /api/checkout` thêm `walletPin` khi `paymentMetho
 
 Việc nền chạy ngay được: `finance.settlement` (giải ngân), `finance.ledger-check` (kiểm sổ).
 
+## Marketing (Phase 9)
+
+**Công khai**
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/api/flash-sale?slotId=` | `{ serverTime, slot { startAt, endAt, running }, upcoming[], items[{ flashPrice, basePrice, quota, sold, soldPercent, perUserLimit }] }` |
+| GET | `/api/products/{id}/deals` | Giá chương trình từng SKU (`price`, `basePrice`, `label`), Flash Sale đang chạy (`endAt`, `quota`, `sold`), ưu đãi combo / mua kèm / quà tặng; `serverTime` |
+| GET | `/api/home/banners` | `{ main[], side[], shortcuts[], popup, popupFrequencyHours, pinnedKeywords[] }` |
+| GET | `/api/campaigns/{slug}` | Trang sự kiện: các khối đã dựng sẵn (banner, voucher, Flash Sale, sản phẩm) |
+
+Giỏ hàng trả thêm `priceLabel`; báo giá thêm `comboDiscount`, mỗi dòng `comboDiscount` / `priceLabel`, mỗi shop `gifts[]`. Đặt hàng có thể trả 409 `FLASH_SOLD_OUT` / `FLASH_USER_LIMIT`.
+
+**Tài khoản**: `GET /api/account/membership` (hạng, chi tiêu, mốc kế tiếp) · `GET|POST /api/account/check-in` (điểm danh, 409 nếu hôm nay đã điểm danh).
+
+**Kênh Người Bán** (`/api/seller/shops/{shopId}/marketing`, quyền shop `MARKETING.MANAGE`)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/skus?q=` | Phân loại đang bán của shop (để chọn vào chương trình) |
+| GET · POST | `/promotions` | `{ type: Discount\|Combo\|AddOn\|Gift, name, startAt, endAt, productIds[], skus[{ skuId, price }], minQuantity, discountBp, discountAmount, maxAddOnQuantity, minSpend, giftSkuId, giftQuantity }`; trùng chương trình giá → 409 |
+| POST | `/promotions/{id}/stop` | Dừng (giải phóng SKU khỏi chương trình giá) |
+| GET · POST | `/flash-sales` | Flash Sale của shop: `{ startAt, endAt, items[{ skuId, flashPrice, quota, perUserLimit }] }` |
+| GET | `/platform-slots` | Khung của sàn còn nhận đăng ký (tiêu chí) |
+| POST | `/platform-slots/{slotId}/items` | Đăng ký (kiểm tiêu chí), chờ duyệt |
+
+**Quản trị** (`/api/admin/marketing`, quyền `PROMO.MARKETING.MANAGE`)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET · POST | `/flash-slots` | Khung của sàn: `{ date, hour (∈ FLASH.SLOT_HOURS), minDiscountBp, minRating, categoryIds }` |
+| POST | `/flash-items/{id}/approve` · `/reject` | Duyệt (đưa vào chương trình giá + nạp bộ đếm Redis) · `{ reason }` |
+| GET · POST | `/banners` | `{ id?, position: HomeMain\|HomeSide\|Shortcut\|Category\|Popup, title, imageUrl (hoặc emoji cho lối tắt), link, startAt, endAt, sortOrder, isActive }` |
+| GET · POST | `/campaigns` | `{ id?, name, slug, startAt, endAt, blocks[], isActive }` |
+
+Việc nền chạy ngay được: `promo.flash-reconcile`, `promo.coin-expiry`.
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

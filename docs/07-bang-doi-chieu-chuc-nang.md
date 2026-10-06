@@ -15,7 +15,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 6 | Đơn hàng & vận chuyển | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 6 dưới đây |
 | 7 | Đánh giá, trả hàng, khiếu nại | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 7 dưới đây |
 | 8 | Tài chính | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 8 dưới đây |
-| 9 | Marketing | Chưa làm | |
+| 9 | Marketing | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 9 dưới đây |
 | 10 | Chat & thông báo thời gian thực | Chưa làm | |
 | 11 | Cổng thật | Chưa làm | |
 | 12 | Quản trị & báo cáo | Chưa làm | |
@@ -186,3 +186,19 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Đối soát với cổng thanh toán và hãng vận chuyển: khớp từng giao dịch, liệt kê lệch | 00 #81, quản trị → Đối soát | `Reconciliation_matches_every_transaction_and_lists_each_difference` |
 | IDOR tài chính | lọc chủ sở hữu trong SQL | `Finance_of_another_shop_or_another_buyer_is_not_found…` |
 | **Dời lại** | chương trình Freeship / Voucher Xtra (Phase 9), cổng / hãng thật (Phase 11), báo cáo toàn sàn (Phase 12) | 00 #82 |
+
+## Phase 9 — Marketing
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| Một SKU chỉ ở một chương trình giá tại một thời điểm (ràng buộc CSDL) | 00 #83, exclusion constraint `ex_price_programs_sku_period` | `A_discount_price_reaches_cart_checkout_and_order_and_a_sku_cannot_be_in_two_price_programmes_at_once` |
+| Chương trình giảm giá theo SKU: giá tới giỏ, báo giá, đơn | `PriceBook`, `CartStore`, `CheckoutBuilder`, `OrderItem.PriceSource` | phép thử trên |
+| Combo, mua kèm deal sốc, quà tặng; combo do shop chịu | 00 #85, `DealsBook`, `PricingEngine` (bước 0) | `Combo_add_on_and_gift_change_the_checkout_and_the_combo_is_the_shops_cost`, `MarketingRulesTests` (3 phép thử combo) |
+| Flash Sale của sàn: khung giờ cấu hình, tiêu chí, đăng ký, duyệt | 00 #84, quản trị → Marketing, Kênh Người Bán → Kênh Marketing | `Platform_flash_registration_checks_the_criteria_and_an_approved_item_shows_on_the_board_with_server_time` |
+| Suất Flash Sale: Redis Lua + đối chiếu PostgreSQL, giới hạn mỗi người, không vượt suất khi song song | `RedisFlashSaleCounter`, `FlashSaleQuota`, `FlashSaleReconciler` | `Thirty_buyers_at_once_get_exactly_the_quota_and_a_cancelled_order_gives_its_unit_back`, `One_buyer_cannot_take_more_flash_units_than_the_limit…`; **e2e số 8** (30 phiên trình duyệt → đúng 10 đơn) |
+| Chịu 1.000 người đồng thời lúc mở Flash Sale | `e2e/load/flash-sale.js` (k6) | 1.000 người tranh 44 suất → đúng 44 đơn, 956 bị từ chối đúng (409), 0 lỗi máy chủ, p95 đặt hàng 2,13 s trên một container API ở máy dev (ngưỡng 3 s) |
+| Thanh "Đã bán" thật, đếm ngược theo giờ máy chủ | `FlashBoardQuery` (`serverTime`), `Countdown` | e2e trang chủ (khối Flash Sale + đồng hồ), phép thử bảng Flash Sale |
+| Banner, lối tắt, popup (tần suất), chiến dịch / trang sự kiện | 00 #86, `/su-kien/:slug` | `Banners_and_campaign_pages_come_from_the_admin_and_only_marketing_admins_edit_them`; e2e popup |
+| Hạng thành viên & voucher theo hạng, điểm danh 7 ngày, hoàn xu từ voucher, xu hết hạn | 00 #87 | `Spending_unlocks_the_gold_tier_voucher_and_voucher_cashback_is_paid_once…`, `Check_in_pays_the_streak_reward_once_per_day…`, `MarketingRulesTests.Spending_uses_the_xu_that_expire_first…` |
+| Dữ liệu mẫu: 1 khung đang chạy + 1 sắp tới, banner, 1 chiến dịch | `MarketingSeeder` | stack dev: log `SEED flash sale / banners / campaign` |
+| **Dời lại** | thông báo hàng loạt (Phase 10), Freeship / Voucher Xtra, giá khuyến mãi trên thẻ lưới | 00 #89 |

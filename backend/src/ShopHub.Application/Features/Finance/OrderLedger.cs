@@ -100,7 +100,8 @@ public sealed class OrderLedger(IApplicationDbContext db, Ledger ledger, FeeSche
         {
             var category = categories.GetValueOrDefault(item.ProductId);
             lines.Add(new SettlementLine(item.Id, item.LineTotal, item.Quantity,
-                item.Discounts.Where(d => d.Source == DiscountSource.Shop).Sum(d => d.Amount),
+                // The shop bears its voucher and its combos
+                item.Discounts.Where(d => d.Source is DiscountSource.Shop or DiscountSource.Combo).Sum(d => d.Amount),
                 item.Discounts.Where(d => d.Source == DiscountSource.Platform).Sum(d => d.Amount),
                 await fees.RateAsync(FeeType.Fixed, category, order.CreatedAt, ct),
                 await fees.RateAsync(FeeType.Service, category, order.CreatedAt, ct)));

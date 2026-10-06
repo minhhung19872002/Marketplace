@@ -149,3 +149,22 @@
 .banner-side-item--freeship {
   background: var(--sh-gradient-freeship);
 }
+
+.banner-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.6);
+}
+
+.banner-slide .banner-content,
+.banner-side-item span {
+  position: relative;
+}
+
+.banner-side-item {
+  position: relative;
+  overflow: hidden;
+}

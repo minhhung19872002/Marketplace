@@ -836,3 +836,62 @@
 .wallet-out {
   text-align: right;
 }
+
+.loyalty {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.member-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  min-width: 220px;
+  color: #fff;
+  background: linear-gradient(135deg, #9aa3ad, #6b7580);
+}
+
+.member-gold {
+  background: linear-gradient(135deg, #e6b422, #b8860b);
+}
+
+.member-diamond {
+  background: linear-gradient(135deg, #5ec8f2, #2b6cd6);
+}
+
+.checkin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.checkin-days {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.checkin-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 6px 8px;
+  min-width: 56px;
+}
+
+.checkin-day.done {
+  background: #fff3ec;
+  border-color: var(--sh-primary);
+  color: var(--sh-primary);
+}
+
+.checkin-day.today {
+  box-shadow: 0 0 0 2px var(--sh-primary) inset;
+}

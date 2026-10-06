@@ -29,6 +29,7 @@ const ReturnFormPage = lazy(() => import('./pages/account/AftercarePages').then(
 const ReturnsPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.ReturnsPage })))
 const ReturnDetailPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.ReturnDetailPage })))
 const WalletPage = lazy(() => import('./pages/account/WalletPage'))
+const CampaignPage = lazy(() => import('./pages/CampaignPage'))
 const Wishlist = lazy(() => import('./pages/Wishlist'))
 const Notifications = lazy(() => import('./pages/Notifications'))
 const ShopPage = lazy(() => import('./pages/ShopPage'))
@@ -71,6 +72,7 @@ function App() {
                     <Route path="/tra-cuu-van-don" element={<TrackingPage />} />
                     <Route path="/tra-cuu-van-don/:trackingNo" element={<TrackingPage />} />
                     <Route path="/shop/:slug" element={<ShopPage />} />
+                    <Route path="/su-kien/:slug" element={<CampaignPage />} />
                     <Route path="/quen-mat-khau" element={<ForgotPassword />} />
                     <Route path="/tai-khoan" element={<AccountLayout />}>
                       <Route index element={<Navigate to="ho-so" replace />} />

@@ -26,14 +26,16 @@ public record CartLineDto(
     int Available,
     bool IsSelected,
     bool CanBuy,
-    string? Problem);
+    string? Problem,
+    // "Flash Sale" / "Giảm giá" when a price programme gives the price above (add-on deals and combos show at checkout)
+    string? PriceLabel = null);
 
 public record CartShopDto(Guid ShopId, string ShopName, string ShopSlug, bool IsMall, bool OnVacation, IReadOnlyList<CartLineDto> Lines);
 
 public record CartDto(IReadOnlyList<CartShopDto> Shops, int LineCount, int TotalQuantity, int SelectedQuantity, long SelectedSubtotal);
 
 /// <summary>Loads / creates carts and turns them into the validated view (stock, price, availability per line).</summary>
-public sealed class CartStore(IApplicationDbContext db, IClock clock)
+public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook prices, IClock clock)
 {
     public async Task<Domain.Sales.Cart?> FindAsync(CartOwner owner, CancellationToken ct)
     {
@@ -94,6 +96,7 @@ public sealed class CartStore(IApplicationDbContext db, IClock clock)
                               Image = p.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.SortOrder).Select(m => m.Url).FirstOrDefault(),
                           }).ToListAsync(ct);
         var byId = rows.ToDictionary(r => r.Sku.Id);
+        var effective = await prices.ForSkusAsync(skuIds, clock.UtcNow, ct);
 
         var result = new List<LineView>();
         foreach (var item in items)
@@ -107,9 +110,12 @@ public sealed class CartStore(IApplicationDbContext db, IClock clock)
                 : item.Quantity > available ? $"Chỉ còn {available} sản phẩm, vui lòng giảm số lượng."
                 : null;
             var variant = string.Join(", ", new[] { r.Option1, r.Option2 }.Where(v => !string.IsNullOrEmpty(v)));
+            var price = effective.GetValueOrDefault(item.SkuId);
+            var unit = price?.Price ?? r.Sku.Price;
+            var label = price?.Kind switch { null => null, Domain.Promo.PriceProgramKind.Discount => "Giảm giá", _ => "Flash Sale" };
             result.Add(new LineView(item, r.Shop, new CartLineDto(item.SkuId, r.Id, r.Name, r.OptionImage ?? r.Image,
-                variant.Length == 0 ? null : variant, r.Sku.Price, r.Sku.OriginalPrice,
-                item.PriceAtAdd != r.Sku.Price ? item.PriceAtAdd : null, item.Quantity, available, item.IsSelected, problem is null, problem)));
+                variant.Length == 0 ? null : variant, unit, Math.Max(r.Sku.OriginalPrice, r.Sku.Price),
+                item.PriceAtAdd != r.Sku.Price ? item.PriceAtAdd : null, item.Quantity, available, item.IsSelected, problem is null, problem, label)));
         }
         return result;
     }

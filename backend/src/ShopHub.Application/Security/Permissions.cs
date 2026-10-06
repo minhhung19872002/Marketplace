@@ -38,6 +38,7 @@ public static class Permissions
     public const string FinanceFeeManage = "FINANCE.FEE.MANAGE";
     public const string FinanceWithdrawalApprove = "FINANCE.WITHDRAWAL.APPROVE";
     public const string FinanceReconcile = "FINANCE.RECONCILE";
+    public const string MarketingManage = "PROMO.MARKETING.MANAGE";
 
     public const string ClaimType = "perm";
 }
@@ -76,6 +77,7 @@ public static class PermissionCatalog
         new(Permissions.FinanceFeeManage, "Tài chính", "Đặt biểu phí theo ngành"),
         new(Permissions.FinanceWithdrawalApprove, "Tài chính", "Duyệt / từ chối rút tiền"),
         new(Permissions.FinanceReconcile, "Tài chính", "Đối soát với cổng thanh toán và đơn vị vận chuyển"),
+        new(Permissions.MarketingManage, "Khuyến mãi", "Khung Flash Sale, duyệt đăng ký, banner, chiến dịch"),
     ];
 }
 
@@ -102,6 +104,6 @@ public static class RoleCatalog
             [Permissions.AuditLogView, Permissions.OrderView, Permissions.FinanceLedgerView, Permissions.FinanceFeeManage,
              Permissions.FinanceWithdrawalApprove, Permissions.FinanceReconcile, Permissions.JobRun]),
         new("MARKETING", "Marketing", "Voucher, Flash Sale, chiến dịch.",
-            [Permissions.SystemParameterView, Permissions.VoucherManage, Permissions.CoinGrant]),
+            [Permissions.SystemParameterView, Permissions.VoucherManage, Permissions.CoinGrant, Permissions.MarketingManage]),
     ];
 }

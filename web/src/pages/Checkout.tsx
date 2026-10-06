@@ -204,6 +204,7 @@ const Checkout = () => {
                   <div>
                     <div className="checkout-product-name">{it.name}</div>
                     {it.variant && <div className="checkout-product-variant">Phân loại: {it.variant}</div>}
+                    {it.priceLabel && <span className="checkout-price-label">{it.priceLabel}</span>}
                   </div>
                 </div>
                 <span className="cp-col-price">{formatPrice(it.unitPrice)}</span>
@@ -211,6 +212,18 @@ const Checkout = () => {
                 <span className="cp-col-total checkout-product-total">{formatPrice(it.lineTotal)}</span>
               </div>
             ))}
+
+            {(shop.gifts ?? []).map((g) => (
+              <div key={g.skuId} className="checkout-product checkout-gift" data-testid="checkout-gift">
+                <div className="cp-col-product"><div className="checkout-product-name">🎁 Quà tặng: {g.name}{g.variant && ` (${g.variant})`}</div></div>
+                <span className="cp-col-price">{formatPrice(0)}</span>
+                <span className="cp-col-qty">x{g.quantity}</span>
+                <span className="cp-col-total">{formatPrice(0)}</span>
+              </div>
+            ))}
+            {shop.comboDiscount > 0 && (
+              <div className="checkout-combo" data-testid="checkout-combo">Ưu đãi combo của shop: −{formatPrice(shop.comboDiscount)}</div>
+            )}
 
             <div className="checkout-shop-options">
               <label className="checkout-note">
@@ -276,6 +289,7 @@ const Checkout = () => {
           <div className="checkout-summary-row"><span>Tổng tiền hàng</span><span>{formatPrice(quote.subtotal)}</span></div>
           <div className="checkout-summary-row"><span>Tổng tiền phí vận chuyển</span><span>{formatPrice(quote.shippingFee)}</span></div>
           {quote.shippingDiscount > 0 && <div className="checkout-summary-row"><span>Giảm giá phí vận chuyển</span><span>−{formatPrice(quote.shippingDiscount)}</span></div>}
+          {quote.comboDiscount > 0 && <div className="checkout-summary-row"><span>Ưu đãi combo</span><span>−{formatPrice(quote.comboDiscount)}</span></div>}
           {quote.shopDiscount > 0 && <div className="checkout-summary-row"><span>Voucher của shop</span><span>−{formatPrice(quote.shopDiscount)}</span></div>}
           {quote.platformDiscount > 0 && <div className="checkout-summary-row"><span>ShopHub Voucher</span><span>−{formatPrice(quote.platformDiscount)}</span></div>}
           {quote.coinUsed > 0 && <div className="checkout-summary-row"><span>ShopHub Xu</span><span>−{formatPrice(quote.coinUsed)}</span></div>}

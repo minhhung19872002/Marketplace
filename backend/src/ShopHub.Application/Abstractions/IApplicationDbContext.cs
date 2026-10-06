@@ -88,6 +88,16 @@ public interface IApplicationDbContext
     DbSet<Wallet> Wallets { get; }
     DbSet<WalletTopup> WalletTopups { get; }
     DbSet<BankAccount> BankAccounts { get; }
+    DbSet<Promotion> Promotions { get; }
+    DbSet<PromotionProduct> PromotionProducts { get; }
+    DbSet<PromotionSku> PromotionSkus { get; }
+    DbSet<PriceProgram> PricePrograms { get; }
+    DbSet<FlashSaleSlot> FlashSaleSlots { get; }
+    DbSet<FlashSaleItem> FlashSaleItems { get; }
+    DbSet<FlashSaleBuyer> FlashSaleBuyers { get; }
+    DbSet<Banner> Banners { get; }
+    DbSet<Campaign> Campaigns { get; }
+    DbSet<CheckIn> CheckIns { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

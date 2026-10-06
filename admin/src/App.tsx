@@ -18,6 +18,7 @@ import ShopsPage from './pages/ShopsPage'
 import CategoriesPage from './pages/CategoriesPage'
 import DisputesPage from './pages/DisputesPage'
 import FinancePage from './pages/FinancePage'
+import MarketingPage from './pages/MarketingPage'
 import ReviewReportsPage from './pages/ReviewReportsPage'
 import VouchersPage from './pages/VouchersPage'
 import './App.css'
@@ -31,6 +32,7 @@ const MENU = [
   { path: '/shop', label: 'Shop', permission: P.ShopView },
   { path: '/nganh-hang', label: 'Ngành hàng', permission: P.CategoryManage },
   { path: '/voucher', label: 'Voucher của sàn', permission: P.VoucherManage },
+  { path: '/marketing', label: 'Marketing', permission: P.MarketingManage },
   { path: '/khieu-nai', label: 'Khiếu nại trả hàng', permission: P.DisputeResolve },
   { path: '/bao-cao-danh-gia', label: 'Báo cáo đánh giá', permission: P.ReviewModerate },
   { path: '/tai-chinh', label: 'Tài chính', permission: P.FinanceLedgerView },
@@ -94,6 +96,7 @@ const Shell = () => {
             <Route path="/shop" element={guard(P.ShopView, <ShopsPage permissions={perms} />)} />
             <Route path="/nganh-hang" element={guard(P.CategoryManage, <CategoriesPage />)} />
             <Route path="/voucher" element={guard(P.VoucherManage, <VouchersPage />)} />
+            <Route path="/marketing" element={guard(P.MarketingManage, <MarketingPage />)} />
             <Route path="/khieu-nai" element={guard(P.DisputeResolve, <DisputesPage />)} />
             <Route path="/bao-cao-danh-gia" element={guard(P.ReviewModerate, <ReviewReportsPage />)} />
             <Route path="/tai-chinh" element={guard(P.FinanceLedgerView, <FinancePage permissions={perms} />)} />

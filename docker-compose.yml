@@ -9,6 +9,8 @@ services:
   postgres:
     <<: *restart
     image: postgres:16-alpine
+    # Room for the API pool (SH_DB_MAX_POOL), Hangfire and admin sessions: a pool above this limit fails under load
+    command: postgres -c max_connections=200
     environment:
       POSTGRES_DB: ${SH_DB_NAME:-shophub}
       POSTGRES_USER: ${SH_DB_USER:-shophub}
@@ -124,6 +126,8 @@ services:
       # Only the gateway's Docker network may set X-Forwarded-For
       SH_TRUSTED_PROXIES: 172.16.0.0/12,10.0.0.0/8,192.168.0.0/16
       SH_LOG_DIR: /app/logs
+      # Must stay below Postgres max_connections (200 in this stack)
+      SH_DB_MAX_POOL: ${SH_DB_MAX_POOL:-120}
       # Dev/demo stack: every browser and the e2e suite share one IP behind the gateway
       SH_RATE_LIMIT_AUTH: ${SH_RATE_LIMIT_AUTH:-300}
       SH_RATE_LIMIT_OTP: ${SH_RATE_LIMIT_OTP:-300}
@@ -131,6 +135,9 @@ services:
       SH_RATE_LIMIT_GLOBAL: ${SH_RATE_LIMIT_GLOBAL:-20000}
       # Fake payment page that can mark any payment as paid — demo / test stacks only, never production
       SH_PAYMENT_SIMULATED: ${SH_PAYMENT_SIMULATED:-true}
+      # Load-test buyers for e2e/load (k6): off unless both are set in .env
+      SH_SEED_LOAD_USERS: ${SH_SEED_LOAD_USERS:-0}
+      SH_LOAD_USER_PASSWORD: ${SH_LOAD_USER_PASSWORD:-}
     volumes:
       - apilogs:/app/logs
     depends_on:
@@ -175,8 +182,13 @@ services:
   nginx:
     <<: *restart
     image: nginx:1.27-alpine
+    environment:
+      # Per-IP API rate at the gateway. Production keeps 30r/s; the e2e suite (every browser on one IP) runs with more
+      SH_GATEWAY_RATE: ${SH_GATEWAY_RATE:-30r/s}
+      SH_GATEWAY_BURST: ${SH_GATEWAY_BURST:-60}
+      NGINX_ENVSUBST_FILTER: ^SH_GATEWAY_
     volumes:
-      - ./deploy/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/gateway.conf:/etc/nginx/templates/default.conf.template:ro
     depends_on:
       - api
       - web

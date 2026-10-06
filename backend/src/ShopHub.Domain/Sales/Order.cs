@@ -233,7 +233,21 @@ public class OrderItem : Entity
     public int Quantity { get; private set; }
     public long LineTotal { get; private set; }
 
+    // Price programme the unit price came from (shop discount / flash sale) and its row — flash quota goes back on cancel
+    public Promo.PriceProgramKind? PriceSource { get; private set; }
+    public Guid? PriceRefId { get; private set; }
+    // A free gift line (quà tặng kèm) of a gift programme
+    public Guid? GiftPromotionId { get; private set; }
+
     public List<OrderItemDiscount> Discounts { get; private set; } = [];
+
+    public void FromPriceProgram(Promo.PriceProgramKind kind, Guid refId)
+    {
+        PriceSource = kind;
+        PriceRefId = refId;
+    }
+
+    public void AsGiftOf(Guid promotionId) => GiftPromotionId = promotionId;
 
     /// <summary>What the buyer actually paid for this line after every allocated discount.</summary>
     public long PaidAmount => LineTotal - Discounts.Sum(d => d.Amount);

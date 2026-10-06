@@ -148,6 +148,7 @@ const CartPage = () => {
                   <span className="cart-col-price cart-item-price">
                     {item.previousPrice !== null && <span className="cart-item-old-price" data-testid="cart-old-price">{formatPrice(item.previousPrice)}</span>}
                     {formatPrice(item.price)}
+                    {item.priceLabel && <span className="cart-price-label" data-testid="cart-price-label">{item.priceLabel}</span>}
                   </span>
                   <div className="cart-col-qty cart-item-qty">
                     <button onClick={() => run(() => update(item.skuId, { quantity: item.quantity - 1 }))} disabled={item.quantity <= 1} aria-label="Giảm">−</button>

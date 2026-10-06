@@ -21,6 +21,8 @@ public enum VoucherAudience
     Everyone,
     NewBuyer,       // chưa có đơn nào thành công
     ShopFollowers,  // người theo dõi shop (voucher shop)
+    MemberGold,     // hạng Vàng trở lên
+    MemberDiamond,  // hạng Kim cương
 }
 
 public enum VoucherChannel
@@ -193,6 +195,7 @@ public enum CoinReason
     ReviewReward,
     VoucherCashback,
     Expired,
+    CheckIn,
 }
 
 /// <summary>ShopHub Xu ledger: the balance is the sum of the rows, never a stored counter.</summary>

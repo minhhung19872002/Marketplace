@@ -91,6 +91,16 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<WalletTopup> WalletTopups => Set<WalletTopup>();
     public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
+    public DbSet<Promotion> Promotions => Set<Promotion>();
+    public DbSet<PromotionProduct> PromotionProducts => Set<PromotionProduct>();
+    public DbSet<PromotionSku> PromotionSkus => Set<PromotionSku>();
+    public DbSet<PriceProgram> PricePrograms => Set<PriceProgram>();
+    public DbSet<FlashSaleSlot> FlashSaleSlots => Set<FlashSaleSlot>();
+    public DbSet<FlashSaleItem> FlashSaleItems => Set<FlashSaleItem>();
+    public DbSet<FlashSaleBuyer> FlashSaleBuyers => Set<FlashSaleBuyer>();
+    public DbSet<Banner> Banners => Set<Banner>();
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<CheckIn> CheckIns => Set<CheckIn>();
 
     // Unique index name → what the user is told when a parallel request already took the value
     private static readonly Dictionary<string, string> UniqueMessages = new()
@@ -126,6 +136,11 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         ["ux_settlement_items_order"] = "Đơn hàng này đã được giải ngân.",
         ["ux_settlements_code"] = "Mã kỳ giải ngân bị trùng, vui lòng thử lại.",
         ["ux_wallets_user"] = "Ví ShopHub của bạn đã được tạo.",
+        ["ux_promotion_skus"] = "Phân loại này đã có trong chương trình.",
+        ["ux_promotion_products"] = "Sản phẩm này đã có trong chương trình.",
+        ["ux_flash_sale_items_slot_sku"] = "Phân loại này đã đăng ký khung Flash Sale này.",
+        ["ux_campaigns_slug"] = "Đường dẫn chiến dịch đã được dùng.",
+        ["ux_check_ins_user_day"] = "Hôm nay bạn đã điểm danh rồi.",
     };
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -141,8 +156,15 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
                 "ck_skus_stock" or "ck_skus_reserved" => "Tồn kho không đủ hoặc thấp hơn số đang giữ cho đơn.",
                 "ck_vouchers_quota" => "Voucher đã hết lượt sử dụng.",
                 "ck_ledger_accounts_balance" => "Số dư không đủ.",
+                "ck_flash_sale_items_sold" => "Suất Flash Sale đã hết.",
                 _ => "Dữ liệu vi phạm ràng buộc, vui lòng kiểm tra lại.",
             }, "CHECK_VIOLATION");
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation } ex2)
+        {
+            throw new ConflictException(ex2.ConstraintName == "ex_price_programs_sku_period"
+                ? "Có phân loại đang nằm trong một chương trình giá khác (giảm giá / Flash Sale) trùng thời gian."
+                : "Dữ liệu trùng thời gian với bản ghi khác.", "EXCLUSION_VIOLATION") { Constraint = ex2.ConstraintName };
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg)
         {

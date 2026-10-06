@@ -679,3 +679,37 @@
   padding: 0;
   margin-top: 6px;
 }
+
+.pd-flash {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(90deg, var(--sh-primary), #ff7337);
+  color: #fff;
+  padding: 8px 14px;
+  margin: 10px 0 0;
+}
+
+.pd-flash-title {
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.pd-flash-sold {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.pd-offers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pd-offer {
+  border: 1px solid var(--sh-primary);
+  color: var(--sh-primary);
+  padding: 2px 8px;
+  font-size: 13px;
+}

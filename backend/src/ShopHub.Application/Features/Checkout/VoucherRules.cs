@@ -10,7 +10,7 @@ namespace ShopHub.Application.Features.Checkout;
 /// Voucher checks that need the database (time, quota, per-user limit, audience). Minimum order and product scope
 /// are applied by <see cref="PricingEngine"/>.
 /// </summary>
-public sealed class VoucherEvaluator(IApplicationDbContext db, IClock clock)
+public sealed class VoucherEvaluator(IApplicationDbContext db, Marketing.Membership membership, IClock clock)
 {
     /// <summary>Why this user cannot use the voucher now, or null when they can.</summary>
     public async Task<string?> ProblemAsync(Voucher v, Guid userId, CancellationToken ct)
@@ -27,6 +27,10 @@ public sealed class VoucherEvaluator(IApplicationDbContext db, IClock clock)
                 return "Mã chỉ dành cho khách hàng lần đầu mua sắm.";
             case VoucherAudience.ShopFollowers when !await db.ShopFollowers.AnyAsync(f => f.ShopId == v.ShopId && f.UserId == userId, ct):
                 return "Mã chỉ dành cho người theo dõi shop.";
+            case VoucherAudience.MemberGold when (await membership.OfAsync(userId, ct)).Tier < Marketing.MemberTier.Gold:
+                return "Mã dành cho thành viên hạng Vàng trở lên.";
+            case VoucherAudience.MemberDiamond when (await membership.OfAsync(userId, ct)).Tier < Marketing.MemberTier.Diamond:
+                return "Mã dành cho thành viên hạng Kim cương.";
         }
         return null;
     }

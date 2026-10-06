@@ -21,8 +21,11 @@ public record CheckoutRequest(
     bool UseCoins,
     PaymentMethod PaymentMethod);
 
+// PriceLabel: "Flash Sale" / "Giảm giá" / "Mua kèm" when the unit price comes from a programme
 public record QuoteLineDto(Guid SkuId, Guid ProductId, string Name, string? ImageUrl, string? Variant, long UnitPrice, long OriginalPrice,
-    int Quantity, long LineTotal, long ShopDiscount, long PlatformDiscount, long CoinDiscount);
+    int Quantity, long LineTotal, long ShopDiscount, long PlatformDiscount, long CoinDiscount, long ComboDiscount = 0, string? PriceLabel = null);
+
+public record QuoteGiftDto(Guid SkuId, string Name, string? Variant, int Quantity, long Value);
 
 public record VoucherOptionDto(Guid Id, string Code, string Name, VoucherType Type, long DiscountValue, int DiscountPercentBp, long? MaxDiscount,
     long MinOrder, DateTimeOffset EndAt, long Discount, bool Usable, string? Problem, bool Selected);
@@ -43,7 +46,9 @@ public record QuoteShopDto(
     long Total,
     VoucherOptionDto? ShopVoucher,
     IReadOnlyList<VoucherOptionDto> ShopVoucherOptions,
-    string? Note);
+    string? Note,
+    long ComboDiscount = 0,
+    IReadOnlyList<QuoteGiftDto>? Gifts = null);
 
 public record PaymentMethodDto(PaymentMethod Code, string Name, bool Available, string? Reason);
 
@@ -68,7 +73,8 @@ public record CheckoutQuoteDto(
     long GrandTotal,
     long CoinCashback,
     IReadOnlyList<string> Problems,
-    bool CanPlace);
+    bool CanPlace,
+    long ComboDiscount = 0);
 
 /// <summary>Everything needed to place the orders exactly as quoted.</summary>
 public sealed record CheckoutPlan(
@@ -80,10 +86,11 @@ public sealed record CheckoutPlan(
     IReadOnlyDictionary<Guid, Voucher> ShopVouchers,
     Voucher? PlatformVoucher,
     Voucher? FreeshipVoucher,
-    IReadOnlyDictionary<Guid, ShippingOption> Carriers);
+    IReadOnlyDictionary<Guid, ShippingOption> Carriers,
+    IReadOnlyList<Marketing.GiftLine>? Gifts = null);
 
 public sealed record PlanLine(Guid SkuId, Guid ProductId, Guid ShopId, Guid CategoryId, string Name, string? Variant, string? ImageUrl,
-    long UnitPrice, long OriginalPrice, int Quantity);
+    long UnitPrice, long OriginalPrice, int Quantity, Marketing.LinePrice? Price = null);
 
 /// <summary>
 /// Builds the checkout from the buyer's ticked cart lines: shipping per shop, voucher options with reasons, xu, payment
@@ -96,6 +103,7 @@ public sealed class CheckoutBuilder(
     VoucherEvaluator vouchers,
     CoinWallet coins,
     IPaymentGatewayRegistry gateways,
+    Marketing.DealsBook deals,
     ISystemParameters parameters,
     IClock clock)
 {
@@ -145,6 +153,12 @@ public sealed class CheckoutBuilder(
             else problems.Add(problem);
         }
 
+        // ----- shop marketing: programme prices, add-on deals, combos, gifts -----
+        var offers = await deals.ForCheckoutAsync(userId, buyable.Select(l => new Marketing.DealLine(l.Sku.Id, l.Product.Id, l.Shop.Id, l.Item.Quantity)).ToList(),
+            now, ct);
+        problems.AddRange(offers.Problems);
+        long UnitPrice(LineInfo l) => offers.Prices.TryGetValue(l.Sku.Id, out var p) ? p.UnitPrice : l.Sku.Price;
+
         var choices = (request.Shops ?? []).GroupBy(c => c.ShopId).ToDictionary(g => g.Key, g => g.First());
         var shops = buyable.GroupBy(l => l.Shop.Id).Select(g => g.First().Shop).OrderBy(s => s.Name).ThenBy(s => s.Id).ToList();
 
@@ -175,7 +189,7 @@ public sealed class CheckoutBuilder(
         }
 
         // ----- vouchers -----
-        var lines = buyable.Select(l => new PricingLine(l.Sku.Id, l.Product.Id, l.Product.CategoryId, l.Shop.Id, l.Sku.Price, l.Item.Quantity)).ToList();
+        var lines = buyable.Select(l => new PricingLine(l.Sku.Id, l.Product.Id, l.Product.CategoryId, l.Shop.Id, UnitPrice(l), l.Item.Quantity)).ToList();
         var shopIds = shops.Select(s => s.Id).ToList();
         var claimed = await db.VoucherClaims.AsNoTracking().Where(c => c.UserId == userId).Select(c => c.VoucherId).ToListAsync(ct);
         var running = await db.Vouchers.AsNoTracking()
@@ -237,7 +251,7 @@ public sealed class CheckoutBuilder(
                 selectedShopVouchers.ToDictionary(kv => kv.Key, kv => PricingVoucher.From(kv.Value)),
                 freeship is null ? null : PricingVoucher.From(freeship),
                 platform is null ? null : PricingVoucher.From(platform),
-                request.UseCoins ? balance : 0, coinMaxBp));
+                request.UseCoins ? balance : 0, coinMaxBp, offers.Combos));
             // A requested voucher that the engine could not apply (minimum order, scope) is reported, not silently dropped
             foreach (var outcome in pricing.Vouchers.Where(o => !o.Applied)) problems.Add($"Mã {outcome.Code}: {outcome.Problem}");
         }
@@ -285,15 +299,21 @@ public sealed class CheckoutBuilder(
             var lineDtos = buyable.Where(l => l.Shop.Id == shop.Id).Select(l =>
             {
                 var p = priced?.Lines.First(x => x.Line.SkuId == l.Sku.Id);
-                return new QuoteLineDto(l.Sku.Id, l.Product.Id, l.Product.Name, l.Image, l.Variant, l.Sku.Price, l.Sku.OriginalPrice, l.Item.Quantity,
-                    l.Sku.Price * l.Item.Quantity, p?.ShopDiscount ?? 0, p?.PlatformDiscount ?? 0, p?.CoinDiscount ?? 0);
+                var price = offers.Prices.GetValueOrDefault(l.Sku.Id);
+                var label = price?.AddOnPromotionId is not null ? "Mua kèm"
+                    : price?.Kind is Domain.Promo.PriceProgramKind.Discount ? "Giảm giá" : price?.Kind is not null ? "Flash Sale" : null;
+                return new QuoteLineDto(l.Sku.Id, l.Product.Id, l.Product.Name, l.Image, l.Variant, UnitPrice(l), Math.Max(l.Sku.OriginalPrice, l.Sku.Price),
+                    l.Item.Quantity, UnitPrice(l) * l.Item.Quantity, p?.ShopDiscount ?? 0, p?.PlatformDiscount ?? 0, p?.CoinDiscount ?? 0, p?.ComboDiscount ?? 0,
+                    label);
             }).ToList();
             var carrier = chosenCarrier.GetValueOrDefault(shop.Id);
             quoteShops.Add(new QuoteShopDto(shop.Id, shop.Name, shop.Type == ShopType.Mall, lineDtos, shippingOptions.GetValueOrDefault(shop.Id) ?? [],
                 carrier?.Code, priced?.Subtotal ?? 0, priced?.ShopDiscount ?? 0, priced?.ShippingFee ?? 0, priced?.ShippingDiscount ?? 0,
                 priced?.PlatformDiscount ?? 0, priced?.CoinUsed ?? 0, priced?.GrandTotal ?? 0,
                 selectedOption is { Usable: true } ? selectedOption with { Discount = priced?.ShopDiscount ?? 0 } : null, shopOptions,
-                choices.GetValueOrDefault(shop.Id)?.Note?.Trim()));
+                choices.GetValueOrDefault(shop.Id)?.Note?.Trim(), priced?.ComboDiscount ?? 0,
+                offers.Gifts.Where(g => g.ShopId == shop.Id).Select(g => new QuoteGiftDto(g.SkuId, g.Name, g.Variant, g.Quantity, g.OriginalPrice * g.Quantity))
+                    .ToList()));
         }
 
         var platformOptions = new List<VoucherOptionDto>();
@@ -337,11 +357,11 @@ public sealed class CheckoutBuilder(
             methods, request.PaymentMethod,
             pricing?.Subtotal ?? 0, pricing?.ShopDiscount ?? 0, pricing?.ShippingFee ?? 0, pricing?.ShippingDiscount ?? 0,
             pricing?.PlatformDiscount ?? 0, pricing?.CoinUsed ?? 0, grand, pricing?.CoinCashback ?? 0,
-            problems.Distinct().ToList(), problems.Count == 0 && pricing is not null);
+            problems.Distinct().ToList(), problems.Count == 0 && pricing is not null, pricing?.ComboDiscount ?? 0);
 
         var planLines = buyable.ToDictionary(l => l.Sku.Id, l => new PlanLine(l.Sku.Id, l.Product.Id, l.Shop.Id, l.Product.CategoryId, l.Product.Name,
-            l.Variant, l.Image, l.Sku.Price, l.Sku.OriginalPrice, l.Item.Quantity));
-        return new CheckoutPlan(quote, address, snapshot, pricing, planLines, selectedShopVouchers, platform, freeship, chosenCarrier);
+            l.Variant, l.Image, UnitPrice(l), Math.Max(l.Sku.OriginalPrice, l.Sku.Price), l.Item.Quantity, offers.Prices.GetValueOrDefault(l.Sku.Id)));
+        return new CheckoutPlan(quote, address, snapshot, pricing, planLines, selectedShopVouchers, platform, freeship, chosenCarrier, offers.Gifts);
     }
 
     private async Task<List<LineInfo>> LoadLinesAsync(List<CartItem> items, CancellationToken ct)

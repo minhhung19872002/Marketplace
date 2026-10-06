@@ -96,7 +96,53 @@ async function apiAs(request, token, method, path, data) {
   return (await res.json()).data;
 }
 
+const fs = require('fs');
+const SAMPLE_PNG = require('path').join(__dirname, 'fixtures', 'sample.png');
+
+/** A brand-new approved shop with one approved product, built through the public + admin APIs. */
+async function shopWithProduct(request, admin, { stock = 50, price = 159000 } = {}) {
+  const seller = await registerViaApi(request, 'Người Bán Đơn Hàng');
+  const login = await apiLogin(request, seller.phone, seller.password);
+  const token = login.accessToken;
+  const upload = async (purpose) => {
+    const res = await request.post(`${BASE}/api/media/${purpose}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      multipart: { file: { name: 'sample.png', mimeType: 'image/png', buffer: fs.readFileSync(SAMPLE_PNG) } },
+    });
+    if (!res.ok()) throw new Error(`upload ${purpose}: ${await res.text()}`);
+    return (await res.json()).data;
+  };
+  const [front, back, photo] = [await upload('kyc'), await upload('kyc'), await upload('product')];
+  const shopName = `Shop Đơn ${seller.phone.slice(-6)}`;
+  const shopId = await apiAs(request, token, 'POST', '/seller/shops', {
+    name: shopName,
+    type: 'Personal',
+    description: 'Shop kiểm thử đơn hàng',
+    warehouse: { contactName: 'Kho', phone: seller.phone, provinceCode: '79', districtCode: '760', wardCode: '26734', street: '1 Nguyễn Huệ' },
+    personal: { legalName: 'Người Bán Đơn Hàng', idCardNumber: '079200012345', frontAssetId: front.id, backAssetId: back.id },
+    bank: { bankCode: 'VCB', accountNo: '0011002233445', accountName: 'NGUOI BAN DON HANG' },
+  });
+  await apiAs(request, admin.accessToken, 'POST', `/admin/shops/${shopId}/approve`);
+
+  const tree = (await (await request.get(`${BASE}/api/categories`)).json()).data;
+  const leaf = tree.flatMap((t) => t.children).flatMap((m) => m.children).find((c) => c.name === 'Áo Thun');
+  const attrs = (await (await request.get(`${BASE}/api/categories/${leaf.id}/attributes`)).json()).data;
+  const name = `Áo Thun Đơn E2E ${seller.phone.slice(-6)}`;
+  const input = {
+    categoryId: leaf.id, brandId: null, name, description: '<p>Áo thun kiểm thử</p>', condition: 'New',
+    weightG: 300, lengthMm: 0, widthMm: 0, heightMm: 0, isPreorder: false, preorderDays: 0,
+    attributes: attrs.filter((a) => a.isRequired).map((a) => ({ attributeId: a.id, values: [a.options[0] ?? '1'] })),
+    media: [{ assetId: photo.id, optionValue: null }],
+    tiers: [],
+    skus: [{ option1: null, option2: null, sellerSku: 'E2E-AO', price, originalPrice: Math.round(price * 1.25), stock, weightG: null, isActive: true }],
+  };
+  const productId = await apiAs(request, token, 'POST', `/seller/shops/${shopId}/products`, input);
+  await apiAs(request, token, 'POST', `/seller/shops/${shopId}/products/${productId}/actions/submit`);
+  await apiAs(request, admin.accessToken, 'POST', `/admin/products/${productId}/approve`);
+  return { seller, token, shopId, shopName, productId, name, input };
+}
+
 module.exports = {
   BASE, newPhone, latestOtp, registerViaApi, api, findProduct, withTiers, withoutTiers, loginInBrowser, stripTones,
-  addAddressViaApi, apiLogin, apiAs,
+  addAddressViaApi, apiLogin, apiAs, shopWithProduct,
 };

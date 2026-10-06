@@ -120,6 +120,14 @@ public static class DependencyInjection
         services.AddScoped<FinanceSeeder>();
         services.AddScoped<IProviderStatements, Finance.SimulatedProviderStatements>();
 
+        // Marketing: Flash Sale quota counters on Redis, reconciled from PostgreSQL
+        services.AddScoped<IFlashSaleCounter, Marketing.RedisFlashSaleCounter>();
+        services.AddScoped<Marketing.FlashReconcileJob>();
+        services.AddScoped<IOutboxHandler, Marketing.CashbackOrderEventHandler>();
+        services.AddScoped<Marketing.CoinExpiryJob>();
+        services.AddScoped<MarketingSeeder>();
+        services.AddScoped<LoadUserSeeder>();
+
         services.AddHangfire(cfg => cfg
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()

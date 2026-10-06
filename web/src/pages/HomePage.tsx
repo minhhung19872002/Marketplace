@@ -5,13 +5,14 @@ import CategoryGrid from '../components/CategoryGrid';
 import MallBrands from '../components/MallBrands';
 import TopCategories from '../components/TopCategories';
 import ProductGrid from '../components/ProductGrid';
+import FlashSaleBlock from '../components/FlashSaleBlock';
+import HomePopup from '../components/HomePopup';
 import { storefrontApi } from '../api/storefront';
 import { useAuth } from '../context/AuthContext';
 import './HomePage.css';
 
 const PAGE_SIZE = 24;
 
-// Flash Sale returns in Phase 9 (marketing) with real campaigns
 const HomePage = () => {
   const { isLoggedIn } = useAuth();
   const recommendations = useInfiniteQuery({
@@ -26,10 +27,12 @@ const HomePage = () => {
 
   return (
     <div className="home-page">
+      <HomePopup />
       <div className="container">
         <Banner />
         <CategoryShortcuts />
         <CategoryGrid />
+        <FlashSaleBlock />
         <MallBrands />
         <TopCategories />
         {(viewed.data?.length ?? 0) > 0 && <ProductGrid title="SẢN PHẨM ĐÃ XEM" products={viewed.data!.slice(0, 6)} />}

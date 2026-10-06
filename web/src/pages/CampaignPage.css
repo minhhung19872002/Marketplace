@@ -1,0 +1,84 @@
+.campaign-page {
+  padding: 16px 0 32px;
+}
+
+.campaign-title {
+  color: var(--sh-primary);
+  font-size: 28px;
+  margin: 8px 0 4px;
+}
+
+.campaign-period {
+  color: #777;
+  margin-bottom: 12px;
+}
+
+.campaign-block {
+  margin-bottom: 16px;
+}
+
+.campaign-block-title {
+  font-size: 18px;
+  margin: 8px 0;
+}
+
+.campaign-banner {
+  position: relative;
+  display: block;
+  aspect-ratio: 3.5 / 1;
+  overflow: hidden;
+  background: var(--sh-primary);
+  color: #fff;
+  text-decoration: none;
+}
+
+.campaign-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.65);
+}
+
+.campaign-banner span {
+  position: absolute;
+  left: 24px;
+  bottom: 20px;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.campaign-vouchers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.campaign-voucher {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #fff;
+  border-left: 4px solid var(--sh-primary);
+  padding: 10px 12px;
+}
+
+.campaign-voucher strong {
+  color: var(--sh-primary);
+}
+
+.campaign-voucher small {
+  color: #888;
+}
+
+.campaign-voucher button {
+  align-self: flex-start;
+  background: var(--sh-primary);
+  color: #fff;
+  border: none;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+
+.campaign-voucher button:disabled {
+  opacity: 0.7;
+}

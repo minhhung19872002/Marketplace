@@ -78,6 +78,17 @@ public static class ParameterKeys
     public const string FinanceTopupMax = "FINANCE.TOPUP_MAX";
     public const string JobSettlementCron = "JOB.SETTLEMENT_CRON";
     public const string JobLedgerCheckCron = "JOB.LEDGER_CHECK_CRON";
+
+    public const string FlashSlotHours = "FLASH.SLOT_HOURS";
+    public const string FlashSlotLengthHours = "FLASH.SLOT_LENGTH_HOURS";
+    public const string JobFlashReconcileCron = "JOB.FLASH_RECONCILE_CRON";
+    public const string PopupFrequencyHours = "POPUP.FREQUENCY_HOURS";
+    public const string SearchPinnedKeywords = "SEARCH.PINNED_KEYWORDS";
+    public const string MemberWindowDays = "MEMBER.WINDOW_DAYS";
+    public const string MemberGoldMinSpend = "MEMBER.GOLD_MIN_SPEND";
+    public const string MemberDiamondMinSpend = "MEMBER.DIAMOND_MIN_SPEND";
+    public const string CheckInRewards = "CHECKIN.REWARDS";
+    public const string JobCoinExpiryCron = "JOB.COIN_EXPIRY_CRON";
 }
 
 public static class ParameterGroups
@@ -98,6 +109,8 @@ public static class ParameterGroups
     public const string Review = "REVIEW";
     public const string Return = "RETURN";
     public const string Finance = "FINANCE";
+    public const string Marketing = "MARKETING";
+    public const string Member = "MEMBER";
 }
 
 public record ParameterDefinition(
@@ -248,5 +261,26 @@ public static class ParameterCatalog
             "Lịch giải ngân", "Cron giải ngân các đơn đã đủ điều kiện vào số dư khả dụng của shop."),
         new(ParameterKeys.JobLedgerCheckCron, "30 19 * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch kiểm tra sổ cái", "Cron (giờ UTC) tính lại số dư từ bút toán và kiểm Σ nợ = Σ có; lệch thì ghi lỗi."),
+
+        new(ParameterKeys.FlashSlotHours, "0,9,12,15,21", ParameterDataType.String, ParameterGroups.Marketing,
+            "Giờ mở khung Flash Sale", "Các giờ (giờ Việt Nam, cách nhau bằng dấu phẩy) quản trị được mở khung Flash Sale của sàn."),
+        new(ParameterKeys.FlashSlotLengthHours, "3", ParameterDataType.Int, ParameterGroups.Marketing,
+            "Độ dài khung Flash Sale (giờ)", "Mỗi khung Flash Sale của sàn kéo dài bấy nhiêu giờ kể từ giờ mở."),
+        new(ParameterKeys.JobFlashReconcileCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch đối chiếu suất Flash Sale", "Cron nạp lại bộ đếm suất Flash Sale trên Redis từ PostgreSQL (nguồn chuẩn)."),
+        new(ParameterKeys.PopupFrequencyHours, "24", ParameterDataType.Int, ParameterGroups.Marketing,
+            "Tần suất popup (giờ)", "Popup quảng cáo trang chủ hiện lại cho cùng một người sau bấy nhiêu giờ."),
+        new(ParameterKeys.SearchPinnedKeywords, "", ParameterDataType.String, ParameterGroups.Marketing,
+            "Từ khoá hot ghim tay", "Các từ khoá (cách nhau bằng dấu phẩy) luôn hiện đầu danh sách từ khoá hot dưới ô tìm kiếm."),
+        new(ParameterKeys.MemberWindowDays, "180", ParameterDataType.Int, ParameterGroups.Member,
+            "Kỳ xét hạng thành viên (ngày)", "Hạng thành viên tính theo tổng chi tiêu của các đơn hoàn thành trong bấy nhiêu ngày gần nhất."),
+        new(ParameterKeys.MemberGoldMinSpend, "2000000", ParameterDataType.Int, ParameterGroups.Member,
+            "Chi tiêu tối thiểu hạng Vàng (₫)", "Từ mức này trở lên là hạng Vàng (dưới mức là hạng Bạc)."),
+        new(ParameterKeys.MemberDiamondMinSpend, "10000000", ParameterDataType.Int, ParameterGroups.Member,
+            "Chi tiêu tối thiểu hạng Kim cương (₫)", "Từ mức này trở lên là hạng Kim cương."),
+        new(ParameterKeys.CheckInRewards, "100,100,100,200,200,200,500", ParameterDataType.String, ParameterGroups.Coin,
+            "Xu điểm danh 7 ngày", "Số xu nhận ở ngày 1…7 của chuỗi điểm danh liên tục (bỏ một ngày thì quay lại ngày 1)."),
+        new(ParameterKeys.JobCoinExpiryCron, "15 17 * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch thu hồi xu hết hạn", "Cron (giờ UTC) trừ phần xu chưa dùng của các lượt cộng xu đã quá hạn (dùng xu theo thứ tự hết hạn trước)."),
     ];
 }

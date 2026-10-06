@@ -187,9 +187,29 @@ export interface MallShop {
   productCount: number;
 }
 
+export interface ShopTab {
+  id: string;
+  name: string;
+  productCount: number;
+}
+
 export interface ShopPage {
   shop: ShopSummary;
   description: string;
   coverUrl: string | null;
   isFollowing: boolean;
+  categories: ShopTab[];
+  hasDecoration: boolean;
+}
+
+export type ShopBlockType = 'Banner' | 'Products' | 'Category' | 'Video' | 'Text';
+
+export interface ShopHomeBlock {
+  type: ShopBlockType;
+  title: string | null;
+  images: { url: string; link: string | null }[];
+  products: ProductCard[];
+  shopCategoryId: string | null;
+  videoUrl: string | null;
+  text: string | null;
 }

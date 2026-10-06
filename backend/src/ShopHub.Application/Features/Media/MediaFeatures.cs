@@ -120,7 +120,7 @@ public sealed class UploadMediaHandler(
             asset = new MediaAsset(ownerId, MediaKind.Image, purpose, bucket, baseKey, "image/webp",
                 processed.Variants.Sum(v => (long)v.WebP.Length), processed.Width, processed.Height, null, now);
         }
-        else if (type == SniffedType.Mp4 && request.Purpose is MediaPurpose.Product or MediaPurpose.Review or MediaPurpose.Evidence)
+        else if (type == SniffedType.Mp4 && request.Purpose is MediaPurpose.Product or MediaPurpose.Shop or MediaPurpose.Review or MediaPurpose.Evidence)
         {
             var maxBytes = await parameters.GetIntAsync(ParameterKeys.MediaMaxVideoMb, ct) * 1024 * 1024;
             var maxSeconds = await parameters.GetIntAsync(ParameterKeys.MediaMaxVideoSeconds, ct);
@@ -129,7 +129,7 @@ public sealed class UploadMediaHandler(
             if (duration > maxSeconds * 1000) throw Invalid($"Video tối đa {maxSeconds} giây.");
 
             var key = $"{baseKey}.mp4";
-            var videoBucket = request.Purpose == MediaPurpose.Product ? Buckets.Products : Buckets.Reviews;
+            var videoBucket = request.Purpose is MediaPurpose.Product or MediaPurpose.Shop ? Buckets.Products : Buckets.Reviews;
             await storage.PutAsync(videoBucket, key, data, "video/mp4", ct);
             asset = new MediaAsset(ownerId, MediaKind.Video, purpose, videoBucket, key, "video/mp4", data.LongLength, null, null, duration, now);
         }
@@ -144,7 +144,7 @@ public sealed class UploadMediaHandler(
         {
             throw Invalid(request.Purpose switch
             {
-                MediaPurpose.Product => "Chỉ nhận ảnh (JPG, PNG, GIF, WebP) hoặc video MP4.",
+                MediaPurpose.Product or MediaPurpose.Shop => "Chỉ nhận ảnh (JPG, PNG, GIF, WebP) hoặc video MP4.",
                 MediaPurpose.Kyc => "Chỉ nhận ảnh (JPG, PNG, WebP) hoặc PDF.",
                 _ => "Chỉ nhận ảnh JPG, PNG, GIF hoặc WebP.",
             });

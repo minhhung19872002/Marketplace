@@ -49,7 +49,9 @@ public record MyShopDto(
     string? LogoUrl,
     string? RejectReason,
     string? LockReason,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string Description,
+    string? CoverUrl);
 
 internal static class ShopRules
 {
@@ -197,7 +199,7 @@ public sealed class ListMyShopsHandler(IApplicationDbContext db, SellerAccess ac
                           select new { s, st }).AsNoTracking().ToListAsync(ct);
         return rows.Select(r => new MyShopDto(r.s.Id, r.s.Name, r.s.Slug, r.s.Type, r.s.Status, r.st.Role,
             r.st.Role == ShopStaffRole.Owner ? ShopPermissions.All : r.st.Permissions, r.s.LogoUrl, r.s.RejectReason,
-            r.s.LockReason, r.s.CreatedAt)).ToList();
+            r.s.LockReason, r.s.CreatedAt, r.s.Description, r.s.CoverUrl)).ToList();
     }
 }
 

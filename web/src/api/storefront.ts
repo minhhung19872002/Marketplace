@@ -9,6 +9,7 @@ import type {
   ProductPage,
   SearchParams,
   SearchResult,
+  ShopHomeBlock,
   ShopPage,
   ShopSummary,
   Suggestion,
@@ -60,6 +61,9 @@ export const storefrontApi = {
   viewed: () => apiRequest<ProductCard[]>('/viewed'),
 
   shop: (slug: string) => apiRequest<ShopPage>(`/shops/${encodeURIComponent(slug)}`),
+  shopHome: (shopId: string) => apiRequest<ShopHomeBlock[]>(`/shops/${shopId}/home`),
+  shopCategoryProducts: (shopId: string, categoryId: string, page: number) =>
+    apiRequest<PagedResult<ProductCard>>(`/shops/${shopId}/categories/${categoryId}/products?page=${page}&pageSize=30`),
   follow: (shopId: string, on: boolean) =>
     apiCommand<number>(`/shops/${shopId}/follow`, { method: on ? 'POST' : 'DELETE' }),
   followedShops: () => apiRequest<ShopSummary[]>('/account/followed-shops'),

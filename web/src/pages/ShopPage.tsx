@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { storefrontApi } from '../api/storefront';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
 import ProductGrid from '../components/ProductGrid';
+import ShopHomeBlocks from '../components/ShopHomeBlocks';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { formatSold } from '../lib/money';
 import { formatDate } from '../lib/datetime';
@@ -27,13 +28,32 @@ const ShopPage = () => {
   const [sort, setSort] = useState<ProductSort>('BestSelling');
   const [page, setPage] = useState(1);
   const [message, setMessage] = useState('');
+  const [params, setParams] = useSearchParams();
 
   const shopQuery = useQuery({ queryKey: ['shop', slug, isLoggedIn], queryFn: () => storefrontApi.shop(slug), retry: false });
   const shopId = shopQuery.data?.shop.id;
+  // Tabs (II.5): "Dạo" when the shop is decorated, all products, one per shop category, the shop profile
+  const tab = params.get('tab') ?? (shopQuery.data?.hasDecoration ? 'dao' : 'tat-ca');
+  const categoryId = tab.startsWith('dm-') ? tab.slice(3) : undefined;
+  const openTab = (key: string) => {
+    setPage(1);
+    setParams({ tab: key }, { replace: true });
+  };
   const products = useQuery({
     queryKey: ['search', { shopId, sort, page }],
     queryFn: () => storefrontApi.search({ shopId, sort, page, pageSize: 30 }),
-    enabled: !!shopId,
+    enabled: !!shopId && tab === 'tat-ca',
+    placeholderData: keepPreviousData,
+  });
+  const home = useQuery({
+    queryKey: ['shop-home', shopId],
+    queryFn: () => storefrontApi.shopHome(shopId!),
+    enabled: !!shopId && tab === 'dao',
+  });
+  const categoryProducts = useQuery({
+    queryKey: ['shop-category', shopId, categoryId, page],
+    queryFn: () => storefrontApi.shopCategoryProducts(shopId!, categoryId!, page),
+    enabled: !!shopId && !!categoryId,
     placeholderData: keepPreviousData,
   });
 
@@ -56,8 +76,16 @@ const ShopPage = () => {
     );
   }
 
-  const { shop, description, coverUrl, isFollowing } = shopQuery.data;
-  const totalPages = products.data ? Math.max(1, Math.ceil(products.data.totalCount / products.data.pageSize)) : 1;
+  const { shop, description, coverUrl, isFollowing, categories, hasDecoration } = shopQuery.data;
+  const listing = categoryId ? categoryProducts.data : products.data;
+  const totalPages = listing ? Math.max(1, Math.ceil(listing.totalCount / listing.pageSize)) : 1;
+  const tabs = [
+    ...(hasDecoration ? [{ key: 'dao', label: 'Dạo' }] : []),
+    { key: 'tat-ca', label: 'Tất Cả Sản Phẩm' },
+    ...categories.map((c) => ({ key: `dm-${c.id}`, label: c.name })),
+    { key: 'ho-so', label: 'Hồ Sơ Shop' },
+  ];
+  const category = categories.find((c) => c.id === categoryId);
 
   const onFollow = () => {
     if (!isLoggedIn) {
@@ -101,24 +129,66 @@ const ShopPage = () => {
       </div>
 
       <div className="container">
-        {description && <div className="shop-description">{description}</div>}
-        <div className="shop-section-head">TẤT CẢ SẢN PHẨM</div>
-        <div className="shop-tabs">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              className={`shop-tab ${sort === t.key ? 'active' : ''}`}
-              onClick={() => {
-                setSort(t.key);
-                setPage(1);
-              }}
-            >
+        <nav className="shop-nav" aria-label="Mục của shop">
+          {tabs.map((t) => (
+            <button key={t.key} className={`shop-nav-item ${tab === t.key ? 'active' : ''}`} onClick={() => openTab(t.key)}
+              aria-current={tab === t.key ? 'page' : undefined} data-testid="shop-nav">
               {t.label}
             </button>
           ))}
-        </div>
-        <ProductGrid title="" products={products.data?.items ?? []} loading={products.isLoading} emptyText="Shop chưa có sản phẩm nào đang bán." />
-        {totalPages > 1 && (
+        </nav>
+
+        {tab === 'dao' && (
+          home.isLoading ? <div className="page-loader"><div className="loading-spinner" /></div>
+            : <ShopHomeBlocks blocks={home.data ?? []} onOpenCategory={(id) => openTab(`dm-${id}`)} />
+        )}
+
+        {tab === 'ho-so' && (
+          <div className="shop-profile" data-testid="shop-profile">
+            <div className="shop-section-head">HỒ SƠ SHOP</div>
+            <div className="shop-description">{description || 'Shop chưa có giới thiệu.'}</div>
+            <dl className="shop-profile-facts">
+              <div><dt>Nơi gửi hàng</dt><dd>{shop.provinceName ?? '—'}</dd></div>
+              <div><dt>Sản phẩm đang bán</dt><dd>{formatSold(shop.productCount)}</dd></div>
+              <div><dt>Người theo dõi</dt><dd>{formatSold(shop.followerCount)}</dd></div>
+              <div><dt>Tham gia</dt><dd>{formatDate(shop.joinedAt)}</dd></div>
+            </dl>
+          </div>
+        )}
+
+        {tab === 'tat-ca' && (
+          <>
+            {!hasDecoration && description && <div className="shop-description">{description}</div>}
+            <div className="shop-section-head">TẤT CẢ SẢN PHẨM</div>
+            <div className="shop-tabs">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  className={`shop-tab ${sort === t.key ? 'active' : ''}`}
+                  onClick={() => {
+                    setSort(t.key);
+                    setPage(1);
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <ProductGrid title="" products={products.data?.items ?? []} loading={products.isLoading} emptyText="Shop chưa có sản phẩm nào đang bán." />
+          </>
+        )}
+
+        {categoryId && (
+          category ? (
+            <>
+              <div className="shop-section-head">{category.name.toUpperCase()}</div>
+              <ProductGrid title="" products={categoryProducts.data?.items ?? []} loading={categoryProducts.isLoading}
+                emptyText="Danh mục chưa có sản phẩm nào đang bán." />
+            </>
+          ) : <div className="shop-description">Danh mục này không còn hiển thị.</div>
+        )}
+
+        {(tab === 'tat-ca' || categoryId) && totalPages > 1 && (
           <nav className="shop-pager" aria-label="Phân trang">
             <button disabled={page <= 1} onClick={() => setPage(page - 1)}>‹</button>
             <span>Trang {page} / {totalPages}</span>

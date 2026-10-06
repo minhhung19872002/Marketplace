@@ -5356,6 +5356,143 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("shop_bank_accounts", "shop");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsVisible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_visible");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_categories");
+
+                    b.HasIndex("ShopId", "SortOrder")
+                        .HasDatabaseName("ix_shop_categories_shop");
+
+                    b.ToTable("shop_categories", "shop");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopCategoryProduct", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<Guid>("ShopCategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_category_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_category_products");
+
+                    b.HasIndex("ProductId")
+                        .HasDatabaseName("ix_shop_category_products_product");
+
+                    b.HasIndex("ShopCategoryId", "ProductId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_shop_category_products");
+
+                    b.ToTable("shop_category_products", "shop");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopDecoration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Blocks")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("layout");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_decorations");
+
+                    b.HasIndex("ShopId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_shop_decorations_shop")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("shop_decorations", "shop");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopKyc", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6876,6 +7013,43 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_shop_bank_accounts_shops_shop_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopCategory", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_categories_shops_shop_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopCategoryProduct", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_category_products_products_product_id");
+
+                    b.HasOne("ShopHub.Domain.Shops.ShopCategory", null)
+                        .WithMany()
+                        .HasForeignKey("ShopCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_category_products_shop_categories_shop_category_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopDecoration", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_decorations_shops_shop_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopKyc", b =>

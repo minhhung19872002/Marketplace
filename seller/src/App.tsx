@@ -20,24 +20,31 @@ import FinancePage from './pages/FinancePage'
 import MarketingPage from './pages/MarketingPage'
 import ChatPage from './pages/ChatPage'
 import AnalyticsPage from './pages/AnalyticsPage'
+import StaffPage from './pages/StaffPage'
+import ShopCategoriesPage from './pages/ShopCategoriesPage'
+import DecorationPage from './pages/DecorationPage'
 import { stopRealtime } from './lib/realtime'
 import './App.css'
 
 const { Header, Sider, Content } = Layout
 
-const MENU = [
+// `perm`: the shop grant a staff member needs to see the entry (owners hold every grant)
+const MENU: { path: string; label: string; perm?: string }[] = [
   { path: '/tong-quan', label: 'Bảng điều khiển' },
-  { path: '/don-hang', label: 'Đơn hàng' },
-  { path: '/tra-hang', label: 'Trả hàng / Hoàn tiền' },
-  { path: '/danh-gia', label: 'Đánh giá' },
-  { path: '/chat', label: 'Chat' },
-  { path: '/tai-chinh', label: 'Tài chính' },
-  { path: '/phan-tich', label: 'Dữ liệu & phân tích' },
-  { path: '/san-pham', label: 'Sản phẩm' },
-  { path: '/san-pham/moi', label: 'Thêm sản phẩm' },
-  { path: '/ma-giam-gia', label: 'Mã giảm giá' },
-  { path: '/marketing', label: 'Kênh Marketing' },
-  { path: '/thiet-lap', label: 'Thiết lập shop' },
+  { path: '/don-hang', label: 'Đơn hàng', perm: 'ORDER.VIEW' },
+  { path: '/tra-hang', label: 'Trả hàng / Hoàn tiền', perm: 'ORDER.VIEW' },
+  { path: '/danh-gia', label: 'Đánh giá', perm: 'REVIEW.MANAGE' },
+  { path: '/chat', label: 'Chat', perm: 'CHAT.MANAGE' },
+  { path: '/tai-chinh', label: 'Tài chính', perm: 'FINANCE.VIEW' },
+  { path: '/phan-tich', label: 'Dữ liệu & phân tích', perm: 'ORDER.VIEW' },
+  { path: '/san-pham', label: 'Sản phẩm', perm: 'PRODUCT.VIEW' },
+  { path: '/san-pham/moi', label: 'Thêm sản phẩm', perm: 'PRODUCT.MANAGE' },
+  { path: '/ma-giam-gia', label: 'Mã giảm giá', perm: 'MARKETING.MANAGE' },
+  { path: '/marketing', label: 'Kênh Marketing', perm: 'MARKETING.MANAGE' },
+  { path: '/thiet-lap', label: 'Thiết lập shop', perm: 'SETTINGS.MANAGE' },
+  { path: '/trang-tri-shop', label: 'Trang trí shop', perm: 'SETTINGS.MANAGE' },
+  { path: '/danh-muc-shop', label: 'Danh mục của shop', perm: 'PRODUCT.VIEW' },
+  { path: '/tai-khoan-phu', label: 'Tài khoản phụ', perm: 'STAFF.MANAGE' },
   { path: '/dang-ky-ban-hang', label: 'Đăng ký shop mới' },
 ]
 
@@ -49,6 +56,7 @@ const Shell = () => {
   const { currentShopId, select } = useShopStore()
   const shops = useQuery({ queryKey: ['my-shops'], queryFn: sellerApi.myShops })
   const shop = shops.data?.find((s) => s.id === currentShopId) ?? shops.data?.[0]
+  const menu = MENU.filter((m) => !m.perm || shop?.permissions.includes(m.perm))
 
   // Keep the remembered shop valid (membership may have changed)
   useEffect(() => {
@@ -72,8 +80,8 @@ const Shell = () => {
         <Typography.Title level={4} className="brand">ShopHub</Typography.Title>
         {shop && (
           <Menu mode="inline"
-            selectedKeys={[MENU.filter((m) => location.pathname.startsWith(m.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path ?? '/san-pham']}
-            items={MENU.map((m) => ({ key: m.path, label: m.label }))} onClick={(e) => navigate(e.key)} />
+            selectedKeys={[menu.filter((m) => location.pathname.startsWith(m.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path ?? '/san-pham']}
+            items={menu.map((m) => ({ key: m.path, label: m.label }))} onClick={(e) => navigate(e.key)} />
         )}
       </Sider>
       <Layout>
@@ -110,7 +118,10 @@ const Shell = () => {
               <Route path="/san-pham/:id" element={<ProductEditorPage key={location.pathname} shopId={shop.id} />} />
               <Route path="/ma-giam-gia" element={<VouchersPage shopId={shop.id} />} />
               <Route path="/marketing" element={<MarketingPage shopId={shop.id} />} />
-              <Route path="/thiet-lap" element={<ShopSettingsPage shop={shop} />} />
+              <Route path="/thiet-lap" element={<ShopSettingsPage key={shop.id} shop={shop} />} />
+              <Route path="/tai-khoan-phu" element={<StaffPage shopId={shop.id} />} />
+              <Route path="/trang-tri-shop" element={<DecorationPage key={shop.id} shopId={shop.id} shopSlug={shop.slug} />} />
+              <Route path="/danh-muc-shop" element={<ShopCategoriesPage shopId={shop.id} />} />
               <Route path="/dang-ky-ban-hang" element={<RegisterShopPage />} />
               <Route path="*" element={<Navigate to="/san-pham" replace />} />
             </Routes>

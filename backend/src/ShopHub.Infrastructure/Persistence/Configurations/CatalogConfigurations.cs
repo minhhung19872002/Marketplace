@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using ShopHub.Domain.Catalog;
 using ShopHub.Domain.Iam;
@@ -279,5 +281,51 @@ internal sealed class ShopBankAccountConfiguration : IEntityTypeConfiguration<Sh
         b.Property(a => a.AccountName).HasMaxLength(100).IsRequired();
         b.HasOne<Shop>().WithMany().HasForeignKey(a => a.ShopId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(a => a.ShopId).IsUnique().HasFilter("is_default AND deleted_at IS NULL").HasDatabaseName("ux_shop_bank_default");
+    }
+}
+
+internal sealed class ShopCategoryConfiguration : IEntityTypeConfiguration<ShopCategory>
+{
+    public void Configure(EntityTypeBuilder<ShopCategory> b)
+    {
+        b.ToTable("shop_categories", "shop");
+        b.HasKey(c => c.Id);
+        b.Property(c => c.Name).HasMaxLength(ShopCategory.MaxNameLength).IsRequired();
+        b.HasOne<Shop>().WithMany().HasForeignKey(c => c.ShopId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(c => new { c.ShopId, c.SortOrder }).HasDatabaseName("ix_shop_categories_shop");
+    }
+}
+
+internal sealed class ShopCategoryProductConfiguration : IEntityTypeConfiguration<ShopCategoryProduct>
+{
+    public void Configure(EntityTypeBuilder<ShopCategoryProduct> b)
+    {
+        b.ToTable("shop_category_products", "shop");
+        b.HasKey(x => x.Id);
+        b.HasOne<ShopCategory>().WithMany().HasForeignKey(x => x.ShopCategoryId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.ShopCategoryId, x.ProductId }).IsUnique().HasDatabaseName("ux_shop_category_products");
+        b.HasIndex(x => x.ProductId).HasDatabaseName("ix_shop_category_products_product");
+    }
+}
+
+internal sealed class ShopDecorationConfiguration : IEntityTypeConfiguration<ShopDecoration>
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+
+    public void Configure(EntityTypeBuilder<ShopDecoration> b)
+    {
+        b.ToTable("shop_decorations", "shop");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Blocks).HasColumnName("layout").HasColumnType("jsonb").HasConversion(
+            v => JsonSerializer.Serialize(v, Json),
+            v => JsonSerializer.Deserialize<List<DecorationBlock>>(v, Json) ?? new List<DecorationBlock>(),
+            new ValueComparer<List<DecorationBlock>>((a, c) => JsonSerializer.Serialize(a, Json) == JsonSerializer.Serialize(c, Json),
+                v => JsonSerializer.Serialize(v, Json).GetHashCode(), v => v.ToList()));
+        b.HasOne<Shop>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => x.ShopId).IsUnique().HasFilter("deleted_at IS NULL").HasDatabaseName("ux_shop_decorations_shop");
     }
 }

@@ -37,6 +37,7 @@ public sealed class CatalogSeeder(
         await SeedBrandsAsync(seed, ct);
         if (!sampleData) return;
         await SeedShopsAsync(seed, ct);
+        await SeedStaffAsync(ct);
         await SeedProductsAsync(seed, ct);
         await generator.GenerateAsync(ct);
     }
@@ -122,6 +123,25 @@ public sealed class CatalogSeeder(
         }
         await db.SaveChangesAsync(ct);
         if (created > 0) logger.LogInformation("Seeded {Count} sample shop(s)", created);
+    }
+
+    // The 2 sample staff accounts (09000002xx) work for the first shop of the first sample owner: a manager and a CSKH
+    private async Task SeedStaffAsync(CancellationToken ct)
+    {
+        var staffUsers = await db.Users.Where(u => u.Phone != null && u.Phone.StartsWith("09000002")).OrderBy(u => u.Phone)
+            .Select(u => u.Id).ToListAsync(ct);
+        var owner = await db.Users.Where(u => u.Phone != null && u.Phone.StartsWith("09000001")).OrderBy(u => u.Phone)
+            .Select(u => (Guid?)u.Id).FirstOrDefaultAsync(ct);
+        if (staffUsers.Count == 0 || owner is null) return;
+        if (await db.ShopStaff.IgnoreQueryFilters().AnyAsync(s => staffUsers.Contains(s.UserId), ct)) return;
+        var shopId = await db.Shops.Where(s => s.OwnerId == owner).OrderBy(s => s.CreatedAt).ThenBy(s => s.Id)
+            .Select(s => (Guid?)s.Id).FirstOrDefaultAsync(ct);
+        if (shopId is null) return;
+        ShopStaffRole[] roles = [ShopStaffRole.Manager, ShopStaffRole.CustomerService];
+        for (var i = 0; i < staffUsers.Count && i < roles.Length; i++)
+            db.ShopStaff.Add(new ShopStaff(shopId.Value, staffUsers[i], roles[i], ShopPermissions.DefaultsFor(roles[i])));
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Seeded {Count} sample shop staff", Math.Min(staffUsers.Count, roles.Length));
     }
 
     private async Task SeedProductsAsync(CatalogSeed seed, CancellationToken ct)

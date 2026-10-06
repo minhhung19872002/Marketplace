@@ -522,6 +522,22 @@ Ngày là ngày Việt Nam `YYYY-MM-DD`, tính cả hai đầu (mặc định 30
 
 `POST /api/products/{id}/views?source=Home|Search|Category|Shop|Campaign|External|Direct` ghi nguồn lượt xem.
 
+## Thiết lập shop: tài khoản phụ, danh mục, trang trí (Phase 13)
+
+| Phương thức | Đường dẫn | Quyền shop | Mô tả |
+|---|---|---|---|
+| GET · POST | `/api/seller/shops/{shopId}/staff-accounts` | `STAFF.MANAGE` | Danh sách (SĐT / email che bớt, quyền, quyền mặc định theo vai trò) · thêm `{ login, role: Manager\|CustomerService\|Warehouse, permissions? }` |
+| PUT · DELETE | `/api/seller/shops/{shopId}/staff-accounts/{staffId}` | `STAFF.MANAGE` | Đổi vai trò / quyền `{ role, permissions? }` · gỡ khỏi shop |
+| GET · POST | `/api/seller/shops/{shopId}/shop-categories` | `PRODUCT.VIEW` / `PRODUCT.MANAGE` | Danh mục của shop (kèm số sản phẩm) · thêm `{ name, sortOrder, isVisible }` |
+| PUT · DELETE | `/api/seller/shops/{shopId}/shop-categories/{id}` | `PRODUCT.MANAGE` | Sửa · xoá |
+| GET · PUT | `/api/seller/shops/{shopId}/shop-categories/{id}/products` | `PRODUCT.VIEW` / `PRODUCT.MANAGE` | Sản phẩm trong danh mục · thay toàn bộ `{ productIds (≤ 500, theo thứ tự) }` |
+| GET · PUT | `/api/seller/shops/{shopId}/decoration` | `SETTINGS.MANAGE` | Bố cục đang đăng · đăng `{ blocks: [{ type, title, images: [{ assetId \| url, link }], productIds, shopCategoryId, videoAssetId \| videoUrl, text }] }` |
+| GET | `/api/shops/{shopId}/home` | công khai | Tab "Dạo": khối đã giải ra thẻ sản phẩm |
+| GET | `/api/shops/{shopId}/categories/{categoryId}/products?page=&pageSize=` | công khai | Sản phẩm của một danh mục shop (phân trang) |
+
+`GET /api/shops/{slug}` trả thêm `categories` (tab danh mục) và `hasDecoration`; `GET /api/seller/shops` trả thêm
+`description`, `coverUrl`. `POST /api/media/shop` nhận cả video MP4.
+
 ## SEO (Phase 13)
 
 Gateway chuyển máy thu thập (User-Agent: Googlebot, Bingbot, Cốc Cốc, Facebook, Zalo…) trên mọi trang người mua sang

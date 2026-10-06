@@ -161,3 +161,123 @@
   gap: 16px;
   margin: 24px 0;
 }
+
+.shop-nav {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  background: var(--sh-on-primary);
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.shop-nav-item {
+  flex-shrink: 0;
+  padding: 14px 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.shop-nav-item.active {
+  color: var(--sh-primary);
+  border-bottom-color: var(--sh-primary);
+}
+
+.shop-home {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.shop-block {
+  position: relative;
+}
+
+.shop-block-banner img {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.shop-block-dots {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.shop-block-dots button {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--sh-on-primary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.shop-block-dots button.active {
+  background: var(--sh-on-primary);
+}
+
+.shop-block-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 8px;
+}
+
+.shop-block-video,
+.shop-block-text {
+  background: var(--sh-on-primary);
+  padding: 16px 20px;
+  border-radius: 4px;
+}
+
+.shop-block-video video {
+  display: block;
+  width: 100%;
+  max-height: 480px;
+}
+
+.shop-block-text p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.shop-block-more {
+  display: block;
+  margin: 8px auto 0;
+  padding: 8px 24px;
+  border: 1px solid var(--sh-primary);
+  color: var(--sh-primary);
+  background: var(--sh-on-primary);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.shop-profile-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  background: var(--sh-on-primary);
+  margin: 12px 0 0;
+  padding: 16px 20px;
+}
+
+.shop-profile-facts dt {
+  font-size: 12px;
+  color: var(--sh-text-muted);
+}
+
+.shop-profile-facts dd {
+  margin: 4px 0 0;
+  font-weight: 500;
+}

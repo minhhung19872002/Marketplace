@@ -118,6 +118,21 @@ public sealed class StorefrontController : ApiControllerBase
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<ShopPageDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Shop(string slug, CancellationToken ct) => OkData(await Sender.Send(new GetShopPageQuery(slug), ct));
+
+    /// <summary>The shop's "Dạo" tab: decoration blocks resolved to what a buyer can see.</summary>
+    [HttpGet("shops/{shopId:guid}/home")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
+    [AllowAnonymous]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<ShopHomeBlockDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ShopHome(Guid shopId, CancellationToken ct) => OkData(await Sender.Send(new ShopHomeQuery(shopId), ct));
+
+    [HttpGet("shops/{shopId:guid}/categories/{categoryId:guid}/products")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
+    [AllowAnonymous]
+    [ProducesResponseType<ApiResponse<PagedResult<ProductCardDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ShopCategoryProducts(Guid shopId, Guid categoryId, [FromQuery] int page = 1, [FromQuery] int pageSize = 30,
+        CancellationToken ct = default) =>
+        OkData(await Sender.Send(new ShopCategoryProductsQuery(shopId, categoryId, page, pageSize), ct));
 }
 
 [Route("api")]

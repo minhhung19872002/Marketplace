@@ -27,6 +27,8 @@ export interface MyShop {
   rejectReason: string | null
   lockReason: string | null
   createdAt: string
+  description: string
+  coverUrl: string | null
 }
 
 export interface CategoryNode {

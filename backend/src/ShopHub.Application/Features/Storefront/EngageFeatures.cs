@@ -16,7 +16,10 @@ internal static class UserGuard
 
 // ---------- Shop page & following ----------
 
-public record ShopPageDto(ShopSummaryDto Shop, string Description, string? CoverUrl, bool IsFollowing);
+public record ShopTabDto(Guid Id, string Name, int ProductCount);
+
+public record ShopPageDto(ShopSummaryDto Shop, string Description, string? CoverUrl, bool IsFollowing, IReadOnlyList<ShopTabDto> Categories,
+    bool HasDecoration);
 
 public record GetShopPageQuery(string Slug) : IRequest<ShopPageDto>;
 
@@ -28,7 +31,16 @@ public sealed class GetShopPageHandler(IApplicationDbContext db, ICurrentUser cu
             .FirstOrDefaultAsync(s => s.Slug == request.Slug && (s.Status == ShopStatus.Active || s.Status == ShopStatus.Vacation), ct)
             ?? throw new NotFoundException("Không tìm thấy shop.");
         var following = currentUser.UserId is { } uid && await db.ShopFollowers.AnyAsync(f => f.ShopId == shop.Id && f.UserId == uid, ct);
-        return new ShopPageDto(await Breadcrumbs.ShopAsync(db, shop, ct), shop.Description, shop.CoverUrl, following);
+        // Visible shop categories with at least one product a buyer can see, in the shop's order
+        var visible = ProductCards.Visible(db);
+        var tabs = await db.ShopCategories.AsNoTracking().Where(c => c.ShopId == shop.Id && c.IsVisible)
+            .Select(c => new { c.Id, c.Name, c.SortOrder,
+                Count = db.ShopCategoryProducts.Count(x => x.ShopCategoryId == c.Id && visible.Any(p => p.Id == x.ProductId)) })
+            .Where(c => c.Count > 0).OrderBy(c => c.SortOrder).ThenBy(c => c.Id).ToListAsync(ct);
+        var layout = await db.ShopDecorations.AsNoTracking().Where(d => d.ShopId == shop.Id).Select(d => d.Blocks).FirstOrDefaultAsync(ct);
+        var decorated = layout is { Count: > 0 };
+        return new ShopPageDto(await Breadcrumbs.ShopAsync(db, shop, ct), shop.Description, shop.CoverUrl, following,
+            tabs.Select(t => new ShopTabDto(t.Id, t.Name, t.Count)).ToList(), decorated);
     }
 }
 

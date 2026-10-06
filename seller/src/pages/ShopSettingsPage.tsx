@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
 import { sellerApi, type MediaAsset, type MyShop } from '../api/seller'
 import { ApiError } from '../api/http'
+import { ROLE_LABELS, type StaffRole } from '../api/staff'
 import UploadBox from '../components/UploadBox'
 import { formatDateTime, vnDayBoundsIso } from '../lib/datetime'
 
@@ -18,16 +19,18 @@ const STATUS: Record<MyShop['status'], { text: string; color: string }> = {
 const ShopSettingsPage = ({ shop }: { shop: MyShop }) => {
   const { message } = AntApp.useApp()
   const queryClient = useQueryClient()
-  const [description, setDescription] = useState('')
+  // Start from what is saved: saving the profile replaces the description
+  const [description, setDescription] = useState(shop.description)
   const [logo, setLogo] = useState<MediaAsset | null>(null)
+  const [cover, setCover] = useState<MediaAsset | null>(null)
   const [until, setUntil] = useState<Dayjs | null>(null)
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['my-shops'] })
   const fail = (e: unknown) => void message.error(e instanceof ApiError ? e.message : 'Thao tác thất bại.')
 
   const saveProfile = useMutation({
-    mutationFn: () => sellerApi.updateShopProfile(shop.id, { description, logoAssetId: logo?.id ?? null, coverAssetId: null }),
-    onSuccess: (r) => { void message.success(r.message); void refresh() },
+    mutationFn: () => sellerApi.updateShopProfile(shop.id, { description, logoAssetId: logo?.id ?? null, coverAssetId: cover?.id ?? null }),
+    onSuccess: (r) => { void message.success(r.message); setLogo(null); setCover(null); void refresh() },
     onError: fail,
   })
   const vacation = useMutation({
@@ -48,15 +51,26 @@ const ShopSettingsPage = ({ shop }: { shop: MyShop }) => {
           <Descriptions.Item label="Tên shop">{shop.name}</Descriptions.Item>
           <Descriptions.Item label="Trạng thái"><Tag color={STATUS[shop.status].color}>{STATUS[shop.status].text}</Tag></Descriptions.Item>
           <Descriptions.Item label="Loại">{shop.type === 'Mall' ? 'ShopHub Mall' : shop.type === 'Business' ? 'Doanh nghiệp' : 'Cá nhân'}</Descriptions.Item>
-          <Descriptions.Item label="Vai trò của bạn">{shop.role === 'Owner' ? 'Chủ shop' : shop.role}</Descriptions.Item>
+          <Descriptions.Item label="Vai trò của bạn">{ROLE_LABELS[shop.role as StaffRole] ?? shop.role}</Descriptions.Item>
           <Descriptions.Item label="Tạo lúc">{formatDateTime(shop.createdAt)}</Descriptions.Item>
         </Descriptions>
       </Card>
 
       <Card title="Hồ sơ shop">
         <Space direction="vertical" style={{ width: '100%' }}>
-          <UploadBox purpose="shop" label="Logo" value={logo} onChange={setLogo} />
-          <Input.TextArea rows={4} placeholder="Giới thiệu shop" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} />
+          <Space align="start" wrap>
+            <Space direction="vertical" size={4}>
+              <Typography.Text type="secondary">Logo (vuông)</Typography.Text>
+              {shop.logoUrl && !logo && <img src={shop.logoUrl} alt="Logo hiện tại" className="upload-preview" />}
+              <UploadBox purpose="shop" label={shop.logoUrl ? 'Đổi logo' : 'Logo'} value={logo} onChange={setLogo} testId="logo-upload" />
+            </Space>
+            <Space direction="vertical" size={4}>
+              <Typography.Text type="secondary">Ảnh bìa (ngang, ≥ 1200 px)</Typography.Text>
+              {shop.coverUrl && !cover && <img src={shop.coverUrl} alt="Ảnh bìa hiện tại" className="upload-preview" />}
+              <UploadBox purpose="shop" label={shop.coverUrl ? 'Đổi ảnh bìa' : 'Ảnh bìa'} value={cover} onChange={setCover} testId="cover-upload" />
+            </Space>
+          </Space>
+          <Input.TextArea rows={4} placeholder="Giới thiệu shop" data-testid="shop-description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} />
           <Button type="primary" onClick={() => saveProfile.mutate()} loading={saveProfile.isPending}>Lưu hồ sơ</Button>
         </Space>
       </Card>

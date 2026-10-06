@@ -19,4 +19,14 @@ public static class ShopPermissions
     public static readonly IReadOnlyList<string> All =
         [ProductView, ProductManage, InventoryManage, SettingsManage, StaffManage, MarketingManage, OrderView, OrderManage, ReviewManage,
          FinanceView, FinanceWithdraw, ChatManage];
+
+    /// <summary>What a newly added staff member of each role gets unless the shop picks the grants by hand.</summary>
+    public static IReadOnlyList<string> DefaultsFor(Domain.Shops.ShopStaffRole role) => role switch
+    {
+        Domain.Shops.ShopStaffRole.Owner => All,
+        Domain.Shops.ShopStaffRole.Manager => All.Where(p => p is not StaffManage and not FinanceWithdraw).ToList(),
+        Domain.Shops.ShopStaffRole.CustomerService => [ProductView, OrderView, ReviewManage, ChatManage],
+        Domain.Shops.ShopStaffRole.Warehouse => [ProductView, InventoryManage, OrderView, OrderManage],
+        _ => [],
+    };
 }

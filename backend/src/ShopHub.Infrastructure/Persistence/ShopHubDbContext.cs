@@ -45,6 +45,9 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<ShopKyc> ShopKycs => Set<ShopKyc>();
     public DbSet<ShopWarehouse> ShopWarehouses => Set<ShopWarehouse>();
     public DbSet<ShopStaff> ShopStaff => Set<ShopStaff>();
+    public DbSet<ShopCategory> ShopCategories => Set<ShopCategory>();
+    public DbSet<ShopCategoryProduct> ShopCategoryProducts => Set<ShopCategoryProduct>();
+    public DbSet<ShopDecoration> ShopDecorations => Set<ShopDecoration>();
     public DbSet<ShopBankAccount> ShopBankAccounts => Set<ShopBankAccount>();
     public DbSet<Wishlist> Wishlists => Set<Wishlist>();
     public DbSet<ShopFollower> ShopFollowers => Set<ShopFollower>();

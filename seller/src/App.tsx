@@ -19,6 +19,7 @@ import ReturnsPage from './pages/ReturnsPage'
 import FinancePage from './pages/FinancePage'
 import MarketingPage from './pages/MarketingPage'
 import ChatPage from './pages/ChatPage'
+import AnalyticsPage from './pages/AnalyticsPage'
 import { stopRealtime } from './lib/realtime'
 import './App.css'
 
@@ -31,6 +32,7 @@ const MENU = [
   { path: '/danh-gia', label: 'Đánh giá' },
   { path: '/chat', label: 'Chat' },
   { path: '/tai-chinh', label: 'Tài chính' },
+  { path: '/phan-tich', label: 'Dữ liệu & phân tích' },
   { path: '/san-pham', label: 'Sản phẩm' },
   { path: '/san-pham/moi', label: 'Thêm sản phẩm' },
   { path: '/ma-giam-gia', label: 'Mã giảm giá' },
@@ -103,6 +105,7 @@ const Shell = () => {
               <Route path="/danh-gia" element={<ReviewsPage shopId={shop.id} />} />
               <Route path="/chat" element={<ChatPage key={shop.id} shopId={shop.id} />} />
               <Route path="/tai-chinh" element={<FinancePage shopId={shop.id} />} />
+              <Route path="/phan-tich" element={<AnalyticsPage key={shop.id} shopId={shop.id} />} />
               <Route path="/san-pham" element={<ProductsPage shopId={shop.id} />} />
               <Route path="/san-pham/:id" element={<ProductEditorPage key={location.pathname} shopId={shop.id} />} />
               <Route path="/ma-giam-gia" element={<VouchersPage shopId={shop.id} />} />

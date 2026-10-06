@@ -495,6 +495,33 @@ Việc nền chạy ngay được: `engage.reminders`.
 `paymentMethod` của checkout nhận thêm `VnPay`, `MoMo` (chỉ khi cổng bật); `payment.redirectUrl` khi đó là URL tuyệt đối
 của cổng. Mã kênh vận chuyển thật: `GHN_STD`, `GHTK_STD`. Việc nền chạy ngay được: `logistics.carrier-sync`.
 
+## Quản trị & báo cáo (Phase 12)
+
+Ngày là ngày Việt Nam `YYYY-MM-DD`, tính cả hai đầu (mặc định 30 ngày gần nhất); `granularity=Day|Week|Month`.
+
+| Phương thức | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/admin/reports/overview?from=&to=&granularity=` | `REPORT.REPORT.VIEW` | KPI kỳ này & kỳ trước, chuỗi GMV / số đơn, việc chờ xử lý |
+| GET | `/api/admin/reports/{kind}` | `REPORT.REPORT.VIEW` | `kind`: GmvByTime, GmvByCategory, GmvByProvince, TopShops, TopProducts, Vouchers, FlashSales, Cancellations, Returns, Users, Funnel → `{ table: { columns, rows, totals }, chart }` |
+| GET | `/api/admin/reports/{kind}/export?format=Xlsx\|Pdf` | `REPORT.REPORT.VIEW` | Cùng bảng ra Excel / PDF |
+| GET | `/api/admin/users/{id}` · POST `…/reset-password` | `IAM.USER.VIEW` · `IAM.USER.RESET_PASSWORD` | Chi tiết người dùng · mật khẩu tạm (hiện một lần) |
+| GET · POST | `/api/admin/shops/{id}/penalties` · POST `/api/admin/shop-penalties/{id}/revoke` | `SHOP.SHOP.VIEW` / `SHOP.SHOP.PENALTY` | Điểm phạt: `{ points, reason, expiresInDays? }` · `{ reason }` |
+| GET | `/api/admin/orders?q=&status=` · `/api/admin/orders/{code}` | `SALES.ORDER.VIEW` | Tra đơn (mã đơn, mã vận đơn, SĐT / tên người mua, tên shop) · lịch sử, thanh toán, hoàn tiền, vận đơn |
+| POST | `/api/admin/orders/{code}/cancel` · `/api/admin/refunds/{id}/resolve` | `SALES.ORDER.INTERVENE` | `{ reason }` · `{ toWallet, reason }` (lệnh hoàn lỗi) |
+| GET · PUT | `/api/admin/brands` · `/api/admin/brands/{id}` | `CATALOG.BRAND.MANAGE` | Danh sách / sửa thương hiệu |
+| PUT | `/api/admin/categories/{id}/move` | `CATALOG.CATEGORY.MANAGE` | `{ parentId, sortOrder }` — kéo thả, tối đa 3 cấp |
+| POST | `/api/admin/products/bulk-ban` | `CATALOG.PRODUCT.BAN` | `{ productIds (≤ 100), reason }` |
+| GET · POST | `/api/admin/product-reports` · `…/{id}/resolve` | `CATALOG.PRODUCT.BAN` | Báo cáo vi phạm của người mua · `{ ban, resolution }` |
+| GET · POST | `/api/admin/cms` | `SYS.CONTENT.MANAGE` | Trang tĩnh & trợ giúp `{ id?, kind: Page\|Help, slug, title, content, topic, sortOrder, isPublished }` |
+| GET · PUT | `/api/admin/message-templates` · `/{id}` | `SYS.CONTENT.MANAGE` | Mẫu SMS / email `{ subject?, body }` |
+| GET | `/api/admin/audit-logs/export?userId=&entity=&entityId=&from=&to=` | `SYS.AUDIT.VIEW` | Nhật ký ra Excel (5.000 dòng mới nhất) |
+| GET · PUT | `/api/admin/providers` · `/api/admin/carriers/{id}` · `/api/admin/gateways/{method}` | `SYS.PROVIDER.MANAGE` | Bật / tắt đơn vị vận chuyển, cổng thanh toán |
+| GET | `/api/cms/{slug}` · `/api/help?q=` · `/api/site` | công khai | Trang tĩnh · trung tâm trợ giúp · thông tin pháp nhân |
+| POST | `/api/products/{id}/reports` | người mua | `{ reason, details }` — một báo cáo đang mở / người / sản phẩm |
+| GET | `/api/seller/shops/{shopId}/analytics` · `/analytics/export` | nhân viên shop | Doanh số, đơn, người mua, lượt xem, chuyển đổi (+ kỳ trước), top sản phẩm, nguồn truy cập, hiệu quả hoạt động |
+
+`POST /api/products/{id}/views?source=Home|Search|Category|Shop|Campaign|External|Direct` ghi nguồn lượt xem.
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

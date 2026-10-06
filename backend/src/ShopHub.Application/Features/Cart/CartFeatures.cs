@@ -175,6 +175,9 @@ public sealed class AddCartItemHandler(IApplicationDbContext db, CartStore store
         var already = cart.Find(sku.Id)?.Quantity ?? 0;
         CartRules.EnsureAvailable(sku, already + request.Quantity);
         cart.Add(sku.Id, request.Quantity, sku.Price, maxLines, clock.UtcNow);
+        // The event behind the "thêm vào giỏ" step of the conversion funnel (the cart only keeps its current state)
+        db.CartAdds.Add(new Domain.Engage.CartAdd(request.Owner.UserId, request.Owner.UserId is null ? request.Owner.GuestToken : null, sku.ProductId,
+            sku.Id, request.Quantity, clock.UtcNow));
         await db.SaveChangesAsync(ct);
         return await store.ViewAsync(request.Owner, ct);
     }

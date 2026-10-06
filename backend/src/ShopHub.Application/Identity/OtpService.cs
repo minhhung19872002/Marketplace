@@ -19,6 +19,7 @@ public sealed class OtpService(
     IOutbox outbox,
     IOutboxSignal outboxSignal,
     ICurrentUser currentUser,
+    Features.Admin.MessageTemplates templates,
     IClock clock)
 {
     public async Task<OtpIssued> IssueAsync(string target, OtpPurpose purpose, bool deliver, CancellationToken ct)
@@ -47,7 +48,7 @@ public sealed class OtpService(
 
         // When the target must not receive a code (e.g. reset for an unknown number) the row is still written so the
         // cooldown/limits behave identically — the response never reveals whether an account exists.
-        if (deliver) EnqueueDelivery(target, purpose, code, ttl);
+        if (deliver) await EnqueueDeliveryAsync(target, purpose, code, ttl, ct);
 
         await db.SaveChangesAsync(ct);
         if (deliver) outboxSignal.Kick();
@@ -124,7 +125,7 @@ public sealed class OtpService(
         if (consumed == 0) throw new ConflictException("Mã xác thực đã được sử dụng.", "OTP_USED");
     }
 
-    private void EnqueueDelivery(string target, OtpPurpose purpose, string code, int ttlSeconds)
+    private async Task EnqueueDeliveryAsync(string target, OtpPurpose purpose, string code, int ttlSeconds, CancellationToken ct)
     {
         var minutes = Math.Max(1, ttlSeconds / 60);
         var action = purpose switch
@@ -137,15 +138,15 @@ public sealed class OtpService(
             OtpPurpose.Finance => "xác thực tài khoản ngân hàng / mật khẩu ví",
             _ => "xác thực",
         };
-        var text = $"ShopHub: Ma {code} de {action}. Hieu luc {minutes} phut. KHONG chia se ma nay cho bat ky ai.";
-
-        if (Identifiers.IsPhone(target))
-            outbox.Enqueue(OutboxTypes.NotifySms, new SmsPayload(target, text));
-        else
-            outbox.Enqueue(OutboxTypes.NotifyEmail, new EmailPayload(
-                target,
-                $"Mã xác thực ShopHub: {code}",
-                $"<p>Mã xác thực để {action} của bạn là <strong>{code}</strong>.</p>" +
-                $"<p>Mã có hiệu lực trong {minutes} phút. Không chia sẻ mã này cho bất kỳ ai.</p>"));
+        var sms = Identifiers.IsPhone(target);
+        // Editable texts (spec VI.8); SMS go without tones
+        var (subject, body) = await templates.RenderAsync(Features.Admin.TemplateCatalog.Otp, sms ? Domain.SystemConfig.TemplateChannel.Sms : Domain.SystemConfig.TemplateChannel.Email,
+            new Dictionary<string, string>
+            {
+                ["code"] = code, ["minutes"] = minutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["action"] = sms ? Slug.Fold(action) : System.Net.WebUtility.HtmlEncode(action),
+            }, ct);
+        if (sms) outbox.Enqueue(OutboxTypes.NotifySms, new SmsPayload(target, body));
+        else outbox.Enqueue(OutboxTypes.NotifyEmail, new EmailPayload(target, subject ?? $"Mã xác thực ShopHub: {code}", body));
     }
 }

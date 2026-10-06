@@ -342,10 +342,11 @@ public sealed class CheckoutBuilder(
         var walletProblem = !hasWallet ? "Bạn chưa kích hoạt Ví ShopHub (tạo mật khẩu ví ở Tài khoản → Ví ShopHub)."
             : walletBalance < grand ? $"Số dư Ví ShopHub ({Domain.Common.Money.Vnd(walletBalance)}) không đủ cho đơn này." : null;
         var methods = new List<PaymentMethodDto> { new(PaymentMethod.Cod, "Thanh toán khi nhận hàng", codProblem is null, codProblem) };
-        // Real gateways (VNPay, MoMo) appear only when their keys are configured; the simulated one says when it is off
-        methods.AddRange(gateways.Online.Where(g => g.Method != PaymentMethod.Simulated).Select(g => new PaymentMethodDto(g.Method, g.DisplayName, true, null)));
-        methods.Add(new(PaymentMethod.Simulated, "Thẻ / Ví điện tử (cổng thanh toán giả lập)", gateways.Supports(PaymentMethod.Simulated),
-            gateways.Supports(PaymentMethod.Simulated) ? null : "Cổng thanh toán giả lập đang tắt."));
+        // Real gateways (VNPay, MoMo) appear only when their keys are configured and an admin has not switched them off
+        var enabled = await gateways.EnabledAsync(ct);
+        methods.AddRange(enabled.Where(g => g.Method != PaymentMethod.Simulated).Select(g => new PaymentMethodDto(g.Method, g.DisplayName, true, null)));
+        var simulatedOn = enabled.Any(g => g.Method == PaymentMethod.Simulated);
+        methods.Add(new(PaymentMethod.Simulated, "Thẻ / Ví điện tử (cổng thanh toán giả lập)", simulatedOn, simulatedOn ? null : "Cổng thanh toán giả lập đang tắt."));
         methods.Add(new(PaymentMethod.Wallet, $"Ví ShopHub (số dư {Domain.Common.Money.Vnd(walletBalance)})", walletProblem is null, walletProblem));
         var method = methods.FirstOrDefault(m => m.Code == request.PaymentMethod);
         if (method is null) problems.Add("Phương thức thanh toán này hiện không khả dụng.");

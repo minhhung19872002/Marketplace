@@ -133,6 +133,7 @@ public static class DependencyInjection
         services.AddScoped<IOutboxHandler, Marketing.CashbackOrderEventHandler>();
         services.AddScoped<Marketing.CoinExpiryJob>();
         services.AddScoped<MarketingSeeder>();
+        services.AddScoped<ContentSeeder>();
         services.AddScoped<LoadUserSeeder>();
 
         services.AddHangfire(cfg => cfg

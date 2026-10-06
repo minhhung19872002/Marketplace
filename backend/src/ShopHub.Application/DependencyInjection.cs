@@ -41,6 +41,10 @@ public static class DependencyInjection
         services.AddScoped<Features.Orders.CarrierWebhookIntake>();
         services.AddScoped<Features.Orders.OrderAutomationService>();
         services.AddScoped<Features.Orders.CarrierSyncService>();
+        services.AddScoped<Features.Seller.ShopPenaltyService>();
+        services.AddScoped<Features.Reports.AdminReports>();
+        services.AddScoped<Features.Reports.SellerAnalytics>();
+        services.AddScoped<Features.Admin.MessageTemplates>();
         services.AddScoped<Features.Reviews.ReviewRewards>();
         services.AddScoped<Features.Returns.ReturnRefunder>();
         services.AddScoped<Features.Returns.ReturnAutomationService>();

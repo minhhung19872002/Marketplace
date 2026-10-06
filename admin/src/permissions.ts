@@ -28,6 +28,12 @@ export const P = {
   FinanceWithdrawalApprove: 'FINANCE.WITHDRAWAL.APPROVE',
   FinanceReconcile: 'FINANCE.RECONCILE',
   MarketingManage: 'PROMO.MARKETING.MANAGE',
+  UserResetPassword: 'IAM.USER.RESET_PASSWORD',
+  ShopPenalty: 'SHOP.SHOP.PENALTY',
+  OrderIntervene: 'SALES.ORDER.INTERVENE',
+  ReportView: 'REPORT.REPORT.VIEW',
+  ContentManage: 'SYS.CONTENT.MANAGE',
+  ProviderManage: 'SYS.PROVIDER.MANAGE',
 } as const
 
 export const can = (permissions: readonly string[] | undefined, code: string): boolean =>

@@ -54,3 +54,34 @@ internal sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         b.HasIndex(a => a.UserId).HasDatabaseName("ix_audit_logs_user");
     }
 }
+
+internal sealed class CmsPageConfiguration : IEntityTypeConfiguration<CmsPage>
+{
+    public void Configure(EntityTypeBuilder<CmsPage> b)
+    {
+        b.ToTable("cms_pages", "sys");
+        b.HasKey(p => p.Id);
+        b.Property(p => p.Kind).HasConversion<string>().HasMaxLength(10);
+        b.Property(p => p.Slug).HasMaxLength(120).IsRequired();
+        b.Property(p => p.Title).HasMaxLength(200).IsRequired();
+        b.Property(p => p.Topic).HasMaxLength(100);
+        b.Property(p => p.Content).IsRequired();
+        b.HasIndex(p => p.Slug).IsUnique().HasDatabaseName("ux_cms_pages_slug");
+    }
+}
+
+internal sealed class MessageTemplateConfiguration : IEntityTypeConfiguration<MessageTemplate>
+{
+    public void Configure(EntityTypeBuilder<MessageTemplate> b)
+    {
+        b.ToTable("message_templates", "sys");
+        b.HasKey(t => t.Id);
+        b.Property(t => t.Key).HasMaxLength(60).IsRequired();
+        b.Property(t => t.Channel).HasConversion<string>().HasMaxLength(10);
+        b.Property(t => t.Name).HasMaxLength(200).IsRequired();
+        b.Property(t => t.Subject).HasMaxLength(200);
+        b.Property(t => t.Body).HasMaxLength(4000).IsRequired();
+        b.Property(t => t.Placeholders).HasMaxLength(300);
+        b.HasIndex(t => new { t.Key, t.Channel }).IsUnique().HasDatabaseName("ux_message_templates_key");
+    }
+}

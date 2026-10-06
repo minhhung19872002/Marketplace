@@ -29,6 +29,7 @@ public sealed class ShopEventHandler(ShopHubDbContext db, ISmsSender sms, IEmail
             "REJECT" => $"ShopHub: Ho so shop \"{target.Name}\" chua duoc duyet. Ly do: {e.Reason}",
             "LOCK" => $"ShopHub: Shop \"{target.Name}\" tam thoi bi khoa. Ly do: {e.Reason}",
             "UNLOCK" => $"ShopHub: Shop \"{target.Name}\" da duoc mo khoa.",
+            "PENALTY" => $"ShopHub: Shop \"{target.Name}\" bi ghi diem phat. Ly do: {e.Reason}. Xem tai Kenh Nguoi Ban > Hieu qua hoat dong.",
             _ => null,
         };
         if (text is null) return;

@@ -42,6 +42,8 @@ Ghi thẳng, có bằng chứng. Mỗi lỗi: mã, ngày, mô tả, nguyên nhâ
 | L036 | 2026-10-06 | Chọn VNPay / MoMo khi đặt hàng: đơn tạo ra nhưng không có giao dịch, không chuyển sang cổng | Đặt hàng chỉ khởi tạo thanh toán khi `method == Simulated` (và hoàn tiền trả hàng chỉ coi Simulated là "trả online") | `PaymentMethod.IsOnline()` dùng chung cho mọi cổng | `Vnpay_pays_…`, `A_vnpay_payment_whose_ipn_never_came_…` (đỏ: `payment` null → xanh) |
 | L037 | 2026-10-06 | Webhook GHTK dạng form luôn bị coi là sai token / chữ ký | Đọc thô `Request.Body` với `application/x-www-form-urlencoded` trả về rỗng | Với form, đọc bằng `ReadFormAsync` rồi dựng lại thân urlencoded | `Ghtk_books_…` (đỏ: 400 INVALID_SIGNATURE → xanh) |
 | L038 | 2026-10-06 | Webhook GHTK đúng token → 500 | Thân form được lưu nguyên vào cột `jsonb` của sự kiện vận đơn (22P02) | Lưu form dưới dạng JSON | `Ghtk_books_…` (đỏ: 500 → xanh) |
+| L039 | 2026-10-06 | Kéo danh mục cấp 2 (có con) lên gốc: con vẫn ở cấp 3 thay vì cấp 2 | Độ sâu của từng nút được tính **sau** khi nút gốc của nhánh đã đổi cấp | Lấy độ sâu của cả nhánh trước khi di chuyển | `A_category_moves_with_its_subtree_but_never_deeper_than_three_levels` (đỏ: cấp 3 → xanh: cấp 2) |
+| L040 | 2026-10-06 | e2e Flash Sale chập chờn: phiên thua nhận "Sản phẩm Flash Sale vừa hết suất." nhưng test chờ "hết suất Flash Sale" | Hai nhánh từ chối (chặn sớm `RefuseIfSoldOutAsync` và trừ suất khi đặt) có câu khác nhau, cả hai đều đúng — lỗi ở phép thử | Phép thử khớp "hết suất" | e2e số 8 xanh lặp lại |
 
 > L001–L006 sửa trước khi có quy trình "đỏ trước, xanh sau" của mục 8; từ Phase 1 mọi lỗi phải kèm phép thử
 > đỏ trước khi sửa và nằm lại trong bộ test.

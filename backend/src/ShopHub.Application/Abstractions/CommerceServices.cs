@@ -180,6 +180,12 @@ public interface IPaymentGatewayRegistry
 
     bool Supports(PaymentMethod method);
 
-    /// <summary>Online gateways that are switched on (checkout and wallet top-up offer these).</summary>
+    /// <summary>Every configured online gateway (real first, simulated last) — also the ones an admin switched off.</summary>
     IReadOnlyList<IPaymentGateway> Online { get; }
+
+    /// <summary>
+    /// Gateways new payments may use: configured and not switched off by an admin (PAYMENT.DISABLED_METHODS). Existing
+    /// payments keep querying / refunding through <see cref="For"/> whatever the switch says.
+    /// </summary>
+    Task<IReadOnlyList<IPaymentGateway>> EnabledAsync(CancellationToken ct);
 }

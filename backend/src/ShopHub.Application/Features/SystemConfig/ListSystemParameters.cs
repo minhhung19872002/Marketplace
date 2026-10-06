@@ -12,7 +12,9 @@ public record SystemParameterDto(
     string Name,
     string Description,
     uint Version,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    // Row id: the audit trail of a parameter is /api/admin/audit-logs?entity=SystemParameter&entityId={Id}
+    Guid Id = default);
 
 public record ListSystemParametersQuery(string? Group) : IRequest<IReadOnlyList<SystemParameterDto>>;
 
@@ -31,7 +33,7 @@ public sealed class ListSystemParametersHandler(IApplicationDbContext db)
         return await query
             .OrderBy(p => p.Group).ThenBy(p => p.Key)
             .Select(p => new SystemParameterDto(
-                p.Key, p.Value, p.DataType.ToString(), p.Group, p.Name, p.Description, p.Version, p.UpdatedAt))
+                p.Key, p.Value, p.DataType.ToString(), p.Group, p.Name, p.Description, p.Version, p.UpdatedAt, p.Id))
             .ToListAsync(ct);
     }
 }

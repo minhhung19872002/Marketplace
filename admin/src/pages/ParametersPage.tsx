@@ -5,6 +5,7 @@ import { adminApi, type SystemParameter } from '../api/admin'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
 import { P, can } from '../permissions'
+import { useNavigate } from 'react-router-dom'
 
 const GROUPS = [
   { label: 'Tất cả', value: '' },
@@ -15,6 +16,7 @@ const GROUPS = [
 ]
 
 const ParametersPage = ({ permissions }: { permissions: string[] }) => {
+  const navigate = useNavigate()
   const { message } = AntApp.useApp()
   const queryClient = useQueryClient()
   const [group, setGroup] = useState('')
@@ -49,8 +51,15 @@ const ParametersPage = ({ permissions }: { permissions: string[] }) => {
           { title: 'Sửa lúc', dataIndex: 'updatedAt', render: (v: string | null) => (v ? formatDateTime(v) : '—') },
           {
             title: '',
-            render: (_, p) => can(permissions, P.SystemParameterUpdate) && (
-              <Button size="small" onClick={() => { setEditing(p); setValue(p.value); setError('') }}>Sửa</Button>
+            render: (_, p) => (
+              <Space>
+                {can(permissions, P.SystemParameterUpdate) && (
+                  <Button size="small" onClick={() => { setEditing(p); setValue(p.value); setError('') }}>Sửa</Button>
+                )}
+                {can(permissions, P.AuditLogView) && (
+                  <Button size="small" onClick={() => navigate(`/nhat-ky?entity=SystemParameter&entityId=${p.id}`)}>Lịch sử</Button>
+                )}
+              </Space>
             ),
           },
         ]}

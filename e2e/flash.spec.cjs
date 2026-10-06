@@ -56,7 +56,7 @@ test.describe('Flash Sale', () => {
     }));
     expect(outcomes.filter((o) => o === 'won')).toHaveLength(QUOTA);
     for (const p of pages.filter((_, i) => outcomes[i] === 'lost'))
-      await expect(p.getByTestId('checkout-error')).toContainText(/hết suất Flash Sale|thay đổi/);
+      await expect(p.getByTestId('checkout-error')).toContainText(/hết suất|thay đổi/);
 
     // The shop sees exactly 10 orders, and the flash sale shows 10/10 sold
     const orders = await apiAs(request, shop.token, 'GET', `/seller/shops/${shop.shopId}/orders?tab=All&pageSize=50`);

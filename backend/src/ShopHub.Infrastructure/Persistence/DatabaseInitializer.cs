@@ -36,6 +36,7 @@ public static class DatabaseInitializer
         await sp.GetRequiredService<ShopHub.Infrastructure.Media.MinioObjectStorage>().EnsureBucketsAsync(ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.CatalogSeeder>().SeedAsync(settings.SeedSampleData, ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.CommerceSeeder>().SeedAsync(settings.SeedSampleData, ct);
+        await sp.GetRequiredService<ShopHub.Infrastructure.Seed.ContentSeeder>().SeedAsync(ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.FinanceSeeder>().SeedAsync(ct);
         if (settings.SeedSampleData) await sp.GetRequiredService<ShopHub.Infrastructure.Seed.MarketingSeeder>().SeedAsync(ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.LoadUserSeeder>().SeedAsync(ct);

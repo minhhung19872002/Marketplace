@@ -59,6 +59,6 @@ public sealed class UpdateSystemParameterHandler(
         if (parameter.Group == ParameterGroups.Job) await jobScheduler.RegisterRecurringJobsAsync(ct);
 
         return new SystemParameterDto(parameter.Key, parameter.Value, parameter.DataType.ToString(), parameter.Group,
-            parameter.Name, parameter.Description, parameter.Version, parameter.UpdatedAt);
+            parameter.Name, parameter.Description, parameter.Version, parameter.UpdatedAt, parameter.Id);
     }
 }

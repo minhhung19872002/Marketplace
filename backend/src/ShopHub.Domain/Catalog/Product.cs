@@ -518,3 +518,56 @@ public class InventoryMovement : Entity
     public string? Note { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
 }
+
+public enum ProductReportReason
+{
+    Counterfeit,      // hàng giả, hàng nhái
+    Prohibited,       // hàng cấm
+    WrongInfo,        // thông tin sai lệch
+    Offensive,        // nội dung phản cảm
+    IntellectualProperty, // vi phạm sở hữu trí tuệ
+    Other,
+}
+
+public enum ProductReportStatus
+{
+    Open,
+    Banned,     // product locked because of the report
+    Dismissed,  // nothing wrong found
+}
+
+/// <summary>A buyer reporting a product (spec II.4, VI.4); one open report per reporter + product.</summary>
+public class ProductReport : Entity
+{
+    private ProductReport() { }
+
+    public ProductReport(Guid productId, Guid reporterId, ProductReportReason reason, string? details, DateTimeOffset now)
+    {
+        ProductId = productId;
+        ReporterId = reporterId;
+        Reason = reason;
+        Details = string.IsNullOrWhiteSpace(details) ? null : details.Trim();
+        Status = ProductReportStatus.Open;
+        CreatedAt = now;
+    }
+
+    public Guid ProductId { get; private set; }
+    public Guid ReporterId { get; private set; }
+    public ProductReportReason Reason { get; private set; }
+    public string? Details { get; private set; }
+    public ProductReportStatus Status { get; private set; }
+    public Guid? HandledBy { get; private set; }
+    public string? Resolution { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset? HandledAt { get; private set; }
+
+    public void Resolve(ProductReportStatus outcome, Guid adminId, string? resolution, DateTimeOffset now)
+    {
+        if (Status != ProductReportStatus.Open) throw new BusinessRuleException("Báo cáo này đã được xử lý.");
+        if (outcome == ProductReportStatus.Open) throw new BusinessRuleException("Kết quả xử lý không hợp lệ.");
+        Status = outcome;
+        HandledBy = adminId;
+        Resolution = string.IsNullOrWhiteSpace(resolution) ? null : resolution.Trim();
+        HandledAt = now;
+    }
+}

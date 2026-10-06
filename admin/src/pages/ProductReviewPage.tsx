@@ -3,6 +3,7 @@ import { Alert, App as AntApp, Button, Checkbox, Descriptions, Drawer, Image, In
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { catalogApi, type ProductStatus, type ReviewRow } from '../api/catalog'
 import { ApiError } from '../api/http'
+import { platformApi } from '../api/platform'
 import { formatDateTime } from '../lib/datetime'
 import { formatPrice } from '../lib/money'
 import { P, can } from '../permissions'
@@ -26,6 +27,18 @@ const ProductReviewPage = ({ permissions }: { permissions: string[] }) => {
   const [viewing, setViewing] = useState<string | null>(null)
   const [pending, setPending] = useState<Pending>(null)
   const [reason, setReason] = useState('')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [bulkReason, setBulkReason] = useState<string | null>(null)
+  const bulk = useMutation({
+    mutationFn: () => platformApi.bulkBan(selectedIds, bulkReason ?? ''),
+    onSuccess: (r) => {
+      void message.success(r.message)
+      setBulkReason(null)
+      setSelectedIds([])
+      void queryClient.invalidateQueries({ queryKey: ['review'] })
+    },
+    onError: (e) => void message.error(e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : 'Thao tác thất bại.'),
+  })
 
   const queue = useQuery({
     queryKey: ['review', status, flaggedOnly, search, page],
@@ -65,9 +78,17 @@ const ProductReviewPage = ({ permissions }: { permissions: string[] }) => {
         <Segmented options={STATUSES} value={status} onChange={(v) => { setStatus(v as ProductStatus); setPage(1) }} />
         <Checkbox checked={flaggedOnly} onChange={(e) => { setFlaggedOnly(e.target.checked); setPage(1) }}>Chỉ sản phẩm bị gắn cờ</Checkbox>
         <Input.Search placeholder="Tên sản phẩm" allowClear onSearch={(v) => { setSearch(v); setPage(1) }} style={{ width: 260 }} />
+        {can(permissions, P.ProductBan) && (
+          <Button danger disabled={selectedIds.length === 0} onClick={() => setBulkReason('')} data-testid="bulk-ban">
+            Khoá {selectedIds.length || ''} sản phẩm đã chọn
+          </Button>
+        )}
       </Space>
       <Table<ReviewRow>
         rowKey="id"
+        rowSelection={can(permissions, P.ProductBan)
+          ? { selectedRowKeys: selectedIds, onChange: (keys) => setSelectedIds((keys as string[]).slice(0, 100)), getCheckboxProps: (r) => ({ disabled: r.status === 'Banned' }) }
+          : undefined}
         loading={queue.isPending}
         dataSource={queue.data?.items}
         locale={{ emptyText: 'Không có sản phẩm nào.' }}
@@ -117,6 +138,11 @@ const ProductReviewPage = ({ permissions }: { permissions: string[] }) => {
           </Space>
         )}
       </Drawer>
+
+      <Modal title={`Khoá ${selectedIds.length} sản phẩm (tối đa 100 mỗi lần)`} open={bulkReason !== null} onCancel={() => setBulkReason(null)}
+        okText="Khoá" cancelText="Huỷ" okButtonProps={{ danger: true, disabled: !(bulkReason ?? '').trim(), loading: bulk.isPending }} onOk={() => bulk.mutate()}>
+        <Input.TextArea rows={3} placeholder="Lý do (người bán sẽ nhận được)" value={bulkReason ?? ''} onChange={(e) => setBulkReason(e.target.value)} />
+      </Modal>
 
       <Modal title={pending?.action === 'ban' ? 'Khoá sản phẩm vi phạm' : 'Yêu cầu người bán sửa'} open={!!pending}
         onCancel={() => setPending(null)} okText="Xác nhận" cancelText="Huỷ" okButtonProps={{ disabled: !reason.trim(), loading: act.isPending, danger: pending?.action === 'ban' }}

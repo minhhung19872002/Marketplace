@@ -49,7 +49,7 @@ export const storefrontApi = {
   hotKeywords: () => apiRequest<string[]>('/search/hot-keywords', { auth: false }),
 
   product: (id: string) => apiRequest<ProductPage>(`/products/${id}`, { auth: false }),
-  recordView: (id: string) => apiRequest<null>(`/products/${id}/views`, { method: 'POST' }),
+  recordView: (id: string, source: string) => apiRequest<null>(`/products/${id}/views?source=${source}`, { method: 'POST' }),
   related: (id: string) => apiRequest<ProductCard[]>(`/products/${id}/related`, { auth: false }),
   shopProducts: (id: string) => apiRequest<ProductCard[]>(`/products/${id}/shop-products`, { auth: false }),
 

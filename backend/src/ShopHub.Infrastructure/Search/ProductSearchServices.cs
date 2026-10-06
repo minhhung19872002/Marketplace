@@ -73,10 +73,10 @@ public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
             ["sort"] = r.Sort switch
             {
                 ProductSort.Newest => new[] { "publishedAt:desc", "id:asc" },
-                ProductSort.BestSelling => new[] { "soldCount:desc", "id:asc" },
+                ProductSort.BestSelling => new[] { "restricted:asc", "soldCount:desc", "id:asc" },
                 ProductSort.PriceAsc => new[] { "minPrice:asc", "id:asc" },
                 ProductSort.PriceDesc => new[] { "minPrice:desc", "id:asc" },
-                _ => string.IsNullOrWhiteSpace(r.Query) ? new[] { "soldCount:desc", "publishedAt:desc", "id:asc" } : null,
+                _ => string.IsNullOrWhiteSpace(r.Query) ? new[] { "restricted:asc", "soldCount:desc", "publishedAt:desc", "id:asc" } : null,
             },
         };
         var res = await meili.SearchAsync(MeiliClient.ProductsIndex, body, ct);
@@ -137,10 +137,11 @@ public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
             "categoryIds", "shopId", "provinceCode", "brandId", "minPrice", "maxPrice", "ratingFloor", "isMall", "isPreferred", "inStock",
             "condition", "attributes",
         },
-        sortableAttributes = new[] { "publishedAt", "soldCount", "minPrice", "ratingAvg", "id" },
+        sortableAttributes = new[] { "publishedAt", "soldCount", "minPrice", "ratingAvg", "id", "restricted" },
         // An explicit sort (price, newest…) wins over relevance — the buyer asked for that order; without one the
         // "sort" rule is a no-op and relevance decides
-        rankingRules = new[] { "sort", "words", "typo", "proximity", "attribute", "exactness", "soldCount:desc" },
+        // Relevance first, then shops restricted by penalty points go last
+        rankingRules = new[] { "sort", "words", "typo", "proximity", "attribute", "exactness", "restricted:asc", "soldCount:desc" },
         // Vietnamese words are short: allow one typo from 4 letters, two from 8
         typoTolerance = new { enabled = true, minWordSizeForTypos = new { oneTypo = 4, twoTypos = 8 } },
         faceting = new { maxValuesPerFacet = 200 },

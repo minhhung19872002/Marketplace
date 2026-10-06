@@ -21,6 +21,11 @@ import FinancePage from './pages/FinancePage'
 import MarketingPage from './pages/MarketingPage'
 import ReviewReportsPage from './pages/ReviewReportsPage'
 import VouchersPage from './pages/VouchersPage'
+import ReportsPage from './pages/ReportsPage'
+import OrdersPage from './pages/OrdersPage'
+import ContentPage from './pages/ContentPage'
+import ProvidersPage from './pages/ProvidersPage'
+import CatalogExtrasPage from './pages/CatalogExtrasPage'
 import './App.css'
 
 const { Header, Sider, Content } = Layout
@@ -28,7 +33,10 @@ const { Header, Sider, Content } = Layout
 // Menu entries appear only when the signed-in admin holds the permission (the API enforces it regardless)
 const MENU = [
   { path: '/', label: 'Tổng quan', permission: null },
+  { path: '/bao-cao', label: 'Báo cáo', permission: P.ReportView },
+  { path: '/don-hang', label: 'Đơn hàng', permission: P.OrderView },
   { path: '/duyet-san-pham', label: 'Duyệt sản phẩm', permission: P.ProductReview },
+  { path: '/bao-cao-san-pham', label: 'Thương hiệu & vi phạm', permission: P.ProductBan },
   { path: '/shop', label: 'Shop', permission: P.ShopView },
   { path: '/nganh-hang', label: 'Ngành hàng', permission: P.CategoryManage },
   { path: '/voucher', label: 'Voucher của sàn', permission: P.VoucherManage },
@@ -39,6 +47,8 @@ const MENU = [
   { path: '/nguoi-dung', label: 'Người dùng', permission: P.UserView },
   { path: '/vai-tro', label: 'Vai trò & quyền', permission: P.RoleView },
   { path: '/tham-so', label: 'Tham số hệ thống', permission: P.SystemParameterView },
+  { path: '/noi-dung', label: 'Nội dung & mẫu tin', permission: P.ContentManage },
+  { path: '/nha-cung-cap', label: 'Vận chuyển & cổng thanh toán', permission: P.ProviderManage },
   { path: '/nhat-ky', label: 'Nhật ký thao tác', permission: P.AuditLogView },
 ] as const
 
@@ -74,7 +84,7 @@ const Shell = () => {
         <Typography.Title level={4} className="brand">ShopHub</Typography.Title>
         <Menu
           mode="inline"
-          selectedKeys={[items.find((m) => m.path !== '/' && location.pathname.startsWith(m.path))?.path ?? '/']}
+          selectedKeys={[items.filter((m) => m.path !== '/' && (location.pathname === m.path || location.pathname.startsWith(`${m.path}/`))).map((m) => m.path)[0] ?? '/']}
           items={items.map((m) => ({ key: m.path, label: m.label }))}
           onClick={(e) => navigate(e.key)}
           data-testid="admin-menu"
@@ -91,7 +101,12 @@ const Shell = () => {
         </Header>
         <Content className="app-content">
           <Routes>
-            <Route path="/" element={<DashboardPage />} />
+            <Route path="/" element={<DashboardPage permissions={perms} />} />
+            <Route path="/bao-cao" element={guard(P.ReportView, <ReportsPage />)} />
+            <Route path="/don-hang" element={guard(P.OrderView, <OrdersPage permissions={perms} />)} />
+            <Route path="/bao-cao-san-pham" element={can(perms, P.ProductBan) || can(perms, P.BrandManage) ? <CatalogExtrasPage permissions={perms} /> : <Forbidden />} />
+            <Route path="/noi-dung" element={guard(P.ContentManage, <ContentPage />)} />
+            <Route path="/nha-cung-cap" element={guard(P.ProviderManage, <ProvidersPage />)} />
             <Route path="/duyet-san-pham" element={guard(P.ProductReview, <ProductReviewPage permissions={perms} />)} />
             <Route path="/shop" element={guard(P.ShopView, <ShopsPage permissions={perms} />)} />
             <Route path="/nganh-hang" element={guard(P.CategoryManage, <CategoriesPage />)} />

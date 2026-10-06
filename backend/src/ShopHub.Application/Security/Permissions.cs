@@ -39,6 +39,12 @@ public static class Permissions
     public const string FinanceWithdrawalApprove = "FINANCE.WITHDRAWAL.APPROVE";
     public const string FinanceReconcile = "FINANCE.RECONCILE";
     public const string MarketingManage = "PROMO.MARKETING.MANAGE";
+    public const string UserResetPassword = "IAM.USER.RESET_PASSWORD";
+    public const string ShopPenalty = "SHOP.SHOP.PENALTY";
+    public const string OrderIntervene = "SALES.ORDER.INTERVENE";
+    public const string ReportView = "REPORT.REPORT.VIEW";
+    public const string ContentManage = "SYS.CONTENT.MANAGE";
+    public const string ProviderManage = "SYS.PROVIDER.MANAGE";
 
     public const string ClaimType = "perm";
 }
@@ -78,6 +84,12 @@ public static class PermissionCatalog
         new(Permissions.FinanceWithdrawalApprove, "Tài chính", "Duyệt / từ chối rút tiền"),
         new(Permissions.FinanceReconcile, "Tài chính", "Đối soát với cổng thanh toán và đơn vị vận chuyển"),
         new(Permissions.MarketingManage, "Khuyến mãi", "Khung Flash Sale, duyệt đăng ký, banner, chiến dịch"),
+        new(Permissions.UserResetPassword, "Người dùng", "Đặt lại mật khẩu người dùng"),
+        new(Permissions.ShopPenalty, "Shop", "Ghi / gỡ điểm phạt shop"),
+        new(Permissions.OrderIntervene, "Đơn hàng", "Can thiệp đơn: huỷ, xử lý hoàn tiền lỗi (bắt buộc lý do)"),
+        new(Permissions.ReportView, "Báo cáo", "Xem tổng quan và báo cáo toàn sàn"),
+        new(Permissions.ContentManage, "Hệ thống", "Trang tĩnh, trợ giúp, mẫu thư / SMS"),
+        new(Permissions.ProviderManage, "Hệ thống", "Bật / tắt đơn vị vận chuyển và cổng thanh toán"),
     ];
 }
 
@@ -94,16 +106,17 @@ public static class RoleCatalog
         new("OPERATIONS", "Vận hành", "Vận hành đơn hàng, người dùng, shop.",
             [Permissions.UserView, Permissions.UserLock, Permissions.AuditLogView, Permissions.SystemParameterView,
              Permissions.ShopView, Permissions.ShopReview, Permissions.ShopLock, Permissions.ShopLabel, Permissions.OrderView,
-             Permissions.JobRun]),
+             Permissions.JobRun, Permissions.UserResetPassword, Permissions.ShopPenalty, Permissions.OrderIntervene, Permissions.ReportView,
+             Permissions.ContentManage, Permissions.ProviderManage]),
         new("CONTENT_REVIEW", "Duyệt nội dung", "Duyệt sản phẩm, xử lý vi phạm.",
             [Permissions.UserView, Permissions.ProductReview, Permissions.ProductBan, Permissions.ShopView,
-             Permissions.CategoryManage, Permissions.BrandManage]),
+             Permissions.CategoryManage, Permissions.BrandManage, Permissions.ShopPenalty, Permissions.ContentManage]),
         new("CUSTOMER_SERVICE", "Chăm sóc khách hàng", "Hỗ trợ người mua và người bán.",
-            [Permissions.UserView, Permissions.OrderView, Permissions.DisputeResolve, Permissions.ReviewModerate]),
+            [Permissions.UserView, Permissions.OrderView, Permissions.DisputeResolve, Permissions.ReviewModerate, Permissions.UserResetPassword]),
         new("ACCOUNTING", "Kế toán", "Đối soát, giải ngân, báo cáo tài chính.",
             [Permissions.AuditLogView, Permissions.OrderView, Permissions.FinanceLedgerView, Permissions.FinanceFeeManage,
-             Permissions.FinanceWithdrawalApprove, Permissions.FinanceReconcile, Permissions.JobRun]),
+             Permissions.FinanceWithdrawalApprove, Permissions.FinanceReconcile, Permissions.JobRun, Permissions.ReportView, Permissions.OrderIntervene]),
         new("MARKETING", "Marketing", "Voucher, Flash Sale, chiến dịch.",
-            [Permissions.SystemParameterView, Permissions.VoucherManage, Permissions.CoinGrant, Permissions.MarketingManage]),
+            [Permissions.SystemParameterView, Permissions.VoucherManage, Permissions.CoinGrant, Permissions.MarketingManage, Permissions.ReportView]),
     ];
 }

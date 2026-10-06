@@ -42,6 +42,8 @@ const PasswordPage = lazy(() => import('./pages/account/PasswordPage'))
 const DevicesPage = lazy(() => import('./pages/account/DevicesPage'))
 const NotificationSettingsPage = lazy(() => import('./pages/account/NotificationSettingsPage'))
 const ChatPage = lazy(() => import('./pages/ChatPage'))
+const CmsPageView = lazy(() => import('./pages/ContentPages').then((m) => ({ default: m.CmsPageView })))
+const HelpCenter = lazy(() => import('./pages/ContentPages').then((m) => ({ default: m.HelpCenter })))
 
 const PageLoader = () => (
   <div className="page-loader">
@@ -74,6 +76,9 @@ function App() {
                     <Route path="/yeu-thich" element={<Wishlist />} />
                     <Route path="/thong-bao" element={<Notifications />} />
                     <Route path="/chat" element={<ChatPage />} />
+                    <Route path="/trang/:slug" element={<CmsPageView />} />
+                    <Route path="/tro-giup" element={<HelpCenter />} />
+                    <Route path="/tro-giup/:slug" element={<CmsPageView />} />
                     <Route path="/tra-cuu-van-don" element={<TrackingPage />} />
                     <Route path="/tra-cuu-van-don/:trackingNo" element={<TrackingPage />} />
                     <Route path="/shop/:slug" element={<ShopPage />} />

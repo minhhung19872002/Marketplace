@@ -106,6 +106,7 @@ internal sealed class ShopPenaltyConfiguration : IEntityTypeConfiguration<ShopPe
         b.ToTable("shop_penalties", "shop", t => t.HasCheckConstraint("ck_shop_penalties_points", "points > 0"));
         b.HasKey(p => p.Id);
         b.Property(p => p.Reason).HasMaxLength(300).IsRequired();
+        b.Property(p => p.RevokeReason).HasMaxLength(300);
         b.HasOne<Shop>().WithMany().HasForeignKey(p => p.ShopId).OnDelete(DeleteBehavior.Cascade);
         // One penalty per order and reason (re-running a job never doubles it)
         b.HasIndex(p => new { p.OrderId, p.Reason }).IsUnique().HasFilter("order_id IS NOT NULL").HasDatabaseName("ux_shop_penalties_order");

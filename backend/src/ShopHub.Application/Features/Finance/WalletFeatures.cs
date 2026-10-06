@@ -159,8 +159,8 @@ public record TopupGatewaysQuery : IRequest<IReadOnlyList<GatewayOptionDto>>;
 
 public sealed class TopupGatewaysHandler(IPaymentGatewayRegistry gateways) : IRequestHandler<TopupGatewaysQuery, IReadOnlyList<GatewayOptionDto>>
 {
-    public Task<IReadOnlyList<GatewayOptionDto>> Handle(TopupGatewaysQuery request, CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<GatewayOptionDto>>(gateways.Online.Select(g => new GatewayOptionDto(g.Method, g.DisplayName)).ToList());
+    public async Task<IReadOnlyList<GatewayOptionDto>> Handle(TopupGatewaysQuery request, CancellationToken ct) =>
+        (await gateways.EnabledAsync(ct)).Select(g => new GatewayOptionDto(g.Method, g.DisplayName)).ToList();
 }
 
 // Method: which online gateway pays the top-up (null = the first one switched on)
@@ -180,9 +180,10 @@ public sealed class CreateTopupHandler(
         var max = await parameters.GetIntAsync(ParameterKeys.FinanceTopupMax, ct);
         if (request.Amount < min || request.Amount > max)
             throw new BusinessRuleException($"Số tiền nạp phải từ ₫{min:N0} đến ₫{max:N0}.");
+        var enabled = await gateways.EnabledAsync(ct);
         var gateway = request.Method is { } wanted
-            ? gateways.Online.FirstOrDefault(g => g.Method == wanted) ?? throw new ConflictException("Cổng thanh toán này hiện không khả dụng.", "NO_GATEWAY")
-            : gateways.Online.FirstOrDefault() ?? throw new ConflictException("Cổng thanh toán đang tắt, chưa nạp được tiền.", "NO_GATEWAY");
+            ? enabled.FirstOrDefault(g => g.Method == wanted) ?? throw new ConflictException("Cổng thanh toán này hiện không khả dụng.", "NO_GATEWAY")
+            : enabled.FirstOrDefault() ?? throw new ConflictException("Cổng thanh toán đang tắt, chưa nạp được tiền.", "NO_GATEWAY");
 
         var now = clock.UtcNow;
         var timeout = await parameters.GetIntAsync(ParameterKeys.PaymentTimeoutMinutes, ct);

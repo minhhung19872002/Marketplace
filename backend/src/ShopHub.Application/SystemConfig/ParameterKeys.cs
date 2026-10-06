@@ -34,6 +34,10 @@ public static class ParameterKeys
     public const string ProductReviewOnEdit = "PRODUCT.REVIEW_ON_EDIT";
     public const string ProductBannedKeywords = "PRODUCT.BANNED_KEYWORDS";
     public const string ShopLowStockThreshold = "SHOP.LOW_STOCK_THRESHOLD";
+    public const string ShopPenaltyRestrictPoints = "SHOP.PENALTY_RESTRICT_POINTS";
+    public const string ShopPenaltyCampaignBanPoints = "SHOP.PENALTY_CAMPAIGN_BAN_POINTS";
+    public const string ShopPenaltyLockPoints = "SHOP.PENALTY_LOCK_POINTS";
+    public const string ShopPenaltyExpiryDays = "SHOP.PENALTY_EXPIRY_DAYS";
     public const string MediaMaxImageMb = "MEDIA.MAX_IMAGE_MB";
     public const string MediaMaxVideoMb = "MEDIA.MAX_VIDEO_MB";
     public const string MediaMaxVideoSeconds = "MEDIA.MAX_VIDEO_SECONDS";
@@ -93,6 +97,7 @@ public static class ParameterKeys
     public const string ChatContactPatterns = "CHAT.CONTACT_PATTERNS";
     public const string JobRemindersCron = "JOB.REMINDERS_CRON";
     public const string JobCarrierSyncCron = "JOB.CARRIER_SYNC_CRON";
+    public const string PaymentDisabledMethods = "PAYMENT.DISABLED_METHODS";
     public const string LogisticsSyncStaleMinutes = "LOGISTICS.SYNC_STALE_MINUTES";
     public const string ChatResponseWindowDays = "CHAT.RESPONSE_WINDOW_DAYS";
     public const string SitePublicUrl = "SITE.PUBLIC_URL";
@@ -180,6 +185,14 @@ public static class ParameterCatalog
         new(ParameterKeys.ProductBannedKeywords, "[\"hàng giả\",\"hàng fake\",\"replica\",\"super fake\",\"vũ khí\",\"ma túy\"]",
             ParameterDataType.Json, ParameterGroups.Product,
             "Từ khoá cấm", "Sản phẩm có từ khoá này (không phân biệt dấu) bị gắn cờ khi gửi duyệt."),
+        new(ParameterKeys.ShopPenaltyRestrictPoints, "6", ParameterDataType.Int, ParameterGroups.Shop,
+            "Điểm phạt: hạn chế hiển thị", "Từ số điểm này sản phẩm của shop không xuất hiện ở Gợi ý hôm nay và xếp sau trong tìm kiếm."),
+        new(ParameterKeys.ShopPenaltyCampaignBanPoints, "9", ParameterDataType.Int, ParameterGroups.Shop,
+            "Điểm phạt: cấm tham gia chiến dịch", "Từ số điểm này shop không được đăng ký Flash Sale / chiến dịch của sàn."),
+        new(ParameterKeys.ShopPenaltyLockPoints, "15", ParameterDataType.Int, ParameterGroups.Shop,
+            "Điểm phạt: khoá shop", "Đạt số điểm này shop bị khoá tự động."),
+        new(ParameterKeys.ShopPenaltyExpiryDays, "90", ParameterDataType.Int, ParameterGroups.Shop,
+            "Hạn của điểm phạt tự động (ngày)", "Điểm phạt hệ thống tự ghi (giao trễ…) hết tính sau số ngày này."),
         new(ParameterKeys.ShopLowStockThreshold, "10", ParameterDataType.Int, ParameterGroups.Shop,
             "Ngưỡng sắp hết hàng", "Tồn kho khả dụng từ ngưỡng này trở xuống được cảnh báo sắp hết hàng."),
         new(ParameterKeys.MediaMaxImageMb, "5", ParameterDataType.Int, ParameterGroups.Media,
@@ -300,6 +313,8 @@ public static class ParameterCatalog
             "Kỳ tính tỉ lệ phản hồi chat (ngày)", "Tỉ lệ và thời gian phản hồi chat của shop tính trên các cuộc trò chuyện trong bấy nhiêu ngày gần nhất."),
         new(ParameterKeys.SitePublicUrl, "http://localhost:18000", ParameterDataType.String, ParameterGroups.Site,
             "Địa chỉ trang người mua", "Dùng để dựng liên kết tuyệt đối trong thư thông báo và địa chỉ quay về sau cổng thanh toán (VNPay, MoMo)."),
+        new(ParameterKeys.PaymentDisabledMethods, "[]", ParameterDataType.Json, ParameterGroups.Payment,
+            "Cổng thanh toán đang tắt", "Danh sách phương thức (VnPay, MoMo, Simulated) quản trị tạm tắt: không nhận thanh toán mới, giao dịch cũ vẫn tra cứu / hoàn tiền được."),
         new(ParameterKeys.JobCarrierSyncCron, "*/30 * * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch đồng bộ vận đơn với hãng", "Cron (giờ UTC) hỏi lại GHN / GHTK trạng thái các vận đơn lâu không có cập nhật (bù webhook bị lỡ)."),
         new(ParameterKeys.LogisticsSyncStaleMinutes, "60", ParameterDataType.Int, ParameterGroups.Logistics,

@@ -57,6 +57,7 @@ export interface SystemParameter {
   description: string
   version: number
   updatedAt: string | null
+  id: string
 }
 
 export interface AuditLog {
@@ -105,6 +106,6 @@ export const adminApi = {
   updateParameter: (key: string, value: string, version: number) =>
     apiCommand<SystemParameter>(`/admin/system-parameters/${encodeURIComponent(key)}`, { method: 'PUT', body: { value, version } }),
 
-  auditLogs: (p: { page: number; pageSize: number; action?: string; entity?: string; from?: string; to?: string }) =>
+  auditLogs: (p: { page: number; pageSize: number; action?: string; entity?: string; entityId?: string; userId?: string; from?: string; to?: string }) =>
     apiRequest<PagedResult<AuditLog>>(`/admin/audit-logs${query(p)}`),
 }

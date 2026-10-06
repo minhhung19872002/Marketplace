@@ -40,6 +40,7 @@ public sealed class NotificationDeliveryHandler(
     ISmsSender sms,
     IPushSender push,
     ISystemParameters parameters,
+    Application.Features.Admin.MessageTemplates templates,
     ILogger<NotificationDeliveryHandler> logger) : IOutboxHandler
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -62,7 +63,10 @@ public sealed class NotificationDeliveryHandler(
             new { n.Id, n.Title, n.Body, n.Link, n.Category, n.CreatedAt, unread }, ct);
 
         if (Wants(NotificationChannel.Email) && user.Email is { } address)
-            await email.SendAsync(address, n.Title, await HtmlAsync(n, user.FullName, ct), ct);
+        {
+            var (subject, html) = await HtmlAsync(n, user.FullName, ct);
+            await email.SendAsync(address, subject, html, ct);
+        }
         if (Wants(NotificationChannel.Sms) && user.Phone is { } phone)
             await sms.SendAsync(phone, $"ShopHub: {n.Title}. {n.Body}", ct);
         if (Wants(NotificationChannel.Push))
@@ -73,24 +77,32 @@ public sealed class NotificationDeliveryHandler(
         logger.LogDebug("Notification {NotificationId} delivered", n.Id);
     }
 
-    /// <summary>The notification as a small HTML mail (every value HTML-encoded; the link made absolute).</summary>
-    private async Task<string> HtmlAsync(Notification n, string name, CancellationToken ct)
+    /// <summary>
+    /// The notification as a small HTML mail: the editable "NOTIFICATION" template (VI.8) inside the branded frame.
+    /// Every value is HTML-encoded before it fills the template; the link is made absolute.
+    /// </summary>
+    private async Task<(string Subject, string Html)> HtmlAsync(Notification n, string name, CancellationToken ct)
     {
         var site = await parameters.GetStringAsync(ParameterKeys.SitePlatformName, ct);
         var baseUrl = (await parameters.GetStringAsync(ParameterKeys.SitePublicUrl, ct)).TrimEnd('/');
-        var link = n.Link is null ? null : n.Link.StartsWith('/') ? baseUrl + n.Link : n.Link;
+        var link = n.Link is null ? baseUrl : n.Link.StartsWith('/') ? baseUrl + n.Link : n.Link;
         var e = (string s) => WebUtility.HtmlEncode(s);
-        return $"""
+        var (subject, body) = await templates.RenderAsync(Application.Features.Admin.TemplateCatalog.Notification, Domain.SystemConfig.TemplateChannel.Email,
+            new Dictionary<string, string>
+            {
+                ["title"] = e(n.Title), ["body"] = e(n.Body), ["link"] = e(link), ["settings"] = e($"{baseUrl}/tai-khoan/thong-bao"),
+            }, ct);
+        var html = $"""
             <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #eee">
               <div style="background:#ee4d2d;color:#fff;padding:14px 18px;font-size:18px;font-weight:bold">{e(site)}</div>
               <div style="padding:18px">
                 <p>Xin chào {e(name)},</p>
                 <h2 style="font-size:17px;margin:12px 0">{e(n.Title)}</h2>
-                <p>{e(n.Body)}</p>
-                {(link is null ? "" : $"<p><a href=\"{e(link)}\" style=\"background:#ee4d2d;color:#fff;padding:9px 18px;text-decoration:none;border-radius:3px\">Xem chi tiết</a></p>")}
-                <p style="color:#888;font-size:12px">Bạn nhận thư này vì đã bật thông báo qua email. Có thể tắt trong Tài khoản → Cài đặt thông báo.</p>
+                {body}
               </div>
             </div>
             """;
+        // The subject is plain text: decode what the template filled in
+        return (WebUtility.HtmlDecode(subject ?? n.Title), html);
     }
 }

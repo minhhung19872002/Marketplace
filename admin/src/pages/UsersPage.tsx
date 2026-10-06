@@ -6,6 +6,7 @@ import { promoApi } from '../api/promo'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
 import { P, can } from '../permissions'
+import UserDetailDrawer from '../components/UserDetailDrawer'
 
 const STATUS: Record<UserStatus, { text: string; color: string }> = {
   Active: { text: 'Hoạt động', color: 'green' },
@@ -28,6 +29,7 @@ const UsersPage = ({ permissions }: { permissions: string[] }) => {
   const [granting, setGranting] = useState<AdminUser | null>(null)
   const [coins, setCoins] = useState<number | null>(10000)
   const [coinReason, setCoinReason] = useState('')
+  const [viewing, setViewing] = useState<string | null>(null)
 
   const users = useQuery({
     queryKey: ['users', page, pageSize, q, status, adminsOnly],
@@ -108,6 +110,7 @@ const UsersPage = ({ permissions }: { permissions: string[] }) => {
             title: '',
             render: (_, u) => (
               <Space>
+                <Button size="small" onClick={() => setViewing(u.id)} data-testid="user-detail">Chi tiết</Button>
                 {can(permissions, P.UserLock) && u.status === 'Active' && (
                   <Button size="small" danger onClick={() => setLocking(u)}>Khoá</Button>
                 )}
@@ -128,6 +131,8 @@ const UsersPage = ({ permissions }: { permissions: string[] }) => {
           },
         ]}
       />
+
+      <UserDetailDrawer userId={viewing} onClose={() => setViewing(null)} permissions={permissions} />
 
       <Modal title={`ShopHub Xu — ${granting?.fullName ?? ''}`} open={!!granting} onCancel={() => setGranting(null)} cancelText="Huỷ"
         okText="Cập nhật" okButtonProps={{ disabled: !coins || !coinReason.trim(), loading: grant.isPending }} onOk={() => grant.mutate()}>

@@ -232,3 +232,19 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Không có khoá thì giả lập vẫn chạy; hãng lỗi không chặn thanh toán | 00 #97, #102 | toàn bộ bộ test cũ (kênh thật tắt) + `A_carrier_outage_drops_only_that_option_and_checkout_goes_on`; e2e trên stack không có khoá |
 | Ánh xạ trạng thái hãng → trạng thái vận đơn, chuẩn hoá tên địa danh | `GhnCarrier.Map`, `GhtkCarrier.Map`, `DivisionNameResolver` | `ProviderRulesTests` (9 + 8 + 8 trường hợp) |
 | **Chưa kiểm với sandbox thật** | cần tài khoản thử của từng nhà cung cấp | 00 #103, `docs/04` |
+
+## Phase 12 — Quản trị & báo cáo
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| VI.1 Tổng quan: GMV, đơn, người mua / shop mới, tỉ lệ huỷ / hoàn, doanh thu phí, theo ngày / tuần / tháng, biểu đồ, việc chờ xử lý | `AdminOverviewHandler`, admin → Tổng quan (Recharts) | e2e `reports.spec.cjs` (KPI có số); phép thử GMV ở dưới |
+| VI.10 Báo cáo: GMV theo thời gian / ngành / tỉnh, top shop, top sản phẩm, voucher, Flash Sale, huỷ theo shop & lý do, trả hàng, người dùng mới & quay lại, phễu — bảng + biểu đồ + Excel / PDF, **khớp truy vấn độc lập** | 00 #104–106, `AdminReports`, admin → Báo cáo | `Gmv_reports_tie_out_with_independent_sql_and_the_excel_and_pdf_carry_the_same_numbers` (SQL viết riêng, đọc lại Excel bằng ClosedXML, PDF bằng PdfPig), `Funnel_and_seller_analytics_follow_views_cart_adds_and_orders` |
+| Khoảng ngày ngược báo lỗi ở một chỗ | `ReportRange.Of` | phép thử GMV ở trên (409 tiếng Việt) |
+| III.8 Dữ liệu & phân tích của shop (kỳ trước, top sản phẩm, nguồn truy cập, xuất Excel) + hiệu quả hoạt động (đơn không thành công, giao trễ, phản hồi chat, điểm phạt & hậu quả) | `SellerAnalytics`, Kênh Người Bán → Dữ liệu & phân tích | phép thử phễu ở trên (doanh số, chuyển đổi 100%, nguồn Search, IDOR → 404); e2e `reports.spec.cjs` |
+| VI.2 Người dùng: chi tiết (đơn, đánh giá, vi phạm, thiết bị), đặt lại mật khẩu cắt phiên, nhật ký theo người | 00 #109, `AdminUserDetailHandler`, `AdminResetPasswordHandler` | `Cms_help_templates_password_reset_and_gateway_switch_work_end_to_end` (mật khẩu cũ hỏng, mật khẩu tạm phải đổi, phiên cũ 401) |
+| VI.3 Điểm phạt: luật cộng điểm, ngưỡng & hậu quả, gỡ điểm, lịch sử | 00 #107, `ShopPenaltyService`, admin → Shop → Điểm phạt | `Penalty_points_are_recomputed_from_their_rows_and_each_threshold_has_its_consequence` (hạn chế hiển thị, cấm đăng ký Flash Sale 409, điểm hết hạn không tính, khoá shop, gỡ điểm) |
+| VI.4 Cây danh mục kéo thả, thương hiệu, báo cáo sản phẩm vi phạm, khoá hàng loạt (có trần) | `MoveCategoryHandler`, `BulkBanProductsHandler`, `ProductReport*` | `A_category_moves_with_its_subtree_but_never_deeper_than_three_levels`, `Buyer_reports_a_product_once_and_banning_it_closes_every_open_report` (trùng → 409, 101 sản phẩm → 400) |
+| VI.5 Tra đơn toàn bộ lịch sử, can thiệp có kiểm soát (quyền riêng, lý do, nhật ký) | 00 #108, admin → Đơn hàng | `Admin_cancels_an_order_with_a_reason_and_a_failed_refund_can_be_sent_to_the_wallet` (không quyền 403, lý do ngắn 400, lệnh hoàn lỗi → ví, xử lý lần hai 409); e2e `reports.spec.cjs` |
+| VI.8 Trang tĩnh, trợ giúp, mẫu thư / SMS, tham số có lịch sử, bật / tắt đơn vị vận chuyển & cổng thanh toán | 00 #110, admin → Nội dung & mẫu tin, Vận chuyển & cổng thanh toán | phép thử nội dung ở trên (HTML bị lọc `<script>`, mẫu OTP mới tới SMS, biến lạ → 409, tắt MoMo biến mất khỏi nạp ví); e2e trang pháp lý / trợ giúp / footer |
+| VI.9 Nhật ký: lọc người / hành động / đối tượng / thời gian, khác biệt cũ / mới, xuất Excel | `AuditLogsExportHandler`, admin → Nhật ký | phép thử nội dung ở trên (xuất có dòng đổi tham số) |
+| **Dời lại** | trang trí shop, Excel sản phẩm hàng loạt, mẫu thông báo từng sự kiện | 00 #111 |

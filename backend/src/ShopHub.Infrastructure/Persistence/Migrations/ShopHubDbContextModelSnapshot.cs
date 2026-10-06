@@ -537,6 +537,69 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("product_media", "catalog");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Catalog.ProductReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("details");
+
+                    b.Property<DateTimeOffset?>("HandledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("handled_at");
+
+                    b.Property<Guid?>("HandledBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("handled_by");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("ReporterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reporter_id");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("resolution");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_product_reports");
+
+                    b.HasIndex("ProductId", "ReporterId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_product_reports_open")
+                        .HasFilter("status = 'Open'");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("ix_product_reports_status");
+
+                    b.ToTable("product_reports", "catalog");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Catalog.Sku", b =>
                 {
                     b.Property<Guid>("Id")
@@ -744,6 +807,53 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasName("pk_broadcasts");
 
                     b.ToTable("broadcasts", "engage");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.CartAdd", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("added_at");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("SessionKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("session_key");
+
+                    b.Property<Guid>("SkuId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sku_id");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cart_adds");
+
+                    b.HasIndex("AddedAt")
+                        .HasDatabaseName("ix_cart_adds_at");
+
+                    b.HasIndex("ProductId", "AddedAt")
+                        .HasDatabaseName("ix_cart_adds_product");
+
+                    b.ToTable("cart_adds", "engage", t =>
+                        {
+                            t.HasCheckConstraint("ck_cart_adds_quantity", "quantity > 0");
+                        });
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Engage.ChatMessage", b =>
@@ -1128,6 +1238,14 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("session_key");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Direct")
+                        .HasColumnName("source");
 
                     b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
@@ -5335,6 +5453,14 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid?>("GivenBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("given_by");
+
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("uuid")
                         .HasColumnName("order_id");
@@ -5348,6 +5474,15 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")
                         .HasColumnName("reason");
+
+                    b.Property<string>("RevokeReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("revoke_reason");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
 
                     b.Property<Guid>("ShopId")
                         .HasColumnType("uuid")
@@ -5518,6 +5653,119 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_shop_warehouses_shop");
 
                     b.ToTable("shop_warehouses", "shop");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.SystemConfig.CmsPage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_published");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("slug");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Topic")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("topic");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cms_pages");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_cms_pages_slug");
+
+                    b.ToTable("cms_pages", "sys");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.SystemConfig.MessageTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("body");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("channel");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Placeholders")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("placeholders");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("subject");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_message_templates");
+
+                    b.HasIndex("Key", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ux_message_templates_key");
+
+                    b.ToTable("message_templates", "sys");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.SystemConfig.OutboxMessage", b =>
@@ -5804,6 +6052,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_product_media_products_product_id");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Catalog.ProductReport", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_reports_products_product_id");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Catalog.Sku", b =>
                 {
                     b.HasOne("ShopHub.Domain.Catalog.VariantOption", null)
@@ -5844,6 +6102,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_variant_tiers_products_product_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.CartAdd", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_cart_adds_products_product_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Engage.ChatMessage", b =>

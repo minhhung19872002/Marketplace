@@ -229,6 +229,7 @@ public sealed class OrderAutomationService(
     OrderLocks locks,
     OrderCanceller canceller,
     ISystemParameters parameters,
+    Seller.ShopPenaltyService penalties,
     IOutbox outbox,
     IClock clock,
     ILogger<OrderAutomationService> logger)
@@ -236,6 +237,8 @@ public sealed class OrderAutomationService(
     public async Task<(int Completed, int AutoApproved, int Overdue)> RunAsync(CancellationToken ct)
     {
         var now = clock.UtcNow;
+        await penalties.RecomputeExpiredAsync(ct);
+        var penaltyDays = await parameters.GetIntAsync(ParameterKeys.ShopPenaltyExpiryDays, ct);
         var completed = 0;
         foreach (var id in await db.Orders.AsNoTracking().Where(o => o.Status == OrderStatus.Delivered && o.AutoCompleteAt <= now)
                      .OrderBy(o => o.AutoCompleteAt).ThenBy(o => o.Id).Select(o => o.Id).Take(500).ToListAsync(ct))
@@ -278,12 +281,8 @@ public sealed class OrderAutomationService(
                     var deadline = VietnamTime.AddWorkingDays(start, days, new HashSet<DateOnly>());
                     if (VietnamTime.Today(now) <= deadline) return false;
                     await canceller.CancelAsync(order, OrderActor.System, null, "Shop không chuẩn bị hàng đúng hạn", ct);
-                    db.ShopPenalties.Add(new ShopPenalty(order.ShopId, 1, "Không chuẩn bị hàng đúng hạn", order.Id, now));
-                    await db.SaveChangesAsync(ct);
-                    await db.ExecuteSqlAsync($"""
-                        UPDATE shop.shops SET penalty_points = (SELECT COALESCE(SUM(points), 0) FROM shop.shop_penalties WHERE shop_id = {order.ShopId})
-                        WHERE id = {order.ShopId}
-                        """, ct);
+                    db.ShopPenalties.Add(new ShopPenalty(order.ShopId, 1, "Không chuẩn bị hàng đúng hạn", order.Id, now, now.AddDays(penaltyDays)));
+                    await penalties.RecomputeAsync(order.ShopId, ct);
                     return true;
                 }, ct)) overdue++;
         }

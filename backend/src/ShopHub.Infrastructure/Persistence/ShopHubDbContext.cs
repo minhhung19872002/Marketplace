@@ -73,6 +73,10 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<Refund> Refunds => Set<Refund>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ShopPenalty> ShopPenalties => Set<ShopPenalty>();
+    public DbSet<Domain.Engage.CartAdd> CartAdds => Set<Domain.Engage.CartAdd>();
+    public DbSet<Domain.Catalog.ProductReport> ProductReports => Set<Domain.Catalog.ProductReport>();
+    public DbSet<Domain.SystemConfig.CmsPage> CmsPages => Set<Domain.SystemConfig.CmsPage>();
+    public DbSet<Domain.SystemConfig.MessageTemplate> MessageTemplates => Set<Domain.SystemConfig.MessageTemplate>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<ReviewMedia> ReviewMedia => Set<ReviewMedia>();
     public DbSet<ReviewReport> ReviewReports => Set<ReviewReport>();

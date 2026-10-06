@@ -94,6 +94,9 @@ public class Shop : AuditableEntity
         Status = ShopStatus.PendingReview;
     }
 
+    /// <summary>Total of the penalty points still counting — written only by the recomputation from shop_penalties.</summary>
+    public void SetPenaltyPoints(int points) => PenaltyPoints = Math.Max(0, points);
+
     public void Lock(string reason)
     {
         if (string.IsNullOrWhiteSpace(reason)) throw new BusinessRuleException("Cần ghi lý do khoá.");
@@ -296,14 +299,19 @@ public class ShopPenalty : Entity
 {
     private ShopPenalty() { }
 
-    public ShopPenalty(Guid shopId, int points, string reason, Guid? orderId, DateTimeOffset now)
+    // expiresAt: points count until then (null = never expire); createdBy: the admin who gave it (null = automatic)
+    public ShopPenalty(Guid shopId, int points, string reason, Guid? orderId, DateTimeOffset now, DateTimeOffset? expiresAt = null, Guid? createdBy = null)
     {
         if (points <= 0) throw new BusinessRuleException("Điểm phạt phải lớn hơn 0.");
+        if (string.IsNullOrWhiteSpace(reason)) throw new BusinessRuleException("Vui lòng nhập lý do phạt.");
+        if (expiresAt is { } e && e <= now) throw new BusinessRuleException("Hạn của điểm phạt phải ở tương lai.");
         ShopId = shopId;
         Points = points;
-        Reason = reason;
+        Reason = reason.Trim();
         OrderId = orderId;
         CreatedAt = now;
+        ExpiresAt = expiresAt;
+        GivenBy = createdBy;
     }
 
     public Guid ShopId { get; private set; }
@@ -311,5 +319,19 @@ public class ShopPenalty : Entity
     public string Reason { get; private set; } = string.Empty;
     public Guid? OrderId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset? ExpiresAt { get; private set; }
+    public Guid? GivenBy { get; private set; }
+    public DateTimeOffset? RevokedAt { get; private set; }
+    public string? RevokeReason { get; private set; }
+
+    public bool CountsAt(DateTimeOffset now) => RevokedAt is null && (ExpiresAt is null || ExpiresAt > now);
+
+    public void Revoke(string reason, DateTimeOffset now)
+    {
+        if (RevokedAt is not null) throw new BusinessRuleException("Điểm phạt này đã được gỡ.");
+        if (string.IsNullOrWhiteSpace(reason)) throw new BusinessRuleException("Vui lòng nhập lý do gỡ điểm phạt.");
+        RevokedAt = now;
+        RevokeReason = reason.Trim();
+    }
 }
 

@@ -50,3 +50,12 @@ export const vnDayBoundsIso = (fromDay?: string, toDay?: string): { from?: strin
   from: fromDay ? new Date(`${fromDay}T00:00:00+07:00`).toISOString() : undefined,
   to: toDay ? new Date(`${toDay}T23:59:59.999+07:00`).toISOString() : undefined,
 });
+
+/** Today's Vietnam calendar day as "YYYY-MM-DD" (report filters), whatever the browser's time zone. */
+export const vnTodayIso = (nowMs: number = Date.now()): string => new Date(nowMs + VN_OFFSET_MS).toISOString().slice(0, 10);
+
+/** "YYYY-MM-DD" shifted by n days. */
+export const addDaysIso = (day: string, n: number): string => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/** "YYYY-MM-DD" → "06/10/2026". */
+export const formatIsoDay = (day: string): string => `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;

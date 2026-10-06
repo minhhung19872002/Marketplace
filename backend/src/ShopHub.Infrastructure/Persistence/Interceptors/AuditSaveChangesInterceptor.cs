@@ -22,7 +22,7 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
     // High-volume or secret-bearing rows are not journalled (sessions/OTPs have their own tables and timestamps)
     private static readonly HashSet<Type> NotAudited =
         [typeof(AuditLog), typeof(OutboxMessage), typeof(SimulatedSms), typeof(AdminDivision), typeof(RefreshToken), typeof(OtpCode),
-         typeof(Domain.Catalog.InventoryMovement), typeof(Domain.Media.MediaAsset), typeof(Domain.Engage.ProductView),
+         typeof(Domain.Catalog.InventoryMovement), typeof(Domain.Media.MediaAsset), typeof(Domain.Engage.ProductView), typeof(Domain.Engage.CartAdd),
          typeof(Domain.Engage.SearchLog), typeof(Domain.Engage.Wishlist), typeof(Domain.Engage.ShopFollower),
          // Orders keep their own status history; carts, payments and ledgers are their own journal
          typeof(Domain.Sales.Cart), typeof(Domain.Sales.CartItem), typeof(Domain.Sales.CheckoutSession), typeof(Domain.Sales.Order),
@@ -30,7 +30,7 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
          typeof(Domain.Sales.Payment), typeof(Domain.Sales.PaymentWebhookEvent), typeof(Domain.Promo.VoucherClaim),
          typeof(Domain.Promo.VoucherUsage), typeof(Domain.Promo.VoucherUserCounter), typeof(Domain.Promo.CoinEntry),
          typeof(Domain.Logistics.ShippingRate), typeof(SimulatedPayment), typeof(Domain.Logistics.Shipment), typeof(Domain.Logistics.ShipmentEvent),
-         typeof(Domain.Sales.OrderCancelRequest), typeof(Domain.Sales.Refund), typeof(Domain.Engage.Notification), typeof(Domain.Shops.ShopPenalty),
+         typeof(Domain.Sales.OrderCancelRequest), typeof(Domain.Sales.Refund), typeof(Domain.Engage.Notification),
          typeof(Domain.Engage.Review), typeof(Domain.Engage.ReviewMedia), typeof(Domain.Engage.ReviewReport), typeof(Domain.Sales.ReturnRequest),
          typeof(Domain.Sales.ReturnItem), typeof(Domain.Sales.ReturnEvidence), typeof(Domain.Sales.ReturnHistory),
          // The ledger is its own journal; the wallet row only carries the PIN hash and its lockout

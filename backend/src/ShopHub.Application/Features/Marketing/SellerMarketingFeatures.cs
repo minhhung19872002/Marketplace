@@ -313,11 +313,15 @@ public sealed class RegisterFlashItemsValidator : AbstractValidator<RegisterFlas
 }
 
 /// <summary>Đăng ký Flash Sale của sàn: items must meet the slot's criteria; the platform approves them.</summary>
-public sealed class RegisterFlashItemsHandler(IApplicationDbContext db, SellerAccess access, IClock clock) : IRequestHandler<RegisterFlashItemsCommand, int>
+public sealed class RegisterFlashItemsHandler(IApplicationDbContext db, SellerAccess access, ShopPenaltyService penalties, IClock clock)
+    : IRequestHandler<RegisterFlashItemsCommand, int>
 {
     public async Task<int> Handle(RegisterFlashItemsCommand request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.MarketingManage, ct);
+        var penalty = await penalties.OfShopAsync(request.ShopId, ct);
+        if (penalty.Level >= PenaltyLevel.CampaignBan)
+            throw new ConflictException($"Shop có {penalty.Points} điểm phạt (từ {penalty.CampaignBanAt} điểm không được đăng ký chiến dịch của sàn).", "PENALTY_BAN");
         var now = clock.UtcNow;
         var slot = await db.FlashSaleSlots.AsNoTracking().FirstOrDefaultAsync(s => s.Id == request.SlotId && s.Owner == FlashSaleOwner.Platform, ct)
                    ?? throw new NotFoundException("Không tìm thấy khung Flash Sale.");

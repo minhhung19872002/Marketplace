@@ -138,7 +138,7 @@ public sealed class GetProductPageHandler(IApplicationDbContext db) : IRequestHa
     }
 }
 
-public record RecordProductViewCommand(Guid ProductId, string? SessionKey) : IRequest<Unit>;
+public record RecordProductViewCommand(Guid ProductId, string? SessionKey, ViewSource Source = ViewSource.Direct) : IRequest<Unit>;
 
 /// <summary>Counts a view unless the same viewer saw the product within PRODUCT.VIEW_DEDUPE_MINUTES.</summary>
 public sealed class RecordProductViewHandler(IApplicationDbContext db, ICurrentUser currentUser, ISystemParameters parameters, IClock clock)
@@ -160,7 +160,7 @@ public sealed class RecordProductViewHandler(IApplicationDbContext db, ICurrentU
                 && (userId != null ? v.UserId == userId : v.SessionKey == session), ct);
             if (seen) return Unit.Value;
 
-            db.ProductViews.Add(new ProductView(userId, session, request.ProductId, clock.UtcNow));
+            db.ProductViews.Add(new ProductView(userId, session, request.ProductId, clock.UtcNow, request.Source));
             await db.SaveChangesAsync(ct);
             return Unit.Value;
         }, ct);
@@ -213,7 +213,7 @@ public sealed class RecommendationsValidator : AbstractValidator<Recommendations
 /// "Gợi ý hôm nay": categories the viewer looked at in the last 30 days come first, then best sellers. Anonymous
 /// visitors without history simply get the best sellers.
 /// </summary>
-public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUser currentUser, IClock clock)
+public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUser currentUser, ISystemParameters parameters, IClock clock)
     : IRequestHandler<RecommendationsQuery, PagedResult<ProductCardDto>>
 {
     public async Task<PagedResult<ProductCardDto>> Handle(RecommendationsQuery request, CancellationToken ct)
@@ -230,7 +230,10 @@ public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUse
                                orderby g.Count() descending, g.Key
                                select g.Key).Take(5).ToListAsync(ct);
 
+        // Shops "hạn chế hiển thị" by penalty points are left out of "Gợi ý hôm nay"
+        var restrict = await parameters.GetIntAsync(ParameterKeys.ShopPenaltyRestrictPoints, ct);
         var page = await ProductCards.Visible(db).AsNoTracking()
+            .Where(p => !db.Shops.Any(s => s.Id == p.ShopId && s.PenaltyPoints >= restrict))
             .OrderByDescending(p => interests.Contains(p.CategoryId))
             .ThenByDescending(p => p.SoldCount).ThenByDescending(p => p.RatingAvg).ThenByDescending(p => p.PublishedAt).ThenBy(p => p.Id)
             .ToPagedResultAsync(ProductCards.Row(db), request, ct);

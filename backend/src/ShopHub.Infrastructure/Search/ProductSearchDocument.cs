@@ -37,7 +37,9 @@ public sealed record ProductSearchDocument(
     string? BrandName,
     string Condition,
     IReadOnlyList<string> Attributes,
-    long PublishedAt);
+    long PublishedAt,
+    // 1 when the shop is "hạn chế hiển thị" by penalty points: ranked after everything else
+    int Restricted = 0);
 
 public static class ProductSearchProjection
 {
@@ -54,6 +56,9 @@ public static class ProductSearchProjection
             .ToListAsync(ct);
         var shopIds = products.Select(p => p.ShopId).Distinct().ToList();
         var shops = await db.Shops.AsNoTracking().Where(s => shopIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, ct);
+        var restrictRaw = await db.SystemParameters.AsNoTracking().Where(x => x.Key == Application.SystemConfig.ParameterKeys.ShopPenaltyRestrictPoints)
+            .Select(x => x.Value).FirstOrDefaultAsync(ct);
+        var restrictAt = int.TryParse(restrictRaw, out var r) ? r : int.MaxValue;
         var provinces = await (from w in db.ShopWarehouses
                                join d in db.AdminDivisions on w.ProvinceCode equals d.Code
                                where shopIds.Contains(w.ShopId) && w.IsPickupDefault
@@ -89,7 +94,8 @@ public static class ProductSearchProjection
                 p.Condition.ToString(),
                 p.Attributes.Where(a => attributeNames.ContainsKey(a.AttributeId))
                     .SelectMany(a => a.Values.Select(v => $"{attributeNames[a.AttributeId]}={v}")).ToList(),
-                (p.PublishedAt ?? p.CreatedAt).ToUnixTimeSeconds()));
+                (p.PublishedAt ?? p.CreatedAt).ToUnixTimeSeconds(),
+                shop.PenaltyPoints >= restrictAt ? 1 : 0));
         }
 
         var removed = ids.Except(products.Select(p => p.Id)).ToList();

@@ -3,6 +3,7 @@ import { App as AntApp, Button, Card, Checkbox, Col, Form, Input, InputNumber, M
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { catalogApi, type AttributeInputType, type Brand, type CategoryAttribute, type CategoryNode } from '../api/catalog'
 import { ApiError } from '../api/http'
+import { platformApi } from '../api/platform'
 
 const INPUT_TYPES: { value: AttributeInputType; label: string }[] = [
   { value: 'SingleSelect', label: 'Chọn một' },
@@ -96,7 +97,26 @@ const CategoriesPage = () => {
       <Row gutter={16}>
         <Col xs={24} lg={10}>
           <Card title="Cây danh mục" extra={<Button size="small" onClick={() => openCategory(null, null)}>+ Danh mục cấp 1</Button>} loading={tree.isPending}>
-            <Tree treeData={toTree(tree.data ?? [])} onSelect={(keys) => setSelected(all.find((c) => c.id === keys[0]) ?? null)} height={560} />
+            <Typography.Text type="secondary">Kéo thả để đổi vị trí hoặc chuyển sang danh mục cha khác (tối đa 3 cấp).</Typography.Text>
+            <Tree treeData={toTree(tree.data ?? [])} onSelect={(keys) => setSelected(all.find((c) => c.id === keys[0]) ?? null)} height={560}
+              draggable={{ icon: false }}
+              onDrop={async (info) => {
+                const dragged = all.find((c) => c.id === String(info.dragNode.key))
+                const target = all.find((c) => c.id === String(info.node.key))
+                if (!dragged || !target) return
+                // Dropped on a node = becomes its child; dropped in a gap = sibling of that node
+                const parentId = info.dropToGap ? target.parentId : target.id
+                // antd gives an absolute position: compare it with the target's own index to know before / after
+                const after = info.dropPosition - Number(String(info.node.pos).split('-').pop()) > 0
+                const sortOrder = info.dropToGap ? target.sortOrder + (after ? 1 : -1) : 0
+                try {
+                  const r = await platformApi.moveCategory(dragged.id, parentId, sortOrder)
+                  message.success(r.message)
+                  void queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
+                } catch (e) {
+                  message.error(errorText(e))
+                }
+              }} />
           </Card>
         </Col>
         <Col xs={24} lg={14}>

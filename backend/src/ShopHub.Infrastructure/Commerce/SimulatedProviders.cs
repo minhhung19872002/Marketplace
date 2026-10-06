@@ -120,7 +120,7 @@ public sealed class SimulatedGatewayDesk(ShopHubDbContext db, SimulatedGateway g
     }
 }
 
-public sealed class PaymentGatewayRegistry(IEnumerable<IPaymentGateway> gateways) : IPaymentGatewayRegistry
+public sealed class PaymentGatewayRegistry(IEnumerable<IPaymentGateway> gateways, ISystemParameters parameters) : IPaymentGatewayRegistry
 {
     public IPaymentGateway For(PaymentMethod method) =>
         gateways.FirstOrDefault(g => g.Method == method) ?? throw new ConflictException("Phương thức thanh toán này chưa được hỗ trợ.", "NO_GATEWAY");
@@ -132,4 +132,19 @@ public sealed class PaymentGatewayRegistry(IEnumerable<IPaymentGateway> gateways
 
     // Real gateways first, the simulated one last
     public IReadOnlyList<IPaymentGateway> Online => gateways.OrderBy(g => g.Method == PaymentMethod.Simulated).ThenBy(g => g.Method).ToList();
+
+    public async Task<IReadOnlyList<IPaymentGateway>> EnabledAsync(CancellationToken ct)
+    {
+        var raw = await parameters.GetStringAsync(Application.SystemConfig.ParameterKeys.PaymentDisabledMethods, ct);
+        List<string> off;
+        try
+        {
+            off = JsonSerializer.Deserialize<List<string>>(raw) ?? [];
+        }
+        catch (JsonException)
+        {
+            off = [];
+        }
+        return Online.Where(g => !off.Contains(g.Method.ToString(), StringComparer.OrdinalIgnoreCase)).ToList();
+    }
 }

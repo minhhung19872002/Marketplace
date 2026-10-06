@@ -44,18 +44,34 @@ public class ProductView : Entity
 {
     private ProductView() { }
 
-    public ProductView(Guid? userId, string? sessionKey, Guid productId, DateTimeOffset viewedAt)
+    public ProductView(Guid? userId, string? sessionKey, Guid productId, DateTimeOffset viewedAt, ViewSource source = ViewSource.Direct)
     {
         UserId = userId;
         SessionKey = sessionKey;
         ProductId = productId;
         ViewedAt = viewedAt;
+        Source = source;
     }
+
+    // Where the viewer came from (seller analytics: nguồn truy cập)
+    public ViewSource Source { get; private set; }
 
     public Guid? UserId { get; private set; }
     public string? SessionKey { get; private set; }
     public Guid ProductId { get; private set; }
     public DateTimeOffset ViewedAt { get; private set; }
+}
+
+public enum ViewSource
+{
+    Direct,    // typed / bookmarked / no referrer
+    Home,      // trang chủ, gợi ý hôm nay
+    Search,    // trang tìm kiếm
+    Category,  // trang danh mục
+    Shop,      // trang shop
+    Campaign,  // trang sự kiện, Flash Sale
+    External,  // another site (social, ads)
+    Other,
 }
 
 // Search queries for "từ khoá hot" and suggestions (keyword stored folded: lower-case, no tones)
@@ -97,4 +113,27 @@ public class CheckIn : Entity
     public int StreakDay { get; private set; }
     public long Coins { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+}
+
+/// <summary>"Thêm vào giỏ" as an event (the cart itself only keeps the current state): the conversion funnel's second step.</summary>
+public class CartAdd : Entity
+{
+    private CartAdd() { }
+
+    public CartAdd(Guid? userId, string? sessionKey, Guid productId, Guid skuId, int quantity, DateTimeOffset addedAt)
+    {
+        UserId = userId;
+        SessionKey = sessionKey;
+        ProductId = productId;
+        SkuId = skuId;
+        Quantity = quantity;
+        AddedAt = addedAt;
+    }
+
+    public Guid? UserId { get; private set; }
+    public string? SessionKey { get; private set; }
+    public Guid ProductId { get; private set; }
+    public Guid SkuId { get; private set; }
+    public int Quantity { get; private set; }
+    public DateTimeOffset AddedAt { get; private set; }
 }

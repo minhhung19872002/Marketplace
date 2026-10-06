@@ -60,9 +60,9 @@ public sealed class StorefrontController : ApiControllerBase
     [HttpPost("products/{id:guid}/views")]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> View(Guid id, CancellationToken ct)
+    public async Task<IActionResult> View(Guid id, [FromQuery] Domain.Engage.ViewSource source = Domain.Engage.ViewSource.Direct, CancellationToken ct = default)
     {
-        await Sender.Send(new RecordProductViewCommand(id, VisitorKey()), ct);
+        await Sender.Send(new RecordProductViewCommand(id, VisitorKey(), source), ct);
         return OkData<object?>(null);
     }
 

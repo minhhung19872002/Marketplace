@@ -713,3 +713,71 @@
   padding: 2px 8px;
   font-size: 13px;
 }
+
+.pd-report {
+  margin-top: 12px;
+  border: none;
+  background: none;
+  color: var(--sh-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pd-report-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.pd-report-box {
+  background: #fff;
+  width: min(420px, 100%);
+  padding: 20px;
+  border-radius: 4px;
+}
+
+.pd-report-box h3 {
+  margin: 0 0 12px;
+}
+
+.pd-report-reason {
+  display: block;
+  margin: 6px 0;
+}
+
+.pd-report-box textarea {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.pd-report-error {
+  color: #d0011b;
+  font-size: 13px;
+}
+
+.pd-report-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pd-report-actions button {
+  padding: 7px 16px;
+  border: 1px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+}
+
+.pd-report-actions .primary {
+  background: var(--sh-primary);
+  border-color: var(--sh-primary);
+  color: #fff;
+}

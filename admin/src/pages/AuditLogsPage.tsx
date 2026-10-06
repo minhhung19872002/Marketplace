@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Alert, DatePicker, Input, Select, Space, Table, Tag, Typography } from 'antd'
+import { Alert, App, Button, DatePicker, Input, Select, Space, Table, Tag, Typography } from 'antd'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
 import { adminApi, type AuditLog } from '../api/admin'
 import { ApiError } from '../api/http'
+import { platformApi, saveBlob } from '../api/platform'
 import { formatDateTime, vnDayBoundsIso } from '../lib/datetime'
 
 const ACTION_COLOR = { CREATE: 'green', UPDATE: 'blue', DELETE: 'red' } as const
@@ -18,18 +20,30 @@ const pretty = (json: string | null) => {
 }
 
 const AuditLogsPage = () => {
+  const { message } = App.useApp()
+  // Opened from a user's detail (?userId=) or a parameter's history (?entity=SystemParameter&entityId=)
+  const [params, setParams] = useSearchParams()
+  const userId = params.get('userId') ?? undefined
+  const entityId = params.get('entityId') ?? undefined
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [action, setAction] = useState<string | undefined>()
-  const [entity, setEntity] = useState('')
+  const [entity, setEntity] = useState(params.get('entity') ?? '')
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
 
   // The picker yields calendar days; bounds are computed in Vietnam time
   const { from, to } = vnDayBoundsIso(range?.[0]?.format('YYYY-MM-DD'), range?.[1]?.format('YYYY-MM-DD'))
   const logs = useQuery({
-    queryKey: ['audit', page, pageSize, action, entity, from, to],
-    queryFn: () => adminApi.auditLogs({ page, pageSize, action, entity, from, to }),
+    queryKey: ['audit', page, pageSize, action, entity, entityId, userId, from, to],
+    queryFn: () => adminApi.auditLogs({ page, pageSize, action, entity, entityId, userId, from, to }),
   })
+  const exportExcel = async () => {
+    try {
+      saveBlob(await platformApi.auditExport({ action, entity, entityId, userId, from, to }), 'nhat-ky-thao-tac.xlsx')
+    } catch (e) {
+      message.error(e instanceof ApiError ? e.message : 'Không xuất được nhật ký.')
+    }
+  }
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -40,6 +54,10 @@ const AuditLogsPage = () => {
           options={[{ value: 'CREATE', label: 'Tạo' }, { value: 'UPDATE', label: 'Sửa' }, { value: 'DELETE', label: 'Xoá' }]} />
         <Input.Search placeholder="Đối tượng (VD: User)" allowClear style={{ width: 220 }} onSearch={(v) => { setEntity(v); setPage(1) }} />
         <DatePicker.RangePicker format="DD/MM/YYYY" value={range} onChange={(v) => { setRange(v); setPage(1) }} />
+        {(userId || entityId) && (
+          <Tag closable onClose={() => { setParams({}); setPage(1) }}>{userId ? 'Lọc theo người dùng' : 'Lọc theo đối tượng'}</Tag>
+        )}
+        <Button onClick={exportExcel} data-testid="audit-export">Xuất Excel</Button>
       </Space>
       {logs.isError && <Alert type="error" showIcon message={logs.error instanceof ApiError ? logs.error.message : 'Không tải được nhật ký.'} />}
       <Table<AuditLog>

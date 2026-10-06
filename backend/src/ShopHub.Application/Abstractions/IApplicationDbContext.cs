@@ -70,6 +70,10 @@ public interface IApplicationDbContext
     DbSet<Refund> Refunds { get; }
     DbSet<Notification> Notifications { get; }
     DbSet<ShopPenalty> ShopPenalties { get; }
+    DbSet<Domain.Engage.CartAdd> CartAdds { get; }
+    DbSet<Domain.Catalog.ProductReport> ProductReports { get; }
+    DbSet<Domain.SystemConfig.CmsPage> CmsPages { get; }
+    DbSet<Domain.SystemConfig.MessageTemplate> MessageTemplates { get; }
     DbSet<Review> Reviews { get; }
     DbSet<ReviewMedia> ReviewMedia { get; }
     DbSet<ReviewReport> ReviewReports { get; }

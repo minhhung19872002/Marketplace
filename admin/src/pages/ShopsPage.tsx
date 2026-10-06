@@ -5,6 +5,7 @@ import { catalogApi, type ShopRow, type ShopStatus } from '../api/catalog'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
 import { P, can } from '../permissions'
+import ShopPenalties from '../components/ShopPenalties'
 
 const STATUS: Record<ShopStatus, { text: string; color: string }> = {
   PendingReview: { text: 'Chờ duyệt', color: 'gold' },
@@ -130,6 +131,7 @@ const ShopsPage = ({ permissions }: { permissions: string[] }) => {
                 <Checkbox checked={d.isPreferred} onChange={(e) => labels.mutate({ id: d.id, isMall: d.type === 'Mall', isPreferred: e.target.checked })}>Shop Yêu thích</Checkbox>
               </Space>
             )}
+            {d.status !== 'PendingReview' && <ShopPenalties shopId={d.id} canEdit={can(permissions, P.ShopPenalty)} />}
           </Space>
         )}
       </Drawer>

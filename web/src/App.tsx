@@ -24,6 +24,10 @@ const OrderDetailPage = lazy(() => import('./pages/account/CommercePages').then(
 const VouchersPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.VouchersPage })))
 const TrackingPage = lazy(() => import('./pages/TrackingPage'))
 const CoinsPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.CoinsPage })))
+const OrderReviewPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.OrderReviewPage })))
+const ReturnFormPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.ReturnFormPage })))
+const ReturnsPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.ReturnsPage })))
+const ReturnDetailPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.ReturnDetailPage })))
 const Wishlist = lazy(() => import('./pages/Wishlist'))
 const Notifications = lazy(() => import('./pages/Notifications'))
 const ShopPage = lazy(() => import('./pages/ShopPage'))
@@ -71,6 +75,10 @@ function App() {
                       <Route index element={<Navigate to="ho-so" replace />} />
                       <Route path="don-mua" element={<OrdersPage />} />
                       <Route path="don-mua/:code" element={<OrderDetailPage />} />
+                      <Route path="don-mua/:code/danh-gia" element={<OrderReviewPage />} />
+                      <Route path="don-mua/:code/tra-hang" element={<ReturnFormPage />} />
+                      <Route path="tra-hang" element={<ReturnsPage />} />
+                      <Route path="tra-hang/:code" element={<ReturnDetailPage />} />
                       <Route path="voucher" element={<VouchersPage />} />
                       <Route path="xu" element={<CoinsPage />} />
                       <Route path="ho-so" element={<ProfilePage />} />

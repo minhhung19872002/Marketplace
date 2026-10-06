@@ -121,7 +121,9 @@ public sealed class ShipmentEventProcessor(
         var order = await locks.LockAsync(shipment.OrderId, ct);
         var now = clock.UtcNow;
         var touched = false;
-        if (shipment.Direction == ShipmentDirection.Outbound)
+        if (shipment.Direction == ShipmentDirection.Return && shipment.ReturnId is { } returnId)
+            await Returns.ReturnAutomationService.OnReturnParcelAsync(db, returnId, e.Status, parameters, now, ct);
+        else if (shipment.Direction == ShipmentDirection.Outbound)
         {
             switch (e.Status)
             {

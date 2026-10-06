@@ -94,5 +94,8 @@ public interface ICounterRecomputer
     /// <summary>"Đã bán" = units in orders handed to the carrier and not returned.</summary>
     Task RecomputeProductSalesAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct);
 
+    /// <summary>Average rating and review count of the products and their shops, from visible reviews.</summary>
+    Task RecomputeRatingsAsync(IReadOnlyCollection<Guid> productIds, IReadOnlyCollection<Guid> shopIds, CancellationToken ct);
+
     Task<int> RecomputeAllAsync(CancellationToken ct);
 }

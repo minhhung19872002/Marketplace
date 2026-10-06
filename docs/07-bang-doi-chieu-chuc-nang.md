@@ -13,7 +13,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 4 | Tìm kiếm & trang người mua | **Xong** | Xem bảng Phase 4 dưới đây |
 | 5 | Giỏ hàng & thanh toán | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 5 dưới đây |
 | 6 | Đơn hàng & vận chuyển | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 6 dưới đây |
-| 7 | Đánh giá, trả hàng, khiếu nại | Chưa làm | |
+| 7 | Đánh giá, trả hàng, khiếu nại | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 7 dưới đây |
 | 8 | Tài chính | Chưa làm | |
 | 9 | Marketing | Chưa làm | |
 | 10 | Chat & thông báo thời gian thực | Chưa làm | |
@@ -156,3 +156,17 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Thân dữ liệu thiếu trường không gây 500 | 00 #65 | `MalformedInputTests` |
 | **Dời lại** | đánh giá, trả hàng (Phase 7), giải ngân (Phase 8), đẩy tức thời (Phase 10) | 00 #67 |
 
+## Phase 7 — Đánh giá, trả hàng, khiếu nại
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| Đánh giá sau khi hoàn thành: sao, thẻ, nội dung, ảnh/video, ẩn danh, sửa 1 lần, thưởng xu | 00 #68, `ReviewFeatures`, web `/tai-khoan/don-mua/{mã}/danh-gia` | `A_completed_order_can_be_reviewed_once_with_a_coin_reward_and_ratings_follow`; e2e **số 5** (đánh giá kèm ảnh → điểm sản phẩm 4.0, có xu) |
+| Trang sản phẩm: tóm tắt sao, lọc (sao / có ảnh / có bình luận), phản hồi của shop, báo cáo | `ProductReviewsQuery`, `components/ProductReviews.tsx` | phép thử trên; e2e số 5 |
+| Shop trả lời đánh giá; quản trị ẩn đánh giá bị báo cáo | `ReplyReview`, `ResolveReviewReport`; seller `Đánh giá`, admin `Báo cáo đánh giá` | `Only_completed_orders_can_be_reviewed_and_reported_reviews_can_be_hidden` |
+| Trả hàng một phần, hoàn đúng phần đã trả sau giảm giá | 00 #69, `ReturnPricing` | `Successive_partial_returns_add_up_to_exactly_what_was_paid_for_the_line`, `Partial_returns_refund_exactly_what_was_paid_after_every_discount`; e2e **số 7** (2 chiếc, SHOPHUB50 → hoàn 1 chiếc đúng ₫134.000) |
+| Shop chấp nhận / từ chối / đề nghị một phần / xác nhận đã nhận hàng (nhập lại kho) | `ShopReturnAction`, seller `Trả hàng / Hoàn tiền` | `Return_and_refund_ships_the_goods_back_then_the_shop_checks_and_restocks` |
+| Khiếu nại → sàn phân xử | `DecideDispute`, admin `Khiếu nại trả hàng` | `Rejected_return_goes_to_a_dispute_and_the_admin_decides_for_the_buyer`; e2e **số 7** |
+| Hạn xử lý tự động | 00 #70, `ReturnAutomationService` (chạy trong `sales.order-automation`) | `Deadlines_auto_approve_unanswered_returns_and_close_undisputed_rejections_and_late_requests_are_refused` |
+| Không trả trùng khi gửi song song | index `ux_return_items_open` | `Only_one_open_return_per_line_even_in_parallel` |
+| Hoàn tiền thu hồi thưởng đánh giá; IDOR trả hàng | 00 #68 | `A_refunded_line_loses_its_review_reward_and_strangers_cannot_touch_returns` |
+| **Dời lại** | ghi có ví cho hoàn COD và khoá giải ngân (Phase 8), chat trong yêu cầu (Phase 10) | 00 #71, #73 |

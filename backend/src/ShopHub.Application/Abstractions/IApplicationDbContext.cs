@@ -69,6 +69,14 @@ public interface IApplicationDbContext
     DbSet<Refund> Refunds { get; }
     DbSet<Notification> Notifications { get; }
     DbSet<ShopPenalty> ShopPenalties { get; }
+    DbSet<Review> Reviews { get; }
+    DbSet<ReviewMedia> ReviewMedia { get; }
+    DbSet<ReviewReport> ReviewReports { get; }
+    DbSet<ReturnRequest> ReturnRequests { get; }
+    DbSet<ReturnItem> ReturnItems { get; }
+    DbSet<ReturnEvidence> ReturnEvidence { get; }
+    DbSet<ReturnHistory> ReturnHistory { get; }
+    DbSet<Dispute> Disputes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

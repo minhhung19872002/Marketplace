@@ -1,4 +1,4 @@
-// Phase 6 — orders & shipping (spec section 9, scenarios 5 (up to "Đã nhận"), 6 and 11). Needs the stack and an admin:
+// Phase 6/7 — orders, shipping, reviews and returns (spec section 9, scenarios 5, 6, 7 and 11). Needs the stack and an admin:
 //   SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=... SH_E2E_ADMIN_PASSWORD=... npx playwright test orders.spec.cjs
 const fs = require('fs');
 const path = require('path');
@@ -71,6 +71,26 @@ async function buyCod(page, request, productId, buyer) {
   return code;
 }
 
+/** The simulated carrier pushes picked → in transit → out for delivery → delivered (steps sped up for the test). */
+async function deliverViaSimulator(request, admin, buyer, code) {
+  const params = await apiAs(request, admin.accessToken, 'GET', '/admin/system-parameters?group=LOGISTICS');
+  const step = params.find((p) => p.key === 'LOGISTICS.SIM_STEP_SECONDS');
+  await apiAs(request, admin.accessToken, 'PUT', `/admin/system-parameters/${step.key}`, { value: '0', version: step.version });
+  try {
+    for (const expected of ['Shipping', 'Shipping', 'Shipping', 'Delivered']) {
+      await apiAs(request, admin.accessToken, 'POST', '/admin/job-runs/logistics.carrier-simulator');
+      await expect(async () => {
+        const order = await apiAs(request, buyer.token, 'GET', `/orders/${code}`);
+        expect(order.status).toBe(expected);
+        expect(order.shipment.events.length).toBeGreaterThan(1);
+      }).toPass({ timeout: 20_000 });
+    }
+  } finally {
+    const now = (await apiAs(request, admin.accessToken, 'GET', '/admin/system-parameters?group=LOGISTICS')).find((p) => p.key === step.key);
+    await apiAs(request, admin.accessToken, 'PUT', `/admin/system-parameters/${step.key}`, { value: step.value, version: now.version });
+  }
+}
+
 async function newBuyer(request, name) {
   const account = await registerViaApi(request, name);
   const { token } = await addAddressViaApi(request, account);
@@ -122,23 +142,7 @@ test.describe('Đơn hàng & vận chuyển', () => {
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
     expect(pdf.length).toBeGreaterThan(2000);
 
-    // The simulated carrier pushes picked → in transit → out for delivery → delivered
-    const params = await apiAs(request, admin.accessToken, 'GET', '/admin/system-parameters?group=LOGISTICS');
-    const step = params.find((p) => p.key === 'LOGISTICS.SIM_STEP_SECONDS');
-    await apiAs(request, admin.accessToken, 'PUT', `/admin/system-parameters/${step.key}`, { value: '0', version: step.version });
-    try {
-      for (const expected of ['Shipping', 'Shipping', 'Shipping', 'Delivered']) {
-        await apiAs(request, admin.accessToken, 'POST', '/admin/job-runs/logistics.carrier-simulator');
-        await expect(async () => {
-          const order = await apiAs(request, buyer.token, 'GET', `/orders/${code}`);
-          expect(order.status).toBe(expected);
-          expect(order.shipment.events.length).toBeGreaterThan(1);
-        }).toPass({ timeout: 20_000 });
-      }
-    } finally {
-      const now = (await apiAs(request, admin.accessToken, 'GET', '/admin/system-parameters?group=LOGISTICS')).find((p) => p.key === step.key);
-      await apiAs(request, admin.accessToken, 'PUT', `/admin/system-parameters/${step.key}`, { value: step.value, version: now.version });
-    }
+    await deliverViaSimulator(request, admin, buyer, code);
 
     // Buyer sees the journey and confirms receipt
     await buyerPage.goto(`${BASE}/tai-khoan/don-mua/${code}`);
@@ -152,6 +156,31 @@ test.describe('Đơn hàng & vận chuyển', () => {
     await buyerPage.goto(`${BASE}/tra-cuu-van-don/${tracking}`);
     await expect(buyerPage.getByTestId('tracking-status')).toHaveText('Giao hàng thành công');
     await expect(buyerPage.getByTestId('tracking-result')).not.toContainText('Người Nhận E2E');
+
+    // Review with a photo (≥ 50 characters → ShopHub Xu reward) → the product page shows the new rating
+    await buyerPage.goto(`${BASE}/tai-khoan/don-mua/${code}`);
+    await buyerPage.getByTestId('review-order').click();
+    const item = buyerPage.getByTestId('review-item').first();
+    await item.getByTestId('star-4').click();
+    await item.getByLabel('Nội dung đánh giá').fill('Áo mặc rất thoải mái, vải dày dặn, đường may chắc chắn, giao hàng nhanh và đóng gói cẩn thận.');
+    await Promise.all([
+      buyerPage.waitForResponse((r) => r.url().includes('/api/media/review') && r.ok()),
+      item.getByTestId('review-media-input').setInputFiles(SAMPLE_PNG),
+    ]);
+    await expect(item.locator('.media-picker-item')).toHaveCount(1);
+    await item.getByTestId('review-submit').click();
+    await expect(item.getByTestId('review-done')).toBeVisible();
+    await buyerPage.goto(`${BASE}/san-pham/${shop.productId}`);
+    await expect(async () => {
+      await buyerPage.reload();
+      await expect(buyerPage.getByTestId('rating-average')).toHaveText('4.0', { timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    const shown = buyerPage.getByTestId('review').first();
+    await expect(shown).toContainText('vải dày dặn');
+    await expect(shown.locator('.pd-review-media img')).toHaveCount(1);
+    await expect(async () => {
+      expect((await apiAs(request, buyer.token, 'GET', '/account/coins')).balance).toBeGreaterThan(0);
+    }).toPass({ timeout: 20_000 });
   });
 
   test('Huỷ trước xác nhận / yêu cầu huỷ sau xác nhận / shop từ chối', async ({ browser, request }) => {
@@ -189,6 +218,82 @@ test.describe('Đơn hàng & vận chuyển', () => {
     await expect(page.getByTestId('cancel-request-status')).toContainText('shop đã từ chối');
     await expect(page.getByTestId('order-detail-status')).toHaveText('Chờ lấy hàng');
     await expect(page.getByTestId('request-cancel')).toHaveCount(0);
+  });
+
+  test('Trả 1 phần → shop từ chối → khiếu nại → sàn phân xử → hoàn đúng phần đã trả sau giảm giá', async ({ browser, request }) => {
+    // Two units with SHOPHUB50 (−₫50.000 on ₫318.000): each unit cost the buyer (318.000 − 50.000) / 2 = ₫134.000
+    const buyer = await newBuyer(request, 'Người Mua Trả Hàng');
+    const product = await apiAs(request, buyer.token, 'GET', `/products/${shop.productId}`);
+    await apiAs(request, buyer.token, 'POST', '/cart/items', { skuId: product.skus[0].id, quantity: 2 });
+    const choice = { addressId: null, shops: [{ shopId: shop.shopId, carrierCode: null, voucherCode: null, note: null }],
+      platformVoucherCode: 'SHOPHUB50', freeshipVoucherCode: null, useCoins: false, paymentMethod: 'Cod' };
+    const quote = await apiAs(request, buyer.token, 'POST', '/checkout/quote', choice);
+    expect(quote.platformDiscount).toBe(50_000);
+    const placed = await request.post(`${BASE}/api/checkout`, {
+      headers: { Authorization: `Bearer ${buyer.token}`, 'Idempotency-Key': `e2e-return-${buyer.phone}` },
+      data: { checkout: choice, expectedGrandTotal: quote.grandTotal },
+    });
+    expect(placed.ok()).toBeTruthy();
+    const orders = await apiAs(request, buyer.token, 'GET', '/orders?tab=All');
+    const code = orders.items[0].code;
+    const order = await apiAs(request, buyer.token, 'GET', `/orders/${code}`);
+    await apiAs(request, shop.token, 'POST', `/seller/shops/${shop.shopId}/orders/prepare`, { orderIds: [order.id], pickupMethod: 'DropOff', pickupSlot: null });
+    await deliverViaSimulator(request, admin, buyer, code);
+
+    // Buyer asks to refund ONE unit with a photo as evidence
+    const page = await (await browser.newContext()).newPage();
+    await loginInBrowser(page, buyer);
+    await page.goto(`${BASE}/tai-khoan/don-mua/${code}`);
+    await page.getByTestId('return-order').click();
+    await page.getByTestId('return-qty').fill('1');
+    await page.getByTestId('return-reason').selectOption('Damaged');
+    await page.getByTestId('return-description').fill('Áo bị rách một đường ở tay áo khi mở hộp.');
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/media/evidence') && r.ok()),
+      page.getByTestId('return-evidence-input').setInputFiles(SAMPLE_PNG),
+    ]);
+    await expect(page.getByTestId('return-estimate')).toHaveText('₫134.000');
+    await page.getByTestId('return-submit').click();
+    await expect(page.getByTestId('return-status')).toHaveText(/Chờ shop phản hồi/);
+    const returnCode = page.url().split('/').pop();
+
+    // Seller rejects in the seller centre
+    const sellerPage = await (await browser.newContext()).newPage();
+    await sellerLogin(sellerPage, shop.seller);
+    await sellerPage.getByRole('menuitem', { name: 'Trả hàng / Hoàn tiền' }).click();
+    await sellerPage.locator('.ant-table-row', { hasText: returnCode }).click();
+    await sellerPage.getByTestId('return-note').fill('Ảnh không cho thấy lỗi của sản phẩm');
+    await sellerPage.getByTestId('return-reject').click();
+    await expect(sellerPage.locator('.ant-drawer')).toHaveCount(0);
+
+    // Buyer disputes
+    await page.reload();
+    await expect(page.getByTestId('return-status')).toHaveText(/từ chối/i);
+    await page.getByTestId('open-dispute').click();
+    await page.getByTestId('dispute-reason').fill('Ảnh chụp rõ vết rách, shop không chịu nhận.');
+    await page.getByTestId('dispute-submit').click();
+    await expect(page.getByTestId('return-status')).toHaveText(/khiếu nại/i);
+
+    // The platform decides for the buyer (full requested amount)
+    const adminPage = await (await browser.newContext()).newPage();
+    await adminPage.setViewportSize({ width: 1366, height: 768 });
+    await adminPage.goto(`${BASE}/admin/`);
+    await adminPage.getByLabel('Tên đăng nhập').fill(ADMIN_USER);
+    await adminPage.getByLabel('Mật khẩu').fill(ADMIN_PASSWORD);
+    await adminPage.getByTestId('login-submit').click();
+    await adminPage.getByRole('menuitem', { name: 'Khiếu nại trả hàng' }).click();
+    await adminPage.locator('.ant-table-row', { hasText: returnCode }).click();
+    await adminPage.getByTestId('decide-reason').fill('Bằng chứng cho thấy sản phẩm lỗi.');
+    await adminPage.getByTestId('decide-submit').click();
+    await expect(adminPage.locator('.ant-drawer')).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByTestId('return-status')).toHaveText(/hoàn tiền/i);
+    await expect(page.getByTestId('refund-amount')).toContainText('₫134.000');
+    const final = await apiAs(request, buyer.token, 'GET', `/returns/${returnCode}`);
+    expect(final.refundAmount).toBe(134_000);
+    expect(final.items).toHaveLength(1);
+    expect(final.items[0].quantity).toBe(1);
   });
 
   test('IDOR: người mua A mở đơn của B → 404; nhân viên shop X sửa sản phẩm shop Y → 404', async ({ browser, request }) => {

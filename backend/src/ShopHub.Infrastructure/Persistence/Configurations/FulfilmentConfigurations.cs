@@ -26,6 +26,7 @@ internal sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         b.HasMany(s => s.Events).WithOne().HasForeignKey(e => e.ShipmentId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(s => s.TrackingNo).IsUnique().HasDatabaseName("ux_shipments_tracking");
         b.HasIndex(s => new { s.OrderId, s.Direction }).HasDatabaseName("ix_shipments_order");
+        b.HasIndex(s => s.ReturnId).HasDatabaseName("ix_shipments_return");
         b.HasIndex(s => new { s.Status, s.LastEventAt }).HasDatabaseName("ix_shipments_open");
     }
 }

@@ -104,11 +104,27 @@ public sealed class SqlCounterRecomputer(ShopHubDbContext db) : ICounterRecomput
 
     private static readonly OrderStatus[] Sold = [OrderStatus.Shipping, OrderStatus.Delivered, OrderStatus.Completed];
 
+    // Units handed to the carrier, minus units given back through refunded returns
     public Task RecomputeProductSalesAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct) =>
         db.Products.IgnoreQueryFilters().Where(p => productIds.Contains(p.Id))
-            .ExecuteUpdateAsync(s => s.SetProperty(p => p.SoldCount, p => db.OrderItems
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.SoldCount, p => (db.OrderItems
                 .Where(i => i.ProductId == p.Id && db.Orders.Any(o => o.Id == i.OrderId && Sold.Contains(o.Status)))
-                .Sum(i => (int?)i.Quantity) ?? 0), ct);
+                .Sum(i => (int?)i.Quantity) ?? 0) - (db.ReturnItems
+                .Where(r => db.OrderItems.Any(i => i.Id == r.OrderItemId && i.ProductId == p.Id)
+                            && db.ReturnRequests.Any(x => x.Id == r.ReturnId && x.Status == ReturnStatus.Refunded))
+                .Sum(r => (int?)r.Quantity) ?? 0)), ct);
+
+    public async Task RecomputeRatingsAsync(IReadOnlyCollection<Guid> productIds, IReadOnlyCollection<Guid> shopIds, CancellationToken ct)
+    {
+        await db.Products.IgnoreQueryFilters().Where(p => productIds.Contains(p.Id))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.RatingCount, p => db.Reviews.Count(r => r.ProductId == p.Id && !r.IsHidden))
+                .SetProperty(p => p.RatingAvg, p => db.Reviews.Where(r => r.ProductId == p.Id && !r.IsHidden).Average(r => (double?)r.Rating) ?? 0), ct);
+        await db.Shops.IgnoreQueryFilters().Where(x => shopIds.Contains(x.Id))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.RatingCount, x => db.Reviews.Count(r => r.ShopId == x.Id && !r.IsHidden))
+                .SetProperty(x => x.RatingAvg, x => db.Reviews.Where(r => r.ShopId == x.Id && !r.IsHidden).Average(r => (double?)r.Rating) ?? 0), ct);
+    }
 
     [DisableConcurrentExecution(timeoutInSeconds: 1800)]
     public async Task RunJobAsync() => await RecomputeAllAsync(CancellationToken.None);
@@ -119,13 +135,20 @@ public sealed class SqlCounterRecomputer(ShopHubDbContext db) : ICounterRecomput
             .ExecuteUpdateAsync(s => s
                 .SetProperty(p => p.LikeCount, p => db.Wishlists.Count(w => w.ProductId == p.Id))
                 .SetProperty(p => p.ViewCount, p => db.ProductViews.Count(v => v.ProductId == p.Id))
-                .SetProperty(p => p.SoldCount, p => db.OrderItems
+                .SetProperty(p => p.SoldCount, p => (db.OrderItems
                     .Where(i => i.ProductId == p.Id && db.Orders.Any(o => o.Id == i.OrderId && Sold.Contains(o.Status)))
-                    .Sum(i => (int?)i.Quantity) ?? 0), ct);
+                    .Sum(i => (int?)i.Quantity) ?? 0) - (db.ReturnItems
+                    .Where(r => db.OrderItems.Any(i => i.Id == r.OrderItemId && i.ProductId == p.Id)
+                                && db.ReturnRequests.Any(x => x.Id == r.ReturnId && x.Status == ReturnStatus.Refunded))
+                    .Sum(r => (int?)r.Quantity) ?? 0))
+                .SetProperty(p => p.RatingCount, p => db.Reviews.Count(r => r.ProductId == p.Id && !r.IsHidden))
+                .SetProperty(p => p.RatingAvg, p => db.Reviews.Where(r => r.ProductId == p.Id && !r.IsHidden).Average(r => (double?)r.Rating) ?? 0), ct);
         n += await db.Shops.IgnoreQueryFilters()
             .ExecuteUpdateAsync(u => u
                 .SetProperty(s => s.FollowerCount, s => db.ShopFollowers.Count(f => f.ShopId == s.Id))
-                .SetProperty(s => s.ProductCount, s => db.Products.Count(p => p.ShopId == s.Id && p.Status == ProductStatus.Active)), ct);
+                .SetProperty(s => s.ProductCount, s => db.Products.Count(p => p.ShopId == s.Id && p.Status == ProductStatus.Active))
+                .SetProperty(s => s.RatingCount, s => db.Reviews.Count(r => r.ShopId == s.Id && !r.IsHidden))
+                .SetProperty(s => s.RatingAvg, s => db.Reviews.Where(r => r.ShopId == s.Id && !r.IsHidden).Average(r => (double?)r.Rating) ?? 0), ct);
         return n;
     }
 }

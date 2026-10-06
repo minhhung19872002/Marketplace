@@ -16,6 +16,8 @@ import AuditLogsPage from './pages/AuditLogsPage'
 import ProductReviewPage from './pages/ProductReviewPage'
 import ShopsPage from './pages/ShopsPage'
 import CategoriesPage from './pages/CategoriesPage'
+import DisputesPage from './pages/DisputesPage'
+import ReviewReportsPage from './pages/ReviewReportsPage'
 import VouchersPage from './pages/VouchersPage'
 import './App.css'
 
@@ -28,6 +30,8 @@ const MENU = [
   { path: '/shop', label: 'Shop', permission: P.ShopView },
   { path: '/nganh-hang', label: 'Ngành hàng', permission: P.CategoryManage },
   { path: '/voucher', label: 'Voucher của sàn', permission: P.VoucherManage },
+  { path: '/khieu-nai', label: 'Khiếu nại trả hàng', permission: P.DisputeResolve },
+  { path: '/bao-cao-danh-gia', label: 'Báo cáo đánh giá', permission: P.ReviewModerate },
   { path: '/nguoi-dung', label: 'Người dùng', permission: P.UserView },
   { path: '/vai-tro', label: 'Vai trò & quyền', permission: P.RoleView },
   { path: '/tham-so', label: 'Tham số hệ thống', permission: P.SystemParameterView },
@@ -88,6 +92,8 @@ const Shell = () => {
             <Route path="/shop" element={guard(P.ShopView, <ShopsPage permissions={perms} />)} />
             <Route path="/nganh-hang" element={guard(P.CategoryManage, <CategoriesPage />)} />
             <Route path="/voucher" element={guard(P.VoucherManage, <VouchersPage />)} />
+            <Route path="/khieu-nai" element={guard(P.DisputeResolve, <DisputesPage />)} />
+            <Route path="/bao-cao-danh-gia" element={guard(P.ReviewModerate, <ReviewReportsPage />)} />
             <Route path="/nguoi-dung" element={guard(P.UserView, <UsersPage permissions={perms} />)} />
             <Route path="/vai-tro" element={guard(P.RoleView, <RolesPage permissions={perms} />)} />
             <Route path="/tham-so" element={guard(P.SystemParameterView, <ParametersPage permissions={perms} />)} />

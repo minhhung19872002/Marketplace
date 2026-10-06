@@ -65,6 +65,8 @@ public class Shipment : Entity
     }
 
     public Guid OrderId { get; private set; }
+    // Set for a return parcel (buyer → shop)
+    public Guid? ReturnId { get; private set; }
     public string CarrierCode { get; private set; } = string.Empty;
     public string TrackingNo { get; private set; } = string.Empty;
     public ShipmentDirection Direction { get; private set; }
@@ -104,6 +106,12 @@ public class Shipment : Entity
     }
 
     public void MarkPrinted(DateTimeOffset now) => LabelPrintedAt ??= now;
+
+    public void LinkReturn(Guid returnId)
+    {
+        if (Direction != ShipmentDirection.Return) throw new BusinessRuleException("Chỉ vận đơn chiều về mới gắn với yêu cầu trả hàng.");
+        ReturnId = returnId;
+    }
 
     public static string Label(ShipmentStatus status) => status switch
     {

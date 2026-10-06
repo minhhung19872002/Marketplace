@@ -110,6 +110,8 @@ public class Refund : Entity
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
 
+    public void LinkReturn(Guid returnId) => ReturnId = returnId;
+
     public void Complete(bool ok, string? providerRef, DateTimeOffset now)
     {
         Status = ok ? RefundStatus.Succeeded : RefundStatus.Failed;

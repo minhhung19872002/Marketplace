@@ -32,6 +32,7 @@ Ghi thẳng, có bằng chứng. Mỗi lỗi: mã, ngày, mô tả, nguyên nhâ
 | L026 | 2026-10-06 | Thanh toán lại thành công nhưng trang kết quả vẫn báo "không thành công" | Kết quả lần trước còn trong bộ đệm (staleTime 30 s) nên không tải lại | `staleTime: 0` cho trang kết quả / cổng giả lập | e2e `Thanh toán online…: thành công / thất bại (thanh toán lại)` |
 | L027 | 2026-10-06 | Gửi thân JSON thiếu trường (vd. `{}` khi sửa sản phẩm, đăng ký shop, đặt hàng) → 500 | FluentValidation mặc định chạy tiếp `Must(...)` sau khi `NotNull()` đã báo lỗi, biểu thức gặp `null`; một số validator truy cập thẳng đối tượng con có thể `null` | `DefaultRuleLevelCascadeMode = Stop` cho toàn ứng dụng + `NotNull()`/`When(... is not null)` cho đối tượng con | `MalformedInputTests` (đỏ: 7 tổ hợp đường dẫn × thân trả 500 → xanh); phát hiện bởi e2e IDOR |
 | L028 | 2026-10-06 | Vừa tải trang đã bấm tim thì bị đưa sang trang đăng nhập dù đang đăng nhập | Lúc khôi phục phiên chưa xong, `toggle` coi người dùng là khách | Chờ khôi phục phiên xong rồi mới quyết định | e2e `Yêu thích…` (lỗi chập chờn khi chạy song song) |
+| L029 | 2026-10-06 | `POST /api/returns/{mã}/dispute` (khiếu nại) luôn 404 | Lặp lại L016: tham số route đặt tên `{action}` — tên dành riêng của MVC | Đổi thành `{operation}`; thêm luật quét mã `No_route_template_uses_a_reserved_parameter_name` để lỗi này không quay lại | `Rejected_return_goes_to_a_dispute_…` (đỏ → xanh) |
 
 > L001–L006 sửa trước khi có quy trình "đỏ trước, xanh sau" của mục 8; từ Phase 1 mọi lỗi phải kèm phép thử
 > đỏ trước khi sửa và nằm lại trong bộ test.

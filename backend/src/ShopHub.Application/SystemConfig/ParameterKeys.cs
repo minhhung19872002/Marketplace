@@ -60,6 +60,15 @@ public static class ParameterKeys
     public const string LogisticsSimFailPercent = "LOGISTICS.SIM_FAIL_PERCENT";
     public const string JobOrderAutomationCron = "JOB.ORDER_AUTOMATION_CRON";
     public const string JobCarrierSimulatorCron = "JOB.CARRIER_SIMULATOR_CRON";
+
+    public const string ReviewWindowDays = "REVIEW.WINDOW_DAYS";
+    public const string ReviewEditDays = "REVIEW.EDIT_DAYS";
+    public const string ReviewRewardCoins = "REVIEW.REWARD_COINS";
+    public const string ReviewRewardMinChars = "REVIEW.REWARD_MIN_CHARS";
+    public const string ReturnWindowDays = "RETURN.WINDOW_DAYS";
+    public const string ReturnShopResponseDays = "RETURN.SHOP_RESPONSE_DAYS";
+    public const string ReturnDisputeDays = "RETURN.DISPUTE_DAYS";
+    public const string ReturnShopCheckDays = "RETURN.SHOP_CHECK_DAYS";
 }
 
 public static class ParameterGroups
@@ -77,6 +86,8 @@ public static class ParameterGroups
     public const string Coin = "COIN";
     public const string Logistics = "LOGISTICS";
     public const string Order = "ORDER";
+    public const string Review = "REVIEW";
+    public const string Return = "RETURN";
 }
 
 public record ParameterDefinition(
@@ -193,5 +204,22 @@ public static class ParameterCatalog
             "Lịch tự động hoá đơn hàng", "Cron tự hoàn thành đơn đã giao, tự chấp thuận yêu cầu huỷ quá hạn, tự huỷ đơn shop chậm chuẩn bị."),
         new(ParameterKeys.JobCarrierSimulatorCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch hãng vận chuyển giả lập", "Cron đẩy trạng thái các vận đơn của đơn vị vận chuyển giả lập."),
+
+        new(ParameterKeys.ReviewWindowDays, "30", ParameterDataType.Int, ParameterGroups.Review,
+            "Hạn đánh giá (ngày)", "Người mua đánh giá được trong bấy nhiêu ngày sau khi đơn hoàn thành."),
+        new(ParameterKeys.ReviewEditDays, "30", ParameterDataType.Int, ParameterGroups.Review,
+            "Hạn sửa đánh giá (ngày)", "Mỗi đánh giá sửa được một lần trong bấy nhiêu ngày sau khi viết."),
+        new(ParameterKeys.ReviewRewardCoins, "100", ParameterDataType.Int, ParameterGroups.Review,
+            "Xu thưởng đánh giá", "Số xu thưởng cho đánh giá đủ chữ và có ảnh/video (một lần mỗi đánh giá)."),
+        new(ParameterKeys.ReviewRewardMinChars, "50", ParameterDataType.Int, ParameterGroups.Review,
+            "Số ký tự tối thiểu để nhận xu", "Đánh giá có ít nhất bấy nhiêu ký tự (và ít nhất một ảnh/video) thì được thưởng xu."),
+        new(ParameterKeys.ReturnWindowDays, "15", ParameterDataType.Int, ParameterGroups.Return,
+            "Hạn trả hàng (ngày)", "Người mua yêu cầu trả hàng / hoàn tiền trong bấy nhiêu ngày sau khi giao thành công."),
+        new(ParameterKeys.ReturnShopResponseDays, "2", ParameterDataType.Int, ParameterGroups.Return,
+            "Hạn shop phản hồi trả hàng (ngày)", "Shop không phản hồi yêu cầu trả hàng trong hạn này thì yêu cầu được tự chấp thuận."),
+        new(ParameterKeys.ReturnDisputeDays, "3", ParameterDataType.Int, ParameterGroups.Return,
+            "Hạn khiếu nại (ngày)", "Sau khi shop từ chối / đề nghị hoàn một phần, người mua có bấy nhiêu ngày để khiếu nại hoặc đồng ý; quá hạn yêu cầu đóng lại."),
+        new(ParameterKeys.ReturnShopCheckDays, "2", ParameterDataType.Int, ParameterGroups.Return,
+            "Hạn shop kiểm hàng trả (ngày)", "Hàng trả về tới shop mà shop không xác nhận trong hạn này thì tự hoàn tiền cho người mua."),
     ];
 }

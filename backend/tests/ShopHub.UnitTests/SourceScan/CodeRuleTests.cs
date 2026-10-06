@@ -171,3 +171,22 @@ public class NginxConfigParityTests
         Required.Where(r => !text.Contains(r, StringComparison.Ordinal)).Should().BeEmpty($"{relativePath} thiếu cấu hình chung");
     }
 }
+
+public class ReservedRouteTokenTests
+{
+    // MVC fills {action}/{controller}/{area}/{handler}/{page} itself: a route parameter with that name never binds (sổ lỗi L016, L029)
+    private static readonly Regex Reserved = new(@"\[(Http\w+|Route)\(""[^""]*\{(action|controller|area|handler|page)(:[^}]*)?\}", RegexOptions.IgnoreCase);
+
+    [Fact]
+    public void No_route_template_uses_a_reserved_parameter_name()
+    {
+        var offenders = RepoFiles.SourceFiles("ShopHub.Api")
+            .SelectMany(f => RepoFiles.WithoutComments(File.ReadAllText(f)).Split('\n')
+                .Select((line, i) => (f, line, i))
+                .Where(x => Reserved.IsMatch(x.line))
+                .Select(x => $"{RepoFiles.Relative(x.f)}:{x.i + 1}: {x.line.Trim()}"))
+            .ToList();
+
+        offenders.Should().BeEmpty("tên tham số route dành riêng của MVC không bao giờ nhận giá trị");
+    }
+}

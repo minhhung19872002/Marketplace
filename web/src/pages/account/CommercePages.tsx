@@ -131,6 +131,8 @@ const OrderActions = ({ order }: { order: OrderDetail }) => {
           Đã nhận được hàng
         </button>
       )}
+      {a.review && <Link to={`/tai-khoan/don-mua/${order.code}/danh-gia`} className="account-btn" data-testid="review-order">Đánh giá</Link>}
+      {a.return && <Link to={`/tai-khoan/don-mua/${order.code}/tra-hang`} className="account-btn-outline" data-testid="return-order">Trả hàng/Hoàn tiền</Link>}
       {a.cancel && <button className="account-btn-outline" onClick={() => setAsking('cancel')} data-testid="cancel-order">Huỷ đơn hàng</button>}
       {a.requestCancel && <button className="account-btn-outline" onClick={() => setAsking('request')} data-testid="request-cancel">Yêu cầu huỷ</button>}
       {a.buyAgain && (

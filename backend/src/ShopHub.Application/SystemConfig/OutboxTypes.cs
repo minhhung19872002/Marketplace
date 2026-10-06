@@ -56,4 +56,9 @@ public static class OrderEvents
     public const string CancelRequested = "CANCEL_REQUESTED";
     public const string CancelRejected = "CANCEL_REJECTED";
     public const string Refunded = "REFUNDED";
+    public const string ReturnRequested = "RETURN_REQUESTED";
+    public const string ReturnUpdated = "RETURN_UPDATED";
+    public const string ReturnRefunded = "RETURN_REFUNDED";
+    public const string DisputeOpened = "DISPUTE_OPENED";
+    public const string DisputeDecided = "DISPUTE_DECIDED";
 }

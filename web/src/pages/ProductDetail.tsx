@@ -6,6 +6,7 @@ import { ApiError } from '../api/http';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import ProductGrid from '../components/ProductGrid';
+import ProductReviews from '../components/ProductReviews';
 import { formatPrice, formatSold } from '../lib/money';
 import { formatDate } from '../lib/datetime';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
@@ -322,18 +323,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
           <div className="pd-description" dangerouslySetInnerHTML={{ __html: product.description }} />
         </div>
 
-        <div className="pd-section">
-          <h2 className="pd-section-title">ĐÁNH GIÁ SẢN PHẨM</h2>
-          <div className="pd-rating-summary" data-testid="reviews">
-            <div className="pd-rating-score">
-              <span className="pd-rating-big">{product.ratingCount > 0 ? product.ratingAvg.toFixed(1) : '0'}</span>
-              <span className="pd-rating-outof">trên 5</span>
-            </div>
-            <p className="pd-review-empty">
-              {product.ratingCount > 0 ? `${formatSold(product.ratingCount)} đánh giá` : 'Chưa có đánh giá nào cho sản phẩm này.'}
-            </p>
-          </div>
-        </div>
+        <ProductReviews productId={product.id} />
       </div>
     </div>
   );

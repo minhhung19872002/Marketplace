@@ -305,7 +305,7 @@ export interface OrderDetail {
   history: { from: OrderStatus | null; to: OrderStatus; toLabel: string; actor: string; reason: string | null; occurredAt: string }[];
   shipment: ShipmentInfo | null;
   cancelRequest: CancelRequestInfo | null;
-  actions: { pay: boolean; cancel: boolean; requestCancel: boolean; confirmReceived: boolean; buyAgain: boolean };
+  actions: { pay: boolean; cancel: boolean; requestCancel: boolean; confirmReceived: boolean; buyAgain: boolean; review: boolean; return: boolean };
   autoCompleteAt: string | null;
 }
 

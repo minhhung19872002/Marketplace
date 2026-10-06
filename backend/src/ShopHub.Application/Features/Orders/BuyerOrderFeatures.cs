@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
 using ShopHub.Application.Features.Storefront;
+using ShopHub.Application.SystemConfig;
 using ShopHub.Domain.Logistics;
 using ShopHub.Domain.Sales;
 
@@ -35,7 +36,7 @@ public record ShipmentDto(Guid Id, string TrackingNo, string CarrierCode, string
 public record CancelRequestDto(Guid Id, string Reason, CancelRequestStatus Status, DateTimeOffset CreatedAt, DateTimeOffset DueAt, string? RejectReason);
 
 /// <summary>What the buyer may do now (drives the buttons of "Đơn mua").</summary>
-public record BuyerOrderActionsDto(bool Pay, bool Cancel, bool RequestCancel, bool ConfirmReceived, bool BuyAgain);
+public record BuyerOrderActionsDto(bool Pay, bool Cancel, bool RequestCancel, bool ConfirmReceived, bool BuyAgain, bool Review, bool Return);
 
 public record OrderDetailDto(
     Guid Id,
@@ -117,7 +118,8 @@ public sealed class ListMyOrdersHandler(IApplicationDbContext db, ICurrentUser c
             BuyerOrderTab.Shipping => q.Where(o => o.Status == OrderStatus.Shipping || o.Status == OrderStatus.DeliveryFailed),
             BuyerOrderTab.Completed => q.Where(o => o.Status == OrderStatus.Delivered || o.Status == OrderStatus.Completed),
             BuyerOrderTab.Cancelled => q.Where(o => o.Status == OrderStatus.Cancelled),
-            BuyerOrderTab.Returns => q.Where(o => o.Status == OrderStatus.Returning || o.Status == OrderStatus.Returned),
+            BuyerOrderTab.Returns => q.Where(o => o.Status == OrderStatus.Returning || o.Status == OrderStatus.Returned
+                                                  || db.ReturnRequests.Any(r => r.OrderId == o.Id)),
             _ => q,
         };
         if (!string.IsNullOrWhiteSpace(request.Q))
@@ -145,7 +147,8 @@ public sealed class ListMyOrdersHandler(IApplicationDbContext db, ICurrentUser c
 
 public record GetMyOrderQuery(string Code) : IRequest<OrderDetailDto>;
 
-public sealed class GetMyOrderHandler(IApplicationDbContext db, ICurrentUser currentUser) : IRequestHandler<GetMyOrderQuery, OrderDetailDto>
+public sealed class GetMyOrderHandler(IApplicationDbContext db, ISystemParameters parameters, IClock clock, ICurrentUser currentUser)
+    : IRequestHandler<GetMyOrderQuery, OrderDetailDto>
 {
     public async Task<OrderDetailDto> Handle(GetMyOrderQuery request, CancellationToken ct)
     {
@@ -154,14 +157,20 @@ public sealed class GetMyOrderHandler(IApplicationDbContext db, ICurrentUser cur
         // Owner filter in the query itself: someone else's order is "not found"
         var order = await db.Orders.AsNoTracking().Include(o => o.Items).ThenInclude(i => i.Discounts).Include(o => o.History)
             .FirstOrDefaultAsync(o => o.Code == code && o.BuyerId == userId, ct) ?? throw new NotFoundException("Không tìm thấy đơn hàng.");
-        return await OrderDetails.BuildAsync(db, order, ct);
+        return await OrderDetails.BuildAsync(db, parameters, clock, order, ct);
     }
 }
 
 internal static class OrderDetails
 {
-    public static async Task<OrderDetailDto> BuildAsync(IApplicationDbContext db, Order order, CancellationToken ct)
+    public static async Task<OrderDetailDto> BuildAsync(IApplicationDbContext db, ISystemParameters parameters, IClock clock, Order order, CancellationToken ct)
     {
+        var now = clock.UtcNow;
+        var reviewDeadline = order.CompletedAt?.AddDays(await parameters.GetIntAsync(ParameterKeys.ReviewWindowDays, ct));
+        var returnDeadline = order.DeliveredAt?.AddDays(await parameters.GetIntAsync(ParameterKeys.ReturnWindowDays, ct));
+        var lineIds = order.Items.Select(i => i.Id).ToList();
+        var reviewed = await db.Reviews.CountAsync(r => lineIds.Contains(r.OrderItemId), ct);
+        var openReturns = await db.ReturnItems.AnyAsync(i => lineIds.Contains(i.OrderItemId) && i.IsOpen, ct);
         var shop = await db.Shops.AsNoTracking().SingleAsync(s => s.Id == order.ShopId, ct);
         var checkout = await db.CheckoutSessions.AsNoTracking().SingleAsync(c => c.Id == order.CheckoutId, ct);
         var carrier = await db.Carriers.AsNoTracking().Where(c => c.Code == order.CarrierCode).Select(c => c.Name).FirstOrDefaultAsync(ct);
@@ -177,7 +186,9 @@ internal static class OrderDetails
             Cancel: order.Status is OrderStatus.PendingPayment or OrderStatus.PendingConfirmation,
             RequestCancel: order.Status == OrderStatus.ReadyToShip && !pendingRequest && cancel?.Status != CancelRequestStatus.Rejected,
             ConfirmReceived: order.Status == OrderStatus.Delivered,
-            BuyAgain: order.Status is OrderStatus.Completed or OrderStatus.Cancelled or OrderStatus.Delivered or OrderStatus.Returned);
+            BuyAgain: order.Status is OrderStatus.Completed or OrderStatus.Cancelled or OrderStatus.Delivered or OrderStatus.Returned,
+            Review: order.Status == OrderStatus.Completed && reviewDeadline > now && reviewed < order.Items.Count,
+            Return: order.Status is OrderStatus.Delivered or OrderStatus.Completed && returnDeadline > now && !openReturns);
         return new OrderDetailDto(order.Id, order.Code, order.CheckoutId, shop.Id, shop.Name, shop.Slug, order.Status, OrderStateMachine.Label(order.Status),
             order.PaymentStatus, order.PaymentMethod, order.CarrierCode, carrier, order.ExpectedDeliveryDays, address, order.BuyerNote,
             order.Items.OrderBy(i => i.Id).Select(OrderProjections.Item).ToList(),

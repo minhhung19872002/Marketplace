@@ -316,6 +316,47 @@ isPublic, channel }` (`discountPercentBp`: phần vạn, 1200 = 12%).
 
 Việc nền chạy ngay được bằng `POST /api/admin/job-runs/{id}`: thêm `sales.order-automation`, `logistics.carrier-simulator`.
 
+## Đánh giá, trả hàng & khiếu nại (Phase 7)
+
+**Công khai**
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/api/products/{id}/reviews?rating=&withMedia=&withComment=&page=` | `{ summary { average, total, byStar, withMedia, withComment }, reviews }` — tên người đánh giá ẩn danh bị che |
+
+**Người mua** (đăng nhập, chỉ đơn / yêu cầu của mình — của người khác → 404)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/api/orders/{code}/reviews` | Các dòng của đơn kèm đánh giá đã viết, `canReview`, `canEdit`, `deadline` |
+| POST | `/api/orders/{code}/items/{orderItemId}/review` | `{ rating 1–5, content ≤ 1000, tags[], anonymous, mediaAssetIds[] ≤ 6 ảnh + 1 video }` — đơn phải **Hoàn thành**; trùng → 409 |
+| PUT | `/api/reviews/{id}` | Cùng thân — sửa **một lần** |
+| POST | `/api/reviews/{id}/report` | `{ reason }` — mỗi người một báo cáo |
+| GET | `/api/orders/{code}/returnable` | `{ canReturn, reason, deadline, lines[{ returnable, unitRefundEstimate }] }` |
+| POST | `/api/orders/{code}/returns` | `{ type: RefundOnly\|ReturnAndRefund, reason: MissingItem\|WrongItem\|Damaged\|NotAsDescribed\|Counterfeit\|Other, description ≥ 10, lines[{ orderItemId, quantity }], evidenceAssetIds[] ≥ 1 }` → yêu cầu `RT…` |
+| GET | `/api/returns?page=` · `/api/returns/{code}` | Yêu cầu của mình (số tiền từng dòng, bằng chứng, lịch sử, mã vận đơn trả) |
+| POST | `/api/returns/{code}/cancel` · `/accept-offer` · `/dispute` | `{ reason }` (bắt buộc khi khiếu nại) |
+
+**Kênh Người Bán** (`/api/seller/shops/{shopId}`, quyền shop `REVIEW.MANAGE` cho đánh giá; `ORDER.VIEW` xem / `ORDER.MANAGE` xử lý trả hàng)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/reviews?rating=&replied=&page=` | Đánh giá sản phẩm của shop |
+| POST | `/reviews/{id}/reply` | `{ text }` — trả lời một lần |
+| GET | `/returns?status=&page=` | Yêu cầu trả hàng của shop |
+| POST | `/returns/{id}/actions` | `{ action: Approve\|Reject\|OfferPartial\|ConfirmReceived, note, amount, restock, evidenceAssetIds[] }` — từ chối cần ghi chú; đề nghị một phần cần `amount` < số yêu cầu |
+
+**Quản trị**
+
+| Phương thức | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/admin/disputes?open=&page=` | `SALES.DISPUTE.RESOLVE` | Khiếu nại chờ / đã phân xử |
+| POST | `/api/admin/disputes/{returnId}/decide` | `SALES.DISPUTE.RESOLVE` | `{ decision: FavorBuyer\|FavorShop, reason, refundAmount?, requireReturn }` |
+| GET | `/api/admin/review-reports?status=Pending\|Upheld\|Dismissed` | `CATALOG.REVIEW.MODERATE` | Báo cáo đánh giá |
+| POST | `/api/admin/review-reports/{id}/resolve` | `CATALOG.REVIEW.MODERATE` | `{ hide, reason }` — ẩn thì tính lại điểm và thu hồi xu thưởng |
+
+`GET /api/orders/{code}` bổ sung `actions.review` và `actions.return`. Tải tệp: `POST /api/media/review` và `/api/media/evidence` (ảnh, MP4).
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

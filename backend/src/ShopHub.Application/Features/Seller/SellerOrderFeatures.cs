@@ -131,14 +131,14 @@ public sealed class ListShopOrdersHandler(IApplicationDbContext db, SellerAccess
 
 public record GetShopOrderQuery(Guid ShopId, Guid OrderId) : IRequest<ShopOrderDetailDto>;
 
-public sealed class GetShopOrderHandler(IApplicationDbContext db, SellerAccess access, ISystemParameters parameters)
+public sealed class GetShopOrderHandler(IApplicationDbContext db, SellerAccess access, ISystemParameters parameters, IClock clock)
     : IRequestHandler<GetShopOrderQuery, ShopOrderDetailDto>
 {
     public async Task<ShopOrderDetailDto> Handle(GetShopOrderQuery request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
         var order = await ShopOrderQueries.OwnOrderAsync(db, request.ShopId, request.OrderId, ct);
-        var detail = await OrderDetails.BuildAsync(db, order, ct);
+        var detail = await OrderDetails.BuildAsync(db, parameters, clock, order, ct);
         var buyer = await db.Users.Where(u => u.Id == order.BuyerId).Select(u => u.FullName).FirstAsync(ct);
         DateOnly? deadline = order.Status is OrderStatus.PendingConfirmation or OrderStatus.ReadyToShip
             ? VietnamTime.AddWorkingDays(VietnamTime.Today(order.PaidAt ?? order.CreatedAt), (int)await parameters.GetIntAsync(ParameterKeys.OrderShipDeadlineDays, ct),

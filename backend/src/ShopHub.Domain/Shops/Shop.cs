@@ -50,6 +50,8 @@ public class Shop : AuditableEntity
     // Denormalised, recomputed from source rows (followers, active products) — never incremented in place
     public int FollowerCount { get; private set; }
     public int ProductCount { get; private set; }
+    public double RatingAvg { get; private set; }
+    public int RatingCount { get; private set; }
     public uint Version { get; private set; }
 
     public bool CanSell => Status == ShopStatus.Active;

@@ -11,7 +11,8 @@ public static class ShopPermissions
     public const string MarketingManage = "MARKETING.MANAGE";
     public const string OrderView = "ORDER.VIEW";
     public const string OrderManage = "ORDER.MANAGE";
+    public const string ReviewManage = "REVIEW.MANAGE";
 
     public static readonly IReadOnlyList<string> All =
-        [ProductView, ProductManage, InventoryManage, SettingsManage, StaffManage, MarketingManage, OrderView, OrderManage];
+        [ProductView, ProductManage, InventoryManage, SettingsManage, StaffManage, MarketingManage, OrderView, OrderManage, ReviewManage];
 }

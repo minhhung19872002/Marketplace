@@ -19,10 +19,14 @@ public static class JobIds
 }
 
 /// <summary>Hangfire entry for <see cref="Application.Features.Orders.OrderAutomationService"/>.</summary>
-public sealed class OrderAutomationJob(Application.Features.Orders.OrderAutomationService service)
+public sealed class OrderAutomationJob(Application.Features.Orders.OrderAutomationService orders, Application.Features.Returns.ReturnAutomationService returns)
 {
     [DisableConcurrentExecution(timeoutInSeconds: 600)]
-    public Task RunJobAsync() => service.RunAsync(CancellationToken.None);
+    public async Task RunJobAsync()
+    {
+        await orders.RunAsync(CancellationToken.None);
+        await returns.RunAsync(CancellationToken.None);
+    }
 }
 
 /// <summary>Hangfire entry for <see cref="Commerce.CarrierSimulator"/>.</summary>

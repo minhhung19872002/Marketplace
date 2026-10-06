@@ -31,6 +31,8 @@ public static class Permissions
     public const string VoucherManage = "PROMO.VOUCHER.MANAGE";
     public const string CoinGrant = "PROMO.COIN.GRANT";
     public const string OrderView = "SALES.ORDER.VIEW";
+    public const string DisputeResolve = "SALES.DISPUTE.RESOLVE";
+    public const string ReviewModerate = "CATALOG.REVIEW.MODERATE";
 
     public const string ClaimType = "perm";
 }
@@ -63,6 +65,8 @@ public static class PermissionCatalog
         new(Permissions.VoucherManage, "Khuyến mãi", "Tạo / sửa / dừng voucher của sàn"),
         new(Permissions.CoinGrant, "Khuyến mãi", "Cộng / trừ ShopHub Xu cho người dùng"),
         new(Permissions.OrderView, "Đơn hàng", "Xem đơn hàng toàn sàn"),
+        new(Permissions.DisputeResolve, "Đơn hàng", "Phân xử khiếu nại trả hàng"),
+        new(Permissions.ReviewModerate, "Sản phẩm", "Xử lý báo cáo đánh giá vi phạm"),
     ];
 }
 
@@ -83,7 +87,8 @@ public static class RoleCatalog
         new("CONTENT_REVIEW", "Duyệt nội dung", "Duyệt sản phẩm, xử lý vi phạm.",
             [Permissions.UserView, Permissions.ProductReview, Permissions.ProductBan, Permissions.ShopView,
              Permissions.CategoryManage, Permissions.BrandManage]),
-        new("CUSTOMER_SERVICE", "Chăm sóc khách hàng", "Hỗ trợ người mua và người bán.", [Permissions.UserView, Permissions.OrderView]),
+        new("CUSTOMER_SERVICE", "Chăm sóc khách hàng", "Hỗ trợ người mua và người bán.",
+            [Permissions.UserView, Permissions.OrderView, Permissions.DisputeResolve, Permissions.ReviewModerate]),
         new("ACCOUNTING", "Kế toán", "Đối soát, giải ngân, báo cáo tài chính.", [Permissions.AuditLogView, Permissions.OrderView]),
         new("MARKETING", "Marketing", "Voucher, Flash Sale, chiến dịch.",
             [Permissions.SystemParameterView, Permissions.VoucherManage, Permissions.CoinGrant]),

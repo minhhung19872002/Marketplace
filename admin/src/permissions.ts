@@ -21,6 +21,8 @@ export const P = {
   CoinGrant: 'PROMO.COIN.GRANT',
   OrderView: 'SALES.ORDER.VIEW',
   JobRun: 'SYS.JOB.RUN',
+  DisputeResolve: 'SALES.DISPUTE.RESOLVE',
+  ReviewModerate: 'CATALOG.REVIEW.MODERATE',
 } as const
 
 export const can = (permissions: readonly string[] | undefined, code: string): boolean =>

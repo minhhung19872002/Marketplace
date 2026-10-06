@@ -15,6 +15,8 @@ public enum MediaPurpose
     Avatar,
     Shop,
     Kyc,
+    Review,    // review photos / video (public)
+    Evidence,  // return & dispute evidence (unguessable public keys in the reviews bucket)
 }
 
 public record MediaAssetDto(Guid Id, MediaKind Kind, string? Url, string? ThumbnailUrl, int? Width, int? Height, int? DurationMs);
@@ -92,7 +94,12 @@ public sealed class UploadMediaHandler(
         if (FileSignature.IsImage(type))
         {
             if (data.LongLength > maxImageBytes) throw Invalid($"Ảnh tối đa {maxImageBytes / 1024 / 1024} MB.");
-            var bucket = request.Purpose == MediaPurpose.Kyc ? Buckets.Kyc : Buckets.Products;
+            var bucket = request.Purpose switch
+            {
+                MediaPurpose.Kyc => Buckets.Kyc,
+                MediaPurpose.Review or MediaPurpose.Evidence => Buckets.Reviews,
+                _ => Buckets.Products,
+            };
             var sizes = request.Purpose == MediaPurpose.Kyc ? new[] { ImageSizes.Document } : ImageSizes.Public;
 
             ProcessedImage processed;
@@ -111,7 +118,7 @@ public sealed class UploadMediaHandler(
             asset = new MediaAsset(ownerId, MediaKind.Image, purpose, bucket, baseKey, "image/webp",
                 processed.Variants.Sum(v => (long)v.WebP.Length), processed.Width, processed.Height, null, now);
         }
-        else if (type == SniffedType.Mp4 && request.Purpose == MediaPurpose.Product)
+        else if (type == SniffedType.Mp4 && request.Purpose is MediaPurpose.Product or MediaPurpose.Review or MediaPurpose.Evidence)
         {
             var maxBytes = await parameters.GetIntAsync(ParameterKeys.MediaMaxVideoMb, ct) * 1024 * 1024;
             var maxSeconds = await parameters.GetIntAsync(ParameterKeys.MediaMaxVideoSeconds, ct);
@@ -120,8 +127,9 @@ public sealed class UploadMediaHandler(
             if (duration > maxSeconds * 1000) throw Invalid($"Video tối đa {maxSeconds} giây.");
 
             var key = $"{baseKey}.mp4";
-            await storage.PutAsync(Buckets.Products, key, data, "video/mp4", ct);
-            asset = new MediaAsset(ownerId, MediaKind.Video, purpose, Buckets.Products, key, "video/mp4", data.LongLength, null, null, duration, now);
+            var videoBucket = request.Purpose == MediaPurpose.Product ? Buckets.Products : Buckets.Reviews;
+            await storage.PutAsync(videoBucket, key, data, "video/mp4", ct);
+            asset = new MediaAsset(ownerId, MediaKind.Video, purpose, videoBucket, key, "video/mp4", data.LongLength, null, null, duration, now);
         }
         else if (type == SniffedType.Pdf && request.Purpose == MediaPurpose.Kyc)
         {

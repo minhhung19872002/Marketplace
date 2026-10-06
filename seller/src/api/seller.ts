@@ -6,7 +6,7 @@ export type ShopStatus = 'PendingReview' | 'Active' | 'Vacation' | 'Locked' | 'R
 export type ProductStatus = 'Draft' | 'PendingReview' | 'Active' | 'Hidden' | 'Banned' | 'Deleted'
 export type ProductTab = 'All' | 'Active' | 'SoldOut' | 'Pending' | 'Violation' | 'Hidden' | 'Draft' | 'LowStock'
 export type AttributeInputType = 'SingleSelect' | 'MultiSelect' | 'Text' | 'Number'
-export type MediaPurpose = 'product' | 'kyc' | 'shop' | 'avatar'
+export type MediaPurpose = 'product' | 'kyc' | 'shop' | 'avatar' | 'evidence'
 
 export interface PagedResult<T> {
   items: T[]

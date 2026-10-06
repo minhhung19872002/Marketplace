@@ -51,6 +51,9 @@ public sealed class OrderEventHandler(ShopHubDbContext db, IClock clock) : IOutb
             OrderEvents.Returned => new("Đơn hàng đã hoàn về shop", $"Đơn {order.Code} không giao được và đã hoàn về {shop.Name}."),
             OrderEvents.CancelRejected => new("Shop từ chối yêu cầu huỷ", $"Đơn {order.Code} vẫn được giao. Lý do: {e.Note}."),
             OrderEvents.Refunded => new("Đã hoàn tiền", $"Đã hoàn {total} của đơn {order.Code} về phương thức thanh toán ban đầu.", NotificationCategory.Wallet),
+            OrderEvents.ReturnUpdated => new("Cập nhật yêu cầu trả hàng", $"Yêu cầu {e.Note} của đơn {order.Code} vừa được cập nhật."),
+            OrderEvents.ReturnRefunded => new("Hoàn tiền trả hàng", $"Yêu cầu {e.Note} của đơn {order.Code} đã được hoàn tiền.", NotificationCategory.Wallet),
+            OrderEvents.DisputeDecided => new("Kết quả khiếu nại", $"Sàn đã phân xử khiếu nại của đơn {order.Code}."),
             _ => null,
         };
         Message? seller = e.Event switch
@@ -61,6 +64,9 @@ public sealed class OrderEventHandler(ShopHubDbContext db, IClock clock) : IOutb
             OrderEvents.Cancelled => new("Đơn hàng đã huỷ", $"Đơn {order.Code} đã huỷ. Lý do: {e.Note}."),
             OrderEvents.Completed => new("Đơn hàng hoàn thành", $"Đơn {order.Code} ({total}) đã hoàn thành."),
             OrderEvents.Returned => new("Đơn hàng hoàn về", $"Đơn {order.Code} giao không thành công đã hoàn về kho."),
+            OrderEvents.ReturnRequested => new("Yêu cầu trả hàng mới", $"Người mua gửi yêu cầu trả hàng {e.Note} cho đơn {order.Code}. Vui lòng phản hồi trong 2 ngày."),
+            OrderEvents.DisputeOpened => new("Người mua khiếu nại", $"Yêu cầu trả hàng {e.Note} (đơn {order.Code}) đã được chuyển lên sàn phân xử."),
+            OrderEvents.DisputeDecided => new("Kết quả khiếu nại", $"Sàn đã phân xử khiếu nại của đơn {order.Code}."),
             _ => null,
         };
 

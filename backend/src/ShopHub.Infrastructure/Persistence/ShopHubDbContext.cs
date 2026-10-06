@@ -72,6 +72,14 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<Refund> Refunds => Set<Refund>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ShopPenalty> ShopPenalties => Set<ShopPenalty>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<ReviewMedia> ReviewMedia => Set<ReviewMedia>();
+    public DbSet<ReviewReport> ReviewReports => Set<ReviewReport>();
+    public DbSet<ReturnRequest> ReturnRequests => Set<ReturnRequest>();
+    public DbSet<ReturnItem> ReturnItems => Set<ReturnItem>();
+    public DbSet<ReturnEvidence> ReturnEvidence => Set<ReturnEvidence>();
+    public DbSet<ReturnHistory> ReturnHistory => Set<ReturnHistory>();
+    public DbSet<Dispute> Disputes => Set<Dispute>();
 
     // Unique index name → what the user is told when a parallel request already took the value
     private static readonly Dictionary<string, string> UniqueMessages = new()
@@ -96,6 +104,11 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         ["ux_carts_guest"] = "Giỏ hàng đang được cập nhật, vui lòng thử lại.",
         ["ux_cancel_requests_open"] = "Đơn hàng đã có yêu cầu huỷ đang chờ shop xử lý.",
         ["ux_shipments_tracking"] = "Mã vận đơn bị trùng, vui lòng thử lại.",
+        ["ux_review_item"] = "Sản phẩm này của đơn đã được đánh giá.",
+        ["ux_review_reports"] = "Bạn đã báo cáo đánh giá này.",
+        ["ux_return_items_open"] = "Sản phẩm này đang có yêu cầu trả hàng chưa xử lý xong.",
+        ["ux_returns_code"] = "Mã yêu cầu trả hàng bị trùng, vui lòng thử lại.",
+        ["ux_disputes_return"] = "Yêu cầu trả hàng này đã được khiếu nại.",
     };
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

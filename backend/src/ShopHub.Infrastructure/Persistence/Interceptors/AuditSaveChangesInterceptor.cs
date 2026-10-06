@@ -30,7 +30,9 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
          typeof(Domain.Sales.Payment), typeof(Domain.Sales.PaymentWebhookEvent), typeof(Domain.Promo.VoucherClaim),
          typeof(Domain.Promo.VoucherUsage), typeof(Domain.Promo.VoucherUserCounter), typeof(Domain.Promo.CoinEntry),
          typeof(Domain.Logistics.ShippingRate), typeof(SimulatedPayment), typeof(Domain.Logistics.Shipment), typeof(Domain.Logistics.ShipmentEvent),
-         typeof(Domain.Sales.OrderCancelRequest), typeof(Domain.Sales.Refund), typeof(Domain.Engage.Notification), typeof(Domain.Shops.ShopPenalty)];
+         typeof(Domain.Sales.OrderCancelRequest), typeof(Domain.Sales.Refund), typeof(Domain.Engage.Notification), typeof(Domain.Shops.ShopPenalty),
+         typeof(Domain.Engage.Review), typeof(Domain.Engage.ReviewMedia), typeof(Domain.Engage.ReviewReport), typeof(Domain.Sales.ReturnRequest),
+         typeof(Domain.Sales.ReturnItem), typeof(Domain.Sales.ReturnEvidence), typeof(Domain.Sales.ReturnHistory)];
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {

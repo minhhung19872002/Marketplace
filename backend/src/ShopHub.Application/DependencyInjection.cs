@@ -40,6 +40,9 @@ public static class DependencyInjection
         services.AddScoped<Features.Orders.ShipmentEventProcessor>();
         services.AddScoped<Features.Orders.CarrierWebhookIntake>();
         services.AddScoped<Features.Orders.OrderAutomationService>();
+        services.AddScoped<Features.Reviews.ReviewRewards>();
+        services.AddScoped<Features.Returns.ReturnRefunder>();
+        services.AddScoped<Features.Returns.ReturnAutomationService>();
         return services;
     }
 }

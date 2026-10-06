@@ -9,6 +9,7 @@ using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Security;
@@ -58,6 +59,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         .Build();
 
     private static int _phoneSeq = Random.Shared.Next(1_000_000, 9_000_000);
+
+    /// <summary>Mails "sent" by the API during the tests (no SMTP server in the suite).</summary>
+    public RecordingEmailSender Emails { get; } = new();
+
+    protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder) =>
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<ShopHub.Infrastructure.Notifications.IEmailSender>();
+            services.AddSingleton<ShopHub.Infrastructure.Notifications.IEmailSender>(Emails);
+        });
 
     public string ConnectionString => _postgres.GetConnectionString();
     public string RedisEndpoint => $"{_redis.Hostname}:{_redis.GetMappedPublicPort(6379)}";
@@ -223,4 +234,17 @@ public sealed class ApiCollection : ICollectionFixture<ApiFactory>
 internal static class JsonElementExtensions
 {
     public static string Str(this JsonElement e, string name) => e.GetProperty(name).GetString()!;
+}
+
+public sealed class RecordingEmailSender : ShopHub.Infrastructure.Notifications.IEmailSender
+{
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(string To, string Subject, string Html)> _sent = new();
+
+    public IReadOnlyList<(string To, string Subject, string Html)> Sent => _sent.ToList();
+
+    public Task SendAsync(string to, string subject, string html, CancellationToken ct)
+    {
+        _sent.Enqueue((to, subject, html));
+        return Task.CompletedTask;
+    }
 }

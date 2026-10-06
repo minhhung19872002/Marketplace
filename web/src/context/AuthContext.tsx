@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { refreshSession } from '../api/http';
 import { useAuthStore, type AuthResult, type AuthUser } from '../stores/auth';
+import { stopRealtime } from '../lib/realtime';
 
 /** Restores the session from the refresh cookie once, when the app loads. */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -26,6 +27,7 @@ export const useAuth = (): AuthValue => {
 
   const signIn = useCallback(
     (result: AuthResult) => {
+      void stopRealtime();
       setSession(result);
       queryClient.clear();
     },
@@ -36,6 +38,7 @@ export const useAuth = (): AuthValue => {
     try {
       await authApi.logout();
     } finally {
+      void stopRealtime();
       clear();
       queryClient.clear();
     }

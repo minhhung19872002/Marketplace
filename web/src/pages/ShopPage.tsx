@@ -5,6 +5,7 @@ import { storefrontApi } from '../api/storefront';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
 import ProductGrid from '../components/ProductGrid';
+import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { formatSold } from '../lib/money';
 import { formatDate } from '../lib/datetime';
 import { handleImgError } from '../lib/image';
@@ -85,6 +86,7 @@ const ShopPage = () => {
               <button className={`shop-follow ${isFollowing ? 'following' : ''}`} onClick={onFollow} disabled={follow.isPending} data-testid="shop-follow">
                 {isFollowing ? '✓ Đang Theo Dõi' : '+ Theo Dõi'}
               </button>
+              <ChatNowButton shopId={shop.id} className="shop-follow" />
             </div>
             {message && <div className="shop-message" role="status">{message}</div>}
           </div>
@@ -92,6 +94,7 @@ const ShopPage = () => {
             <div><strong>{formatSold(shop.productCount)}</strong><span>Sản Phẩm</span></div>
             <div><strong data-testid="shop-followers">{formatSold(shop.followerCount)}</strong><span>Người Theo Dõi</span></div>
             <div><strong>{formatDate(shop.joinedAt)}</strong><span>Tham Gia</span></div>
+            <ChatStats shopId={shop.id} />
           </div>
         </div>
         {coverUrl && <img className="shop-cover" src={coverUrl} alt="" onError={handleImgError} />}

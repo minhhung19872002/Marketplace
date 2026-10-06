@@ -6,7 +6,7 @@ Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** 
 Đặc tả và lộ trình: [`PROMPT-BUILD-SHOPHUB.md`](PROMPT-BUILD-SHOPHUB.md). Tiến độ từng phase:
 [`docs/07-bang-doi-chieu-chuc-nang.md`](docs/07-bang-doi-chieu-chuc-nang.md).
 
-> **Trạng thái hiện tại: xong Phase 0–9** (chuyển đổi repo, nền móng backend, tài khoản, danh mục & sản phẩm, tìm kiếm & trang người mua, giỏ hàng & thanh toán, đơn hàng & vận chuyển, đánh giá & trả hàng / khiếu nại, tài chính: sổ cái, giải ngân, rút tiền, Ví ShopHub, marketing: Flash Sale, combo, mua kèm, quà tặng, banner, chiến dịch, hạng thành viên, điểm danh xu).
+> **Trạng thái hiện tại: xong Phase 0–10** (chuyển đổi repo, nền móng backend, tài khoản, danh mục & sản phẩm, tìm kiếm & trang người mua, giỏ hàng & thanh toán, đơn hàng & vận chuyển, đánh giá & trả hàng / khiếu nại, tài chính: sổ cái, giải ngân, rút tiền, Ví ShopHub, marketing: Flash Sale, combo, mua kèm, quà tặng, banner, chiến dịch, hạng thành viên, điểm danh xu, chat người mua ↔ shop thời gian thực (SignalR), thông báo đa kênh, thông báo hàng loạt).
 > Kênh Người Bán (đăng ký shop, đăng/sửa sản phẩm, tồn kho) và quản trị (duyệt shop/sản phẩm, ngành hàng) chạy thật.
 > Trang người mua đọc dữ liệu thật: tìm kiếm không dấu có facet (Meilisearch, dự phòng PostgreSQL), trang danh mục / sản phẩm / shop,
 > yêu thích, theo dõi shop, ~1.000 sản phẩm mẫu. Giỏ hàng trên máy chủ, thanh toán tách đơn theo shop với voucher sàn/shop, xu, phí vận

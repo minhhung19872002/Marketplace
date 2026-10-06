@@ -12,6 +12,7 @@ const LINKS = [
   { to: '/tai-khoan/dia-chi', label: 'Địa Chỉ' },
   { to: '/tai-khoan/mat-khau', label: 'Đổi Mật Khẩu' },
   { to: '/tai-khoan/thiet-bi', label: 'Thiết Bị Đăng Nhập' },
+  { to: '/tai-khoan/thong-bao', label: 'Cài Đặt Thông Báo' },
 ];
 
 /** "Tài khoản của tôi" shell — signed-in users only. */

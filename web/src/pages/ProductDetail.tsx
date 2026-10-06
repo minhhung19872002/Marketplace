@@ -8,6 +8,7 @@ import { useWishlist } from '../context/WishlistContext';
 import ProductGrid from '../components/ProductGrid';
 import ProductReviews from '../components/ProductReviews';
 import Countdown from '../components/Countdown';
+import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { clockSkew, marketingApi } from '../api/marketing';
 import { formatPrice, formatSold } from '../lib/money';
 import { formatDate } from '../lib/datetime';
@@ -312,6 +313,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
             <div className="pd-shop-name">{product.shop.name}</div>
             <div className="pd-shop-sub">{product.shop.provinceName ?? ''}</div>
             <div className="pd-shop-actions">
+              <ChatNowButton shopId={product.shop.id} productId={product.id} className="pd-shop-chat" />
               <Link to={`/shop/${product.shop.slug}`} className="pd-shop-view" data-testid="view-shop">🏪 Xem Shop</Link>
             </div>
           </div>
@@ -319,6 +321,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
             <div><strong>{formatSold(product.shop.productCount)}</strong><span>Sản Phẩm</span></div>
             <div><strong>{formatSold(product.shop.followerCount)}</strong><span>Người Theo Dõi</span></div>
             <div><strong>{formatDate(product.shop.joinedAt)}</strong><span>Tham Gia</span></div>
+            <ChatStats shopId={product.shop.id} />
           </div>
         </div>
 

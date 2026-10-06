@@ -98,6 +98,14 @@ public interface IApplicationDbContext
     DbSet<Banner> Banners { get; }
     DbSet<Campaign> Campaigns { get; }
     DbSet<CheckIn> CheckIns { get; }
+    DbSet<Conversation> Conversations { get; }
+    DbSet<ChatMessage> ChatMessages { get; }
+    DbSet<QuickReply> QuickReplies { get; }
+    DbSet<ShopChatSettings> ShopChatSettings { get; }
+    DbSet<ChatReport> ChatReports { get; }
+    DbSet<NotificationPref> NotificationPrefs { get; }
+    DbSet<DeviceToken> DeviceTokens { get; }
+    DbSet<Broadcast> Broadcasts { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

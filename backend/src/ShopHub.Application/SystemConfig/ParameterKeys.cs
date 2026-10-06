@@ -89,6 +89,11 @@ public static class ParameterKeys
     public const string MemberDiamondMinSpend = "MEMBER.DIAMOND_MIN_SPEND";
     public const string CheckInRewards = "CHECKIN.REWARDS";
     public const string JobCoinExpiryCron = "JOB.COIN_EXPIRY_CRON";
+
+    public const string ChatContactPatterns = "CHAT.CONTACT_PATTERNS";
+    public const string JobRemindersCron = "JOB.REMINDERS_CRON";
+    public const string ChatResponseWindowDays = "CHAT.RESPONSE_WINDOW_DAYS";
+    public const string SitePublicUrl = "SITE.PUBLIC_URL";
 }
 
 public static class ParameterGroups
@@ -111,6 +116,7 @@ public static class ParameterGroups
     public const string Finance = "FINANCE";
     public const string Marketing = "MARKETING";
     public const string Member = "MEMBER";
+    public const string Chat = "CHAT";
 }
 
 public record ParameterDefinition(
@@ -282,5 +288,15 @@ public static class ParameterCatalog
             "Xu điểm danh 7 ngày", "Số xu nhận ở ngày 1…7 của chuỗi điểm danh liên tục (bỏ một ngày thì quay lại ngày 1)."),
         new(ParameterKeys.JobCoinExpiryCron, "15 17 * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch thu hồi xu hết hạn", "Cron (giờ UTC) trừ phần xu chưa dùng của các lượt cộng xu đã quá hạn (dùng xu theo thứ tự hết hạn trước)."),
+        new(ParameterKeys.ChatContactPatterns,
+            @"(?:\+?84|0)(?:[\s.\-]?\d){9}||https?://\S+||www\.\S+||\b(?:zalo|facebook|fb\.com|telegram|viber)\b",
+            ParameterDataType.String, ParameterGroups.Chat,
+            "Mẫu thông tin liên hệ ngoài sàn", "Biểu thức chính quy (cách nhau bằng ||): tin chat khớp mẫu được gắn cảnh báo cho người nhận, không bị chặn."),
+        new(ParameterKeys.JobRemindersCron, "0 1 * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch nhắc việc", "Cron (giờ UTC) gửi thông báo: đơn sắp tự hoàn thành, voucher đã lưu sắp hết hạn, sản phẩm yêu thích đang giảm giá."),
+        new(ParameterKeys.ChatResponseWindowDays, "30", ParameterDataType.Int, ParameterGroups.Chat,
+            "Kỳ tính tỉ lệ phản hồi chat (ngày)", "Tỉ lệ và thời gian phản hồi chat của shop tính trên các cuộc trò chuyện trong bấy nhiêu ngày gần nhất."),
+        new(ParameterKeys.SitePublicUrl, "http://localhost:18000", ParameterDataType.String, ParameterGroups.Site,
+            "Địa chỉ trang người mua", "Dùng để dựng liên kết tuyệt đối trong thư thông báo."),
     ];
 }

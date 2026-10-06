@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using StackExchange.Redis;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -23,6 +24,7 @@ public static class ApiServiceExtensions
     public const string OtpRateLimit = "otp";
     public const string UploadRateLimit = "upload";
     public const string CheckoutRateLimit = "checkout";
+    public const string ChatRateLimit = "chat";
 
     public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration config)
     {
@@ -43,9 +45,19 @@ public static class ApiServiceExtensions
 
         AddJwt(services, config);
         AddRateLimiting(services, config);
+        AddRealtime(services, config);
         AddForwardedHeaders(services, config);
         AddSwagger(services);
         return services;
+    }
+
+    /// <summary>SignalR with the Redis backplane, so an event raised on one API instance reaches clients connected to another.</summary>
+    private static void AddRealtime(IServiceCollection services, IConfiguration config)
+    {
+        services.AddSignalR(o => o.MaximumReceiveMessageSize = 16 * 1024)
+            .AddJsonProtocol(o => o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
+            .AddStackExchangeRedis(config["SH_REDIS_URL"] ?? "localhost:18379", o => o.Configuration.ChannelPrefix = RedisChannel.Literal("shophub:signalr"));
+        services.AddSingleton<ShopHub.Application.Abstractions.IRealtime, Hubs.SignalRRealtime>();
     }
 
     private static void AddJwt(IServiceCollection services, IConfiguration config)
@@ -72,6 +84,13 @@ public static class ApiServiceExtensions
                 };
                 o.Events = new JwtBearerEvents
                 {
+                    // Browsers cannot set headers on a WebSocket: the hub takes the access token from the query string
+                    OnMessageReceived = ctx =>
+                    {
+                        if (ctx.HttpContext.Request.Path.StartsWithSegments("/hubs") && ctx.Request.Query["access_token"] is { Count: > 0 } token)
+                            ctx.Token = token.ToString();
+                        return Task.CompletedTask;
+                    },
                     // A valid signature is not enough: the account must still be active and the session still open
                     OnTokenValidated = async ctx =>
                     {
@@ -128,6 +147,10 @@ public static class ApiServiceExtensions
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
 
             // Placing orders: per buyer (same key retries are cheap, but nobody needs 30 checkouts a minute)
+            // Chat: 60 messages / minute / user — enough to talk, too few to spam
+            o.AddPolicy(ChatRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.User.FindFirst("sub")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1) }));
             o.AddPolicy(CheckoutRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
                 ctx.User.FindFirst("sub")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = CheckoutPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));

@@ -436,6 +436,51 @@ Giỏ hàng trả thêm `priceLabel`; báo giá thêm `comboDiscount`, mỗi dò
 
 Việc nền chạy ngay được: `promo.flash-reconcile`, `promo.coin-expiry`.
 
+## Chat & thông báo (Phase 10)
+
+Realtime: hub SignalR **`/hubs/realtime`** (JWT; trình duyệt gửi `?access_token=`). Sự kiện máy chủ → client:
+`chat.message` (tin nhắn), `chat.read` `{ conversationId, side, at }`, `chat.typing` `{ conversationId, side }`,
+`notification` (thông báo mới). Client → máy chủ: `Typing(conversationId)`.
+
+**Người mua** (`/api/chat`, đăng nhập; hội thoại của người khác trả 404)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| POST | `/conversations` | `{ shopId }` → mở (hoặc lấy lại) hội thoại với shop |
+| GET | `/conversations?q=&page=&pageSize=` | Danh sách, tìm theo tên shop, kèm số chưa đọc |
+| GET | `/unread` | Tổng tin chưa đọc |
+| GET | `/conversations/{id}/messages?before=&limit=` | Tin nhắn, mới nhất trước, phân trang theo thời điểm |
+| POST | `/conversations/{id}/messages` | `{ type: Text\|Image\|Product\|Order\|Voucher, text?, imageAssetId?, productId?, orderCode?, voucherId? }` — 60 tin / phút |
+| POST | `/conversations/{id}/read` | Đánh dấu đã đọc (phát `chat.read`) |
+| POST | `/conversations/{id}/block` · `/report` | `{ blocked }` · `{ reason }` |
+| GET | `/api/shops/{shopId}/chat-stats` | Công khai: tỉ lệ phản hồi, thời gian phản hồi, hoạt động gần nhất |
+
+Ảnh chat tải qua `POST /api/media/chat` (bucket riêng, chỉ trả URL ký hạn).
+
+**Shop** (`/api/seller/shops/{shopId}/chat`, quyền `CHAT.MANAGE`)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/conversations?filter=All\|Unread\|Mine\|Unassigned&q=` | Hộp thư |
+| GET · POST | `/conversations/{id}/messages` | Như phía người mua |
+| POST | `/conversations/{id}/read` · `/assign` | Đã đọc · `{ staffUserId \| null }` |
+| GET | `/staff` | Nhân viên nhận được hội thoại |
+| GET · POST · DELETE | `/quick-replies` · `/quick-replies/{id}` | `{ id?, shortcut, content }` |
+| GET · PUT | `/settings` | `{ autoReplyEnabled, autoReplyText, openFrom: "HH:mm:ss", openTo }` |
+
+**Cài đặt thông báo** (`/api/notifications`, của chính người gọi)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET · PUT | `/prefs` | `{ prefs: [{ category: Order\|Promotion\|Wallet\|Activity, channel: InApp\|Email\|Sms\|Push, enabled }] }` — InApp luôn bật |
+| POST | `/devices` | `{ platform, token }` — token FCM của app |
+
+**Quản trị** (`/api/admin/marketing/broadcasts`, quyền `PROMO.MARKETING.MANAGE`): `GET` lịch sử, `POST`
+`{ title, body, link?, segment: Everyone\|MemberGold\|MemberDiamond\|NoOrderYet }` → số người nhận và số bị bỏ qua
+(đã nhận một thông báo khuyến mãi trong ngày).
+
+Việc nền chạy ngay được: `engage.reminders`.
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

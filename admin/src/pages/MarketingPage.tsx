@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
-import { POSITION_LABEL, marketingApi, type Banner, type BannerPosition, type Campaign, type CampaignBlock, type FlashItem, type FlashSlot } from '../api/marketing'
+import { POSITION_LABEL, SEGMENT_LABEL, marketingApi, type Broadcast, type BroadcastSegment, type Banner, type BannerPosition, type Campaign, type CampaignBlock, type FlashItem, type FlashSlot } from '../api/marketing'
 import { ApiError } from '../api/http'
 import { formatPrice } from '../lib/money'
 import { formatDateTime } from '../lib/datetime'
@@ -201,6 +201,45 @@ const CampaignsTab = () => {
   )
 }
 
+const BroadcastsTab = () => {
+  const { message, modal } = App.useApp()
+  const queryClient = useQueryClient()
+  const [form] = Form.useForm<{ title: string; body: string; link?: string; segment: BroadcastSegment }>()
+  const list = useQuery({ queryKey: ['broadcasts'], queryFn: marketingApi.broadcasts })
+  const send = useMutation({
+    mutationFn: (v: { title: string; body: string; link?: string; segment: BroadcastSegment }) =>
+      marketingApi.sendBroadcast({ title: v.title, body: v.body, link: v.link || null, segment: v.segment }),
+    onSuccess: (r) => {
+      message.success(`${r.message} ${r.data.recipients} người nhận, ${r.data.skippedToday} người bỏ qua (đã nhận đủ trong ngày).`)
+      form.resetFields()
+      void queryClient.invalidateQueries({ queryKey: ['broadcasts'] })
+    },
+    onError: (e) => message.error(errorText(e, 'Không gửi được thông báo.')),
+  })
+  return (
+    <>
+      <Form form={form} layout="vertical" style={{ maxWidth: 640 }} initialValues={{ segment: 'Everyone' }}
+        onFinish={(v) => modal.confirm({ title: `Gửi tới "${SEGMENT_LABEL[v.segment]}"?`, content: 'Thông báo khuyến mãi chỉ gửi cho người đã bật loại thông báo này.', onOk: () => send.mutateAsync(v) })}>
+        <Form.Item name="segment" label="Nhóm người nhận">
+          <Select options={(Object.keys(SEGMENT_LABEL) as BroadcastSegment[]).map((k) => ({ value: k, label: SEGMENT_LABEL[k] }))} />
+        </Form.Item>
+        <Form.Item name="title" label="Tiêu đề" rules={[{ required: true, max: 200, message: 'Nhập tiêu đề (tối đa 200 ký tự).' }]}><Input /></Form.Item>
+        <Form.Item name="body" label="Nội dung" rules={[{ required: true, max: 1000, message: 'Nhập nội dung (tối đa 1000 ký tự).' }]}><Input.TextArea rows={3} /></Form.Item>
+        <Form.Item name="link" label="Liên kết (tùy chọn)"><Input placeholder="/su-kien/sale-10-10" /></Form.Item>
+        <Button type="primary" htmlType="submit" loading={send.isPending}>Gửi thông báo</Button>
+      </Form>
+      <Table<Broadcast> rowKey="id" style={{ marginTop: 16 }} loading={list.isLoading} dataSource={list.data ?? []} pagination={false}
+        columns={[
+          { title: 'Thời gian', dataIndex: 'createdAt', render: (v: string) => formatDateTime(v) },
+          { title: 'Tiêu đề', dataIndex: 'title' },
+          { title: 'Nhóm', dataIndex: 'segment', render: (v: BroadcastSegment) => <Tag>{SEGMENT_LABEL[v]}</Tag> },
+          { title: 'Người nhận', dataIndex: 'recipients' },
+          { title: 'Bỏ qua (giới hạn ngày)', dataIndex: 'skippedToday' },
+        ]} />
+    </>
+  )
+}
+
 /** VI.6 Marketing của sàn: khung Flash Sale & duyệt đăng ký, banner / lối tắt / popup, chiến dịch. */
 const MarketingPage = () => (
   <Card title="Marketing của sàn">
@@ -208,6 +247,7 @@ const MarketingPage = () => (
       { key: 'flash', label: 'Flash Sale', children: <FlashTab /> },
       { key: 'banners', label: 'Banner & lối tắt', children: <BannersTab /> },
       { key: 'campaigns', label: 'Chiến dịch', children: <CampaignsTab /> },
+      { key: 'broadcasts', label: 'Thông báo đẩy', children: <BroadcastsTab /> },
     ]} />
   </Card>
 )

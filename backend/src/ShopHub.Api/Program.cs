@@ -86,6 +86,7 @@ app.MapHangfireDashboard("/api/admin/jobs", new DashboardOptions
 }).AllowAnonymous();
 
 app.MapControllers();
+app.MapHub<ShopHub.Api.Hubs.RealtimeHub>("/hubs/realtime");
 
 await DatabaseInitializer.InitializeAsync(app.Services);
 

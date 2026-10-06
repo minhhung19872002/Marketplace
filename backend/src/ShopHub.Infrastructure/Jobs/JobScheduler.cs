@@ -17,10 +17,11 @@ public static class JobIds
     public const string LedgerCheck = "finance.ledger-check";
     public const string FlashReconcile = "promo.flash-reconcile";
     public const string CoinExpiry = "promo.coin-expiry";
+    public const string Reminders = "engage.reminders";
 
     // Jobs an admin may trigger on demand (POST /api/admin/job-runs/{id})
     public static readonly IReadOnlyList<string> Runnable =
-        [OutboxDispatch, CounterRecompute, PaymentExpiry, OrderAutomation, CarrierSimulator, Settlement, LedgerCheck, FlashReconcile, CoinExpiry];
+        [OutboxDispatch, CounterRecompute, PaymentExpiry, OrderAutomation, CarrierSimulator, Settlement, LedgerCheck, FlashReconcile, CoinExpiry, Reminders];
 }
 
 /// <summary>Hangfire entry for <see cref="Application.Features.Orders.OrderAutomationService"/>.</summary>
@@ -32,6 +33,13 @@ public sealed class OrderAutomationJob(Application.Features.Orders.OrderAutomati
         await orders.RunAsync(CancellationToken.None);
         await returns.RunAsync(CancellationToken.None);
     }
+}
+
+/// <summary>Hangfire entry for <see cref="Application.Features.Chat.ReminderService"/>.</summary>
+public sealed class RemindersJob(Application.Features.Chat.ReminderService service)
+{
+    [DisableConcurrentExecution(timeoutInSeconds: 900)]
+    public Task RunJobAsync() => service.RunAsync(CancellationToken.None);
 }
 
 /// <summary>Hangfire entry for <see cref="Commerce.CarrierSimulator"/>.</summary>
@@ -110,6 +118,12 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
             JobIds.CoinExpiry,
             j => j.RunJobAsync(),
             await parameters.GetStringAsync(ParameterKeys.JobCoinExpiryCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<RemindersJob>(
+            JobIds.Reminders,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobRemindersCron, ct),
             options);
 
         recurringJobs.AddOrUpdate<OutboxCleanupJob>(

@@ -5,6 +5,7 @@ import Header from './components/Header'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
 import BackToTop from './components/BackToTop'
+import { ChatProvider, ChatWidget } from './components/chat/Chat'
 import './App.css'
 
 // Lazy load pages - Code Splitting
@@ -39,6 +40,8 @@ const ProfilePage = lazy(() => import('./pages/account/ProfilePage'))
 const AddressesPage = lazy(() => import('./pages/account/AddressesPage'))
 const PasswordPage = lazy(() => import('./pages/account/PasswordPage'))
 const DevicesPage = lazy(() => import('./pages/account/DevicesPage'))
+const NotificationSettingsPage = lazy(() => import('./pages/account/NotificationSettingsPage'))
+const ChatPage = lazy(() => import('./pages/ChatPage'))
 
 const PageLoader = () => (
   <div className="page-loader">
@@ -50,6 +53,7 @@ function App() {
   return (
     <AuthProvider>
           <Router>
+          <ChatProvider>
             <ScrollToTop />
             <div className="App">
               <Header />
@@ -69,6 +73,7 @@ function App() {
                     <Route path="/thanh-toan/ket-qua/:checkoutId" element={<PaymentResult />} />
                     <Route path="/yeu-thich" element={<Wishlist />} />
                     <Route path="/thong-bao" element={<Notifications />} />
+                    <Route path="/chat" element={<ChatPage />} />
                     <Route path="/tra-cuu-van-don" element={<TrackingPage />} />
                     <Route path="/tra-cuu-van-don/:trackingNo" element={<TrackingPage />} />
                     <Route path="/shop/:slug" element={<ShopPage />} />
@@ -89,13 +94,16 @@ function App() {
                       <Route path="dia-chi" element={<AddressesPage />} />
                       <Route path="mat-khau" element={<PasswordPage />} />
                       <Route path="thiet-bi" element={<DevicesPage />} />
+                      <Route path="thong-bao" element={<NotificationSettingsPage />} />
                     </Route>
                   </Routes>
                 </Suspense>
               </main>
               <Footer />
               <BackToTop />
+              <ChatWidget />
             </div>
+          </ChatProvider>
           </Router>
     </AuthProvider>
   )

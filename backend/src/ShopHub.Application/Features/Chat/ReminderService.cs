@@ -1,0 +1,66 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using ShopHub.Application.Abstractions;
+using ShopHub.Domain.Engage;
+using ShopHub.Domain.Promo;
+using ShopHub.Domain.Sales;
+
+namespace ShopHub.Application.Features.Chat;
+
+/// <summary>
+/// Time-based notifications of spec VII (job <c>engage.reminders</c>): an order that completes itself within a day,
+/// a saved voucher that expires within a day and is still unused, a product on the wishlist that is now on sale (a
+/// discount or flash price started in the last day). Each one at most once (dedupe key).
+/// </summary>
+public sealed class ReminderService(IApplicationDbContext db, IClock clock, ILogger<ReminderService> logger)
+{
+    public async Task<int> RunAsync(CancellationToken ct)
+    {
+        var now = clock.UtcNow;
+        var created = 0;
+
+        var completing = await db.Orders.AsNoTracking()
+            .Where(o => o.Status == OrderStatus.Delivered && o.AutoCompleteAt != null && o.AutoCompleteAt > now && o.AutoCompleteAt <= now.AddDays(1))
+            .Select(o => new { o.Id, o.BuyerId, o.Code }).Take(2_000).ToListAsync(ct);
+        foreach (var o in completing)
+            created += Add(o.BuyerId, NotificationCategory.Order, "Đơn hàng sắp tự hoàn thành",
+                $"Đơn {o.Code} sẽ tự hoàn thành trong 24 giờ. Nếu có vấn đề, hãy yêu cầu trả hàng trước thời điểm này.", $"/tai-khoan/don-mua/{o.Code}",
+                "order", o.Id, $"auto-complete:{o.Id}", now);
+
+        var expiring = await (from c in db.VoucherClaims.AsNoTracking()
+                              join v in db.Vouchers.AsNoTracking() on c.VoucherId equals v.Id
+                              where v.IsActive && v.EndAt > now && v.EndAt <= now.AddDays(1)
+                                    && !db.VoucherUserCounters.Any(u => u.VoucherId == v.Id && u.UserId == c.UserId && u.UsedCount > 0)
+                              select new { c.UserId, v.Id, v.Code }).Take(5_000).ToListAsync(ct);
+        foreach (var v in expiring)
+            created += Add(v.UserId, NotificationCategory.Promotion, "Voucher sắp hết hạn", $"Mã {v.Code} trong ví của bạn sẽ hết hạn trong 24 giờ.",
+                "/tai-khoan/voucher", "voucher", v.Id, $"voucher-expiring:{v.Id}", now);
+
+        var onSale = await (from w in db.Wishlists.AsNoTracking()
+                            join s in db.Skus.AsNoTracking() on w.ProductId equals s.ProductId
+                            join p in db.PricePrograms.AsNoTracking() on s.Id equals p.SkuId
+                            join pr in db.Products.AsNoTracking() on w.ProductId equals pr.Id
+                            where p.IsActive && p.StartAt <= now && p.StartAt > now.AddDays(-1) && p.EndAt > now
+                            select new { w.UserId, w.ProductId, pr.Name, ProgramId = p.Id }).Take(5_000).ToListAsync(ct);
+        foreach (var w in onSale.DistinctBy(x => (x.UserId, x.ProductId)))
+            created += Add(w.UserId, NotificationCategory.Promotion, "Sản phẩm yêu thích đang giảm giá", $"\"{w.Name}\" bạn đã thích đang có giá ưu đãi.",
+                $"/san-pham/{w.ProductId}", "product", w.ProductId, $"wishlist-sale:{w.ProductId}:{w.ProgramId}", now);
+
+        if (created > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Reminders: {Count} notifications", created);
+        }
+        return created;
+    }
+
+    private readonly HashSet<(Guid, string)> _seen = [];
+
+    private int Add(Guid userId, NotificationCategory category, string title, string body, string link, string refType, Guid refId, string dedupe,
+        DateTimeOffset now)
+    {
+        if (!_seen.Add((userId, dedupe)) || db.Notifications.Any(n => n.UserId == userId && n.DedupeKey == dedupe)) return 0;
+        db.Notifications.Add(new Notification(userId, category, title, body, link, refType, refId, now, dedupe));
+        return 1;
+    }
+}

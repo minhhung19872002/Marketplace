@@ -14,8 +14,9 @@ public static class ShopPermissions
     public const string ReviewManage = "REVIEW.MANAGE";
     public const string FinanceView = "FINANCE.VIEW";
     public const string FinanceWithdraw = "FINANCE.WITHDRAW";
+    public const string ChatManage = "CHAT.MANAGE";
 
     public static readonly IReadOnlyList<string> All =
         [ProductView, ProductManage, InventoryManage, SettingsManage, StaffManage, MarketingManage, OrderView, OrderManage, ReviewManage,
-         FinanceView, FinanceWithdraw];
+         FinanceView, FinanceWithdraw, ChatManage];
 }

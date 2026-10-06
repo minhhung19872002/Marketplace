@@ -48,6 +48,15 @@ stack (mọi trình duyệt cùng một IP): `SH_GATEWAY_RATE=100r/s SH_GATEWAY_
 3. `docker run --rm --network shophub_default -v "$PWD/e2e/load:/scripts" -e BASE_URL=http://api:8080 -e LOAD_PASSWORD=<như trên> -e USERS=1000 grafana/k6 run /scripts/flash-sale.js`
 4. Đạt khi: không lỗi máy chủ, số suất bán ra = số đơn và không vượt suất, p95 đặt hàng < 3 s.
 
+## Realtime (SignalR)
+
+Hub `/hubs/realtime` chạy trong container API; nhiều bản API dùng chung **Redis backplane** (kênh `shophub:signalr*`)
+nên tin phát ở bản này tới client nối vào bản kia. Gateway đã chuyển WebSocket; khi đặt thêm proxy / load balancer phía
+trước, cần cho phép `Upgrade` và thời gian chờ đọc ≥ 1 giờ (nếu không, trình duyệt rơi về long polling — vẫn chạy được
+nhưng tốn tài nguyên hơn). Dev server Vite của `web/` và `seller/` đã chuyển `/hubs` (ws) tới API.
+
+Email thông báo đi qua Mailpit ở stack dev; push FCM là bản giả lập (ghi log, không gửi).
+
 ## Chẩn đoán
 
 | Việc | Lệnh |
@@ -58,3 +67,4 @@ stack (mọi trình duyệt cùng một IP): `SH_GATEWAY_RATE=100r/s SH_GATEWAY_
 | Việc nền (Hangfire) | `/api/admin/jobs` (quyền `SYS.JOB.VIEW`) |
 | Tin outbox kẹt | `SELECT type, attempts, last_error FROM sys.outbox_messages WHERE processed_at IS NULL;` |
 | SMS giả lập | `GET /api/dev/sms?to=09…` (chỉ Development) |
+| Realtime không nhận tin | DevTools → Network → WS `/hubs/realtime` (101); `redis-cli PUBSUB CHANNELS 'shophub:signalr*'` |

@@ -22,7 +22,12 @@ public static class OutboxTypes
 
     // Order lifecycle (placed, paid, confirmed, shipped, delivered, completed, cancelled, cancel request…) → notifications
     public const string OrderEvent = "sales.order.event";
+
+    // A new in-app notification → realtime push + the email / SMS / push channels the user chose
+    public const string NotifyDeliver = "notify.deliver";
 }
+
+public record NotifyDeliverPayload(Guid NotificationId);
 
 public record SystemParameterChangedPayload(string Key);
 

@@ -17,6 +17,7 @@ public enum MediaPurpose
     Kyc,
     Review,    // review photos / video (public)
     Evidence,  // return & dispute evidence (unguessable public keys in the reviews bucket)
+    Chat,      // chat photos (private bucket, read through signed URLs)
 }
 
 public record MediaAssetDto(Guid Id, MediaKind Kind, string? Url, string? ThumbnailUrl, int? Width, int? Height, int? DurationMs);
@@ -98,6 +99,7 @@ public sealed class UploadMediaHandler(
             {
                 MediaPurpose.Kyc => Buckets.Kyc,
                 MediaPurpose.Review or MediaPurpose.Evidence => Buckets.Reviews,
+                MediaPurpose.Chat => Buckets.Chat,
                 _ => Buckets.Products,
             };
             var sizes = request.Purpose == MediaPurpose.Kyc ? new[] { ImageSizes.Document } : ImageSizes.Public;

@@ -110,3 +110,36 @@ body {
   top: 4px;
   left: 4px;
 }
+
+.chat-messages {
+  height: 420px;
+  overflow-y: auto;
+  background: #f7f7f7;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-bubble {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #ffe8de;
+}
+
+.chat-bubble-buyer {
+  background: #fff;
+}
+
+.chat-bubble-system {
+  background: #eef3ff;
+}
+
+.inbox-item {
+  cursor: pointer;
+  padding-inline: 8px !important;
+}
+
+.inbox-item.active {
+  background: #fff3ec;
+}

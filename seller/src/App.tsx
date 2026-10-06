@@ -18,6 +18,8 @@ import ReviewsPage from './pages/ReviewsPage'
 import ReturnsPage from './pages/ReturnsPage'
 import FinancePage from './pages/FinancePage'
 import MarketingPage from './pages/MarketingPage'
+import ChatPage from './pages/ChatPage'
+import { stopRealtime } from './lib/realtime'
 import './App.css'
 
 const { Header, Sider, Content } = Layout
@@ -27,6 +29,7 @@ const MENU = [
   { path: '/don-hang', label: 'Đơn hàng' },
   { path: '/tra-hang', label: 'Trả hàng / Hoàn tiền' },
   { path: '/danh-gia', label: 'Đánh giá' },
+  { path: '/chat', label: 'Chat' },
   { path: '/tai-chinh', label: 'Tài chính' },
   { path: '/san-pham', label: 'Sản phẩm' },
   { path: '/san-pham/moi', label: 'Thêm sản phẩm' },
@@ -52,6 +55,7 @@ const Shell = () => {
 
   const logout = async () => {
     await sellerApi.logout().catch(() => undefined)
+    await stopRealtime()
     clear()
     select(null)
     queryClient.clear()
@@ -97,6 +101,7 @@ const Shell = () => {
               <Route path="/don-hang" element={<OrdersPage shopId={shop.id} />} />
               <Route path="/tra-hang" element={<ReturnsPage shopId={shop.id} />} />
               <Route path="/danh-gia" element={<ReviewsPage shopId={shop.id} />} />
+              <Route path="/chat" element={<ChatPage key={shop.id} shopId={shop.id} />} />
               <Route path="/tai-chinh" element={<FinancePage shopId={shop.id} />} />
               <Route path="/san-pham" element={<ProductsPage shopId={shop.id} />} />
               <Route path="/san-pham/:id" element={<ProductEditorPage key={location.pathname} shopId={shop.id} />} />

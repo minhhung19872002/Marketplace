@@ -81,4 +81,27 @@ export const marketingApi = {
   saveBanner: (body: Omit<Banner, 'id'> & { id: string | null }) => apiCommand<string>('/admin/marketing/banners', { method: 'POST', body }),
   campaigns: () => apiRequest<Campaign[]>('/admin/marketing/campaigns'),
   saveCampaign: (body: Omit<Campaign, 'id'> & { id: string | null }) => apiCommand<string>('/admin/marketing/campaigns', { method: 'POST', body }),
+  broadcasts: () => apiRequest<Broadcast[]>('/admin/marketing/broadcasts'),
+  sendBroadcast: (body: { title: string; body: string; link: string | null; segment: BroadcastSegment }) =>
+    apiCommand<Broadcast>('/admin/marketing/broadcasts', { method: 'POST', body }),
+}
+
+export type BroadcastSegment = 'Everyone' | 'MemberGold' | 'MemberDiamond' | 'NoOrderYet'
+
+export const SEGMENT_LABEL: Record<BroadcastSegment, string> = {
+  Everyone: 'Tất cả người mua',
+  MemberGold: 'Thành viên Vàng trở lên',
+  MemberDiamond: 'Thành viên Kim cương',
+  NoOrderYet: 'Chưa từng đặt hàng',
+}
+
+export interface Broadcast {
+  id: string
+  title: string
+  body: string
+  link: string | null
+  segment: BroadcastSegment
+  recipients: number
+  skippedToday: number
+  createdAt: string
 }

@@ -31,11 +31,13 @@ public static class DependencyInjection
 
         services.AddScoped<AuditSaveChangesInterceptor>();
         services.AddSingleton<SearchSyncInterceptor>();
+        services.AddScoped<OutboxInterceptor>();
         services.AddDbContext<ShopHubDbContext>((sp, options) => options
             .UseNpgsql(settings.DbConnectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", "sys"))
             .UseSnakeCaseNamingConvention()
-            .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>(), sp.GetRequiredService<SearchSyncInterceptor>()));
+            .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>(), sp.GetRequiredService<SearchSyncInterceptor>(),
+                sp.GetRequiredService<OutboxInterceptor>()));
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ShopHubDbContext>());
 
         services.AddSingleton<ISystemParameters, CachedSystemParameters>();
@@ -100,6 +102,9 @@ public static class DependencyInjection
         services.AddScoped<ICarrier>(sp => sp.GetRequiredService<Commerce.SimulatedCarrier>());
         services.AddScoped<Commerce.CarrierSimulator>();
         services.AddScoped<IOutboxHandler, OrderEventHandler>();
+        services.AddScoped<IOutboxHandler, NotificationDeliveryHandler>();
+        services.AddScoped<IPushSender, SimulatedPushSender>();
+        services.AddScoped<Jobs.RemindersJob>();
         services.AddScoped<Jobs.OrderAutomationJob>();
         services.AddScoped<Jobs.CarrierSimulatorJob>();
         services.AddScoped<Commerce.SimulatedGateway>();

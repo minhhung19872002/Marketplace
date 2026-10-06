@@ -101,6 +101,14 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<Banner> Banners => Set<Banner>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<CheckIn> CheckIns => Set<CheckIn>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<QuickReply> QuickReplies => Set<QuickReply>();
+    public DbSet<ShopChatSettings> ShopChatSettings => Set<ShopChatSettings>();
+    public DbSet<ChatReport> ChatReports => Set<ChatReport>();
+    public DbSet<NotificationPref> NotificationPrefs => Set<NotificationPref>();
+    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+    public DbSet<Broadcast> Broadcasts => Set<Broadcast>();
 
     // Unique index name → what the user is told when a parallel request already took the value
     private static readonly Dictionary<string, string> UniqueMessages = new()
@@ -141,6 +149,10 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         ["ux_flash_sale_items_slot_sku"] = "Phân loại này đã đăng ký khung Flash Sale này.",
         ["ux_campaigns_slug"] = "Đường dẫn chiến dịch đã được dùng.",
         ["ux_check_ins_user_day"] = "Hôm nay bạn đã điểm danh rồi.",
+        ["ux_conversations_pair"] = "Cuộc trò chuyện đang được tạo, vui lòng thử lại.",
+        ["ux_quick_replies_shortcut"] = "Phím tắt này đã được dùng.",
+        ["ux_shop_chat_settings_shop"] = "Cài đặt chat đang được lưu, vui lòng thử lại.",
+        ["ux_notification_prefs"] = "Cài đặt thông báo đang được lưu, vui lòng thử lại.",
     };
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

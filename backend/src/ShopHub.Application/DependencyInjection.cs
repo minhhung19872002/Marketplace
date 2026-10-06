@@ -58,6 +58,11 @@ public static class DependencyInjection
         services.AddScoped<Features.Marketing.Membership>();
         services.AddScoped<Features.Marketing.CashbackService>();
         services.AddScoped<Features.Marketing.CoinExpiryService>();
+        services.AddScoped<Features.Chat.ContactFilter>();
+        services.AddScoped<Features.Chat.ChatAccess>();
+        services.AddScoped<Features.Chat.ChatTyping>();
+        services.AddScoped<Features.Chat.ChatPerformanceService>();
+        services.AddScoped<Features.Chat.ReminderService>();
         return services;
     }
 }

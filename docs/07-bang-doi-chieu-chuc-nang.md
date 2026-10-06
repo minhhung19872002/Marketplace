@@ -202,3 +202,20 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Hạng thành viên & voucher theo hạng, điểm danh 7 ngày, hoàn xu từ voucher, xu hết hạn | 00 #87 | `Spending_unlocks_the_gold_tier_voucher_and_voucher_cashback_is_paid_once…`, `Check_in_pays_the_streak_reward_once_per_day…`, `MarketingRulesTests.Spending_uses_the_xu_that_expire_first…` |
 | Dữ liệu mẫu: 1 khung đang chạy + 1 sắp tới, banner, 1 chiến dịch | `MarketingSeeder` | stack dev: log `SEED flash sale / banners / campaign` |
 | **Dời lại** | thông báo hàng loạt (Phase 10), Freeship / Voucher Xtra, giá khuyến mãi trên thẻ lưới | 00 #89 |
+
+## Phase 10 — Chat & thông báo
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| Chat người mua ↔ shop thời gian thực (WebSocket, nhiều bản API) | 00 #90–91, hub `/hubs/realtime` + Redis backplane, web: cửa sổ chat nổi + `/chat`, Kênh Người Bán → Chat | `Buyer_and_shop_talk_live_with_read_receipts_typing_and_unread_counters` (client SignalR thật); **e2e số 10** (hai phiên trình duyệt qua gateway) |
+| Đã xem, đang soạn tin, số chưa đọc | `chat.read`, `chat.typing`, cột chưa đọc mỗi phía | hai phép thử trên |
+| Gửi ảnh, thẻ sản phẩm / đơn / voucher; nút "Chat ngay" ở trang sản phẩm và trang shop | `ChatViews`, `ChatNowButton` | `Contact_details_are_flagged_not_blocked_and_cards_only_show_what_the_sender_may_share`; e2e số 10 (thẻ sản phẩm) |
+| Cảnh báo thông tin liên hệ ngoài sàn | 00 #92, `ContactFilter` | phép thử trên; e2e số 10 (cảnh báo ở cả hai phía) |
+| Chặn / báo cáo shop | chặn / báo cáo trên hội thoại | `Outside_working_hours_the_buyer_gets_the_automatic_reply_once_an_hour_and_a_blocked_shop_cannot_write` |
+| Hộp thư shop: lọc, phân công, câu trả lời nhanh, tự động trả lời ngoài giờ | 00 #93 | phép thử trên; e2e số 10 (câu trả lời nhanh qua `/`) |
+| Tỉ lệ / thời gian phản hồi của shop | `ChatPerformanceService`, trang sản phẩm + trang shop | phép thử realtime ở trên |
+| Giới hạn tốc độ chat | `ChatRateLimit` 60 / phút / người | `A_new_message_notifies_the_shop_live_and_by_email_when_chosen_and_messages_are_rate_limited` |
+| Thông báo đa kênh theo lựa chọn của người dùng | 00 #94, `/tai-khoan/thong-bao`, `NotificationDeliveryHandler` | phép thử trên (email chỉ khi bật); chuông thông báo cập nhật realtime |
+| Thông báo hàng loạt theo phân khúc, ≤ 1 khuyến mãi / người / ngày | 00 #95, quản trị → Marketing → Thông báo đẩy | `A_broadcast_reaches_its_segment_once_and_nobody_gets_two_promotions_the_same_day` |
+| Nhắc việc: đơn sắp tự hoàn thành, voucher sắp hết hạn, yêu thích giảm giá | `ReminderService` (`engage.reminders`) | `Reminders_tell_about_orders_completing_soon_once` |
+| **Dời lại** | push FCM thật, SMS thật (Phase 11), quản trị xem chat bị báo cáo (Phase 12) | 00 #96 |

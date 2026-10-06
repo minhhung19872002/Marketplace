@@ -252,7 +252,7 @@ export const OrderDetailPage = () => {
             <tr key={label}><td>{label}</td><td>{v < 0 ? `−${formatPrice(-v)}` : formatPrice(v)}</td></tr>
           ))}
           <tr className="order-money-total"><td>Thành tiền</td><td data-testid="order-grand-total">{formatPrice(data.grandTotal)}</td></tr>
-          <tr><td>Phương thức thanh toán</td><td>{data.paymentMethod === 'Cod' ? 'Thanh toán khi nhận hàng' : 'Thẻ / Ví điện tử'}</td></tr>
+          <tr><td>Phương thức thanh toán</td><td>{data.paymentMethod === 'Cod' ? 'Thanh toán khi nhận hàng' : data.paymentMethod === 'Wallet' ? 'Ví ShopHub' : 'Thẻ / Ví điện tử'}</td></tr>
         </tbody>
       </table>
     </div>

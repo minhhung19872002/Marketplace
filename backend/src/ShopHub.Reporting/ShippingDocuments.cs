@@ -23,7 +23,7 @@ public sealed class ShippingDocuments : IShippingDocuments
 
     public ShippingDocuments() => EnsureFonts();
 
-    private static void EnsureFonts()
+    internal static void EnsureFonts()
     {
         lock (FontLock)
         {
@@ -45,7 +45,7 @@ public sealed class ShippingDocuments : IShippingDocuments
 
     private static string Local(DateTimeOffset utc) => TimeZoneInfo.ConvertTime(utc, Vn).ToString("HH:mm dd/MM/yyyy", Vi);
 
-    private static TextStyle BaseStyle(float size) =>
+    internal static TextStyle BaseStyle(float size) =>
         TextStyle.Default.FontFamily(Font).FontSize(size).DisableFontFeature(FontFeatures.StandardLigatures);
 
     public byte[] RenderLabels(IReadOnlyList<ShippingLabel> labels, LabelSize size) =>

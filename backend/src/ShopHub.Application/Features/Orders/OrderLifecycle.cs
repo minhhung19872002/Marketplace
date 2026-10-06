@@ -83,6 +83,14 @@ public sealed class OrderCanceller(
     public async Task RefundIfPaidAsync(Order order, string reason, DateTimeOffset now, CancellationToken ct)
     {
         if (order.PaymentStatus != OrderPaymentStatus.Paid || order.PaymentMethod == PaymentMethod.Cod || order.GrandTotal == 0) return;
+        if (order.PaymentMethod == PaymentMethod.Wallet)
+        {
+            // Back into Ví ShopHub: the finance sync credits the wallet and completes the refund (same order event)
+            db.Refunds.Add(new Refund(order.Id, null, order.GrandTotal, RefundDestination.Wallet, reason, now));
+            order.MarkRefunded();
+            outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Refunded, null));
+            return;
+        }
         var payment = await db.Payments.Where(p => p.CheckoutId == order.CheckoutId && p.Status == PaymentStatus.Succeeded)
             .OrderByDescending(p => p.PaidAt).FirstOrDefaultAsync(ct);
         var refund = new Refund(order.Id, payment?.Id, order.GrandTotal, RefundDestination.Gateway, reason, now);

@@ -148,7 +148,8 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         b.Property(p => p.FailureReason).HasMaxLength(300);
         b.Property(p => p.RedirectUrl).HasMaxLength(1000);
         b.Property(p => p.Version).IsRowVersion();
-        b.HasOne<CheckoutSession>().WithMany().HasForeignKey(p => p.CheckoutId).OnDelete(DeleteBehavior.Restrict);
+        b.Property(p => p.Purpose).HasConversion<string>().HasMaxLength(20).HasDefaultValue(PaymentPurpose.Checkout);
+        // No FK on checkout_id: it points to a checkout session or a wallet top-up depending on purpose
         b.HasIndex(p => new { p.Method, p.ProviderTxnId }).IsUnique().HasFilter("provider_txn_id IS NOT NULL").HasDatabaseName("ux_payment_txn");
         b.HasIndex(p => p.CheckoutId).HasDatabaseName("ix_payments_checkout");
     }

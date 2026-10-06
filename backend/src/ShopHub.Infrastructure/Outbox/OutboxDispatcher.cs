@@ -8,7 +8,7 @@ using ShopHub.Infrastructure.Persistence;
 
 namespace ShopHub.Infrastructure.Outbox;
 
-// One handler per outbox message type
+// Handles one outbox message type; several handlers may share a type (all must succeed, all are idempotent)
 public interface IOutboxHandler
 {
     string Type { get; }
@@ -29,7 +29,7 @@ public sealed class OutboxDispatcher(
     IClock clock,
     ILogger<OutboxDispatcher> logger)
 {
-    private readonly Dictionary<string, IOutboxHandler> _handlers = handlers.ToDictionary(h => h.Type);
+    private readonly Dictionary<string, List<IOutboxHandler>> _handlers = handlers.GroupBy(h => h.Type).ToDictionary(g => g.Key, g => g.ToList());
 
     [DisableConcurrentExecution(timeoutInSeconds: 300)]
     [AutomaticRetry(Attempts = 0)]
@@ -56,10 +56,11 @@ public sealed class OutboxDispatcher(
         {
             try
             {
-                if (!_handlers.TryGetValue(message.Type, out var handler))
+                if (!_handlers.TryGetValue(message.Type, out var forType))
                     throw new InvalidOperationException($"Không có bộ xử lý cho loại tin outbox '{message.Type}'.");
 
-                await handler.HandleAsync(message.Payload, ct);
+                // A failure retries the whole message later: every handler is idempotent
+                foreach (var handler in forType) await handler.HandleAsync(message.Payload, ct);
                 message.MarkProcessed(clock.UtcNow);
                 processed++;
             }

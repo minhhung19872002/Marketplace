@@ -473,3 +473,18 @@
     width: 100%;
   }
 }
+
+.checkout-wallet-pin {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.checkout-wallet-pin input {
+  width: 120px;
+  letter-spacing: 6px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+}

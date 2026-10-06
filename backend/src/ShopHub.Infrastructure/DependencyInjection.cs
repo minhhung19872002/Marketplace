@@ -3,6 +3,7 @@ using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ShopHub.Application.Abstractions;
+using ShopHub.Application.Features.Finance;
 using ShopHub.Infrastructure.Configuration;
 using ShopHub.Infrastructure.Health;
 using ShopHub.Infrastructure.Identity;
@@ -110,6 +111,14 @@ public static class DependencyInjection
         services.AddScoped<IPaymentGatewayRegistry, Commerce.PaymentGatewayRegistry>();
         services.AddScoped<Jobs.PaymentExpiryJob>();
         services.AddScoped<CommerceSeeder>();
+
+        // Finance: ledger sync on order events, simulated bank payouts, release and ledger-check jobs
+        services.AddScoped<IOutboxHandler, Finance.FinanceOrderEventHandler>();
+        services.AddScoped<IBankPayout, Finance.SimulatedBankPayout>();
+        services.AddScoped<Finance.SettlementJob>();
+        services.AddScoped<Finance.LedgerCheckJob>();
+        services.AddScoped<FinanceSeeder>();
+        services.AddScoped<IProviderStatements, Finance.SimulatedProviderStatements>();
 
         services.AddHangfire(cfg => cfg
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

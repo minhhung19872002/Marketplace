@@ -80,6 +80,7 @@ const Checkout = () => {
   const [freeshipCode, setFreeshipCode] = useState<string | null>(null);
   const [useCoins, setUseCoins] = useState(false);
   const [method, setMethod] = useState<PaymentMethod>('Cod');
+  const [walletPin, setWalletPin] = useState('');
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
 
@@ -139,13 +140,14 @@ const Checkout = () => {
           note: notes[s.shopId]?.trim() || null,
         })),
       };
-      const result = await checkoutApi.place(idempotencyKey.current, body, quote.grandTotal);
+      const result = await checkoutApi.place(idempotencyKey.current, body, quote.grandTotal, method === 'Wallet' ? walletPin : undefined);
       void queryClient.invalidateQueries({ queryKey: CART_KEY });
       if (result.payment?.redirectUrl) navigate(result.payment.redirectUrl);
       else navigate(`/dat-hang-thanh-cong?checkout=${result.checkoutId}`);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        // Prices / vouchers moved: show the new numbers and let the buyer confirm again
+        // Prices / vouchers moved (or a wrong wallet PIN): show the new numbers and let the buyer confirm again
+        setWalletPin('');
         await quoteQuery.refetch();
         idempotencyKey.current = newKey();
       }
@@ -282,7 +284,15 @@ const Checkout = () => {
             <span>Tổng thanh toán</span>
             <span data-testid="checkout-total">{formatPrice(quote.grandTotal)}</span>
           </div>
-          <button className="checkout-place" onClick={place} disabled={!quote.canPlace || placing || quoteQuery.isFetching} data-testid="place-order">
+          {method === 'Wallet' && (
+            <label className="checkout-wallet-pin">
+              Mật khẩu Ví ShopHub
+              <input type="password" inputMode="numeric" autoComplete="off" maxLength={6} value={walletPin}
+                onChange={(e) => setWalletPin(e.target.value.replace(/\D/g, ''))} data-testid="wallet-pin" />
+            </label>
+          )}
+          <button className="checkout-place" onClick={place}
+            disabled={!quote.canPlace || placing || quoteQuery.isFetching || (method === 'Wallet' && walletPin.length !== 6)} data-testid="place-order">
             {placing ? 'Đang đặt hàng…' : 'Đặt Hàng'}
           </button>
         </div>

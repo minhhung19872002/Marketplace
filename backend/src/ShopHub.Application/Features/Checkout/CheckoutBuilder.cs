@@ -314,11 +314,18 @@ public sealed class CheckoutBuilder(
         var codMax = await parameters.GetIntAsync(ParameterKeys.PaymentCodMaxAmount, ct);
         var codProblem = grand > codMax ? $"Thanh toán khi nhận hàng chỉ áp dụng cho đơn đến {Domain.Common.Money.Vnd(codMax)}."
             : chosenCarrier.Values.Any(c => !c.SupportsCod) ? "Đơn vị vận chuyển đã chọn không hỗ trợ thu hộ (COD)." : null;
+        var hasWallet = await db.Wallets.AnyAsync(w => w.UserId == userId, ct);
+        var walletBalance = await db.LedgerAccounts.Where(a => a.OwnerType == Domain.Finance.LedgerOwnerType.Buyer && a.OwnerId == userId
+                                                              && a.Type == Domain.Finance.LedgerAccountType.BuyerWallet)
+            .Select(a => (long?)a.Balance).FirstOrDefaultAsync(ct) ?? 0;
+        var walletProblem = !hasWallet ? "Bạn chưa kích hoạt Ví ShopHub (tạo mật khẩu ví ở Tài khoản → Ví ShopHub)."
+            : walletBalance < grand ? $"Số dư Ví ShopHub ({Domain.Common.Money.Vnd(walletBalance)}) không đủ cho đơn này." : null;
         var methods = new List<PaymentMethodDto>
         {
             new(PaymentMethod.Cod, "Thanh toán khi nhận hàng", codProblem is null, codProblem),
             new(PaymentMethod.Simulated, "Thẻ / Ví điện tử (cổng thanh toán giả lập)", gateways.Supports(PaymentMethod.Simulated),
                 gateways.Supports(PaymentMethod.Simulated) ? null : "Cổng thanh toán giả lập đang tắt."),
+            new(PaymentMethod.Wallet, $"Ví ShopHub (số dư {Domain.Common.Money.Vnd(walletBalance)})", walletProblem is null, walletProblem),
         };
         var method = methods.First(m => m.Code == request.PaymentMethod);
         if (!method.Available) problems.Add(method.Reason!);

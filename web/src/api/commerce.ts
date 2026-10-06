@@ -48,7 +48,7 @@ export const cartApi = {
 
 // ---------- checkout ----------
 
-export type PaymentMethod = 'Cod' | 'Simulated';
+export type PaymentMethod = 'Cod' | 'Simulated' | 'Wallet';
 export type VoucherType = 'Amount' | 'Percent' | 'FreeShipping' | 'CoinCashback';
 
 export interface CheckoutShopChoice {
@@ -178,10 +178,11 @@ export interface CheckoutResult {
 
 export const checkoutApi = {
   quote: (request: CheckoutRequest) => apiRequest<CheckoutQuote>('/checkout/quote', { method: 'POST', body: request }),
-  place: (idempotencyKey: string, checkout: CheckoutRequest, expectedGrandTotal: number) =>
+  // walletPin: the 6-digit Ví ShopHub PIN when paying from the wallet (never stored by the client)
+  place: (idempotencyKey: string, checkout: CheckoutRequest, expectedGrandTotal: number, walletPin?: string) =>
     apiRequest<CheckoutResult>('/checkout', {
       method: 'POST',
-      body: { checkout, expectedGrandTotal },
+      body: { checkout, expectedGrandTotal, walletPin: walletPin ?? null },
       headers: { 'Idempotency-Key': idempotencyKey },
     }),
   get: (id: string) => apiRequest<CheckoutResult>(`/checkout/${id}`),
@@ -197,6 +198,8 @@ export interface SimulatedPayment {
   expiresAt: string;
   status: 'Initiated' | 'Succeeded' | 'Failed' | 'Expired' | 'Refunded';
   checkoutId: string;
+  // Order result page, or the wallet for a top-up
+  returnPath: string;
 }
 
 export const gatewayApi = {

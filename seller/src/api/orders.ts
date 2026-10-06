@@ -85,7 +85,7 @@ const query = (p: Record<string, string | number | undefined | null>) => {
 }
 
 /** Files (PDF / Excel) come back raw, not in the JSON envelope. */
-async function download(path: string, retried = false): Promise<Blob> {
+export async function download(path: string, retried = false): Promise<Blob> {
   const token = useAuthStore.getState().accessToken
   const res = await fetch(`/api${path}`, { credentials: 'include', headers: token ? { Authorization: `Bearer ${token}` } : {} })
   if (res.status === 401 && !retried && (await refreshSession())) return download(path, true)

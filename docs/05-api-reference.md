@@ -357,6 +357,48 @@ Việc nền chạy ngay được bằng `POST /api/admin/job-runs/{id}`: thêm 
 
 `GET /api/orders/{code}` bổ sung `actions.review` và `actions.return`. Tải tệp: `POST /api/media/review` và `/api/media/evidence` (ảnh, MP4).
 
+## Tài chính (Phase 8)
+
+**Ví ShopHub** (`/api/wallet`, đăng nhập — chỉ ví của mình)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/api/wallet?page=` | `{ balance, pendingWithdrawals, hasPin, locked, bankAccounts[], history (bút toán của ví), withdrawals[] }` |
+| POST | `/api/wallet/otp` | Gửi OTP tới SĐT của chính mình (đặt mật khẩu ví, thêm tài khoản ngân hàng) |
+| POST | `/api/wallet/pin` | `{ otpCode, pin }` — mật khẩu ví 6 số (không chấp nhận dãy dễ đoán) |
+| POST | `/api/wallet/topups` | `{ amount }` (`FINANCE.TOPUP_MIN`–`MAX`) → `{ topupId, paymentId, redirectUrl }`; tiền vào ví khi cổng gọi webhook |
+| GET | `/api/wallet/topups/{id}` | Trạng thái lệnh nạp |
+| POST · DELETE | `/api/wallet/bank-accounts` · `/{id}` | `{ bankCode, accountNo, accountName, otpCode }` |
+| POST | `/api/wallet/withdrawals` | `{ bankAccountId, amount, pin }` |
+
+Thanh toán bằng ví: `POST /api/checkout` thêm `walletPin` khi `paymentMethod = "Wallet"`; sai mật khẩu → 409 (còn N lần), số dư không đủ → 409 `WALLET_INSUFFICIENT`.
+
+**Kênh Người Bán** (`/api/seller/shops/{shopId}/finance`, quyền shop `FINANCE.VIEW`; rút tiền / thêm tài khoản cần `FINANCE.WITHDRAW`)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/summary` | Chờ giải ngân, khả dụng, đang rút, tổng đã giải ngân, giới hạn rút, tài khoản ngân hàng |
+| GET | `/pending?page=` | Đơn chờ giải ngân: tiền hàng, giảm giá shop, hoàn tiền shop chịu, từng loại phí, thực nhận, dự kiến giải ngân, có yêu cầu trả hàng đang mở |
+| GET | `/released?from=&to=&page=` | Đơn đã giải ngân (số liệu chụp lúc giải ngân) |
+| GET | `/transactions?account=ShopAvailable\|ShopPending&page=` | Bút toán của số dư |
+| GET | `/report?from=&to=&format=Xlsx\|Pdf` | **Báo cáo đối soát** kỳ [from, to) |
+| GET | `/fee-invoice?from=&to=` | **Hoá đơn phí sàn** (PDF) |
+| GET · POST | `/withdrawals` | Lịch sử · `{ bankAccountId, amount }` |
+| POST | `/otp` · `/bank-accounts` | OTP tới SĐT người thao tác · `{ bankCode, accountNo, accountName, otpCode, makeDefault }` |
+
+**Quản trị** (`/api/admin/finance`)
+
+| Phương thức | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| GET · POST | `/fee-rules` | `FINANCE.FEE.MANAGE` | Biểu phí · `{ categoryId?, feeType: Fixed\|Payment\|Service, rateBp, validFrom, note }` (không lùi ngày) |
+| GET | `/withdrawals?status=` | `FINANCE.WITHDRAWAL.APPROVE` | Lệnh rút (shop và ví) |
+| POST | `/withdrawals/{id}/approve` · `/reject` | `FINANCE.WITHDRAWAL.APPROVE` | Duyệt & chuyển · `{ reason }` — tiền về lại số dư |
+| GET | `/ledger` · `/ledger/entries?accountType=&ownerId=&refType=&refId=` | `FINANCE.LEDGER.VIEW` | Số dư tài khoản sàn, tổng số dư shop / ví, kết quả kiểm sổ · bút toán |
+| GET | `/statements/{gateway\|carrier}?from=&to=` | `FINANCE.RECONCILE` | Sao kê của nhà cung cấp (CSV) |
+| POST | `/reconcile/{gateway\|carrier}` | `FINANCE.RECONCILE` | multipart `from`, `to`, `file` (CSV ≤ 5 MB) → `{ statementLines, matched, issues[], statementTotal, systemTotal }` |
+
+Việc nền chạy ngay được: `finance.settlement` (giải ngân), `finance.ledger-check` (kiểm sổ).
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

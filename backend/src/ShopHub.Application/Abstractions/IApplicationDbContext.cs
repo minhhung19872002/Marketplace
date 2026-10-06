@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ShopHub.Domain.Catalog;
 using ShopHub.Domain.Engage;
+using ShopHub.Domain.Finance;
 using ShopHub.Domain.Iam;
 using ShopHub.Domain.Media;
 using ShopHub.Domain.Shops;
@@ -77,6 +78,16 @@ public interface IApplicationDbContext
     DbSet<ReturnEvidence> ReturnEvidence { get; }
     DbSet<ReturnHistory> ReturnHistory { get; }
     DbSet<Dispute> Disputes { get; }
+    DbSet<LedgerAccount> LedgerAccounts { get; }
+    DbSet<LedgerTransaction> LedgerTransactions { get; }
+    DbSet<LedgerEntry> LedgerEntries { get; }
+    DbSet<FeeRule> FeeRules { get; }
+    DbSet<Settlement> Settlements { get; }
+    DbSet<SettlementItem> SettlementItems { get; }
+    DbSet<Withdrawal> Withdrawals { get; }
+    DbSet<Wallet> Wallets { get; }
+    DbSet<WalletTopup> WalletTopups { get; }
+    DbSet<BankAccount> BankAccounts { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

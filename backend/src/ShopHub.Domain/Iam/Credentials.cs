@@ -52,6 +52,8 @@ public enum OtpPurpose
     ResetPassword,
     ChangePhone,
     ChangeEmail,
+    // Adding a bank account / setting the Ví ShopHub PIN (sent to the account's own phone)
+    Finance,
 }
 
 public class OtpCode : Entity

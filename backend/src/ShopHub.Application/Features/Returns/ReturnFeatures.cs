@@ -121,7 +121,8 @@ public sealed class ReturnRefunder(
 
         if (money > 0)
         {
-            var online = order.PaymentMethod != PaymentMethod.Cod;
+            // Paid through a gateway → refund there; COD and Ví ShopHub → into the wallet (credited by the finance sync)
+            var online = order.PaymentMethod == PaymentMethod.Simulated;
             var payment = online
                 ? await db.Payments.Where(p => p.CheckoutId == order.CheckoutId && p.Status == PaymentStatus.Succeeded).OrderByDescending(p => p.PaidAt).FirstOrDefaultAsync(ct)
                 : null;
@@ -134,7 +135,7 @@ public sealed class ReturnRefunder(
                 var ok = await gateways.For(payment.Method).RefundAsync(payment, money, $"Trả hàng {r.Code}", ct);
                 refund.Complete(ok, payment.ProviderTxnId, now);
             }
-            // COD: stays Pending until the ShopHub wallet credits it (finance module)
+            // Wallet destination: stays Pending until the finance sync credits Ví ShopHub (same transaction as the posting)
         }
         if (coins > 0)
             db.CoinLedger.Add(new CoinEntry(r.BuyerId, coins, CoinReason.CheckoutRefund, "return", r.Id, null, $"Hoàn xu trả hàng {r.Code}", now));

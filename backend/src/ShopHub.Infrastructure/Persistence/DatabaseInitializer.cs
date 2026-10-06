@@ -36,6 +36,7 @@ public static class DatabaseInitializer
         await sp.GetRequiredService<ShopHub.Infrastructure.Media.MinioObjectStorage>().EnsureBucketsAsync(ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.CatalogSeeder>().SeedAsync(settings.SeedSampleData, ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.CommerceSeeder>().SeedAsync(settings.SeedSampleData, ct);
+        await sp.GetRequiredService<ShopHub.Infrastructure.Seed.FinanceSeeder>().SeedAsync(ct);
         await sp.GetRequiredService<ShopHub.Application.Abstractions.ICounterRecomputer>().RecomputeAllAsync(ct);
 
         // The search index is a projection: rebuild it whenever it disagrees with the database. If the engine is

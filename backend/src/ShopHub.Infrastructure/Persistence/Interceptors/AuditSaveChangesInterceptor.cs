@@ -17,7 +17,7 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
 {
     // Never journal secrets in clear text (property names are matched case-insensitively)
     private static readonly string[] SensitiveFragments =
-        ["password", "token", "otp", "secret", "accountno", "account_no", "cardnumber", "idcard"];
+        ["password", "token", "otp", "secret", "accountno", "account_no", "cardnumber", "idcard", "pin"];
 
     // High-volume or secret-bearing rows are not journalled (sessions/OTPs have their own tables and timestamps)
     private static readonly HashSet<Type> NotAudited =
@@ -32,7 +32,10 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
          typeof(Domain.Logistics.ShippingRate), typeof(SimulatedPayment), typeof(Domain.Logistics.Shipment), typeof(Domain.Logistics.ShipmentEvent),
          typeof(Domain.Sales.OrderCancelRequest), typeof(Domain.Sales.Refund), typeof(Domain.Engage.Notification), typeof(Domain.Shops.ShopPenalty),
          typeof(Domain.Engage.Review), typeof(Domain.Engage.ReviewMedia), typeof(Domain.Engage.ReviewReport), typeof(Domain.Sales.ReturnRequest),
-         typeof(Domain.Sales.ReturnItem), typeof(Domain.Sales.ReturnEvidence), typeof(Domain.Sales.ReturnHistory)];
+         typeof(Domain.Sales.ReturnItem), typeof(Domain.Sales.ReturnEvidence), typeof(Domain.Sales.ReturnHistory),
+         // The ledger is its own journal; the wallet row only carries the PIN hash and its lockout
+         typeof(Domain.Finance.LedgerAccount), typeof(Domain.Finance.LedgerTransaction), typeof(Domain.Finance.LedgerEntry),
+         typeof(Domain.Finance.Settlement), typeof(Domain.Finance.SettlementItem), typeof(Domain.Finance.WalletTopup), typeof(Domain.Finance.Wallet)];
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {

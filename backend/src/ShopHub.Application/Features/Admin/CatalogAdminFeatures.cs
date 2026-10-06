@@ -287,6 +287,9 @@ public sealed class ModerateShopHandler(IApplicationDbContext db, IOutbox outbox
             case ShopAdminAction.Approve:
                 shop.Approve(clock.UtcNow);
                 kyc?.Review(true, reviewer, null, clock.UtcNow);
+                // The payout account was checked together with the KYC file
+                foreach (var bank in await db.ShopBankAccounts.Where(b => b.ShopId == shop.Id && b.VerifiedAt == null).ToListAsync(ct))
+                    bank.MarkVerified(clock.UtcNow);
                 break;
             case ShopAdminAction.Reject:
                 shop.Reject(request.Reason!);

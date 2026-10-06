@@ -7,6 +7,8 @@ public enum PaymentMethod
     Cod,
     // SimulatedGateway: the system's own fake payment page that calls the webhook like a real gateway
     Simulated,
+    // Ví ShopHub: paid from the buyer's wallet balance at once (6-digit PIN)
+    Wallet,
 }
 
 public enum CheckoutStatus

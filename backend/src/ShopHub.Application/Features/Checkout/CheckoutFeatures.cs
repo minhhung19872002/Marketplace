@@ -3,9 +3,11 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
+using ShopHub.Application.Features.Finance;
 using ShopHub.Application.Features.Storefront;
 using ShopHub.Application.SystemConfig;
 using ShopHub.Domain.Catalog;
+using ShopHub.Domain.Finance;
 using ShopHub.Domain.Promo;
 using ShopHub.Domain.Sales;
 
@@ -33,7 +35,9 @@ public record CheckoutResultDto(
     CheckoutPaymentDto? Payment);
 
 /// <param name="ExpectedGrandTotal">What the buyer saw; a different server total is a 409 with the new quote.</param>
-public record PlaceOrderCommand(string IdempotencyKey, CheckoutRequest Request, long ExpectedGrandTotal) : IRequest<CheckoutResultDto>;
+// WalletPin: the 6-digit Ví ShopHub PIN, only for PaymentMethod.Wallet
+public record PlaceOrderCommand(string IdempotencyKey, CheckoutRequest Request, long ExpectedGrandTotal, string? WalletPin = null)
+    : IRequest<CheckoutResultDto>;
 
 public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
 {
@@ -61,6 +65,8 @@ public sealed class PlaceOrderHandler(
     CoinWallet coins,
     CheckoutReader reader,
     PaymentStarter payments,
+    WalletPins walletPins,
+    Ledger ledger,
     IOutbox outbox,
     ISystemParameters parameters,
     ICurrentUser currentUser,
@@ -82,8 +88,11 @@ public sealed class PlaceOrderHandler(
             throw new ConflictException("Giá hoặc ưu đãi vừa thay đổi. Vui lòng kiểm tra lại tổng thanh toán trước khi đặt hàng.", "PRICE_CHANGED")
                 { Payload = plan.Quote };
 
-        var now = clock.UtcNow;
         var method = request.Request.PaymentMethod;
+        // A wrong PIN is remembered (lockout) even though nothing is placed
+        if (method == PaymentMethod.Wallet) await walletPins.VerifyAsync(userId, request.WalletPin, ct);
+
+        var now = clock.UtcNow;
         var timeout = await parameters.GetIntAsync(ParameterKeys.PaymentTimeoutMinutes, ct);
         var pricing = plan.Pricing;
         CheckoutSession checkout;
@@ -170,12 +179,13 @@ public sealed class PlaceOrderHandler(
                 await voucherLedger.ConsumeAsync(v, userId, checkout.Id, null, amount, ct);
             }
 
-            var expiresAt = method == PaymentMethod.Cod ? (DateTimeOffset?)null : now.AddMinutes(timeout);
+            var expiresAt = method is PaymentMethod.Cod or PaymentMethod.Wallet ? (DateTimeOffset?)null : now.AddMinutes(timeout);
             checkout.SetTotals(pricing.Subtotal, pricing.ShippingFee, pricing.ShippingDiscount, pricing.ShopDiscount + pricing.PlatformDiscount,
                 pricing.CoinUsed, pricing.GrandTotal, plan.PlatformVoucher?.Id, plan.FreeshipVoucher?.Id, expiresAt);
 
             // ----- payment attempt -----
-            if (method != PaymentMethod.Cod) await payments.StartAsync(checkout, orders.Select(o => o.Code), ct);
+            if (method == PaymentMethod.Simulated) await payments.StartAsync(checkout, orders.Select(o => o.Code), ct);
+            if (method == PaymentMethod.Wallet) await PayFromWalletAsync(checkout, orders, userId, now, ct);
 
             // ----- the bought lines leave the cart -----
             var bought = plan.Lines.Keys.ToList();
@@ -189,6 +199,36 @@ public sealed class PlaceOrderHandler(
         }
 
         return await reader.FindByKeyAsync(userId, key, ct) ?? throw new InvalidOperationException("Checkout vanished after commit.");
+    }
+
+    /// <summary>
+    /// Ví ShopHub: the money leaves the wallet in this same transaction (conditional UPDATE — never below zero), one
+    /// posting per order (wallet ⇒ escrow), and the orders go straight to "Chờ xác nhận".
+    /// </summary>
+    private async Task PayFromWalletAsync(CheckoutSession checkout, List<Order> orders, Guid userId, DateTimeOffset now, CancellationToken ct)
+    {
+        var payment = new Payment(checkout.Id, PaymentMethod.Wallet, checkout.GrandTotal, now, now);
+        payment.Succeed($"VI{checkout.Id:N}", "{}", now);
+        db.Payments.Add(payment);
+        checkout.MarkPaid(now);
+        foreach (var order in orders)
+        {
+            OrderStateMachine.Transition(order, OrderStatus.PendingConfirmation, OrderActor.Buyer, userId, "Đã thanh toán bằng Ví ShopHub", now);
+            outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Paid, null));
+            if (order.GrandTotal == 0) continue;
+            try
+            {
+                await ledger.PostAsync(LedgerKinds.WalletPay, LedgerRefs.Order, order.Id, $"Thanh toán đơn {order.Code} bằng Ví ShopHub",
+                [
+                    new LedgerLine(AccountKey.Wallet(userId), LedgerDirection.Debit, order.GrandTotal),
+                    new LedgerLine(AccountKey.Platform(LedgerAccountType.PlatformEscrow), LedgerDirection.Credit, order.GrandTotal),
+                ], null, ct);
+            }
+            catch (ConflictException e) when (e.Code == "INSUFFICIENT_BALANCE")
+            {
+                throw new ConflictException("Số dư Ví ShopHub không đủ, vui lòng nạp thêm hoặc chọn cách thanh toán khác.", "WALLET_INSUFFICIENT");
+            }
+        }
     }
 
     private const string CodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

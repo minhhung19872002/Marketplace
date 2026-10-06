@@ -97,7 +97,7 @@ public sealed class CheckoutController : ApiControllerBase
     public async Task<IActionResult> Quote([FromBody] CheckoutRequest body, CancellationToken ct) =>
         OkData(await Sender.Send(new QuoteCheckoutQuery(body), ct));
 
-    public record PlaceRequest(CheckoutRequest Checkout, long ExpectedGrandTotal);
+    public record PlaceRequest(CheckoutRequest Checkout, long ExpectedGrandTotal, string? WalletPin = null);
 
     /// <summary>
     /// Place the orders. Requires <c>Idempotency-Key</c>: the same key returns the same checkout, never a second one.
@@ -109,7 +109,7 @@ public sealed class CheckoutController : ApiControllerBase
     [ProducesResponseType<ApiResponse<CheckoutQuoteDto>>(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Place([FromHeader(Name = IdempotencyHeader)] string? idempotencyKey, [FromBody] PlaceRequest body,
         CancellationToken ct) =>
-        OkData(await Sender.Send(new PlaceOrderCommand(idempotencyKey ?? string.Empty, body.Checkout, body.ExpectedGrandTotal), ct),
+        OkData(await Sender.Send(new PlaceOrderCommand(idempotencyKey ?? string.Empty, body.Checkout, body.ExpectedGrandTotal, body.WalletPin), ct),
             "Đặt hàng thành công.");
 
     [HttpGet("{id:guid}")]

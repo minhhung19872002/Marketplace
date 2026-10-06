@@ -69,6 +69,15 @@ public static class ParameterKeys
     public const string ReturnShopResponseDays = "RETURN.SHOP_RESPONSE_DAYS";
     public const string ReturnDisputeDays = "RETURN.DISPUTE_DAYS";
     public const string ReturnShopCheckDays = "RETURN.SHOP_CHECK_DAYS";
+
+    public const string FinanceReleaseHoldDays = "FINANCE.RELEASE_HOLD_DAYS";
+    public const string FinanceWithdrawMin = "FINANCE.WITHDRAW_MIN";
+    public const string FinanceWithdrawPerWeek = "FINANCE.WITHDRAW_PER_WEEK";
+    public const string FinanceWithdrawAutoApproveMax = "FINANCE.WITHDRAW_AUTO_APPROVE_MAX";
+    public const string FinanceTopupMin = "FINANCE.TOPUP_MIN";
+    public const string FinanceTopupMax = "FINANCE.TOPUP_MAX";
+    public const string JobSettlementCron = "JOB.SETTLEMENT_CRON";
+    public const string JobLedgerCheckCron = "JOB.LEDGER_CHECK_CRON";
 }
 
 public static class ParameterGroups
@@ -88,6 +97,7 @@ public static class ParameterGroups
     public const string Order = "ORDER";
     public const string Review = "REVIEW";
     public const string Return = "RETURN";
+    public const string Finance = "FINANCE";
 }
 
 public record ParameterDefinition(
@@ -221,5 +231,22 @@ public static class ParameterCatalog
             "Hạn khiếu nại (ngày)", "Sau khi shop từ chối / đề nghị hoàn một phần, người mua có bấy nhiêu ngày để khiếu nại hoặc đồng ý; quá hạn yêu cầu đóng lại."),
         new(ParameterKeys.ReturnShopCheckDays, "2", ParameterDataType.Int, ParameterGroups.Return,
             "Hạn shop kiểm hàng trả (ngày)", "Hàng trả về tới shop mà shop không xác nhận trong hạn này thì tự hoàn tiền cho người mua."),
+
+        new(ParameterKeys.FinanceReleaseHoldDays, "0", ParameterDataType.Int, ParameterGroups.Finance,
+            "Giữ tiền sau khi hoàn thành (ngày)", "Đơn hoàn thành và đã hết hạn trả hàng còn chờ thêm bấy nhiêu ngày rồi mới giải ngân cho shop."),
+        new(ParameterKeys.FinanceWithdrawMin, "50000", ParameterDataType.Int, ParameterGroups.Finance,
+            "Số tiền rút tối thiểu (₫)", "Mỗi lần rút tiền về ngân hàng (shop và Ví ShopHub) phải từ số này trở lên."),
+        new(ParameterKeys.FinanceWithdrawPerWeek, "3", ParameterDataType.Int, ParameterGroups.Finance,
+            "Số lần rút tối đa mỗi 7 ngày", "Số yêu cầu rút tiền (không tính yêu cầu bị từ chối) trong 7 ngày gần nhất của một shop / một ví."),
+        new(ParameterKeys.FinanceWithdrawAutoApproveMax, "2000000", ParameterDataType.Int, ParameterGroups.Finance,
+            "Tự duyệt rút tiền tới (₫)", "Yêu cầu rút không vượt số này được chuyển ngay; lớn hơn thì chờ quản trị duyệt. 0 = luôn chờ duyệt."),
+        new(ParameterKeys.FinanceTopupMin, "10000", ParameterDataType.Int, ParameterGroups.Finance,
+            "Nạp Ví tối thiểu (₫)", "Số tiền nhỏ nhất mỗi lần nạp Ví ShopHub."),
+        new(ParameterKeys.FinanceTopupMax, "20000000", ParameterDataType.Int, ParameterGroups.Finance,
+            "Nạp Ví tối đa (₫)", "Số tiền lớn nhất mỗi lần nạp Ví ShopHub."),
+        new(ParameterKeys.JobSettlementCron, "0 * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch giải ngân", "Cron giải ngân các đơn đã đủ điều kiện vào số dư khả dụng của shop."),
+        new(ParameterKeys.JobLedgerCheckCron, "30 19 * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch kiểm tra sổ cái", "Cron (giờ UTC) tính lại số dư từ bút toán và kiểm Σ nợ = Σ có; lệch thì ghi lỗi."),
     ];
 }

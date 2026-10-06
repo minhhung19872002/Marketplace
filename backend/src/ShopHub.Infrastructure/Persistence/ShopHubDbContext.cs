@@ -6,6 +6,7 @@ using ShopHub.Application.Common;
 using ShopHub.Domain.Catalog;
 using ShopHub.Domain.Common;
 using ShopHub.Domain.Engage;
+using ShopHub.Domain.Finance;
 using ShopHub.Domain.Iam;
 using ShopHub.Domain.Media;
 using ShopHub.Domain.Shops;
@@ -80,6 +81,16 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<ReturnEvidence> ReturnEvidence => Set<ReturnEvidence>();
     public DbSet<ReturnHistory> ReturnHistory => Set<ReturnHistory>();
     public DbSet<Dispute> Disputes => Set<Dispute>();
+    public DbSet<LedgerAccount> LedgerAccounts => Set<LedgerAccount>();
+    public DbSet<LedgerTransaction> LedgerTransactions => Set<LedgerTransaction>();
+    public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
+    public DbSet<FeeRule> FeeRules => Set<FeeRule>();
+    public DbSet<Settlement> Settlements => Set<Settlement>();
+    public DbSet<SettlementItem> SettlementItems => Set<SettlementItem>();
+    public DbSet<Withdrawal> Withdrawals => Set<Withdrawal>();
+    public DbSet<Wallet> Wallets => Set<Wallet>();
+    public DbSet<WalletTopup> WalletTopups => Set<WalletTopup>();
+    public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
 
     // Unique index name → what the user is told when a parallel request already took the value
     private static readonly Dictionary<string, string> UniqueMessages = new()
@@ -109,6 +120,12 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         ["ux_return_items_open"] = "Sản phẩm này đang có yêu cầu trả hàng chưa xử lý xong.",
         ["ux_returns_code"] = "Mã yêu cầu trả hàng bị trùng, vui lòng thử lại.",
         ["ux_disputes_return"] = "Yêu cầu trả hàng này đã được khiếu nại.",
+        ["ux_ledger_accounts_owner"] = "Tài khoản sổ cái đang được tạo, vui lòng thử lại.",
+        ["ux_ledger_transactions_dedupe"] = "Bút toán này đã được ghi.",
+        ["ux_fee_rules_open"] = "Đã có biểu phí đang áp dụng cho phạm vi này.",
+        ["ux_settlement_items_order"] = "Đơn hàng này đã được giải ngân.",
+        ["ux_settlements_code"] = "Mã kỳ giải ngân bị trùng, vui lòng thử lại.",
+        ["ux_wallets_user"] = "Ví ShopHub của bạn đã được tạo.",
     };
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -123,6 +140,7 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
             {
                 "ck_skus_stock" or "ck_skus_reserved" => "Tồn kho không đủ hoặc thấp hơn số đang giữ cho đơn.",
                 "ck_vouchers_quota" => "Voucher đã hết lượt sử dụng.",
+                "ck_ledger_accounts_balance" => "Số dư không đủ.",
                 _ => "Dữ liệu vi phạm ràng buộc, vui lòng kiểm tra lại.",
             }, "CHECK_VIOLATION");
         }

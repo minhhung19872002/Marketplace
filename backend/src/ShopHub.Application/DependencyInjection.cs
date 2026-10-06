@@ -43,6 +43,14 @@ public static class DependencyInjection
         services.AddScoped<Features.Reviews.ReviewRewards>();
         services.AddScoped<Features.Returns.ReturnRefunder>();
         services.AddScoped<Features.Returns.ReturnAutomationService>();
+        services.AddScoped<Features.Finance.Ledger>();
+        services.AddScoped<Features.Finance.FeeSchedule>();
+        services.AddScoped<Features.Finance.OrderLedger>();
+        services.AddScoped<Features.Finance.SettlementService>();
+        services.AddScoped<Features.Finance.LedgerCheckService>();
+        services.AddScoped<Features.Finance.WithdrawalService>();
+        services.AddScoped<Features.Finance.WalletPins>();
+        services.AddScoped<Features.Finance.TopupProcessor>();
         return services;
     }
 }

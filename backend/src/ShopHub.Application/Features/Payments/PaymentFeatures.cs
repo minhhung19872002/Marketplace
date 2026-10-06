@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
 using ShopHub.Application.Features.Checkout;
+using ShopHub.Application.Features.Finance;
 using ShopHub.Application.SystemConfig;
 using ShopHub.Domain.Catalog;
 using ShopHub.Domain.Promo;
@@ -28,6 +29,7 @@ public static class WebhookResults
 public sealed class PaymentProcessor(
     IApplicationDbContext db,
     IPaymentGatewayRegistry gateways,
+    TopupProcessor topups,
     IOutbox outbox,
     IClock clock,
     ILogger<PaymentProcessor> logger)
@@ -65,6 +67,15 @@ public sealed class PaymentProcessor(
         if (payment is null) return WebhookResults.UnknownPayment;
         if (callback.Amount != payment.Amount) return WebhookResults.AmountMismatch;
         if (payment.Status is PaymentStatus.Succeeded or PaymentStatus.Refunded) return WebhookResults.Ignored;
+
+        if (payment.Purpose == PaymentPurpose.WalletTopup)
+        {
+            await db.LockAsync($"topup:{payment.CheckoutId}", ct);
+            if (callback.Success) payment.Succeed(callback.ProviderTxnId ?? callback.EventId, callback.Raw, now);
+            else payment.Fail(callback.ProviderTxnId, callback.FailureReason ?? "Thanh toán không thành công.", callback.Raw);
+            await topups.ApplyAsync(payment, callback.Success, ct);
+            return callback.Success ? WebhookResults.Paid : WebhookResults.Failed;
+        }
 
         await db.LockAsync($"checkout:{payment.CheckoutId}", ct);
         var checkout = await db.CheckoutSessions.SingleAsync(c => c.Id == payment.CheckoutId, ct);
@@ -192,7 +203,37 @@ public sealed class PaymentExpiryService(
             }
         }
         if (expired > 0) logger.LogInformation("Expired {Count} unpaid checkout(s)", expired);
+        await ExpireTopupsAsync(now, ct);
         return expired;
+    }
+
+    /// <summary>Wallet top-ups whose payment window passed: ask the gateway first, then give up on them.</summary>
+    private async Task ExpireTopupsAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        var due = await db.Payments.AsNoTracking()
+            .Where(p => p.Purpose == PaymentPurpose.WalletTopup && p.ExpiresAt <= now && (p.Status == PaymentStatus.Initiated || p.Status == PaymentStatus.Failed))
+            .Where(p => db.WalletTopups.Any(t => t.Id == p.CheckoutId && t.Status == Domain.Finance.TopupStatus.Pending))
+            .OrderBy(p => p.ExpiresAt).Take(200).ToListAsync(ct);
+        foreach (var payment in due)
+        {
+            try
+            {
+                if (await ReconcileAsync(payment.CheckoutId, ct)) continue;
+                await using var tx = await db.BeginTransactionAsync(ct);
+                await db.LockAsync($"topup:{payment.CheckoutId}", ct);
+                var topup = await db.WalletTopups.SingleAsync(t => t.Id == payment.CheckoutId, ct);
+                topup.Expire(now);
+                foreach (var p in await db.Payments.Where(x => x.CheckoutId == topup.Id).ToListAsync(ct)) p.Expire();
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                db.ClearTracking();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                db.ClearTracking();
+                logger.LogError(ex, "Could not expire wallet top-up {TopupId}", payment.CheckoutId);
+            }
+        }
     }
 
     /// <summary>True when the gateway says an attempt was actually paid (then it is applied like a notification).</summary>

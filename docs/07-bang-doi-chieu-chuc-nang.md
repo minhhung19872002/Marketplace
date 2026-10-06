@@ -14,7 +14,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 5 | Giỏ hàng & thanh toán | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 5 dưới đây |
 | 6 | Đơn hàng & vận chuyển | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 6 dưới đây |
 | 7 | Đánh giá, trả hàng, khiếu nại | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 7 dưới đây |
-| 8 | Tài chính | Chưa làm | |
+| 8 | Tài chính | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 8 dưới đây |
 | 9 | Marketing | Chưa làm | |
 | 10 | Chat & thông báo thời gian thực | Chưa làm | |
 | 11 | Cổng thật | Chưa làm | |
@@ -170,3 +170,19 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Không trả trùng khi gửi song song | index `ux_return_items_open` | `Only_one_open_return_per_line_even_in_parallel` |
 | Hoàn tiền thu hồi thưởng đánh giá; IDOR trả hàng | 00 #68 | `A_refunded_line_loses_its_review_reward_and_strangers_cannot_touch_returns` |
 | **Dời lại** | ghi có ví cho hoàn COD và khoá giải ngân (Phase 8), chat trong yêu cầu (Phase 10) | 00 #71, #73 |
+
+## Phase 8 — Tài chính
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| Sổ cái kép, số dư = tổng bút toán, cột chép sẵn có phép đo đối chiếu | 00 #74, `Ledger`, `LedgerCheckService` (`finance.ledger-check`), quản trị → Tài chính → Sổ cái | mọi phép thử Phase 8 kết thúc bằng `CheckLedger`: 0 tài khoản lệch, 0 bút toán không cân, Σ Nợ = Σ Có |
+| Công thức doanh thu shop (3.9), voucher sàn / xu là trợ giá của sàn | 00 #76, `SettlementCalculator` | `SettlementCalculatorTests` (5); `A_completed_order_waits_for_release_with_exact_earnings…` |
+| Biểu phí theo ngành, có hiệu lực từ ngày | 00 #77, `FeeSchedule`, quản trị → Biểu phí | phép thử trên (phí 5% riêng cho ngành lá), `…fees_cannot_be_backdated` |
+| Chờ giải ngân → giải ngân, khoá giải ngân khi đang trả hàng | 00 #78, `SettlementService`, Kênh Người Bán → Tài chính | `An_open_return_holds_the_release_and_a_cod_refund_goes_to_the_buyers_wallet…`; e2e **số 5** (chờ giải ngân → giải ngân → rút tiền) |
+| Hoàn tiền về đúng nguồn: cổng / Ví ShopHub / xu | `OrderLedger`, `ReturnRefunder`, `OrderCanceller` | phép thử trên (COD → ví), `Wallet_is_topped_up_once_pays_orders_with_the_pin_and_takes_refunds_back` (huỷ đơn trả bằng ví → về ví) |
+| Rút tiền: tài khoản đã xác minh (OTP), tối thiểu, số lần / tuần, sàn duyệt hoặc tự động, **không vượt số dư khi song song** | 00 #79, `WithdrawalService` | `Parallel_withdrawals_never_take_more_than_the_available_balance` (8 song song → 3), `Withdrawals_need_a_verified_account_a_minimum_and_a_weekly_limit…` |
+| Ví ShopHub: nạp qua cổng (đúng một lần), trả đơn bằng mật khẩu 6 số, nhận hoàn, rút | 00 #80, web `/tai-khoan/vi`, lựa chọn "Ví ShopHub" ở trang thanh toán | phép thử ví ở trên; `Parallel_wallet_checkouts_cannot_spend_more_than_the_balance` (5 song song → 1) |
+| Báo cáo đối soát theo kỳ (Excel + PDF) khớp từng đồng, hoá đơn phí sàn | 00 #81, `FinanceDocuments` | phép thử giải ngân đọc lại Excel (ClosedXML) và PDF (PdfPig): dòng đơn và dòng tổng = số đã giải ngân |
+| Đối soát với cổng thanh toán và hãng vận chuyển: khớp từng giao dịch, liệt kê lệch | 00 #81, quản trị → Đối soát | `Reconciliation_matches_every_transaction_and_lists_each_difference` |
+| IDOR tài chính | lọc chủ sở hữu trong SQL | `Finance_of_another_shop_or_another_buyer_is_not_found…` |
+| **Dời lại** | chương trình Freeship / Voucher Xtra (Phase 9), cổng / hãng thật (Phase 11), báo cáo toàn sàn (Phase 12) | 00 #82 |

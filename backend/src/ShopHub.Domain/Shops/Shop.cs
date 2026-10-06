@@ -287,6 +287,8 @@ public class ShopBankAccount : AuditableEntity
     public bool IsDefault { get; private set; }
 
     public void MarkVerified(DateTimeOffset now) => VerifiedAt = now;
+
+    public void ClearDefault() => IsDefault = false;
 }
 
 /// <summary>Penalty point given to a shop (late fulfilment, seller cancellation…); the shop's total is recomputed from these rows.</summary>

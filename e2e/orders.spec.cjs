@@ -181,6 +181,41 @@ test.describe('Đơn hàng & vận chuyển', () => {
     await expect(async () => {
       expect((await apiAs(request, buyer.token, 'GET', '/account/coins')).balance).toBeGreaterThan(0);
     }).toPass({ timeout: 20_000 });
+
+    // Finance: the shop sees the order "chờ giải ngân" → release (return window over) → withdraw to its verified bank account
+    await sellerPage.goto(`${BASE}/seller/tai-chinh`);
+    await expect(async () => {
+      await sellerPage.reload();
+      await expect(sellerPage.getByTestId('earning-net').first()).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    // The ledger follows the order events through the outbox (dispatched every minute — run it now)
+    let summary;
+    await expect(async () => {
+      await apiAs(request, admin.accessToken, 'POST', '/admin/job-runs/sys.outbox-dispatch');
+      summary = await apiAs(request, shop.token, 'GET', `/seller/shops/${shop.shopId}/finance/summary`);
+      expect(summary.pending).toBeGreaterThan(0);
+    }).toPass({ timeout: 30_000 });
+    const window = (await apiAs(request, admin.accessToken, 'GET', '/admin/system-parameters?group=RETURN')).find((p) => p.key === 'RETURN.WINDOW_DAYS');
+    await apiAs(request, admin.accessToken, 'PUT', `/admin/system-parameters/${window.key}`, { value: '0', version: window.version });
+    try {
+      await apiAs(request, admin.accessToken, 'POST', '/admin/job-runs/finance.settlement');
+      await expect(async () => {
+        const s = await apiAs(request, shop.token, 'GET', `/seller/shops/${shop.shopId}/finance/summary`);
+        expect(s.available).toBeGreaterThanOrEqual(summary.pending);
+      }).toPass({ timeout: 30_000 });
+    } finally {
+      const now = (await apiAs(request, admin.accessToken, 'GET', '/admin/system-parameters?group=RETURN')).find((p) => p.key === window.key);
+      await apiAs(request, admin.accessToken, 'PUT', `/admin/system-parameters/${window.key}`, { value: window.value, version: now.version });
+    }
+    await sellerPage.reload();
+    await sellerPage.getByRole('tab', { name: 'Đã giải ngân' }).click();
+    await expect(sellerPage.getByTestId('earning-net').first()).toBeVisible();
+    await sellerPage.getByTestId('finance-withdraw').click();
+    await sellerPage.getByTestId('withdraw-amount').fill('50000');
+    await sellerPage.getByRole('button', { name: 'Rút tiền', exact: true }).last().click();
+    await expect(sellerPage.getByRole('dialog')).toHaveCount(0);
+    await sellerPage.getByRole('tab', { name: 'Lịch sử rút tiền' }).click();
+    await expect(sellerPage.getByTestId('withdrawal-status').first()).toHaveText('Đã chuyển');
   });
 
   test('Huỷ trước xác nhận / yêu cầu huỷ sau xác nhận / shop từ chối', async ({ browser, request }) => {

@@ -76,7 +76,9 @@ public sealed class SimulatedGateway(ShopHubDbContext db, ShopHubSettings settin
     public string Acknowledge(bool accepted) => accepted ? """{"code":"00","message":"Confirm Success"}""" : """{"code":"97","message":"Invalid Checksum"}""";
 }
 
-public record SimulatedPaymentView(Guid PaymentId, long Amount, string Description, DateTimeOffset ExpiresAt, PaymentStatus Status, Guid CheckoutId);
+// ReturnPath: where the buyer lands after the gateway (the order result page, or the wallet for a top-up)
+public record SimulatedPaymentView(Guid PaymentId, long Amount, string Description, DateTimeOffset ExpiresAt, PaymentStatus Status, Guid CheckoutId,
+    string ReturnPath);
 
 /// <summary>What the fake gateway page does: show the amount, record the outcome on the gateway side and notify the shop.</summary>
 public sealed class SimulatedGatewayDesk(ShopHubDbContext db, SimulatedGateway gateway, PaymentWebhookIntake intake, IClock clock)
@@ -87,9 +89,12 @@ public sealed class SimulatedGatewayDesk(ShopHubDbContext db, SimulatedGateway g
     {
         var payment = await db.Payments.AsNoTracking().FirstOrDefaultAsync(p => p.Id == paymentId && p.Method == PaymentMethod.Simulated, ct)
                       ?? throw new NotFoundException("Không tìm thấy giao dịch.");
+        if (payment.Purpose == PaymentPurpose.WalletTopup)
+            return new SimulatedPaymentView(payment.Id, payment.Amount, "Nạp tiền vào Ví ShopHub", payment.ExpiresAt, payment.Status, payment.CheckoutId,
+                $"/tai-khoan/vi?topup={payment.CheckoutId}");
         var codes = await db.Orders.AsNoTracking().Where(o => o.CheckoutId == payment.CheckoutId).OrderBy(o => o.Code).Select(o => o.Code).ToListAsync(ct);
         return new SimulatedPaymentView(payment.Id, payment.Amount, $"Thanh toán đơn hàng {string.Join(", ", codes)}", payment.ExpiresAt, payment.Status,
-            payment.CheckoutId);
+            payment.CheckoutId, $"/thanh-toan/ket-qua/{payment.CheckoutId}");
     }
 
     /// <summary>"Thành công" / "Thất bại": record on the gateway side, then send the signed callback (like the real thing).</summary>

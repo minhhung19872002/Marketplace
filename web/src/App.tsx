@@ -28,6 +28,7 @@ const OrderReviewPage = lazy(() => import('./pages/account/AftercarePages').then
 const ReturnFormPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.ReturnFormPage })))
 const ReturnsPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.ReturnsPage })))
 const ReturnDetailPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.ReturnDetailPage })))
+const WalletPage = lazy(() => import('./pages/account/WalletPage'))
 const Wishlist = lazy(() => import('./pages/Wishlist'))
 const Notifications = lazy(() => import('./pages/Notifications'))
 const ShopPage = lazy(() => import('./pages/ShopPage'))
@@ -81,6 +82,7 @@ function App() {
                       <Route path="tra-hang/:code" element={<ReturnDetailPage />} />
                       <Route path="voucher" element={<VouchersPage />} />
                       <Route path="xu" element={<CoinsPage />} />
+                      <Route path="vi" element={<WalletPage />} />
                       <Route path="ho-so" element={<ProfilePage />} />
                       <Route path="dia-chi" element={<AddressesPage />} />
                       <Route path="mat-khau" element={<PasswordPage />} />

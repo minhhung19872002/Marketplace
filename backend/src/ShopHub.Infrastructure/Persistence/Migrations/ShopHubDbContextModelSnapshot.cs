@@ -1120,6 +1120,607 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("wishlists", "engage");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Finance.BankAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("AccountName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("account_name");
+
+                    b.Property<string>("AccountNoEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("account_no_encrypted");
+
+                    b.Property<string>("AccountNoLast4")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)")
+                        .HasColumnName("account_no_last4");
+
+                    b.Property<string>("BankCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("bank_code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bank_accounts");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_bank_accounts_user");
+
+                    b.ToTable("bank_accounts", "finance");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.FeeRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FeeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("fee_type");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("RateBp")
+                        .HasColumnType("integer")
+                        .HasColumnName("rate_bp");
+
+                    b.Property<DateTimeOffset>("ValidFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_from");
+
+                    b.Property<DateTimeOffset?>("ValidTo")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_to");
+
+                    b.HasKey("Id")
+                        .HasName("pk_fee_rules");
+
+                    b.HasIndex("CategoryId", "FeeType")
+                        .IsUnique()
+                        .HasDatabaseName("ux_fee_rules_open")
+                        .HasFilter("valid_to IS NULL");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("CategoryId", "FeeType"), false);
+
+                    b.ToTable("fee_rules", "finance", t =>
+                        {
+                            t.HasCheckConstraint("ck_fee_rules_rate", "rate_bp BETWEEN 0 AND 5000");
+
+                            t.HasCheckConstraint("ck_fee_rules_window", "valid_to IS NULL OR valid_to > valid_from");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.LedgerAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<bool>("AllowNegative")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_negative");
+
+                    b.Property<long>("Balance")
+                        .HasColumnType("bigint")
+                        .HasColumnName("balance");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
+
+                    b.Property<string>("OwnerType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("owner_type");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ledger_accounts");
+
+                    b.HasIndex("OwnerType", "OwnerId", "Type")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ledger_accounts_owner");
+
+                    b.ToTable("ledger_accounts", "finance", t =>
+                        {
+                            t.HasCheckConstraint("ck_ledger_accounts_balance", "allow_negative OR balance >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.LedgerEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("direction");
+
+                    b.Property<DateTimeOffset>("PostedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posted_at");
+
+                    b.Property<Guid>("RefId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ref_id");
+
+                    b.Property<string>("RefType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("ref_type");
+
+                    b.Property<Guid>("TransactionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transaction_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ledger_entries");
+
+                    b.HasIndex("TransactionId")
+                        .HasDatabaseName("ix_ledger_entries_transaction_id");
+
+                    b.HasIndex("AccountId", "PostedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_ledger_entries_account");
+
+                    b.HasIndex("RefType", "RefId")
+                        .HasDatabaseName("ix_ledger_entries_ref");
+
+                    b.ToTable("ledger_entries", "finance", t =>
+                        {
+                            t.HasCheckConstraint("ck_ledger_entries_amount", "amount > 0");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.LedgerTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("DedupeKey")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("dedupe_key");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset>("PostedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posted_at");
+
+                    b.Property<Guid>("RefId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ref_id");
+
+                    b.Property<string>("RefType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("ref_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ledger_transactions");
+
+                    b.HasIndex("DedupeKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ledger_transactions_dedupe")
+                        .HasFilter("dedupe_key IS NOT NULL");
+
+                    b.HasIndex("RefType", "RefId")
+                        .HasDatabaseName("ix_ledger_transactions_ref");
+
+                    b.ToTable("ledger_transactions", "finance");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.Settlement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("Fees")
+                        .HasColumnType("bigint")
+                        .HasColumnName("fees");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_url");
+
+                    b.Property<long>("Gross")
+                        .HasColumnType("bigint")
+                        .HasColumnName("gross");
+
+                    b.Property<long>("Net")
+                        .HasColumnType("bigint")
+                        .HasColumnName("net");
+
+                    b.Property<DateTimeOffset>("PeriodFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_from");
+
+                    b.Property<DateTimeOffset>("PeriodTo")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_to");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_settlements");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_settlements_code");
+
+                    b.HasIndex("ShopId", "CreatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_settlements_shop");
+
+                    b.ToTable("settlements", "finance");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.SettlementItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<long>("FixedFee")
+                        .HasColumnType("bigint")
+                        .HasColumnName("fixed_fee");
+
+                    b.Property<long>("Goods")
+                        .HasColumnType("bigint")
+                        .HasColumnName("goods");
+
+                    b.Property<long>("Net")
+                        .HasColumnType("bigint")
+                        .HasColumnName("net");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<long>("PaymentFee")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_fee");
+
+                    b.Property<long>("RefundsBorne")
+                        .HasColumnType("bigint")
+                        .HasColumnName("refunds_borne");
+
+                    b.Property<DateTimeOffset>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<long>("ServiceFee")
+                        .HasColumnType("bigint")
+                        .HasColumnName("service_fee");
+
+                    b.Property<Guid>("SettlementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("settlement_id");
+
+                    b.Property<long>("ShopDiscount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("shop_discount");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_settlement_items");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_settlement_items_order");
+
+                    b.HasIndex("SettlementId")
+                        .HasDatabaseName("ix_settlement_items_settlement_id");
+
+                    b.HasIndex("ShopId", "ReleasedAt")
+                        .HasDatabaseName("ix_settlement_items_shop");
+
+                    b.ToTable("settlement_items", "finance");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.Wallet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("FailedPinAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_pin_attempts");
+
+                    b.Property<DateTimeOffset>("PinChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("pin_changed_at");
+
+                    b.Property<string>("PinHash")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("pin_hash");
+
+                    b.Property<DateTimeOffset?>("PinLockedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("pin_locked_until");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_wallets");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_wallets_user");
+
+                    b.ToTable("wallets", "finance");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.WalletTopup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("PaymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("payment_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_wallet_topups");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_wallet_topups_user");
+
+                    b.ToTable("wallet_topups", "finance", t =>
+                        {
+                            t.HasCheckConstraint("ck_wallet_topups_amount", "amount > 0");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.Withdrawal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("AccountLast4")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)")
+                        .HasColumnName("account_last4");
+
+                    b.Property<string>("AccountName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("account_name");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid>("BankAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bank_account_id");
+
+                    b.Property<string>("BankCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("bank_code");
+
+                    b.Property<string>("BankRef")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("bank_ref");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
+
+                    b.Property<string>("OwnerType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("owner_type");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.Property<string>("RejectReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reject_reason");
+
+                    b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_withdrawals");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("ix_withdrawals_status");
+
+                    b.HasIndex("OwnerType", "OwnerId", "CreatedAt")
+                        .IsDescending(false, false, true)
+                        .HasDatabaseName("ix_withdrawals_owner");
+
+                    b.ToTable("withdrawals", "finance", t =>
+                        {
+                            t.HasCheckConstraint("ck_withdrawals_amount", "amount > 0");
+                        });
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Iam.Address", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3045,6 +3646,14 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("provider_txn_id");
 
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Checkout")
+                        .HasColumnName("purpose");
+
                     b.Property<string>("Raw")
                         .HasColumnType("jsonb")
                         .HasColumnName("raw");
@@ -4390,6 +4999,89 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_wishlists_users_user_id");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Finance.BankAccount", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bank_accounts_users_user_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.FeeRule", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Catalog.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_fee_rules_categories_category_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.LedgerEntry", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Finance.LedgerAccount", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_ledger_entries_ledger_accounts_account_id");
+
+                    b.HasOne("ShopHub.Domain.Finance.LedgerTransaction", null)
+                        .WithMany("Entries")
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_ledger_entries_ledger_transactions_transaction_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.Settlement", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_settlements_shops_shop_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.SettlementItem", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Sales.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_settlement_items_orders_order_id");
+
+                    b.HasOne("ShopHub.Domain.Finance.Settlement", null)
+                        .WithMany("Items")
+                        .HasForeignKey("SettlementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_settlement_items_settlements_settlement_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.Wallet", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_wallets_users_user_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.WalletTopup", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_wallet_topups_users_user_id");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Iam.Address", b =>
                 {
                     b.HasOne("ShopHub.Domain.Iam.AdminDivision", null)
@@ -4694,16 +5386,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_order_status_history_orders_order_id");
                 });
 
-            modelBuilder.Entity("ShopHub.Domain.Sales.Payment", b =>
-                {
-                    b.HasOne("ShopHub.Domain.Sales.CheckoutSession", null)
-                        .WithMany()
-                        .HasForeignKey("CheckoutId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_payments_checkout_sessions_checkout_id");
-                });
-
             modelBuilder.Entity("ShopHub.Domain.Sales.Refund", b =>
                 {
                     b.HasOne("ShopHub.Domain.Sales.Order", null)
@@ -4860,6 +5542,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Engage.Review", b =>
                 {
                     b.Navigation("Media");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.LedgerTransaction", b =>
+                {
+                    b.Navigation("Entries");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Finance.Settlement", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Iam.Role", b =>

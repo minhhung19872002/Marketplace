@@ -32,7 +32,7 @@ export const SimulatedGatewayPage = () => {
 
   if (isLoading) return <div className="page-loader"><div className="loading-spinner" /></div>;
   if (!data) return <div className="container gateway-page"><p>Không tìm thấy giao dịch.</p></div>;
-  const result = `/thanh-toan/ket-qua/${data.checkoutId}`;
+  const result = data.returnPath;
 
   const press = async (outcome: 'success' | 'fail') => {
     setBusy(true);

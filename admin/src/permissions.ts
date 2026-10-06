@@ -23,6 +23,10 @@ export const P = {
   JobRun: 'SYS.JOB.RUN',
   DisputeResolve: 'SALES.DISPUTE.RESOLVE',
   ReviewModerate: 'CATALOG.REVIEW.MODERATE',
+  FinanceLedgerView: 'FINANCE.LEDGER.VIEW',
+  FinanceFeeManage: 'FINANCE.FEE.MANAGE',
+  FinanceWithdrawalApprove: 'FINANCE.WITHDRAWAL.APPROVE',
+  FinanceReconcile: 'FINANCE.RECONCILE',
 } as const
 
 export const can = (permissions: readonly string[] | undefined, code: string): boolean =>

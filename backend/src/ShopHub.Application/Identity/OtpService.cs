@@ -134,6 +134,7 @@ public sealed class OtpService(
             OtpPurpose.ResetPassword => "đặt lại mật khẩu",
             OtpPurpose.ChangePhone => "đổi số điện thoại",
             OtpPurpose.ChangeEmail => "đổi email",
+            OtpPurpose.Finance => "xác thực tài khoản ngân hàng / mật khẩu ví",
             _ => "xác thực",
         };
         var text = $"ShopHub: Ma {code} de {action}. Hieu luc {minutes} phut. KHONG chia se ma nay cho bat ky ai.";

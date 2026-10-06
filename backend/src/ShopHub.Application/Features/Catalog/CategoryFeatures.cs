@@ -110,7 +110,7 @@ public sealed class SaveCategoryValidator : AbstractValidator<SaveCategoryComman
     }
 }
 
-public sealed class SaveCategoryHandler(IApplicationDbContext db) : IRequestHandler<SaveCategoryCommand, Guid>
+public sealed class SaveCategoryHandler(IApplicationDbContext db, IClock clock) : IRequestHandler<SaveCategoryCommand, Guid>
 {
     public async Task<Guid> Handle(SaveCategoryCommand request, CancellationToken ct)
     {
@@ -139,6 +139,7 @@ public sealed class SaveCategoryHandler(IApplicationDbContext db) : IRequestHand
             category.Rename(request.Name, slug);
             category.SetIcon(request.IconUrl);
             category.SetSortOrder(request.SortOrder);
+            if (category.CommissionRateBp != request.CommissionRateBp) await StartFixedFeeAsync(category.Id, request.CommissionRateBp, ct);
             category.SetCommission(request.CommissionRateBp);
             category.SetActive(request.IsActive);
             if (request.ParentId != category.ParentId) category.MoveTo(request.ParentId, level);
@@ -148,11 +149,23 @@ public sealed class SaveCategoryHandler(IApplicationDbContext db) : IRequestHand
             category = new Category(request.ParentId, level, request.Name, slug, request.IconUrl, request.SortOrder, request.CommissionRateBp);
             category.SetActive(request.IsActive);
             db.Categories.Add(category);
+            // Inherits the parent's fixed fee unless a different one was typed
+            var inherited = await new Finance.FeeSchedule(db).RateAsync(Domain.Finance.FeeType.Fixed, request.ParentId, clock.UtcNow, ct);
+            if (inherited != request.CommissionRateBp)
+            {
+                await db.SaveChangesAsync(ct);
+                await StartFixedFeeAsync(category.Id, request.CommissionRateBp, ct);
+            }
         }
 
         await db.SaveChangesAsync(ct);
         return category.Id;
     }
+
+    /// <summary>The fee schedule is the source of truth for fees: a new fixed fee for this category starts now (old orders keep theirs).</summary>
+    private async Task StartFixedFeeAsync(Guid categoryId, int rateBp, CancellationToken ct) =>
+        await Finance.FeeSchedule.StartAsync(db, categoryId, Domain.Finance.FeeType.Fixed, rateBp, clock.UtcNow, "Đổi phí cố định ở màn danh mục",
+            clock.UtcNow, ct);
 
     private async Task EnsureMovableAsync(Category category, Guid? newParentId, int newLevel, CancellationToken ct)
     {

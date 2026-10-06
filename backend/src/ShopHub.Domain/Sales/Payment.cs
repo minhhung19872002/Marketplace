@@ -11,15 +11,23 @@ public enum PaymentStatus
     Refunded,   // HOÀN
 }
 
-/// <summary>One payment attempt for a checkout (a retry after a failure is a new attempt).</summary>
+public enum PaymentPurpose
+{
+    Checkout,     // CheckoutId is a checkout session
+    WalletTopup,  // CheckoutId is a wallet top-up (nạp Ví ShopHub)
+}
+
+/// <summary>One payment attempt for a checkout or a wallet top-up (a retry after a failure is a new attempt).</summary>
 public class Payment : Entity
 {
     private Payment() { }
 
-    public Payment(Guid checkoutId, PaymentMethod method, long amount, DateTimeOffset expiresAt, DateTimeOffset now)
+    public Payment(Guid checkoutId, PaymentMethod method, long amount, DateTimeOffset expiresAt, DateTimeOffset now,
+        PaymentPurpose purpose = PaymentPurpose.Checkout)
     {
         if (amount <= 0) throw new BusinessRuleException("Số tiền thanh toán phải lớn hơn 0.");
         CheckoutId = checkoutId;
+        Purpose = purpose;
         Method = method;
         Amount = amount;
         ExpiresAt = expiresAt;
@@ -27,7 +35,9 @@ public class Payment : Entity
         Status = PaymentStatus.Initiated;
     }
 
+    // The checkout session — or the wallet top-up when Purpose is WalletTopup
     public Guid CheckoutId { get; private set; }
+    public PaymentPurpose Purpose { get; private set; }
     public PaymentMethod Method { get; private set; }
     public string? ProviderTxnId { get; private set; }
     public long Amount { get; private set; }

@@ -13,9 +13,12 @@ public static class JobIds
     public const string PaymentExpiry = "sales.payment-expiry";
     public const string OrderAutomation = "sales.order-automation";
     public const string CarrierSimulator = "logistics.carrier-simulator";
+    public const string Settlement = "finance.settlement";
+    public const string LedgerCheck = "finance.ledger-check";
 
     // Jobs an admin may trigger on demand (POST /api/admin/job-runs/{id})
-    public static readonly IReadOnlyList<string> Runnable = [OutboxDispatch, CounterRecompute, PaymentExpiry, OrderAutomation, CarrierSimulator];
+    public static readonly IReadOnlyList<string> Runnable =
+        [OutboxDispatch, CounterRecompute, PaymentExpiry, OrderAutomation, CarrierSimulator, Settlement, LedgerCheck];
 }
 
 /// <summary>Hangfire entry for <see cref="Application.Features.Orders.OrderAutomationService"/>.</summary>
@@ -81,6 +84,18 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
             JobIds.CarrierSimulator,
             j => j.RunJobAsync(),
             await parameters.GetStringAsync(ParameterKeys.JobCarrierSimulatorCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<Finance.SettlementJob>(
+            JobIds.Settlement,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobSettlementCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<Finance.LedgerCheckJob>(
+            JobIds.LedgerCheck,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobLedgerCheckCron, ct),
             options);
 
         recurringJobs.AddOrUpdate<OutboxCleanupJob>(

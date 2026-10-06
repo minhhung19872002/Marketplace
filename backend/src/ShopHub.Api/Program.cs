@@ -47,14 +47,16 @@ builder.Services
     .AddApplication()
     .AddInfrastructure(settings)
     .AddSingleton<ShopHub.Application.Abstractions.IShippingDocuments, ShopHub.Reporting.ShippingDocuments>()
+    .AddSingleton<ShopHub.Application.Abstractions.IFinanceDocuments, ShopHub.Reporting.FinanceDocuments>()
     .AddApi(builder.Configuration);
 
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+// Outside the exception handler: the request log shows the status actually sent (400 / 409…), not 500 for every exception
+app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
 app.UseStatusCodePages(StatusCodeEnvelope.WriteAsync);
-app.UseSerilogRequestLogging();
 app.UseMiddleware<NullCharacterMiddleware>();
 
 if (app.Environment.IsDevelopment())

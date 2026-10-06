@@ -6,9 +6,9 @@ Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** 
 Đặc tả và lộ trình: [`PROMPT-BUILD-SHOPHUB.md`](PROMPT-BUILD-SHOPHUB.md). Tiến độ từng phase:
 [`docs/07-bang-doi-chieu-chuc-nang.md`](docs/07-bang-doi-chieu-chuc-nang.md).
 
-> **Trạng thái hiện tại: xong Phase 0–2** (chuyển đổi repo, nền móng backend, tài khoản). Đăng ký/đăng nhập, hồ sơ,
-> sổ địa chỉ, thiết bị và trang quản trị người dùng/vai trò đã chạy thật trên API. Sản phẩm, giỏ, thanh toán ở site
-> người mua vẫn là dữ liệu giả (`web/src/data/products.ts`) cho tới Phase 4–5. Tài liệu API: [`docs/05-api-reference.md`](docs/05-api-reference.md).
+> **Trạng thái hiện tại: xong Phase 0–3** (chuyển đổi repo, nền móng backend, tài khoản, danh mục & sản phẩm).
+> Kênh Người Bán (đăng ký shop, đăng/sửa sản phẩm, tồn kho) và quản trị (duyệt shop/sản phẩm, ngành hàng) chạy thật.
+> Trang người mua vẫn hiển thị sản phẩm từ dữ liệu giả (`web/src/data/products.ts`) cho tới Phase 4. Tài liệu API: [`docs/05-api-reference.md`](docs/05-api-reference.md).
 
 ## Cấu trúc
 
@@ -40,6 +40,7 @@ docker compose up -d --build
 | http://localhost:18080/swagger | Swagger (môi trường Development) |
 | http://localhost:18025/ | Mailpit (thư bắt được khi dev) |
 | http://localhost:18901/ | MinIO console |
+| http://localhost:18000/s3/… | Ảnh/tệp đã lưu (chỉ đọc) |
 
 Mọi cổng chỉ mở trên `127.0.0.1`, dải 18xxx (xem `docs/00-quyet-dinh-ky-thuat.md`).
 

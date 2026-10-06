@@ -32,6 +32,10 @@ public static class DatabaseInitializer
         await SeedSystemParametersAsync(db, logger, ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.IdentitySeeder>().SeedAsync(settings.SeedSampleData, ct);
 
+        // Buckets first: the catalog seed uploads product images
+        await sp.GetRequiredService<ShopHub.Infrastructure.Media.MinioObjectStorage>().EnsureBucketsAsync(ct);
+        await sp.GetRequiredService<ShopHub.Infrastructure.Seed.CatalogSeeder>().SeedAsync(settings.SeedSampleData, ct);
+
         if (settings.JobsEnabled)
             await sp.GetRequiredService<IJobScheduler>().RegisterRecurringJobsAsync(ct);
     }

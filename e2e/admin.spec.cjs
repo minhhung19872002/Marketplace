@@ -28,9 +28,11 @@ async function registerBuyer(request) {
 test.describe('Quản trị sàn', () => {
   test.skip(!BASE, 'Cần SH_E2E_BASE_URL trỏ vào gateway (vd http://localhost:18000)');
 
-  test('Sai mật khẩu quản trị bị từ chối', async ({ page }) => {
+  test('Sai mật khẩu quản trị bị từ chối', async ({ page, request }) => {
+    // A throwaway account: hammering the real 'admin' would trip its lockout
+    const someone = await registerBuyer(request);
     await page.goto(`${BASE}/admin/`);
-    await page.getByLabel('Tên đăng nhập').fill('admin');
+    await page.getByLabel('Tên đăng nhập').fill(someone.phone);
     await page.getByLabel('Mật khẩu').fill('KhongPhaiMatKhau1');
     await page.getByTestId('login-submit').click();
 

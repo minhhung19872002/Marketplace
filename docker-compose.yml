@@ -114,6 +114,8 @@ services:
       SH_MINIO_ENDPOINT: minio:9000
       SH_MINIO_ACCESS_KEY: ${SH_MINIO_ACCESS_KEY:-shophub}
       SH_MINIO_SECRET_KEY: ${SH_MINIO_SECRET_KEY}
+      SH_MEDIA_PUBLIC_URL: ${SH_MEDIA_PUBLIC_URL:-http://localhost:18000/s3}
+      SH_DATA_KEY: ${SH_DATA_KEY:?Thiếu SH_DATA_KEY trong .env (openssl rand -base64 32)}
       SH_MEILI_URL: http://meilisearch:7700
       SH_MEILI_MASTER_KEY: ${SH_MEILI_MASTER_KEY}
       SH_JWT_SECRET: ${SH_JWT_SECRET:?Thiếu SH_JWT_SECRET trong .env}

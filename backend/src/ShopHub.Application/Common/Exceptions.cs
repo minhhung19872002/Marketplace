@@ -14,3 +14,6 @@ public class AuthenticationFailedException(string message = "Thông tin đăng n
 {
     public string? Code { get; } = code;
 }
+
+/// <summary>The caller owns the resource but lacks the specific permission (e.g. shop staff role) — HTTP 403.</summary>
+public class ForbiddenException(string message = "Bạn không có quyền thực hiện thao tác này.") : Exception(message);

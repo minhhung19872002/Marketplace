@@ -9,6 +9,14 @@ public sealed class ShopHubSettings
     public required string DbConnectionString { get; init; }
     public required string RedisUrl { get; init; }
     public required string MinioEndpoint { get; init; }
+    public required string MinioAccessKey { get; init; }
+    public required string MinioSecretKey { get; init; }
+
+    // Base URL browsers use for stored files (gateway /s3 → MinIO)
+    public required string MediaPublicUrl { get; init; }
+
+    // 32-byte AES key for column encryption (bank accounts, ID numbers)
+    public required byte[] DataKey { get; init; }
     public required string MeiliUrl { get; init; }
     public string? MeiliMasterKey { get; init; }
     public bool MigrateOnStartup { get; init; }
@@ -44,6 +52,10 @@ public sealed class ShopHubSettings
             DbConnectionString = config["SH_DB_CONNECTION"] ?? csb.ConnectionString,
             RedisUrl = config["SH_REDIS_URL"] ?? "localhost:18379",
             MinioEndpoint = config["SH_MINIO_ENDPOINT"] ?? "localhost:18900",
+            MinioAccessKey = config["SH_MINIO_ACCESS_KEY"] ?? "shophub",
+            MinioSecretKey = config["SH_MINIO_SECRET_KEY"] ?? string.Empty,
+            MediaPublicUrl = config["SH_MEDIA_PUBLIC_URL"] ?? "http://localhost:18000/s3",
+            DataKey = ParseDataKey(config["SH_DATA_KEY"]),
             MeiliUrl = config["SH_MEILI_URL"] ?? "http://localhost:18700",
             MeiliMasterKey = config["SH_MEILI_MASTER_KEY"],
             MigrateOnStartup = !string.Equals(config["SH_DB_MIGRATE"], "false", StringComparison.OrdinalIgnoreCase),
@@ -57,5 +69,13 @@ public sealed class ShopHubSettings
             SmsProvider = config["SH_SMS_PROVIDER"] ?? "simulated",
             SeedSampleData = !string.Equals(config["SH_SEED_SAMPLE"], "false", StringComparison.OrdinalIgnoreCase),
         };
+    }
+
+    private static byte[] ParseDataKey(string? base64)
+    {
+        if (string.IsNullOrWhiteSpace(base64))
+            throw new InvalidOperationException("Thiếu SH_DATA_KEY (khoá mã hoá 32 byte, base64). Sinh bằng: openssl rand -base64 32");
+        var key = Convert.FromBase64String(base64);
+        return key.Length == 32 ? key : throw new InvalidOperationException("SH_DATA_KEY phải là 32 byte (base64).");
     }
 }

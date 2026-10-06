@@ -30,6 +30,13 @@ public static class ParameterKeys
     public const string AuthOtpMaxPerHour = "AUTH.OTP_MAX_PER_HOUR";
 
     public const string AccountMaxAddresses = "ACCOUNT.MAX_ADDRESSES";
+
+    public const string ProductReviewOnEdit = "PRODUCT.REVIEW_ON_EDIT";
+    public const string ProductBannedKeywords = "PRODUCT.BANNED_KEYWORDS";
+    public const string ShopLowStockThreshold = "SHOP.LOW_STOCK_THRESHOLD";
+    public const string MediaMaxImageMb = "MEDIA.MAX_IMAGE_MB";
+    public const string MediaMaxVideoMb = "MEDIA.MAX_VIDEO_MB";
+    public const string MediaMaxVideoSeconds = "MEDIA.MAX_VIDEO_SECONDS";
 }
 
 public static class ParameterGroups
@@ -38,6 +45,9 @@ public static class ParameterGroups
     public const string Job = "JOB";
     public const string Auth = "AUTH";
     public const string Account = "ACCOUNT";
+    public const string Product = "PRODUCT";
+    public const string Shop = "SHOP";
+    public const string Media = "MEDIA";
 }
 
 public record ParameterDefinition(
@@ -93,5 +103,19 @@ public static class ParameterCatalog
 
         new(ParameterKeys.AccountMaxAddresses, "10", ParameterDataType.Int, ParameterGroups.Account,
             "Số địa chỉ tối đa", "Số địa chỉ nhận hàng tối đa của một tài khoản."),
+
+        new(ParameterKeys.ProductReviewOnEdit, "true", ParameterDataType.Bool, ParameterGroups.Product,
+            "Duyệt lại khi sửa", "Sửa tên, ảnh hoặc danh mục của sản phẩm đã duyệt thì phải duyệt lại."),
+        new(ParameterKeys.ProductBannedKeywords, "[\"hàng giả\",\"hàng fake\",\"replica\",\"super fake\",\"vũ khí\",\"ma túy\"]",
+            ParameterDataType.Json, ParameterGroups.Product,
+            "Từ khoá cấm", "Sản phẩm có từ khoá này (không phân biệt dấu) bị gắn cờ khi gửi duyệt."),
+        new(ParameterKeys.ShopLowStockThreshold, "10", ParameterDataType.Int, ParameterGroups.Shop,
+            "Ngưỡng sắp hết hàng", "Tồn kho khả dụng từ ngưỡng này trở xuống được cảnh báo sắp hết hàng."),
+        new(ParameterKeys.MediaMaxImageMb, "5", ParameterDataType.Int, ParameterGroups.Media,
+            "Dung lượng ảnh tối đa (MB)", "Ảnh tải lên lớn hơn bị từ chối (ảnh đại diện: 1 MB)."),
+        new(ParameterKeys.MediaMaxVideoMb, "30", ParameterDataType.Int, ParameterGroups.Media,
+            "Dung lượng video tối đa (MB)", "Video sản phẩm lớn hơn bị từ chối."),
+        new(ParameterKeys.MediaMaxVideoSeconds, "30", ParameterDataType.Int, ParameterGroups.Media,
+            "Độ dài video tối đa (giây)", "Video sản phẩm dài hơn bị từ chối."),
     ];
 }

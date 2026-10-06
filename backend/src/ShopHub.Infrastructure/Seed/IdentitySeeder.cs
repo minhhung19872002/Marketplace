@@ -30,26 +30,33 @@ public sealed class IdentitySeeder(ShopHubDbContext db, IPasswordHasher hasher, 
 
     public async Task SeedAsync(bool sampleData, CancellationToken ct)
     {
-        await SeedPermissionsAsync(ct);
-        await SeedRolesAsync(ct);
+        var newPermissions = await SeedPermissionsAsync(ct);
+        await SeedRolesAsync(newPermissions, ct);
         await SeedAdminDivisionsAsync(ct);
         await SeedAdminAsync(ct);
         if (sampleData) await SeedSampleAccountsAsync(ct);
     }
 
-    // Upsert: names/modules follow the code catalog, unknown codes are left for an admin to review
-    private async Task SeedPermissionsAsync(CancellationToken ct)
+    // Upsert: names/modules follow the code catalog, unknown codes are left for an admin to review.
+    // Returns the codes that did not exist before this run.
+    private async Task<HashSet<string>> SeedPermissionsAsync(CancellationToken ct)
     {
         var existing = await db.Permissions.ToDictionaryAsync(p => p.Code, ct);
+        var added = new HashSet<string>();
         foreach (var def in PermissionCatalog.All)
         {
             if (existing.TryGetValue(def.Code, out var p)) p.Rename(def.Module, def.Name);
-            else db.Permissions.Add(new Permission(def.Code, def.Module, def.Name));
+            else
+            {
+                db.Permissions.Add(new Permission(def.Code, def.Module, def.Name));
+                added.Add(def.Code);
+            }
         }
         await db.SaveChangesAsync(ct);
+        return added;
     }
 
-    private async Task SeedRolesAsync(CancellationToken ct)
+    private async Task SeedRolesAsync(HashSet<string> newPermissions, CancellationToken ct)
     {
         var existing = await db.Roles.IgnoreQueryFilters().Include(r => r.Permissions).ToDictionaryAsync(r => r.Code, ct);
         foreach (var def in RoleCatalog.All)
@@ -57,8 +64,12 @@ public sealed class IdentitySeeder(ShopHubDbContext db, IPasswordHasher hasher, 
             if (existing.TryGetValue(def.Code, out var role))
             {
                 // Super admin always keeps the wildcard; other system roles keep whatever admins configured
-                if (def.Code == RoleCatalog.SuperAdmin && role.Permissions.All(p => p.PermissionCode != Permissions.All))
-                    role.SetPermissions(role.Permissions.Select(p => p.PermissionCode).Append(Permissions.All));
+                var codes = role.Permissions.Select(p => p.PermissionCode).ToList();
+                if (def.Code == RoleCatalog.SuperAdmin && !codes.Contains(Permissions.All)) codes.Add(Permissions.All);
+                // A permission introduced by this release goes to the system roles that declare it;
+                // anything an admin removed earlier is not re-added
+                codes.AddRange(def.Permissions.Where(newPermissions.Contains));
+                if (codes.Count != role.Permissions.Count) role.SetPermissions(codes);
                 continue;
             }
 

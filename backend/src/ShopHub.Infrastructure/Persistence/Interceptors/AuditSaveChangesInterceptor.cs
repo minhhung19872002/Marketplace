@@ -21,7 +21,8 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
 
     // High-volume or secret-bearing rows are not journalled (sessions/OTPs have their own tables and timestamps)
     private static readonly HashSet<Type> NotAudited =
-        [typeof(AuditLog), typeof(OutboxMessage), typeof(SimulatedSms), typeof(AdminDivision), typeof(RefreshToken), typeof(OtpCode)];
+        [typeof(AuditLog), typeof(OutboxMessage), typeof(SimulatedSms), typeof(AdminDivision), typeof(RefreshToken), typeof(OtpCode),
+         typeof(Domain.Catalog.InventoryMovement), typeof(Domain.Media.MediaAsset)];
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {

@@ -18,6 +18,8 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
         services.AddScoped<Identity.OtpService>();
         services.AddScoped<Identity.SessionService>();
+        services.AddScoped<Features.Seller.SellerAccess>();
+        services.AddScoped<Features.Seller.ProductWriter>();
         return services;
     }
 }

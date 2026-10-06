@@ -55,3 +55,7 @@ body {
   overflow: auto;
   font-size: 12px;
 }
+
+.product-description img {
+  max-width: 100%;
+}

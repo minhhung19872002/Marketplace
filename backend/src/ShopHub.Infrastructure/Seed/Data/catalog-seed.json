@@ -1,0 +1,3257 @@
+{
+ "originOptions": [
+  "Việt Nam",
+  "Trung Quốc",
+  "Hàn Quốc",
+  "Nhật Bản",
+  "Thái Lan",
+  "Mỹ",
+  "Khác"
+ ],
+ "attributeSets": {
+  "fashion": [
+   {
+    "name": "Chất liệu",
+    "type": "SingleSelect",
+    "options": [
+     "Cotton",
+     "Polyester",
+     "Da",
+     "Da PU",
+     "Jean",
+     "Nỉ",
+     "Lụa",
+     "Kaki",
+     "Khác"
+    ],
+    "required": true,
+    "filterable": true
+   },
+   {
+    "name": "Phong cách",
+    "type": "MultiSelect",
+    "options": [
+     "Basic",
+     "Công sở",
+     "Thể thao",
+     "Dạo phố",
+     "Dự tiệc"
+    ],
+    "required": false,
+    "filterable": true
+   }
+  ],
+  "electronics": [
+   {
+    "name": "Bảo hành",
+    "type": "SingleSelect",
+    "options": [
+     "Không bảo hành",
+     "6 tháng",
+     "12 tháng",
+     "24 tháng"
+    ],
+    "required": true,
+    "filterable": true
+   },
+   {
+    "name": "Kết nối",
+    "type": "MultiSelect",
+    "options": [
+     "Bluetooth",
+     "Wifi",
+     "USB-C",
+     "Lightning",
+     "Có dây",
+     "2.4GHz"
+    ],
+    "required": false,
+    "filterable": true
+   }
+  ],
+  "beauty": [
+   {
+    "name": "Loại da phù hợp",
+    "type": "MultiSelect",
+    "options": [
+     "Mọi loại da",
+     "Da dầu",
+     "Da khô",
+     "Da nhạy cảm",
+     "Da hỗn hợp"
+    ],
+    "required": false,
+    "filterable": true
+   },
+   {
+    "name": "Dung tích",
+    "type": "Number",
+    "unit": "ml",
+    "required": false,
+    "filterable": false
+   }
+  ],
+  "health": [
+   {
+    "name": "Hạn sử dụng",
+    "type": "Number",
+    "unit": "tháng",
+    "required": true,
+    "filterable": false
+   }
+  ],
+  "home": [
+   {
+    "name": "Chất liệu",
+    "type": "SingleSelect",
+    "options": [
+     "Inox",
+     "Nhựa",
+     "Thuỷ tinh",
+     "Gỗ",
+     "Gốm sứ",
+     "Cao su",
+     "Khác"
+    ],
+    "required": false,
+    "filterable": true
+   },
+   {
+    "name": "Công suất",
+    "type": "Number",
+    "unit": "W",
+    "required": false,
+    "filterable": false
+   }
+  ],
+  "kids": [
+   {
+    "name": "Độ tuổi khuyến nghị",
+    "type": "SingleSelect",
+    "options": [
+     "0-12 tháng",
+     "1-3 tuổi",
+     "3-6 tuổi",
+     "6-12 tuổi",
+     "Trên 12 tuổi"
+    ],
+    "required": true,
+    "filterable": true
+   }
+  ],
+  "sport": [
+   {
+    "name": "Môn thể thao",
+    "type": "SingleSelect",
+    "options": [
+     "Cầu lông",
+     "Yoga",
+     "Chạy bộ",
+     "Bóng đá",
+     "Gym",
+     "Khác"
+    ],
+    "required": false,
+    "filterable": true
+   }
+  ],
+  "food": [
+   {
+    "name": "Khối lượng",
+    "type": "Number",
+    "unit": "kg",
+    "required": true,
+    "filterable": false
+   },
+   {
+    "name": "Hạn sử dụng",
+    "type": "Number",
+    "unit": "tháng",
+    "required": true,
+    "filterable": false
+   }
+  ]
+ },
+ "categories": [
+  {
+   "name": "Thời Trang Nam",
+   "icon": "👔",
+   "commissionBp": 800,
+   "attributeSet": "fashion",
+   "children": [
+    {
+     "name": "Áo",
+     "children": [
+      {
+       "name": "Áo Thun"
+      },
+      {
+       "name": "Áo Sơ Mi"
+      },
+      {
+       "name": "Áo Khoác"
+      },
+      {
+       "name": "Áo Polo"
+      }
+     ]
+    },
+    {
+     "name": "Quần",
+     "children": [
+      {
+       "name": "Quần Jean"
+      },
+      {
+       "name": "Quần Kaki"
+      },
+      {
+       "name": "Quần Short"
+      }
+     ]
+    },
+    {
+     "name": "Phụ Kiện Nam",
+     "children": [
+      {
+       "name": "Kính Mắt"
+      },
+      {
+       "name": "Ví Nam"
+      },
+      {
+       "name": "Thắt Lưng"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Thời Trang Nữ",
+   "icon": "👗",
+   "commissionBp": 800,
+   "attributeSet": "fashion",
+   "children": [
+    {
+     "name": "Váy Đầm",
+     "children": [
+      {
+       "name": "Đầm Suông"
+      },
+      {
+       "name": "Đầm Dự Tiệc"
+      },
+      {
+       "name": "Chân Váy"
+      }
+     ]
+    },
+    {
+     "name": "Áo Nữ",
+     "children": [
+      {
+       "name": "Áo Kiểu"
+      },
+      {
+       "name": "Áo Thun Nữ"
+      },
+      {
+       "name": "Áo Khoác Nữ"
+      }
+     ]
+    },
+    {
+     "name": "Quần Nữ",
+     "children": [
+      {
+       "name": "Quần Jean Nữ"
+      },
+      {
+       "name": "Quần Ống Rộng"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Điện Thoại & Phụ Kiện",
+   "icon": "📱",
+   "commissionBp": 400,
+   "attributeSet": "electronics",
+   "children": [
+    {
+     "name": "Điện Thoại",
+     "children": [
+      {
+       "name": "Điện Thoại Thông Minh"
+      },
+      {
+       "name": "Điện Thoại Phổ Thông"
+      }
+     ]
+    },
+    {
+     "name": "Phụ Kiện Điện Thoại",
+     "children": [
+      {
+       "name": "Sạc Dự Phòng"
+      },
+      {
+       "name": "Ốp Lưng"
+      },
+      {
+       "name": "Cáp & Sạc"
+      },
+      {
+       "name": "Kính Cường Lực"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Máy Tính & Laptop",
+   "icon": "💻",
+   "commissionBp": 400,
+   "attributeSet": "electronics",
+   "children": [
+    {
+     "name": "Laptop",
+     "children": [
+      {
+       "name": "Laptop Văn Phòng"
+      },
+      {
+       "name": "Laptop Gaming"
+      }
+     ]
+    },
+    {
+     "name": "Phụ Kiện Máy Tính",
+     "children": [
+      {
+       "name": "Chuột"
+      },
+      {
+       "name": "Bàn Phím"
+      },
+      {
+       "name": "Combo Phím Chuột"
+      },
+      {
+       "name": "Balo & Túi Laptop"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Thiết Bị Điện Tử",
+   "icon": "🎧",
+   "commissionBp": 500,
+   "attributeSet": "electronics",
+   "children": [
+    {
+     "name": "Thiết Bị Âm Thanh",
+     "children": [
+      {
+       "name": "Tai Nghe Bluetooth"
+      },
+      {
+       "name": "Tai Nghe Có Dây"
+      },
+      {
+       "name": "Loa Bluetooth"
+      }
+     ]
+    },
+    {
+     "name": "Thiết Bị Đeo Thông Minh",
+     "children": [
+      {
+       "name": "Vòng Đeo Tay Thông Minh"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Máy Ảnh & Quay Phim",
+   "icon": "📷",
+   "commissionBp": 400,
+   "attributeSet": "electronics",
+   "children": [
+    {
+     "name": "Máy Ảnh",
+     "children": [
+      {
+       "name": "Máy Ảnh Mirrorless"
+      },
+      {
+       "name": "Máy Ảnh Compact"
+      }
+     ]
+    },
+    {
+     "name": "Phụ Kiện Máy Ảnh",
+     "children": [
+      {
+       "name": "Thẻ Nhớ"
+      },
+      {
+       "name": "Chân Máy"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Đồng Hồ",
+   "icon": "⌚",
+   "commissionBp": 600,
+   "attributeSet": "fashion",
+   "children": [
+    {
+     "name": "Đồng Hồ Nam",
+     "children": [
+      {
+       "name": "Đồng Hồ Kim Loại"
+      },
+      {
+       "name": "Đồng Hồ Dây Da"
+      }
+     ]
+    },
+    {
+     "name": "Đồng Hồ Thông Minh",
+     "children": [
+      {
+       "name": "Smartwatch"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Giày Dép Nam",
+   "icon": "👞",
+   "commissionBp": 800,
+   "attributeSet": "fashion",
+   "children": [
+    {
+     "name": "Giày Thể Thao Nam",
+     "children": [
+      {
+       "name": "Sneaker"
+      },
+      {
+       "name": "Giày Chạy Bộ"
+      }
+     ]
+    },
+    {
+     "name": "Giày Tây",
+     "children": [
+      {
+       "name": "Giày Da Nam"
+      }
+     ]
+    },
+    {
+     "name": "Dép Nam",
+     "children": [
+      {
+       "name": "Dép Quai Ngang"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Giày Dép Nữ",
+   "icon": "👠",
+   "commissionBp": 800,
+   "attributeSet": "fashion",
+   "children": [
+    {
+     "name": "Giày Nữ",
+     "children": [
+      {
+       "name": "Giày Cao Gót"
+      },
+      {
+       "name": "Giày Búp Bê"
+      },
+      {
+       "name": "Sneaker Nữ"
+      }
+     ]
+    },
+    {
+     "name": "Dép Nữ",
+     "children": [
+      {
+       "name": "Sandal Nữ"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Túi Ví Nữ",
+   "icon": "👜",
+   "commissionBp": 800,
+   "attributeSet": "fashion",
+   "children": [
+    {
+     "name": "Túi Xách",
+     "children": [
+      {
+       "name": "Túi Xách Tay"
+      },
+      {
+       "name": "Túi Đeo Chéo"
+      }
+     ]
+    },
+    {
+     "name": "Ví Nữ",
+     "children": [
+      {
+       "name": "Ví Cầm Tay"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Mẹ & Bé",
+   "icon": "🍼",
+   "commissionBp": 600,
+   "attributeSet": "kids",
+   "children": [
+    {
+     "name": "Tã & Bỉm",
+     "children": [
+      {
+       "name": "Tã Dán"
+      },
+      {
+       "name": "Tã Quần"
+      }
+     ]
+    },
+    {
+     "name": "Đồ Dùng Cho Bé",
+     "children": [
+      {
+       "name": "Bình Sữa"
+      },
+      {
+       "name": "Xe Đẩy"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Nhà Cửa & Đời Sống",
+   "icon": "🏠",
+   "commissionBp": 600,
+   "attributeSet": "home",
+   "children": [
+    {
+     "name": "Đồ Dùng Nhà Bếp",
+     "children": [
+      {
+       "name": "Nồi Chiên Không Dầu"
+      },
+      {
+       "name": "Nồi & Chảo"
+      },
+      {
+       "name": "Máy Xay"
+      },
+      {
+       "name": "Bình Giữ Nhiệt"
+      }
+     ]
+    },
+    {
+     "name": "Đèn",
+     "children": [
+      {
+       "name": "Đèn Bàn"
+      },
+      {
+       "name": "Đèn Ngủ"
+      }
+     ]
+    },
+    {
+     "name": "Chăn Ga Gối",
+     "children": [
+      {
+       "name": "Gối"
+      },
+      {
+       "name": "Chăn Mền"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Sắc Đẹp",
+   "icon": "💄",
+   "commissionBp": 700,
+   "attributeSet": "beauty",
+   "children": [
+    {
+     "name": "Trang Điểm",
+     "children": [
+      {
+       "name": "Son Môi"
+      },
+      {
+       "name": "Kem Nền"
+      }
+     ]
+    },
+    {
+     "name": "Chăm Sóc Da",
+     "children": [
+      {
+       "name": "Kem Chống Nắng"
+      },
+      {
+       "name": "Sữa Rửa Mặt"
+      }
+     ]
+    },
+    {
+     "name": "Nước Hoa",
+     "children": [
+      {
+       "name": "Nước Hoa Nữ"
+      },
+      {
+       "name": "Nước Hoa Nam"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Sức Khỏe",
+   "icon": "💊",
+   "commissionBp": 600,
+   "attributeSet": "health",
+   "children": [
+    {
+     "name": "Thực Phẩm Chức Năng",
+     "children": [
+      {
+       "name": "Vitamin"
+      },
+      {
+       "name": "Collagen"
+      }
+     ]
+    },
+    {
+     "name": "Thiết Bị Y Tế",
+     "children": [
+      {
+       "name": "Máy Đo Huyết Áp"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Thể Thao & Du Lịch",
+   "icon": "⚽",
+   "commissionBp": 600,
+   "attributeSet": "sport",
+   "children": [
+    {
+     "name": "Dụng Cụ Thể Thao",
+     "children": [
+      {
+       "name": "Cầu Lông"
+      },
+      {
+       "name": "Yoga"
+      },
+      {
+       "name": "Bóng Đá"
+      }
+     ]
+    },
+    {
+     "name": "Du Lịch",
+     "children": [
+      {
+       "name": "Vali"
+      },
+      {
+       "name": "Balo Du Lịch"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Ô Tô & Xe Máy",
+   "icon": "🏍️",
+   "commissionBp": 500,
+   "attributeSet": "home",
+   "children": [
+    {
+     "name": "Phụ Kiện Xe Máy",
+     "children": [
+      {
+       "name": "Mũ Bảo Hiểm"
+      },
+      {
+       "name": "Áo Mưa"
+      }
+     ]
+    },
+    {
+     "name": "Phụ Kiện Ô Tô",
+     "children": [
+      {
+       "name": "Camera Hành Trình"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Đồ Chơi",
+   "icon": "🧸",
+   "commissionBp": 600,
+   "attributeSet": "kids",
+   "children": [
+    {
+     "name": "Đồ Chơi Lắp Ráp",
+     "children": [
+      {
+       "name": "Lego & Xếp Hình"
+      }
+     ]
+    },
+    {
+     "name": "Đồ Chơi Vận Động",
+     "children": [
+      {
+       "name": "Xe Đạp Trẻ Em"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Bách Hóa Online",
+   "icon": "🛒",
+   "commissionBp": 300,
+   "attributeSet": "food",
+   "children": [
+    {
+     "name": "Thực Phẩm Khô",
+     "children": [
+      {
+       "name": "Gạo"
+      },
+      {
+       "name": "Mì & Bún"
+      }
+     ]
+    },
+    {
+     "name": "Đồ Uống",
+     "children": [
+      {
+       "name": "Cà Phê"
+      },
+      {
+       "name": "Trà"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "brands": [
+  "TechZone",
+  "Fashionista",
+  "HomeLux",
+  "BeautyPro",
+  "SportKing",
+  "BabyCare"
+ ],
+ "shops": [
+  {
+   "name": "ShopHub Official Store",
+   "type": "Business",
+   "mall": true,
+   "preferred": true,
+   "owner": 0,
+   "location": "TP. Hồ Chí Minh",
+   "warehouse": {
+    "province": "79",
+    "district": "760",
+    "ward": "26734"
+   },
+   "brand": null,
+   "description": "ShopHub Official Store — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "TechZone Official",
+   "type": "Business",
+   "mall": false,
+   "preferred": false,
+   "owner": 1,
+   "location": "Hà Nội",
+   "warehouse": {
+    "province": "01",
+    "district": "001",
+    "ward": "00001"
+   },
+   "brand": null,
+   "description": "TechZone Official — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Fashion House VN",
+   "type": "Business",
+   "mall": false,
+   "preferred": true,
+   "owner": 2,
+   "location": "Đà Nẵng",
+   "warehouse": {
+    "province": "48",
+    "district": "490",
+    "ward": "20194"
+   },
+   "brand": null,
+   "description": "Fashion House VN — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Gia Dụng Thông Minh",
+   "type": "Business",
+   "mall": false,
+   "preferred": false,
+   "owner": 0,
+   "location": "Bình Dương",
+   "warehouse": {
+    "province": "74",
+    "district": "718",
+    "ward": "25741"
+   },
+   "brand": null,
+   "description": "Gia Dụng Thông Minh — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Beauty Corner",
+   "type": "Business",
+   "mall": false,
+   "preferred": true,
+   "owner": 1,
+   "location": "Hải Phòng",
+   "warehouse": {
+    "province": "31",
+    "district": "303",
+    "ward": "11296"
+   },
+   "brand": null,
+   "description": "Beauty Corner — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Sport Center",
+   "type": "Business",
+   "mall": false,
+   "preferred": false,
+   "owner": 2,
+   "location": "TP. Hồ Chí Minh",
+   "warehouse": {
+    "province": "79",
+    "district": "760",
+    "ward": "26734"
+   },
+   "brand": null,
+   "description": "Sport Center — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Mẹ & Bé Happy",
+   "type": "Business",
+   "mall": false,
+   "preferred": true,
+   "owner": 0,
+   "location": "Hà Nội",
+   "warehouse": {
+    "province": "01",
+    "district": "001",
+    "ward": "00001"
+   },
+   "brand": null,
+   "description": "Mẹ & Bé Happy — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Digital World",
+   "type": "Business",
+   "mall": false,
+   "preferred": false,
+   "owner": 1,
+   "location": "Đà Nẵng",
+   "warehouse": {
+    "province": "48",
+    "district": "490",
+    "ward": "20194"
+   },
+   "brand": null,
+   "description": "Digital World — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Home Living Store",
+   "type": "Business",
+   "mall": false,
+   "preferred": true,
+   "owner": 2,
+   "location": "Bình Dương",
+   "warehouse": {
+    "province": "74",
+    "district": "718",
+    "ward": "25741"
+   },
+   "brand": null,
+   "description": "Home Living Store — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Mall TechZone",
+   "type": "Business",
+   "mall": true,
+   "preferred": true,
+   "owner": 0,
+   "location": "TP. Hồ Chí Minh",
+   "warehouse": {
+    "province": "79",
+    "district": "760",
+    "ward": "26734"
+   },
+   "brand": "TechZone",
+   "description": "Gian hàng chính hãng TechZone trên ShopHub Mall."
+  },
+  {
+   "name": "Mall Fashionista",
+   "type": "Business",
+   "mall": true,
+   "preferred": true,
+   "owner": 1,
+   "location": "Hà Nội",
+   "warehouse": {
+    "province": "01",
+    "district": "001",
+    "ward": "00001"
+   },
+   "brand": "Fashionista",
+   "description": "Gian hàng chính hãng Fashionista trên ShopHub Mall."
+  },
+  {
+   "name": "Mall HomeLux",
+   "type": "Business",
+   "mall": true,
+   "preferred": true,
+   "owner": 2,
+   "location": "Đà Nẵng",
+   "warehouse": {
+    "province": "48",
+    "district": "490",
+    "ward": "20194"
+   },
+   "brand": "HomeLux",
+   "description": "Gian hàng chính hãng HomeLux trên ShopHub Mall."
+  },
+  {
+   "name": "Mall BeautyPro",
+   "type": "Business",
+   "mall": true,
+   "preferred": true,
+   "owner": 0,
+   "location": "Bình Dương",
+   "warehouse": {
+    "province": "74",
+    "district": "718",
+    "ward": "25741"
+   },
+   "brand": "BeautyPro",
+   "description": "Gian hàng chính hãng BeautyPro trên ShopHub Mall."
+  },
+  {
+   "name": "Mall SportKing",
+   "type": "Business",
+   "mall": true,
+   "preferred": true,
+   "owner": 1,
+   "location": "Hải Phòng",
+   "warehouse": {
+    "province": "31",
+    "district": "303",
+    "ward": "11296"
+   },
+   "brand": "SportKing",
+   "description": "Gian hàng chính hãng SportKing trên ShopHub Mall."
+  },
+  {
+   "name": "Mall BabyCare",
+   "type": "Business",
+   "mall": true,
+   "preferred": true,
+   "owner": 2,
+   "location": "TP. Hồ Chí Minh",
+   "warehouse": {
+    "province": "79",
+    "district": "760",
+    "ward": "26734"
+   },
+   "brand": "BabyCare",
+   "description": "Gian hàng chính hãng BabyCare trên ShopHub Mall."
+  },
+  {
+   "name": "Tiệm Nhà Mây",
+   "type": "Business",
+   "mall": false,
+   "preferred": true,
+   "owner": 0,
+   "location": "Đà Nẵng",
+   "warehouse": {
+    "province": "48",
+    "district": "490",
+    "ward": "20194"
+   },
+   "brand": null,
+   "description": "Tiệm Nhà Mây — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Gốm Bát Tràng Xinh",
+   "type": "Personal",
+   "mall": false,
+   "preferred": false,
+   "owner": 1,
+   "location": "Bình Dương",
+   "warehouse": {
+    "province": "74",
+    "district": "718",
+    "ward": "25741"
+   },
+   "brand": null,
+   "description": "Gốm Bát Tràng Xinh — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Phụ Kiện Số 247",
+   "type": "Business",
+   "mall": false,
+   "preferred": false,
+   "owner": 2,
+   "location": "Hải Phòng",
+   "warehouse": {
+    "province": "31",
+    "district": "303",
+    "ward": "11296"
+   },
+   "brand": null,
+   "description": "Phụ Kiện Số 247 — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Thời Trang Bụi",
+   "type": "Personal",
+   "mall": false,
+   "preferred": true,
+   "owner": 0,
+   "location": "TP. Hồ Chí Minh",
+   "warehouse": {
+    "province": "79",
+    "district": "760",
+    "ward": "26734"
+   },
+   "brand": null,
+   "description": "Thời Trang Bụi — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Nhà Sách Ánh Dương",
+   "type": "Business",
+   "mall": false,
+   "preferred": false,
+   "owner": 1,
+   "location": "Hà Nội",
+   "warehouse": {
+    "province": "01",
+    "district": "001",
+    "ward": "00001"
+   },
+   "brand": null,
+   "description": "Nhà Sách Ánh Dương — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Đồ Gỗ Mộc An",
+   "type": "Personal",
+   "mall": false,
+   "preferred": false,
+   "owner": 2,
+   "location": "Đà Nẵng",
+   "warehouse": {
+    "province": "48",
+    "district": "490",
+    "ward": "20194"
+   },
+   "brand": null,
+   "description": "Đồ Gỗ Mộc An — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Trà Thái Nguyên Xanh",
+   "type": "Business",
+   "mall": false,
+   "preferred": true,
+   "owner": 0,
+   "location": "Bình Dương",
+   "warehouse": {
+    "province": "74",
+    "district": "718",
+    "ward": "25741"
+   },
+   "brand": null,
+   "description": "Trà Thái Nguyên Xanh — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Cà Phê Phố Núi",
+   "type": "Personal",
+   "mall": false,
+   "preferred": false,
+   "owner": 1,
+   "location": "Hải Phòng",
+   "warehouse": {
+    "province": "31",
+    "district": "303",
+    "ward": "11296"
+   },
+   "brand": null,
+   "description": "Cà Phê Phố Núi — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Bếp Nhà Lá",
+   "type": "Business",
+   "mall": false,
+   "preferred": false,
+   "owner": 2,
+   "location": "TP. Hồ Chí Minh",
+   "warehouse": {
+    "province": "79",
+    "district": "760",
+    "ward": "26734"
+   },
+   "brand": null,
+   "description": "Bếp Nhà Lá — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Linh Kiện Hoàng Gia",
+   "type": "Personal",
+   "mall": false,
+   "preferred": true,
+   "owner": 0,
+   "location": "Hà Nội",
+   "warehouse": {
+    "province": "01",
+    "district": "001",
+    "ward": "00001"
+   },
+   "brand": null,
+   "description": "Linh Kiện Hoàng Gia — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Đồ Chơi Tuổi Thơ",
+   "type": "Business",
+   "mall": false,
+   "preferred": false,
+   "owner": 1,
+   "location": "Đà Nẵng",
+   "warehouse": {
+    "province": "48",
+    "district": "490",
+    "ward": "20194"
+   },
+   "brand": null,
+   "description": "Đồ Chơi Tuổi Thơ — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Mỹ Phẩm Thiên Nhiên",
+   "type": "Personal",
+   "mall": false,
+   "preferred": false,
+   "owner": 2,
+   "location": "Bình Dương",
+   "warehouse": {
+    "province": "74",
+    "district": "718",
+    "ward": "25741"
+   },
+   "brand": null,
+   "description": "Mỹ Phẩm Thiên Nhiên — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Thể Thao Năng Động",
+   "type": "Business",
+   "mall": false,
+   "preferred": true,
+   "owner": 0,
+   "location": "Hải Phòng",
+   "warehouse": {
+    "province": "31",
+    "district": "303",
+    "ward": "11296"
+   },
+   "brand": null,
+   "description": "Thể Thao Năng Động — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Xe Máy Phúc An",
+   "type": "Personal",
+   "mall": false,
+   "preferred": false,
+   "owner": 1,
+   "location": "TP. Hồ Chí Minh",
+   "warehouse": {
+    "province": "79",
+    "district": "760",
+    "ward": "26734"
+   },
+   "brand": null,
+   "description": "Xe Máy Phúc An — cửa hàng gieo sẵn trên ShopHub."
+  },
+  {
+   "name": "Nông Sản Sạch Việt",
+   "type": "Business",
+   "mall": false,
+   "preferred": false,
+   "owner": 2,
+   "location": "Hà Nội",
+   "warehouse": {
+    "province": "01",
+    "district": "001",
+    "ward": "00001"
+   },
+   "brand": null,
+   "description": "Nông Sản Sạch Việt — cửa hàng gieo sẵn trên ShopHub."
+  }
+ ],
+ "products": [
+  {
+   "legacyId": 1,
+   "name": "Áo Thun Nam Cotton Cao Cấp",
+   "category": "Thời Trang Nam/Áo/Áo Thun",
+   "shop": "ShopHub Official Store",
+   "attributes": {
+    "Chất liệu": [
+     "Cotton"
+    ],
+    "Phong cách": [
+     "Basic",
+     "Dạo phố"
+    ],
+    "Xuất xứ": [
+     "Việt Nam"
+    ]
+   },
+   "variant": {
+    "tier": "Kích Cỡ",
+    "options": [
+     "S",
+     "M",
+     "L",
+     "XL",
+     "XXL"
+    ]
+   },
+   "skus": [
+    {
+     "option": "S",
+     "price": 16000,
+     "originalPrice": 50000,
+     "stock": 17
+    },
+    {
+     "option": "M",
+     "price": 16000,
+     "originalPrice": 50000,
+     "stock": 15
+    },
+    {
+     "option": "L",
+     "price": 16000,
+     "originalPrice": 50000,
+     "stock": 15
+    },
+    {
+     "option": "XL",
+     "price": 16000,
+     "originalPrice": 50000,
+     "stock": 15
+    },
+    {
+     "option": "XXL",
+     "price": 16000,
+     "originalPrice": 50000,
+     "stock": 15
+    }
+   ],
+   "weightG": 946,
+   "description": "<p><strong>Áo Thun Nam Cotton Cao Cấp</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 2,
+   "name": "Đầm Nữ Dáng Suông Thời Trang",
+   "category": "Thời Trang Nữ/Váy Đầm/Đầm Suông",
+   "shop": "TechZone Official",
+   "attributes": {
+    "Chất liệu": [
+     "Lụa"
+    ],
+    "Phong cách": [
+     "Công sở"
+    ],
+    "Xuất xứ": [
+     "Trung Quốc"
+    ]
+   },
+   "variant": {
+    "tier": "Kích Cỡ",
+    "options": [
+     "S",
+     "M",
+     "L",
+     "XL",
+     "XXL"
+    ]
+   },
+   "skus": [
+    {
+     "option": "S",
+     "price": 1409000,
+     "originalPrice": 1930000,
+     "stock": 88
+    },
+    {
+     "option": "M",
+     "price": 1409000,
+     "originalPrice": 1930000,
+     "stock": 86
+    },
+    {
+     "option": "L",
+     "price": 1409000,
+     "originalPrice": 1930000,
+     "stock": 86
+    },
+    {
+     "option": "XL",
+     "price": 1409000,
+     "originalPrice": 1930000,
+     "stock": 86
+    },
+    {
+     "option": "XXL",
+     "price": 1409000,
+     "originalPrice": 1930000,
+     "stock": 86
+    }
+   ],
+   "weightG": 1151,
+   "description": "<p><strong>Đầm Nữ Dáng Suông Thời Trang</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 3,
+   "name": "Điện Thoại Smartphone 128GB",
+   "category": "Điện Thoại & Phụ Kiện/Điện Thoại/Điện Thoại Thông Minh",
+   "shop": "Fashion House VN",
+   "attributes": {
+    "Bảo hành": [
+     "12 tháng"
+    ],
+    "Kết nối": [
+     "Bluetooth",
+     "Wifi",
+     "USB-C"
+    ],
+    "Xuất xứ": [
+     "Hàn Quốc"
+    ]
+   },
+   "variant": {
+    "tier": "Dung Lượng",
+    "options": [
+     "64GB",
+     "128GB",
+     "256GB",
+     "512GB"
+    ]
+   },
+   "skus": [
+    {
+     "option": "64GB",
+     "price": 476000,
+     "originalPrice": 610000,
+     "stock": 83
+    },
+    {
+     "option": "128GB",
+     "price": 524000,
+     "originalPrice": 671000,
+     "stock": 81
+    },
+    {
+     "option": "256GB",
+     "price": 595000,
+     "originalPrice": 763000,
+     "stock": 81
+    },
+    {
+     "option": "512GB",
+     "price": 714000,
+     "originalPrice": 915000,
+     "stock": 81
+    }
+   ],
+   "weightG": 1879,
+   "description": "<p><strong>Điện Thoại Smartphone 128GB</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 4,
+   "name": "Tai Nghe Bluetooth Chống Ồn",
+   "category": "Thiết Bị Điện Tử/Thiết Bị Âm Thanh/Tai Nghe Bluetooth",
+   "shop": "Gia Dụng Thông Minh",
+   "attributes": {
+    "Bảo hành": [
+     "12 tháng"
+    ],
+    "Kết nối": [
+     "Bluetooth"
+    ],
+    "Xuất xứ": [
+     "Nhật Bản"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 163000,
+     "originalPrice": 440000,
+     "stock": 64
+    },
+    {
+     "option": "Trắng",
+     "price": 163000,
+     "originalPrice": 440000,
+     "stock": 62
+    },
+    {
+     "option": "Xanh",
+     "price": 163000,
+     "originalPrice": 440000,
+     "stock": 62
+    },
+    {
+     "option": "Đỏ",
+     "price": 163000,
+     "originalPrice": 440000,
+     "stock": 62
+    },
+    {
+     "option": "Hồng",
+     "price": 163000,
+     "originalPrice": 440000,
+     "stock": 62
+    }
+   ],
+   "weightG": 643,
+   "description": "<p><strong>Tai Nghe Bluetooth Chống Ồn</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 5,
+   "name": "Giày Sneaker Unisex Đế Cao",
+   "category": "Giày Dép Nam/Giày Thể Thao Nam/Sneaker",
+   "shop": "Beauty Corner",
+   "attributes": {
+    "Chất liệu": [
+     "Da PU"
+    ],
+    "Phong cách": [
+     "Thể thao",
+     "Dạo phố"
+    ],
+    "Xuất xứ": [
+     "Thái Lan"
+    ]
+   },
+   "variant": {
+    "tier": "Size",
+    "options": [
+     "38",
+     "39",
+     "40",
+     "41",
+     "42",
+     "43"
+    ]
+   },
+   "skus": [
+    {
+     "option": "38",
+     "price": 1144000,
+     "originalPrice": 1760000,
+     "stock": 68
+    },
+    {
+     "option": "39",
+     "price": 1144000,
+     "originalPrice": 1760000,
+     "stock": 65
+    },
+    {
+     "option": "40",
+     "price": 1144000,
+     "originalPrice": 1760000,
+     "stock": 65
+    },
+    {
+     "option": "41",
+     "price": 1144000,
+     "originalPrice": 1760000,
+     "stock": 65
+    },
+    {
+     "option": "42",
+     "price": 1144000,
+     "originalPrice": 1760000,
+     "stock": 65
+    },
+    {
+     "option": "43",
+     "price": 1144000,
+     "originalPrice": 1760000,
+     "stock": 65
+    }
+   ],
+   "weightG": 1813,
+   "description": "<p><strong>Giày Sneaker Unisex Đế Cao</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 6,
+   "name": "Balo Laptop Chống Nước 15.6\"",
+   "category": "Máy Tính & Laptop/Phụ Kiện Máy Tính/Balo & Túi Laptop",
+   "shop": "Sport Center",
+   "attributes": {
+    "Bảo hành": [
+     "6 tháng"
+    ],
+    "Xuất xứ": [
+     "Mỹ"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 680000,
+     "originalPrice": 850000,
+     "stock": 72
+    },
+    {
+     "option": "Trắng",
+     "price": 680000,
+     "originalPrice": 850000,
+     "stock": 72
+    },
+    {
+     "option": "Xanh",
+     "price": 680000,
+     "originalPrice": 850000,
+     "stock": 72
+    },
+    {
+     "option": "Đỏ",
+     "price": 680000,
+     "originalPrice": 850000,
+     "stock": 72
+    },
+    {
+     "option": "Hồng",
+     "price": 680000,
+     "originalPrice": 850000,
+     "stock": 72
+    }
+   ],
+   "weightG": 1021,
+   "description": "<p><strong>Balo Laptop Chống Nước 15.6\"</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 7,
+   "name": "Đồng Hồ Nam Dây Thép Không Gỉ",
+   "category": "Đồng Hồ/Đồng Hồ Nam/Đồng Hồ Kim Loại",
+   "shop": "Mẹ & Bé Happy",
+   "attributes": {
+    "Chất liệu": [
+     "Khác"
+    ],
+    "Phong cách": [
+     "Công sở"
+    ],
+    "Xuất xứ": [
+     "Khác"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 174000,
+     "originalPrice": 370000,
+     "stock": 47
+    },
+    {
+     "option": "Trắng",
+     "price": 174000,
+     "originalPrice": 370000,
+     "stock": 43
+    },
+    {
+     "option": "Xanh",
+     "price": 174000,
+     "originalPrice": 370000,
+     "stock": 43
+    },
+    {
+     "option": "Đỏ",
+     "price": 174000,
+     "originalPrice": 370000,
+     "stock": 43
+    },
+    {
+     "option": "Hồng",
+     "price": 174000,
+     "originalPrice": 370000,
+     "stock": 43
+    }
+   ],
+   "weightG": 1264,
+   "description": "<p><strong>Đồng Hồ Nam Dây Thép Không Gỉ</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 8,
+   "name": "Son Kem Lì Lâu Trôi 8H",
+   "category": "Sắc Đẹp/Trang Điểm/Son Môi",
+   "shop": "Digital World",
+   "attributes": {
+    "Loại da phù hợp": [
+     "Mọi loại da"
+    ],
+    "Xuất xứ": [
+     "Việt Nam"
+    ]
+   },
+   "variant": {
+    "tier": "Tông Màu",
+    "options": [
+     "Đỏ Cam",
+     "Đỏ Đô",
+     "Hồng Đất",
+     "Cam Nâu"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đỏ Cam",
+     "price": 518000,
+     "originalPrice": 1440000,
+     "stock": 70
+    },
+    {
+     "option": "Đỏ Đô",
+     "price": 518000,
+     "originalPrice": 1440000,
+     "stock": 68
+    },
+    {
+     "option": "Hồng Đất",
+     "price": 518000,
+     "originalPrice": 1440000,
+     "stock": 68
+    },
+    {
+     "option": "Cam Nâu",
+     "price": 518000,
+     "originalPrice": 1440000,
+     "stock": 68
+    }
+   ],
+   "weightG": 1556,
+   "description": "<p><strong>Son Kem Lì Lâu Trôi 8H</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 9,
+   "name": "Nồi Chiên Không Dầu 5L",
+   "category": "Nhà Cửa & Đời Sống/Đồ Dùng Nhà Bếp/Nồi Chiên Không Dầu",
+   "shop": "Home Living Store",
+   "attributes": {
+    "Chất liệu": [
+     "Nhựa"
+    ],
+    "Công suất": [
+     "1500"
+    ],
+    "Xuất xứ": [
+     "Trung Quốc"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 1494000,
+     "originalPrice": 1800000,
+     "stock": 468
+    }
+   ],
+   "weightG": 1436,
+   "description": "<p><strong>Nồi Chiên Không Dầu 5L</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 10,
+   "name": "Chuột Không Dây Gaming RGB",
+   "category": "Máy Tính & Laptop/Phụ Kiện Máy Tính/Chuột",
+   "shop": "ShopHub Official Store",
+   "attributes": {
+    "Bảo hành": [
+     "12 tháng"
+    ],
+    "Kết nối": [
+     "2.4GHz",
+     "Bluetooth"
+    ],
+    "Xuất xứ": [
+     "Hàn Quốc"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 109000,
+     "originalPrice": 280000,
+     "stock": 30
+    },
+    {
+     "option": "Trắng",
+     "price": 109000,
+     "originalPrice": 280000,
+     "stock": 27
+    },
+    {
+     "option": "Xanh",
+     "price": 109000,
+     "originalPrice": 280000,
+     "stock": 27
+    },
+    {
+     "option": "Đỏ",
+     "price": 109000,
+     "originalPrice": 280000,
+     "stock": 27
+    },
+    {
+     "option": "Hồng",
+     "price": 109000,
+     "originalPrice": 280000,
+     "stock": 27
+    }
+   ],
+   "weightG": 1049,
+   "description": "<p><strong>Chuột Không Dây Gaming RGB</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 11,
+   "name": "Bàn Phím Cơ Switch Blue",
+   "category": "Máy Tính & Laptop/Phụ Kiện Máy Tính/Bàn Phím",
+   "shop": "TechZone Official",
+   "attributes": {
+    "Bảo hành": [
+     "24 tháng"
+    ],
+    "Kết nối": [
+     "Có dây",
+     "USB-C"
+    ],
+    "Xuất xứ": [
+     "Nhật Bản"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 894000,
+     "originalPrice": 1720000,
+     "stock": 90
+    },
+    {
+     "option": "Trắng",
+     "price": 894000,
+     "originalPrice": 1720000,
+     "stock": 90
+    },
+    {
+     "option": "Xanh",
+     "price": 894000,
+     "originalPrice": 1720000,
+     "stock": 90
+    },
+    {
+     "option": "Đỏ",
+     "price": 894000,
+     "originalPrice": 1720000,
+     "stock": 90
+    },
+    {
+     "option": "Hồng",
+     "price": 894000,
+     "originalPrice": 1720000,
+     "stock": 90
+    }
+   ],
+   "weightG": 1628,
+   "description": "<p><strong>Bàn Phím Cơ Switch Blue</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 12,
+   "name": "Kem Chống Nắng SPF50+",
+   "category": "Sắc Đẹp/Chăm Sóc Da/Kem Chống Nắng",
+   "shop": "Fashion House VN",
+   "attributes": {
+    "Loại da phù hợp": [
+     "Da dầu",
+     "Da hỗn hợp"
+    ],
+    "Dung tích": [
+     "50"
+    ],
+    "Xuất xứ": [
+     "Thái Lan"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 684000,
+     "originalPrice": 1290000,
+     "stock": 239
+    }
+   ],
+   "weightG": 1176,
+   "description": "<p><strong>Kem Chống Nắng SPF50+</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 13,
+   "name": "Quần Jean Nam Slim Fit",
+   "category": "Thời Trang Nam/Quần/Quần Jean",
+   "shop": "Gia Dụng Thông Minh",
+   "attributes": {
+    "Chất liệu": [
+     "Jean"
+    ],
+    "Phong cách": [
+     "Dạo phố"
+    ],
+    "Xuất xứ": [
+     "Mỹ"
+    ]
+   },
+   "variant": {
+    "tier": "Kích Cỡ",
+    "options": [
+     "S",
+     "M",
+     "L",
+     "XL",
+     "XXL"
+    ]
+   },
+   "skus": [
+    {
+     "option": "S",
+     "price": 533000,
+     "originalPrice": 1240000,
+     "stock": 64
+    },
+    {
+     "option": "M",
+     "price": 533000,
+     "originalPrice": 1240000,
+     "stock": 60
+    },
+    {
+     "option": "L",
+     "price": 533000,
+     "originalPrice": 1240000,
+     "stock": 60
+    },
+    {
+     "option": "XL",
+     "price": 533000,
+     "originalPrice": 1240000,
+     "stock": 60
+    },
+    {
+     "option": "XXL",
+     "price": 533000,
+     "originalPrice": 1240000,
+     "stock": 60
+    }
+   ],
+   "weightG": 447,
+   "description": "<p><strong>Quần Jean Nam Slim Fit</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 14,
+   "name": "Túi Xách Nữ Da PU Cao Cấp",
+   "category": "Túi Ví Nữ/Túi Xách/Túi Xách Tay",
+   "shop": "Beauty Corner",
+   "attributes": {
+    "Chất liệu": [
+     "Da PU"
+    ],
+    "Phong cách": [
+     "Công sở",
+     "Dự tiệc"
+    ],
+    "Xuất xứ": [
+     "Khác"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 738000,
+     "originalPrice": 1570000,
+     "stock": 77
+    },
+    {
+     "option": "Trắng",
+     "price": 738000,
+     "originalPrice": 1570000,
+     "stock": 76
+    },
+    {
+     "option": "Xanh",
+     "price": 738000,
+     "originalPrice": 1570000,
+     "stock": 76
+    },
+    {
+     "option": "Đỏ",
+     "price": 738000,
+     "originalPrice": 1570000,
+     "stock": 76
+    },
+    {
+     "option": "Hồng",
+     "price": 738000,
+     "originalPrice": 1570000,
+     "stock": 76
+    }
+   ],
+   "weightG": 773,
+   "description": "<p><strong>Túi Xách Nữ Da PU Cao Cấp</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 15,
+   "name": "Sạc Dự Phòng 20000mAh",
+   "category": "Điện Thoại & Phụ Kiện/Phụ Kiện Điện Thoại/Sạc Dự Phòng",
+   "shop": "Sport Center",
+   "attributes": {
+    "Bảo hành": [
+     "12 tháng"
+    ],
+    "Kết nối": [
+     "USB-C",
+     "Lightning"
+    ],
+    "Xuất xứ": [
+     "Việt Nam"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 930000,
+     "originalPrice": 1430000,
+     "stock": 70
+    },
+    {
+     "option": "Trắng",
+     "price": 930000,
+     "originalPrice": 1430000,
+     "stock": 70
+    },
+    {
+     "option": "Xanh",
+     "price": 930000,
+     "originalPrice": 1430000,
+     "stock": 70
+    },
+    {
+     "option": "Đỏ",
+     "price": 930000,
+     "originalPrice": 1430000,
+     "stock": 70
+    },
+    {
+     "option": "Hồng",
+     "price": 930000,
+     "originalPrice": 1430000,
+     "stock": 70
+    }
+   ],
+   "weightG": 1732,
+   "description": "<p><strong>Sạc Dự Phòng 20000mAh</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 16,
+   "name": "Bình Giữ Nhiệt Inox 500ml",
+   "category": "Nhà Cửa & Đời Sống/Đồ Dùng Nhà Bếp/Bình Giữ Nhiệt",
+   "shop": "Mẹ & Bé Happy",
+   "attributes": {
+    "Chất liệu": [
+     "Inox"
+    ],
+    "Xuất xứ": [
+     "Trung Quốc"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 499000,
+     "originalPrice": 860000,
+     "stock": 51
+    },
+    {
+     "option": "Trắng",
+     "price": 499000,
+     "originalPrice": 860000,
+     "stock": 49
+    },
+    {
+     "option": "Xanh",
+     "price": 499000,
+     "originalPrice": 860000,
+     "stock": 49
+    },
+    {
+     "option": "Đỏ",
+     "price": 499000,
+     "originalPrice": 860000,
+     "stock": 49
+    },
+    {
+     "option": "Hồng",
+     "price": 499000,
+     "originalPrice": 860000,
+     "stock": 49
+    }
+   ],
+   "weightG": 1126,
+   "description": "<p><strong>Bình Giữ Nhiệt Inox 500ml</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 17,
+   "name": "Máy Xay Sinh Tố Đa Năng",
+   "category": "Nhà Cửa & Đời Sống/Đồ Dùng Nhà Bếp/Máy Xay",
+   "shop": "Digital World",
+   "attributes": {
+    "Chất liệu": [
+     "Thuỷ tinh"
+    ],
+    "Công suất": [
+     "600"
+    ],
+    "Xuất xứ": [
+     "Hàn Quốc"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 367000,
+     "originalPrice": 1080000,
+     "stock": 401
+    }
+   ],
+   "weightG": 559,
+   "description": "<p><strong>Máy Xay Sinh Tố Đa Năng</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 18,
+   "name": "Ốp Lưng Điện Thoại Trong Suốt",
+   "category": "Điện Thoại & Phụ Kiện/Phụ Kiện Điện Thoại/Ốp Lưng",
+   "shop": "Home Living Store",
+   "attributes": {
+    "Bảo hành": [
+     "Không bảo hành"
+    ],
+    "Xuất xứ": [
+     "Nhật Bản"
+    ]
+   },
+   "variant": {
+    "tier": "Dung Lượng",
+    "options": [
+     "64GB",
+     "128GB",
+     "256GB",
+     "512GB"
+    ]
+   },
+   "skus": [
+    {
+     "option": "64GB",
+     "price": 1403000,
+     "originalPrice": 1870000,
+     "stock": 70
+    },
+    {
+     "option": "128GB",
+     "price": 1543000,
+     "originalPrice": 2057000,
+     "stock": 70
+    },
+    {
+     "option": "256GB",
+     "price": 1754000,
+     "originalPrice": 2338000,
+     "stock": 70
+    },
+    {
+     "option": "512GB",
+     "price": 2105000,
+     "originalPrice": 2805000,
+     "stock": 70
+    }
+   ],
+   "weightG": 1036,
+   "description": "<p><strong>Ốp Lưng Điện Thoại Trong Suốt</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 19,
+   "name": "Áo Khoác Hoodie Nỉ Bông",
+   "category": "Thời Trang Nam/Áo/Áo Khoác",
+   "shop": "ShopHub Official Store",
+   "attributes": {
+    "Chất liệu": [
+     "Nỉ"
+    ],
+    "Phong cách": [
+     "Basic",
+     "Dạo phố"
+    ],
+    "Xuất xứ": [
+     "Thái Lan"
+    ]
+   },
+   "variant": {
+    "tier": "Kích Cỡ",
+    "options": [
+     "S",
+     "M",
+     "L",
+     "XL",
+     "XXL"
+    ]
+   },
+   "skus": [
+    {
+     "option": "S",
+     "price": 191000,
+     "originalPrice": 530000,
+     "stock": 18
+    },
+    {
+     "option": "M",
+     "price": 191000,
+     "originalPrice": 530000,
+     "stock": 17
+    },
+    {
+     "option": "L",
+     "price": 191000,
+     "originalPrice": 530000,
+     "stock": 17
+    },
+    {
+     "option": "XL",
+     "price": 191000,
+     "originalPrice": 530000,
+     "stock": 17
+    },
+    {
+     "option": "XXL",
+     "price": 191000,
+     "originalPrice": 530000,
+     "stock": 17
+    }
+   ],
+   "weightG": 1059,
+   "description": "<p><strong>Áo Khoác Hoodie Nỉ Bông</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 20,
+   "name": "Loa Bluetooth Mini Cầm Tay",
+   "category": "Thiết Bị Điện Tử/Thiết Bị Âm Thanh/Loa Bluetooth",
+   "shop": "TechZone Official",
+   "attributes": {
+    "Bảo hành": [
+     "6 tháng"
+    ],
+    "Kết nối": [
+     "Bluetooth"
+    ],
+    "Xuất xứ": [
+     "Mỹ"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 1134000,
+     "originalPrice": 1800000,
+     "stock": 37
+    },
+    {
+     "option": "Trắng",
+     "price": 1134000,
+     "originalPrice": 1800000,
+     "stock": 34
+    },
+    {
+     "option": "Xanh",
+     "price": 1134000,
+     "originalPrice": 1800000,
+     "stock": 34
+    },
+    {
+     "option": "Đỏ",
+     "price": 1134000,
+     "originalPrice": 1800000,
+     "stock": 34
+    },
+    {
+     "option": "Hồng",
+     "price": 1134000,
+     "originalPrice": 1800000,
+     "stock": 34
+    }
+   ],
+   "weightG": 1951,
+   "description": "<p><strong>Loa Bluetooth Mini Cầm Tay</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 21,
+   "name": "Kính Mát Chống Tia UV",
+   "category": "Thời Trang Nam/Phụ Kiện Nam/Kính Mắt",
+   "shop": "Fashion House VN",
+   "attributes": {
+    "Chất liệu": [
+     "Khác"
+    ],
+    "Phong cách": [
+     "Dạo phố"
+    ],
+    "Xuất xứ": [
+     "Khác"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 517000,
+     "originalPrice": 940000,
+     "stock": 89
+    },
+    {
+     "option": "Trắng",
+     "price": 517000,
+     "originalPrice": 940000,
+     "stock": 85
+    },
+    {
+     "option": "Xanh",
+     "price": 517000,
+     "originalPrice": 940000,
+     "stock": 85
+    },
+    {
+     "option": "Đỏ",
+     "price": 517000,
+     "originalPrice": 940000,
+     "stock": 85
+    },
+    {
+     "option": "Hồng",
+     "price": 517000,
+     "originalPrice": 940000,
+     "stock": 85
+    }
+   ],
+   "weightG": 1002,
+   "description": "<p><strong>Kính Mát Chống Tia UV</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 22,
+   "name": "Thảm Yoga Chống Trượt 6mm",
+   "category": "Thể Thao & Du Lịch/Dụng Cụ Thể Thao/Yoga",
+   "shop": "Gia Dụng Thông Minh",
+   "attributes": {
+    "Môn thể thao": [
+     "Yoga"
+    ],
+    "Xuất xứ": [
+     "Việt Nam"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 540000,
+     "originalPrice": 1200000,
+     "stock": 55
+    },
+    {
+     "option": "Trắng",
+     "price": 540000,
+     "originalPrice": 1200000,
+     "stock": 53
+    },
+    {
+     "option": "Xanh",
+     "price": 540000,
+     "originalPrice": 1200000,
+     "stock": 53
+    },
+    {
+     "option": "Đỏ",
+     "price": 540000,
+     "originalPrice": 1200000,
+     "stock": 53
+    },
+    {
+     "option": "Hồng",
+     "price": 540000,
+     "originalPrice": 1200000,
+     "stock": 53
+    }
+   ],
+   "weightG": 764,
+   "description": "<p><strong>Thảm Yoga Chống Trượt 6mm</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 23,
+   "name": "Đèn LED Học Bài Bảo Vệ Mắt",
+   "category": "Nhà Cửa & Đời Sống/Đèn/Đèn Bàn",
+   "shop": "Beauty Corner",
+   "attributes": {
+    "Chất liệu": [
+     "Nhựa"
+    ],
+    "Công suất": [
+     "9"
+    ],
+    "Xuất xứ": [
+     "Trung Quốc"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 745000,
+     "originalPrice": 1520000,
+     "stock": 24
+    },
+    {
+     "option": "Trắng",
+     "price": 745000,
+     "originalPrice": 1520000,
+     "stock": 23
+    },
+    {
+     "option": "Xanh",
+     "price": 745000,
+     "originalPrice": 1520000,
+     "stock": 23
+    },
+    {
+     "option": "Đỏ",
+     "price": 745000,
+     "originalPrice": 1520000,
+     "stock": 23
+    },
+    {
+     "option": "Hồng",
+     "price": 745000,
+     "originalPrice": 1520000,
+     "stock": 23
+    }
+   ],
+   "weightG": 523,
+   "description": "<p><strong>Đèn LED Học Bài Bảo Vệ Mắt</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 24,
+   "name": "Bộ Nồi Inox 3 Đáy Cao Cấp",
+   "category": "Nhà Cửa & Đời Sống/Đồ Dùng Nhà Bếp/Nồi & Chảo",
+   "shop": "Sport Center",
+   "attributes": {
+    "Chất liệu": [
+     "Inox"
+    ],
+    "Xuất xứ": [
+     "Hàn Quốc"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 862000,
+     "originalPrice": 1390000,
+     "stock": 243
+    }
+   ],
+   "weightG": 329,
+   "description": "<p><strong>Bộ Nồi Inox 3 Đáy Cao Cấp</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 25,
+   "name": "Áo Sơ Mi Nam Dài Tay Công Sở",
+   "category": "Thời Trang Nam/Áo/Áo Sơ Mi",
+   "shop": "Mẹ & Bé Happy",
+   "attributes": {
+    "Chất liệu": [
+     "Cotton"
+    ],
+    "Phong cách": [
+     "Công sở"
+    ],
+    "Xuất xứ": [
+     "Nhật Bản"
+    ]
+   },
+   "variant": {
+    "tier": "Kích Cỡ",
+    "options": [
+     "S",
+     "M",
+     "L",
+     "XL",
+     "XXL"
+    ]
+   },
+   "skus": [
+    {
+     "option": "S",
+     "price": 407000,
+     "originalPrice": 970000,
+     "stock": 53
+    },
+    {
+     "option": "M",
+     "price": 407000,
+     "originalPrice": 970000,
+     "stock": 49
+    },
+    {
+     "option": "L",
+     "price": 407000,
+     "originalPrice": 970000,
+     "stock": 49
+    },
+    {
+     "option": "XL",
+     "price": 407000,
+     "originalPrice": 970000,
+     "stock": 49
+    },
+    {
+     "option": "XXL",
+     "price": 407000,
+     "originalPrice": 970000,
+     "stock": 49
+    }
+   ],
+   "weightG": 1119,
+   "description": "<p><strong>Áo Sơ Mi Nam Dài Tay Công Sở</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 26,
+   "name": "Chân Váy Nữ Xếp Ly",
+   "category": "Thời Trang Nữ/Váy Đầm/Chân Váy",
+   "shop": "Digital World",
+   "attributes": {
+    "Chất liệu": [
+     "Polyester"
+    ],
+    "Phong cách": [
+     "Công sở",
+     "Dạo phố"
+    ],
+    "Xuất xứ": [
+     "Thái Lan"
+    ]
+   },
+   "variant": {
+    "tier": "Kích Cỡ",
+    "options": [
+     "S",
+     "M",
+     "L",
+     "XL",
+     "XXL"
+    ]
+   },
+   "skus": [
+    {
+     "option": "S",
+     "price": 912000,
+     "originalPrice": 1600000,
+     "stock": 99
+    },
+    {
+     "option": "M",
+     "price": 912000,
+     "originalPrice": 1600000,
+     "stock": 97
+    },
+    {
+     "option": "L",
+     "price": 912000,
+     "originalPrice": 1600000,
+     "stock": 97
+    },
+    {
+     "option": "XL",
+     "price": 912000,
+     "originalPrice": 1600000,
+     "stock": 97
+    },
+    {
+     "option": "XXL",
+     "price": 912000,
+     "originalPrice": 1600000,
+     "stock": 97
+    }
+   ],
+   "weightG": 1112,
+   "description": "<p><strong>Chân Váy Nữ Xếp Ly</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 27,
+   "name": "Máy Ảnh Mirrorless 24MP",
+   "category": "Máy Ảnh & Quay Phim/Máy Ảnh/Máy Ảnh Mirrorless",
+   "shop": "Home Living Store",
+   "attributes": {
+    "Bảo hành": [
+     "24 tháng"
+    ],
+    "Kết nối": [
+     "Wifi",
+     "Bluetooth"
+    ],
+    "Xuất xứ": [
+     "Mỹ"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 910000,
+     "originalPrice": 1110000,
+     "stock": 234
+    }
+   ],
+   "weightG": 996,
+   "description": "<p><strong>Máy Ảnh Mirrorless 24MP</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 28,
+   "name": "Đồng Hồ Thông Minh Smartwatch",
+   "category": "Đồng Hồ/Đồng Hồ Thông Minh/Smartwatch",
+   "shop": "ShopHub Official Store",
+   "attributes": {
+    "Chất liệu": [
+     "Khác"
+    ],
+    "Phong cách": [
+     "Thể thao"
+    ],
+    "Xuất xứ": [
+     "Khác"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 227000,
+     "originalPrice": 320000,
+     "stock": 34
+    },
+    {
+     "option": "Trắng",
+     "price": 227000,
+     "originalPrice": 320000,
+     "stock": 34
+    },
+    {
+     "option": "Xanh",
+     "price": 227000,
+     "originalPrice": 320000,
+     "stock": 34
+    },
+    {
+     "option": "Đỏ",
+     "price": 227000,
+     "originalPrice": 320000,
+     "stock": 34
+    },
+    {
+     "option": "Hồng",
+     "price": 227000,
+     "originalPrice": 320000,
+     "stock": 34
+    }
+   ],
+   "weightG": 1699,
+   "description": "<p><strong>Đồng Hồ Thông Minh Smartwatch</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 29,
+   "name": "Giày Cao Gót Nữ 7cm",
+   "category": "Giày Dép Nữ/Giày Nữ/Giày Cao Gót",
+   "shop": "TechZone Official",
+   "attributes": {
+    "Chất liệu": [
+     "Da"
+    ],
+    "Phong cách": [
+     "Công sở",
+     "Dự tiệc"
+    ],
+    "Xuất xứ": [
+     "Việt Nam"
+    ]
+   },
+   "variant": {
+    "tier": "Size",
+    "options": [
+     "38",
+     "39",
+     "40",
+     "41",
+     "42",
+     "43"
+    ]
+   },
+   "skus": [
+    {
+     "option": "38",
+     "price": 261000,
+     "originalPrice": 670000,
+     "stock": 21
+    },
+    {
+     "option": "39",
+     "price": 261000,
+     "originalPrice": 670000,
+     "stock": 17
+    },
+    {
+     "option": "40",
+     "price": 261000,
+     "originalPrice": 670000,
+     "stock": 17
+    },
+    {
+     "option": "41",
+     "price": 261000,
+     "originalPrice": 670000,
+     "stock": 17
+    },
+    {
+     "option": "42",
+     "price": 261000,
+     "originalPrice": 670000,
+     "stock": 17
+    },
+    {
+     "option": "43",
+     "price": 261000,
+     "originalPrice": 670000,
+     "stock": 17
+    }
+   ],
+   "weightG": 486,
+   "description": "<p><strong>Giày Cao Gót Nữ 7cm</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 30,
+   "name": "Ví Da Nam Cầm Tay",
+   "category": "Thời Trang Nam/Phụ Kiện Nam/Ví Nam",
+   "shop": "Fashion House VN",
+   "attributes": {
+    "Chất liệu": [
+     "Da"
+    ],
+    "Xuất xứ": [
+     "Trung Quốc"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 1009000,
+     "originalPrice": 1710000,
+     "stock": 14
+    },
+    {
+     "option": "Trắng",
+     "price": 1009000,
+     "originalPrice": 1710000,
+     "stock": 10
+    },
+    {
+     "option": "Xanh",
+     "price": 1009000,
+     "originalPrice": 1710000,
+     "stock": 10
+    },
+    {
+     "option": "Đỏ",
+     "price": 1009000,
+     "originalPrice": 1710000,
+     "stock": 10
+    },
+    {
+     "option": "Hồng",
+     "price": 1009000,
+     "originalPrice": 1710000,
+     "stock": 10
+    }
+   ],
+   "weightG": 1691,
+   "description": "<p><strong>Ví Da Nam Cầm Tay</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 31,
+   "name": "Bỉm Tã Em Bé Siêu Thấm",
+   "category": "Mẹ & Bé/Tã & Bỉm/Tã Dán",
+   "shop": "Gia Dụng Thông Minh",
+   "attributes": {
+    "Độ tuổi khuyến nghị": [
+     "0-12 tháng"
+    ],
+    "Xuất xứ": [
+     "Hàn Quốc"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 819000,
+     "originalPrice": 1050000,
+     "stock": 265
+    }
+   ],
+   "weightG": 1847,
+   "description": "<p><strong>Bỉm Tã Em Bé Siêu Thấm</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 32,
+   "name": "Gối Cao Su Non Memory Foam",
+   "category": "Nhà Cửa & Đời Sống/Chăn Ga Gối/Gối",
+   "shop": "Beauty Corner",
+   "attributes": {
+    "Chất liệu": [
+     "Cao su"
+    ],
+    "Xuất xứ": [
+     "Nhật Bản"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 273000,
+     "originalPrice": 440000,
+     "stock": 263
+    }
+   ],
+   "weightG": 1498,
+   "description": "<p><strong>Gối Cao Su Non Memory Foam</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 33,
+   "name": "Nước Hoa Nữ Hương Hoa Cỏ",
+   "category": "Sắc Đẹp/Nước Hoa/Nước Hoa Nữ",
+   "shop": "Sport Center",
+   "attributes": {
+    "Dung tích": [
+     "100"
+    ],
+    "Xuất xứ": [
+     "Thái Lan"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 586000,
+     "originalPrice": 960000,
+     "stock": 232
+    }
+   ],
+   "weightG": 216,
+   "description": "<p><strong>Nước Hoa Nữ Hương Hoa Cỏ</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 34,
+   "name": "Vitamin Tổng Hợp 60 Viên",
+   "category": "Sức Khỏe/Thực Phẩm Chức Năng/Vitamin",
+   "shop": "Mẹ & Bé Happy",
+   "attributes": {
+    "Hạn sử dụng": [
+     "24"
+    ],
+    "Xuất xứ": [
+     "Mỹ"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 314000,
+     "originalPrice": 980000,
+     "stock": 420
+    }
+   ],
+   "weightG": 1804,
+   "description": "<p><strong>Vitamin Tổng Hợp 60 Viên</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 35,
+   "name": "Vợt Cầu Lông Carbon Siêu Nhẹ",
+   "category": "Thể Thao & Du Lịch/Dụng Cụ Thể Thao/Cầu Lông",
+   "shop": "Digital World",
+   "attributes": {
+    "Môn thể thao": [
+     "Cầu lông"
+    ],
+    "Xuất xứ": [
+     "Khác"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 1229000,
+     "originalPrice": 1950000,
+     "stock": 96
+    }
+   ],
+   "weightG": 735,
+   "description": "<p><strong>Vợt Cầu Lông Carbon Siêu Nhẹ</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 36,
+   "name": "Mũ Bảo Hiểm Fullface",
+   "category": "Ô Tô & Xe Máy/Phụ Kiện Xe Máy/Mũ Bảo Hiểm",
+   "shop": "Home Living Store",
+   "attributes": {
+    "Chất liệu": [
+     "Nhựa"
+    ],
+    "Xuất xứ": [
+     "Việt Nam"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 653000,
+     "originalPrice": 920000,
+     "stock": 86
+    },
+    {
+     "option": "Trắng",
+     "price": 653000,
+     "originalPrice": 920000,
+     "stock": 83
+    },
+    {
+     "option": "Xanh",
+     "price": 653000,
+     "originalPrice": 920000,
+     "stock": 83
+    },
+    {
+     "option": "Đỏ",
+     "price": 653000,
+     "originalPrice": 920000,
+     "stock": 83
+    },
+    {
+     "option": "Hồng",
+     "price": 653000,
+     "originalPrice": 920000,
+     "stock": 83
+    }
+   ],
+   "weightG": 1182,
+   "description": "<p><strong>Mũ Bảo Hiểm Fullface</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 37,
+   "name": "Bộ Lego Lắp Ráp 500 Mảnh",
+   "category": "Đồ Chơi/Đồ Chơi Lắp Ráp/Lego & Xếp Hình",
+   "shop": "ShopHub Official Store",
+   "attributes": {
+    "Độ tuổi khuyến nghị": [
+     "6-12 tuổi"
+    ],
+    "Xuất xứ": [
+     "Trung Quốc"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 521000,
+     "originalPrice": 660000,
+     "stock": 459
+    }
+   ],
+   "weightG": 722,
+   "description": "<p><strong>Bộ Lego Lắp Ráp 500 Mảnh</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 38,
+   "name": "Gạo ST25 Thơm Dẻo Túi 5kg",
+   "category": "Bách Hóa Online/Thực Phẩm Khô/Gạo",
+   "shop": "TechZone Official",
+   "attributes": {
+    "Khối lượng": [
+     "5"
+    ],
+    "Hạn sử dụng": [
+     "12"
+    ],
+    "Xuất xứ": [
+     "Hàn Quốc"
+    ]
+   },
+   "variant": null,
+   "skus": [
+    {
+     "option": null,
+     "price": 344000,
+     "originalPrice": 400000,
+     "stock": 366
+    }
+   ],
+   "weightG": 575,
+   "description": "<p><strong>Gạo ST25 Thơm Dẻo Túi 5kg</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 39,
+   "name": "Chuột & Bàn Phím Combo Văn Phòng",
+   "category": "Máy Tính & Laptop/Phụ Kiện Máy Tính/Combo Phím Chuột",
+   "shop": "Fashion House VN",
+   "attributes": {
+    "Bảo hành": [
+     "12 tháng"
+    ],
+    "Kết nối": [
+     "2.4GHz"
+    ],
+    "Xuất xứ": [
+     "Nhật Bản"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 112000,
+     "originalPrice": 190000,
+     "stock": 8
+    },
+    {
+     "option": "Trắng",
+     "price": 112000,
+     "originalPrice": 190000,
+     "stock": 4
+    },
+    {
+     "option": "Xanh",
+     "price": 112000,
+     "originalPrice": 190000,
+     "stock": 4
+    },
+    {
+     "option": "Đỏ",
+     "price": 112000,
+     "originalPrice": 190000,
+     "stock": 4
+    },
+    {
+     "option": "Hồng",
+     "price": 112000,
+     "originalPrice": 190000,
+     "stock": 4
+    }
+   ],
+   "weightG": 510,
+   "description": "<p><strong>Chuột & Bàn Phím Combo Văn Phòng</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  },
+  {
+   "legacyId": 40,
+   "name": "Tai Nghe Nhét Tai Thể Thao",
+   "category": "Thiết Bị Điện Tử/Thiết Bị Âm Thanh/Tai Nghe Bluetooth",
+   "shop": "Gia Dụng Thông Minh",
+   "attributes": {
+    "Bảo hành": [
+     "6 tháng"
+    ],
+    "Kết nối": [
+     "Bluetooth"
+    ],
+    "Xuất xứ": [
+     "Thái Lan"
+    ]
+   },
+   "variant": {
+    "tier": "Màu Sắc",
+    "options": [
+     "Đen",
+     "Trắng",
+     "Xanh",
+     "Đỏ",
+     "Hồng"
+    ]
+   },
+   "skus": [
+    {
+     "option": "Đen",
+     "price": 630000,
+     "originalPrice": 1050000,
+     "stock": 92
+    },
+    {
+     "option": "Trắng",
+     "price": 630000,
+     "originalPrice": 1050000,
+     "stock": 89
+    },
+    {
+     "option": "Xanh",
+     "price": 630000,
+     "originalPrice": 1050000,
+     "stock": 89
+    },
+    {
+     "option": "Đỏ",
+     "price": 630000,
+     "originalPrice": 1050000,
+     "stock": 89
+    },
+    {
+     "option": "Hồng",
+     "price": 630000,
+     "originalPrice": 1050000,
+     "stock": 89
+    }
+   ],
+   "weightG": 1682,
+   "description": "<p><strong>Tai Nghe Nhét Tai Thể Thao</strong> — sản phẩm chính hãng, chất lượng cao, được hàng nghìn khách hàng tin dùng.</p><p>Thiết kế tinh tế, chất liệu bền đẹp, phù hợp sử dụng hằng ngày.</p><ul><li>Cam kết đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Giao hàng toàn quốc, hỗ trợ thanh toán khi nhận hàng (COD).</li></ul>"
+  }
+ ]
+}

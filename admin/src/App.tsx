@@ -13,6 +13,9 @@ import UsersPage from './pages/UsersPage'
 import RolesPage from './pages/RolesPage'
 import ParametersPage from './pages/ParametersPage'
 import AuditLogsPage from './pages/AuditLogsPage'
+import ProductReviewPage from './pages/ProductReviewPage'
+import ShopsPage from './pages/ShopsPage'
+import CategoriesPage from './pages/CategoriesPage'
 import './App.css'
 
 const { Header, Sider, Content } = Layout
@@ -20,6 +23,9 @@ const { Header, Sider, Content } = Layout
 // Menu entries appear only when the signed-in admin holds the permission (the API enforces it regardless)
 const MENU = [
   { path: '/', label: 'Tổng quan', permission: null },
+  { path: '/duyet-san-pham', label: 'Duyệt sản phẩm', permission: P.ProductReview },
+  { path: '/shop', label: 'Shop', permission: P.ShopView },
+  { path: '/nganh-hang', label: 'Ngành hàng', permission: P.CategoryManage },
   { path: '/nguoi-dung', label: 'Người dùng', permission: P.UserView },
   { path: '/vai-tro', label: 'Vai trò & quyền', permission: P.RoleView },
   { path: '/tham-so', label: 'Tham số hệ thống', permission: P.SystemParameterView },
@@ -76,6 +82,9 @@ const Shell = () => {
         <Content className="app-content">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/duyet-san-pham" element={guard(P.ProductReview, <ProductReviewPage permissions={perms} />)} />
+            <Route path="/shop" element={guard(P.ShopView, <ShopsPage permissions={perms} />)} />
+            <Route path="/nganh-hang" element={guard(P.CategoryManage, <CategoriesPage />)} />
             <Route path="/nguoi-dung" element={guard(P.UserView, <UsersPage permissions={perms} />)} />
             <Route path="/vai-tro" element={guard(P.RoleView, <RolesPage permissions={perms} />)} />
             <Route path="/tham-so" element={guard(P.SystemParameterView, <ParametersPage permissions={perms} />)} />

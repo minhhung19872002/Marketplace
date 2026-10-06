@@ -9,6 +9,7 @@ using ShopHub.Infrastructure.Identity;
 using ShopHub.Infrastructure.Notifications;
 using ShopHub.Infrastructure.Seed;
 using ShopHub.Infrastructure.Jobs;
+using ShopHub.Infrastructure.Media;
 using ShopHub.Infrastructure.Outbox;
 using ShopHub.Infrastructure.Persistence;
 using ShopHub.Infrastructure.Persistence.Interceptors;
@@ -57,6 +58,17 @@ public static class DependencyInjection
             _ => throw new InvalidOperationException($"Nhà cung cấp SMS '{settings.SmsProvider}' chưa được hỗ trợ."),
         });
         services.AddHostedService<SessionsChangedSubscriber>();
+        services.AddScoped<IOutboxHandler, ShopEventHandler>();
+        services.AddScoped<IOutboxHandler, ProductEventHandler>();
+
+        // Media & catalog
+        services.AddSingleton<MinioObjectStorage>();
+        services.AddSingleton<IObjectStorage>(sp => sp.GetRequiredService<MinioObjectStorage>());
+        services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
+        services.AddSingleton<IVideoInspector, Mp4VideoInspector>();
+        services.AddSingleton<Application.Abstractions.IHtmlSanitizer, HtmlSanitizerAdapter>();
+        services.AddSingleton<IDataEncryptor, AesGcmDataEncryptor>();
+        services.AddScoped<CatalogSeeder>();
 
         // Identity
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();

@@ -21,6 +21,7 @@ public static class ApiServiceExtensions
 {
     public const string AuthRateLimit = "auth";
     public const string OtpRateLimit = "otp";
+    public const string UploadRateLimit = "upload";
 
     public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration config)
     {
@@ -116,6 +117,10 @@ public static class ApiServiceExtensions
             o.AddPolicy(OtpRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
                 ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = OtpPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
+
+            o.AddPolicy(UploadRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.User.FindFirst("sub")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
 
             // Coarse per-IP ceiling; tighter named policies (login, OTP, checkout…) are added per feature
             o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>

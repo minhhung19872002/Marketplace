@@ -6,10 +6,10 @@ const BASE = process.env.SH_E2E_BASE_URL;
 test.describe('Stack smoke', () => {
   test.skip(!BASE, 'Cần SH_E2E_BASE_URL trỏ vào gateway (vd http://localhost:18000)');
 
-  test('Kênh Người Bán tải được và thấy API hoạt động', async ({ page }) => {
+  test('Kênh Người Bán mở màn hình đăng nhập', async ({ page }) => {
     await page.goto(`${BASE}/seller/`);
-    await expect(page.getByRole('heading', { name: 'Kênh Người Bán' })).toBeVisible();
-    await expect(page.getByTestId('api-health')).toHaveText('Hoạt động');
+    await expect(page.getByRole('heading', { name: 'ShopHub — Kênh Người Bán' })).toBeVisible();
+    await expect(page.getByTestId('login-submit')).toBeVisible();
   });
 
   test('Quản Trị Sàn mở màn hình đăng nhập', async ({ page }) => {

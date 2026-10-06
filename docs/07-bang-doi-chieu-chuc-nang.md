@@ -9,7 +9,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 0 | Chuyển đổi repo | **Xong** | Xem bảng Phase 0 dưới đây |
 | 1 | Nền móng backend | **Xong** | Xem bảng Phase 1 dưới đây |
 | 2 | Tài khoản | **Xong** | Xem bảng Phase 2 dưới đây |
-| 3 | Danh mục & sản phẩm | Chưa làm | |
+| 3 | Danh mục & sản phẩm | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 3 dưới đây |
 | 4 | Tìm kiếm & trang người mua | Chưa làm | |
 | 5 | Giỏ hàng & thanh toán | Chưa làm | |
 | 6 | Đơn hàng & vận chuyển | Chưa làm | |
@@ -74,3 +74,23 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Khung `admin` có đăng nhập, menu theo quyền | `admin/src/App.tsx` (menu lọc theo `permissions`), trang Người dùng / Vai trò & quyền / Tham số / Nhật ký | e2e `admin.spec.cjs`; kiểm thủ công 1366×768 (đăng nhập → buộc đổi mật khẩu → menu đủ 5 mục → khoá/mở khoá → nhật ký) |
 | Thay `AuthContext` giả | `web/src/context/AuthContext.tsx` + `stores/auth.ts` (Zustand) + `api/http.ts` (tự làm mới 401, gộp một lượt) | 21 e2e xanh trên dev, 26 trên stack |
 | Chưa làm trong Phase 2 (xem 00 #30) | Ảnh đại diện, tài khoản ngân hàng/thẻ, cài đặt thông báo, Google | — |
+
+## Phase 3 — Danh mục & sản phẩm
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| Cây danh mục 3 cấp + thuộc tính theo danh mục lá | `catalog.categories` (CHECK cấp 1–3), `catalog.category_attributes` (chọn một / nhiều / chữ / số + đơn vị, bắt buộc, lọc được); quản trị: trang **Ngành hàng** | `Category_tree_is_public_and_admin_cannot_create_cycles_or_a_fourth_level`, `Required_attributes_and_leaf_category_are_enforced` |
+| Thương hiệu | `catalog.brands`, `GET /api/brands`, quản trị thêm/sửa | trang Ngành hàng → Thương hiệu |
+| SPU + 2 tầng phân loại + SKU (giá, giá gốc, tồn, mã, cân nặng) | `Product.SetVariants` (≤ 2 tầng × ≤ 20 lựa chọn, tổ hợp đủ, SKU giữ định danh) | `Two_tier_product_lifecycle_from_draft_to_selling`, `Editing_keeps_sku_identity_and_sensitive_edits_need_re_review` |
+| Tồn kho `stock` / `reserved`, CHECK ở CSDL, UPDATE có điều kiện, `inventory_movements` | `ck_skus_stock`, `ck_skus_reserved`, `AdjustStockHandler` | `Parallel_stock_decrements_never_go_below_zero` (25 yêu cầu song song, tồn 10 → đúng 10 thành công), `Stock_cannot_drop_below_reserved_even_by_direct_sql` |
+| Trạng thái NHÁP → CHỜ DUYỆT → ĐANG BÁN ⇄ ẨN, BỊ KHOÁ, ĐÃ XOÁ; duyệt lại khi sửa trường nhạy cảm | Phương thức của `Product` (không gán `Status` từ ngoài) | `Reject_needs_a_reason_and_ban_unban_round_trip`, `Editing_keeps_sku_identity…` |
+| Ảnh lên MinIO, 3 cỡ WebP; video ≤ 30 s | `UploadMediaHandler`, `SkiaImageProcessor`, `Mp4VideoInspector`, `MinioObjectStorage` | `Uploaded_image_is_reencoded_to_three_webp_sizes_and_is_actually_downloadable` (tải về được qua URL), `Exif_and_gps_metadata_are_removed`, `File_type_comes_from_the_bytes_not_the_declared_content_type` |
+| Mô tả HTML đã lọc XSS | `HtmlSanitizerAdapter` (danh sách cho phép) | `Description_html_is_sanitised` |
+| Đăng ký shop + KYC + duyệt | `POST /api/seller/shops`, `shop.shops/shop_kyc/shop_warehouses/shop_staff/shop_bank_accounts`; admin trang **Shop** (URL ký 5 phút) | `Shop_application_kyc_review_and_owner_notification`, `Kyc_documents_have_no_public_url_and_the_bucket_refuses_anonymous_reads`, `Shop_names_are_unique_and_rejection_needs_a_reason` |
+| Cột nhạy cảm mã hoá | `AesGcmDataEncryptor` (số TK, CCCD), chỉ hiện 4 số cuối | `Shop_application_kyc_review…` kiểm `v1:` và che số |
+| Kênh Người Bán phần sản phẩm | `seller/`: danh sách theo tab (Tất cả / Đang hoạt động / Hết hàng / Sắp hết hàng / Chờ duyệt / Vi phạm / Đã ẩn / Nháp), sửa nhanh giá/tồn, nhập–xuất kho + lịch sử, trình soạn (danh mục + gợi ý, thuộc tính ngành, ≤ 9 ảnh + video, dựng phân loại 2 tầng → bảng SKU, áp dụng hàng loạt), thiết lập shop, tạm nghỉ | e2e `seller.spec.cjs` (đăng ký shop → duyệt → đăng sản phẩm 2 tầng qua UI → quản trị duyệt qua UI) |
+| Quản trị duyệt sản phẩm | `GET /api/admin/products` (cũ nhất trước, cờ từ khoá cấm), duyệt / yêu cầu sửa / khoá / mở khoá; trang **Duyệt sản phẩm** | `Banned_keywords_flag_the_product_for_review`, e2e trên |
+| IDOR shop | `SellerAccess` lọc `shop_staff` trong SQL | `Other_shops_products_are_404_and_missing_staff_permission_is_403`, `Someone_elses_upload_cannot_be_attached` |
+| Gieo 40 sản phẩm cũ thành dữ liệu thật | `CatalogSeeder` + `catalog-seed.json` (18 ngành, 87 danh mục lá, 30 shop gồm 6 Mall, 40 sản phẩm, 151 SKU, 107 ảnh) | stack: `catalog.products` 40 dòng `Active`, ảnh `GET /s3/…` → 200 `image/webp` |
+| Ảnh đại diện | `PUT /api/account/avatar` (ảnh ≤ 1 MB, cỡ 600) | `Avatar_is_limited_to_one_megabyte` |
+| **Chưa làm** (xem 00 #41) | Excel hàng loạt, tài khoản phụ & trang trí shop, UI ảnh đại diện ở `web` | — |

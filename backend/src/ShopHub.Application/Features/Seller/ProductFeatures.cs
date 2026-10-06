@@ -74,7 +74,8 @@ public record SellerProductDetailDto(
     string? ReviewNote,
     string? BanReason,
     string? Flags,
-    uint Version);
+    uint Version,
+    int? MaxPerBuyer);
 
 // ---------- Input ----------
 
@@ -101,7 +102,9 @@ public record ProductInput(
     IReadOnlyList<ProductAttributeValueDto> Attributes,
     IReadOnlyList<MediaInput> Media,
     IReadOnlyList<TierInput> Tiers,
-    IReadOnlyList<SkuInput> Skus);
+    IReadOnlyList<SkuInput> Skus,
+    // Giới hạn mua mỗi người (all variants together); null = no limit
+    int? MaxPerBuyer = null);
 
 public sealed class ProductInputValidator : AbstractValidator<ProductInput>
 {
@@ -165,6 +168,7 @@ public sealed class ProductWriter(
             sanitizer.Sanitize(input.Description ?? string.Empty), input.Condition, input.WeightG, input.LengthMm, input.WidthMm,
             input.HeightMm, input.IsPreorder, input.PreorderDays);
         product.SetAttributes(input.Attributes.Select(a => (a.AttributeId, a.Values)));
+        product.SetPurchaseLimit(input.MaxPerBuyer);
 
         var deltas = product.SetVariants(
             input.Tiers.Select(t => new TierSpec(t.Name, t.Options.Select(o =>
@@ -293,7 +297,7 @@ internal static class ProductLoader
             p.Skus.OrderBy(s => OptionSort(options, s.Option1Id)).ThenBy(s => OptionSort(options, s.Option2Id))
                 .Select(s => new ProductSkuDto(s.Id, OptionValue(options, s.Option1Id), OptionValue(options, s.Option2Id), s.SellerSku,
                     s.Price, s.OriginalPrice, s.Stock, s.Reserved, s.Available, s.WeightG, s.IsActive)).ToList(),
-            p.ReviewNote, p.BanReason, p.Flags, p.Version);
+            p.ReviewNote, p.BanReason, p.Flags, p.Version, p.MaxPerBuyer);
     }
 
     private static string? OptionValue(Dictionary<Guid, VariantOption> options, Guid? id) =>

@@ -105,6 +105,7 @@ public sealed class CheckoutBuilder(
     IPaymentGatewayRegistry gateways,
     Marketing.DealsBook deals,
     ISystemParameters parameters,
+    Features.Cart.PurchaseLimits purchaseLimits,
     IClock clock)
 {
     private sealed record LineInfo(CartItem Item, Sku Sku, Product Product, Shop Shop, string? Variant, string? Image);
@@ -151,6 +152,15 @@ public sealed class CheckoutBuilder(
                 : null;
             if (problem is null) buyable.Add(l);
             else problems.Add(problem);
+        }
+        // Giới hạn mua mỗi người: the ticked units of a product plus what the buyer already bought
+        var limits = await purchaseLimits.ForAsync(userId, buyable.Select(l => l.Product.Id).Distinct().ToList(), ct);
+        foreach (var g in buyable.Where(l => limits.ContainsKey(l.Product.Id)).GroupBy(l => l.Product.Id).ToList())
+        {
+            var limit = limits[g.Key];
+            if (g.Sum(l => l.Item.Quantity) + limit.Bought <= limit.Max) continue;
+            problems.Add(Features.Cart.PurchaseLimits.Message(g.First().Product.Name, limit));
+            buyable.RemoveAll(l => l.Product.Id == g.Key);
         }
 
         // ----- shop marketing: programme prices, add-on deals, combos, gifts -----

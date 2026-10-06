@@ -551,6 +551,7 @@ Mẫu tin có thêm kênh `InApp` (`ORDER.*`).
 
 `GET /api/account/export` trả thêm `orders` (kèm `items`), `reviews`, `wishlist`, `followedShops`, `walletBalance`, `coins`;
 `POST /api/account/delete` trả 409 kèm lý do khi còn đơn / trả hàng / số dư / shop (00 #126).
+Sản phẩm (seller `ProductInput`, chi tiết công khai) có `maxPerBuyer`; thêm giỏ / đặt hàng vượt giới hạn → 409 `PURCHASE_LIMIT`.
 
 ## SEO (Phase 13)
 

@@ -65,6 +65,48 @@ public class CheckoutTests(ApiFactory factory)
 
     private Task<Sku> SkuAsync(Guid skuId) => factory.WithDbAsync(db => db.Skus.AsNoTracking().SingleAsync(s => s.Id == skuId));
 
+    // ---------- giới hạn mua mỗi người ----------
+
+    [Fact]
+    public async Task The_purchase_limit_counts_cart_and_past_orders_and_two_checkouts_at_once_cannot_both_pass()
+    {
+        var store = await factory.CreateStoreAsync("79", products: [new("Khẩu Trang Giới Hạn", "Đèn Bàn", 50_000, 100, "Việt Nam")]);
+        var productId = store.Products["Khẩu Trang Giới Hạn"];
+        var sku = store.Skus["Khẩu Trang Giới Hạn"];
+        await factory.WithDbAsync(async db =>
+        {
+            var p = await db.Products.SingleAsync(x => x.Id == productId);
+            p.SetPurchaseLimit(2);
+            await db.SaveChangesAsync();
+        });
+        var page = (await (await factory.CreateClient().GetAsync($"/api/products/{productId}")).ReadEnvelopeAsync()).Data;
+        page.GetProperty("maxPerBuyer").GetInt32().Should().Be(2);
+
+        var (buyer, address) = await BuyerAsync();
+        await AddAsync(buyer.Client, sku, 2);
+        var third = await buyer.Client.PostAsJsonAsync("/api/cart/items", new { skuId = sku, quantity = 1 });
+        third.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await third.ReadEnvelopeAsync()).Message.Should().Contain("tối đa 2");
+
+        // Two checkouts of the same cart at the same moment (different keys): one order, the other refused
+        var request = Request(address, shops: Shop(store.ShopId));
+        var quote = await QuoteAsync(buyer.Client, request);
+        var total = quote.GetProperty("grandTotal").GetInt64();
+        var both = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ => Task.Run(() => PlaceAsync(buyer.Client, Guid.NewGuid().ToString(), request, total))));
+        both.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(1, string.Join(" | ", await Task.WhenAll(both.Select(r => r.Content.ReadAsStringAsync()))));
+        (await factory.WithDbAsync(db => db.OrderItems.Where(i => i.ProductId == productId).SumAsync(i => i.Quantity))).Should().Be(2);
+
+        // Already bought 2: one more is refused with what was bought; the quote says so too
+        var again = await buyer.Client.PostAsJsonAsync("/api/cart/items", new { skuId = sku, quantity = 1 });
+        again.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await again.ReadEnvelopeAsync()).Message.Should().Contain("bạn đã mua 2");
+
+        // A cancelled order gives the allowance back
+        var code = await factory.WithDbAsync(db => db.Orders.Where(o => o.BuyerId == buyer.Id).Select(o => o.Code).SingleAsync());
+        (await buyer.Client.PostAsJsonAsync($"/api/orders/{code}/cancel", new { reason = "Đặt nhầm số lượng" })).EnsureSuccessStatusCode();
+        await AddAsync(buyer.Client, sku, 2);
+    }
+
     // ---------- cart ----------
 
     [Fact]

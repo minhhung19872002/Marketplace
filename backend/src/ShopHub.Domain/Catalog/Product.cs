@@ -72,6 +72,9 @@ public class Product : AuditableEntity
     public bool IsPreorder { get; private set; }
     public int PreorderDays { get; private set; }
 
+    // Giới hạn mua mỗi người (all variants together); null = no limit
+    public int? MaxPerBuyer { get; private set; }
+
     // Denormalised, always recomputed from the source rows (SKUs / orders / reviews), never accumulated
     public long MinPrice { get; private set; }
     public long MaxPrice { get; private set; }
@@ -100,6 +103,15 @@ public class Product : AuditableEntity
     // ---------- Content ----------
 
     /// <summary>Set the general info. Returns true when a field that requires re-review changed (name, category).</summary>
+    public const int MaxPurchaseLimit = 999;
+
+    public void SetPurchaseLimit(int? maxPerBuyer)
+    {
+        if (maxPerBuyer is < 1 or > MaxPurchaseLimit)
+            throw new BusinessRuleException($"Giới hạn mua mỗi người từ 1 đến {MaxPurchaseLimit} (để trống nếu không giới hạn).");
+        MaxPerBuyer = maxPerBuyer;
+    }
+
     public bool SetInfo(Guid categoryId, Guid? brandId, string name, string slug, string sanitizedDescription, ProductCondition condition,
         int weightG, int lengthMm, int widthMm, int heightMm, bool isPreorder, int preorderDays)
     {

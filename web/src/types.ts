@@ -171,6 +171,8 @@ export interface ProductPage {
   attributes: { name: string; value: string }[];
   shop: ShopSummary;
   purchasable: boolean;
+  /** Giới hạn mua mỗi người (all variants together) */
+  maxPerBuyer?: number | null;
 }
 
 // ---------- home & shop ----------

@@ -8,6 +8,7 @@ import { ApiError } from '../api/http';
 import type { CartLine } from '../api/commerce';
 import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import { productPath } from '../lib/urls';
 import './CartPage.css';
 
 /** "Phân loại: …" with a picker of the product's other SKUs (change variant without leaving the cart). */
@@ -42,6 +43,32 @@ const VariantPicker = ({ line, onPick }: { line: CartLine; onPick: (skuId: strin
         </span>
       )}
     </span>
+  );
+};
+
+/** "Sản phẩm tương tự" for a sold-out line (spec 3.4): opens a row of products from the same category. */
+const SimilarProducts = ({ productId }: { productId: string }) => {
+  const [open, setOpen] = useState(false);
+  const similar = useQuery({ queryKey: ['related', productId], queryFn: () => storefrontApi.related(productId), enabled: open });
+  return (
+    <div className="cart-similar">
+      <button type="button" className="cart-similar-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="cart-similar">
+        {open ? 'Ẩn sản phẩm tương tự' : 'Xem sản phẩm tương tự ›'}
+      </button>
+      {open && (
+        <div className="cart-similar-row" data-testid="cart-similar-row">
+          {similar.isLoading && <span className="cart-similar-empty">Đang tải…</span>}
+          {similar.data?.length === 0 && <span className="cart-similar-empty">Chưa có sản phẩm tương tự.</span>}
+          {similar.data?.slice(0, 6).map((p) => (
+            <Link key={p.id} to={productPath(p.slug, p.shopId, p.id)} className="cart-similar-item" data-testid="cart-similar-item">
+              <img src={imageOrPlaceholder(p.imageUrl)} alt="" onError={handleImgError} />
+              <span className="cart-similar-name">{p.name}</span>
+              <span className="cart-similar-price">{formatPrice(p.minPrice)}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -140,9 +167,9 @@ const CartPage = () => {
                       {item.problem && (
                         <span className="cart-item-problem" data-testid="cart-item-problem">
                           {item.problem}{' '}
-                          {item.available === 0 && <Link to={`/san-pham/${item.productId}`}>Xem sản phẩm tương tự ›</Link>}
                         </span>
                       )}
+                      {item.available === 0 && <SimilarProducts productId={item.productId} />}
                     </div>
                   </div>
                   <span className="cart-col-price cart-item-price">

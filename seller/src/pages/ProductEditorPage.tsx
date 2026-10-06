@@ -111,6 +111,7 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
   const [dims, setDims] = useState({ l: 0, w: 0, h: 0 })
   const [isPreorder, setIsPreorder] = useState(false)
   const [preorderDays, setPreorderDays] = useState(7)
+  const [maxPerBuyer, setMaxPerBuyer] = useState<number | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -149,6 +150,7 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
     setDims({ l: p.lengthMm, w: p.widthMm, h: p.heightMm })
     setIsPreorder(p.isPreorder)
     setPreorderDays(p.preorderDays || 7)
+    setMaxPerBuyer(p.maxPerBuyer)
   }, [existing.data])
 
   const activeTiers = useMemo(() => (hasVariants ? tiers.filter((t) => t.name.trim() && t.options.length) : []), [hasVariants, tiers])
@@ -170,6 +172,7 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
     heightMm: dims.h,
     isPreorder,
     preorderDays: isPreorder ? preorderDays : 0,
+    maxPerBuyer,
     attributes: Object.entries(attributes).filter(([, v]) => v.length).map(([attributeId, values]) => ({ attributeId, values })),
     media: media.map((m) => ({ assetId: m.assetId, optionValue: null })),
     tiers: activeTiers.map((t) => ({ name: t.name.trim(), options: t.options.map((o) => ({ value: o, imageAssetId: null })) })),
@@ -400,6 +403,10 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
         <div style={{ marginTop: 12 }}>
           <Checkbox checked={isPreorder} onChange={(e) => setIsPreorder(e.target.checked)}>Hàng đặt trước</Checkbox>
           {isPreorder && <InputNumber<number> min={7} max={30} value={preorderDays} onChange={(v) => setPreorderDays(v ?? 7)} addonAfter="ngày chuẩn bị" />}
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <InputNumber<number> min={1} max={999} value={maxPerBuyer} onChange={(v) => setMaxPerBuyer(v ?? null)} placeholder="Không giới hạn"
+            addonBefore="Giới hạn mua mỗi người" addonAfter="sản phẩm" style={{ width: 380 }} data-testid="max-per-buyer" />
         </div>
       </Card>
 

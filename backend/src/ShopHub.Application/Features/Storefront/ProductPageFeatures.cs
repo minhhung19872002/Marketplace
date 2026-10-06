@@ -62,7 +62,9 @@ public record ProductPageDto(
     IReadOnlyList<PublicSkuDto> Skus,
     IReadOnlyList<PublicAttributeDto> Attributes,
     ShopSummaryDto Shop,
-    bool Purchasable);
+    bool Purchasable,
+    // Giới hạn mua mỗi người; the cart and checkout enforce it, the page caps the quantity box
+    int? MaxPerBuyer = null);
 
 internal static class Breadcrumbs
 {
@@ -134,7 +136,8 @@ public sealed class GetProductPageHandler(IApplicationDbContext db) : IRequestHa
             skus.Select(s => new PublicSkuDto(s.Id, Val(s.Option1Id), Val(s.Option2Id), s.Price, s.OriginalPrice, Math.Max(0, s.Available))).ToList(),
             attributes,
             await Breadcrumbs.ShopAsync(db, shop, ct),
-            Purchasable: shop.Status == ShopStatus.Active);
+            Purchasable: shop.Status == ShopStatus.Active,
+            MaxPerBuyer: p.MaxPerBuyer);
     }
 }
 

@@ -68,6 +68,7 @@ public sealed class PlaceOrderHandler(
     WalletPins walletPins,
     Ledger ledger,
     Marketing.FlashSaleQuota flashQuota,
+    Cart.PurchaseLimits purchaseLimits,
     IOutbox outbox,
     ISystemParameters parameters,
     ICurrentUser currentUser,
@@ -127,6 +128,17 @@ public sealed class PlaceOrderHandler(
                 if (balance < pricing.CoinUsed)
                     throw new ConflictException("Số xu không đủ, vui lòng tải lại trang thanh toán.", "COINS_CHANGED");
                 db.CoinLedger.Add(new CoinEntry(userId, -pricing.CoinUsed, CoinReason.CheckoutSpend, "checkout", checkout.Id, null, "Dùng xu khi đặt hàng", now));
+            }
+
+            // ----- giới hạn mua mỗi người: re-counted under a per-buyer lock, so two checkouts at once cannot both pass -----
+            var limited = await purchaseLimits.ForAsync(userId, plan.Lines.Values.Select(l => l.ProductId).Distinct().ToList(), ct);
+            if (limited.Count > 0)
+            {
+                await db.LockAsync($"purchase-limit:{userId}", ct);
+                limited = await purchaseLimits.ForAsync(userId, limited.Keys, ct);
+                foreach (var g in plan.Lines.Values.Where(l => limited.ContainsKey(l.ProductId)).GroupBy(l => l.ProductId))
+                    if (g.Sum(l => l.Quantity) + limited[g.Key].Bought > limited[g.Key].Max)
+                        throw new ConflictException(Cart.PurchaseLimits.Message(g.First().Name, limited[g.Key]), "PURCHASE_LIMIT");
             }
 
             // ----- Flash Sale quota (Redis Lua, then the database row — spec 3.10) -----

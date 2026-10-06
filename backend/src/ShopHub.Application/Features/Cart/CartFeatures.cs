@@ -35,7 +35,7 @@ public record CartShopDto(Guid ShopId, string ShopName, string ShopSlug, bool Is
 public record CartDto(IReadOnlyList<CartShopDto> Shops, int LineCount, int TotalQuantity, int SelectedQuantity, long SelectedSubtotal);
 
 /// <summary>Loads / creates carts and turns them into the validated view (stock, price, availability per line).</summary>
-public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook prices, IClock clock)
+public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook prices, PurchaseLimits purchaseLimits, IClock clock)
 {
     public async Task<Domain.Sales.Cart?> FindAsync(CartOwner owner, CancellationToken ct)
     {
@@ -61,7 +61,7 @@ public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook pric
     {
         var cart = await FindAsync(owner, ct);
         if (cart is null || cart.Items.Count == 0) return new CartDto([], 0, 0, 0, 0);
-        var lines = await LinesAsync(cart.Items, ct);
+        var lines = await LinesAsync(owner.UserId, cart.Items, ct);
         var shops = lines.GroupBy(l => l.Shop.Id)
             .Select(g => new CartShopDto(g.Key, g.First().Shop.Name, g.First().Shop.Slug, g.First().Shop.Type == ShopType.Mall,
                 g.First().Shop.Status == ShopStatus.Vacation,
@@ -76,7 +76,7 @@ public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook pric
 
     public sealed record LineView(CartItem Item, Shop Shop, CartLineDto Dto);
 
-    private async Task<List<LineView>> LinesAsync(IReadOnlyCollection<CartItem> items, CancellationToken ct)
+    private async Task<List<LineView>> LinesAsync(Guid? userId, IReadOnlyCollection<CartItem> items, CancellationToken ct)
     {
         var skuIds = items.Select(i => i.SkuId).ToList();
         var rows = await (from s in db.Skus.IgnoreQueryFilters().AsNoTracking()
@@ -97,6 +97,9 @@ public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook pric
                           }).ToListAsync(ct);
         var byId = rows.ToDictionary(r => r.Sku.Id);
         var effective = await prices.ForSkusAsync(skuIds, clock.UtcNow, ct);
+        // Units of each limited product in the cart (all its variants) against what the buyer may still buy
+        var limits = await purchaseLimits.ForAsync(userId, rows.Select(r => r.Id).Distinct().ToList(), ct);
+        var inCart = items.Where(i => byId.ContainsKey(i.SkuId)).GroupBy(i => byId[i.SkuId].Id).ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
 
         var result = new List<LineView>();
         foreach (var item in items)
@@ -108,6 +111,7 @@ public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook pric
                 : r.Shop.Status != ShopStatus.Active ? "Shop đã ngừng hoạt động."
                 : available == 0 ? "Hết hàng."
                 : item.Quantity > available ? $"Chỉ còn {available} sản phẩm, vui lòng giảm số lượng."
+                : limits.TryGetValue(r.Id, out var limit) && inCart[r.Id] + limit.Bought > limit.Max ? PurchaseLimits.Message(r.Name, limit)
                 : null;
             var variant = string.Join(", ", new[] { r.Option1, r.Option2 }.Where(v => !string.IsNullOrEmpty(v)));
             var price = effective.GetValueOrDefault(item.SkuId);
@@ -138,6 +142,14 @@ internal static class CartRules
         return (row.s, row.p);
     }
 
+    /// <summary>Units of the product (all variants) currently in the cart.</summary>
+    public static async Task<int> ProductQuantityAsync(IApplicationDbContext db, Domain.Sales.Cart cart, Guid productId, CancellationToken ct)
+    {
+        var skuIds = cart.Items.Select(i => i.SkuId).ToList();
+        var ofProduct = await db.Skus.IgnoreQueryFilters().Where(s => skuIds.Contains(s.Id) && s.ProductId == productId).Select(s => s.Id).ToListAsync(ct);
+        return cart.Items.Where(i => ofProduct.Contains(i.SkuId)).Sum(i => i.Quantity);
+    }
+
     public static void EnsureAvailable(Sku sku, int quantity)
     {
         if (sku.Available <= 0) throw new ConflictException("Sản phẩm đã hết hàng.", "OUT_OF_STOCK");
@@ -164,16 +176,18 @@ public sealed class AddCartItemValidator : AbstractValidator<AddCartItemCommand>
     }
 }
 
-public sealed class AddCartItemHandler(IApplicationDbContext db, CartStore store, ISystemParameters parameters, IClock clock)
+public sealed class AddCartItemHandler(IApplicationDbContext db, CartStore store, PurchaseLimits limits, ISystemParameters parameters, IClock clock)
     : IRequestHandler<AddCartItemCommand, CartDto>
 {
     public async Task<CartDto> Handle(AddCartItemCommand request, CancellationToken ct)
     {
-        var (sku, _) = await CartRules.SellableSkuAsync(db, request.SkuId, ct);
+        var (sku, product) = await CartRules.SellableSkuAsync(db, request.SkuId, ct);
         var maxLines = (int)await parameters.GetIntAsync(ParameterKeys.CartMaxLines, ct);
         var cart = await store.GetOrCreateAsync(request.Owner, ct);
         var already = cart.Find(sku.Id)?.Quantity ?? 0;
         CartRules.EnsureAvailable(sku, already + request.Quantity);
+        await limits.EnsureAsync(request.Owner.UserId, product.Id, product.Name,
+            await CartRules.ProductQuantityAsync(db, cart, product.Id, ct) + request.Quantity, ct);
         cart.Add(sku.Id, request.Quantity, sku.Price, maxLines, clock.UtcNow);
         // The event behind the "thêm vào giỏ" step of the conversion funnel (the cart only keeps its current state)
         db.CartAdds.Add(new Domain.Engage.CartAdd(request.Owner.UserId, request.Owner.UserId is null ? request.Owner.GuestToken : null, sku.ProductId,
@@ -195,7 +209,7 @@ public sealed class UpdateCartItemValidator : AbstractValidator<UpdateCartItemCo
     }
 }
 
-public sealed class UpdateCartItemHandler(IApplicationDbContext db, CartStore store, IClock clock) : IRequestHandler<UpdateCartItemCommand, CartDto>
+public sealed class UpdateCartItemHandler(IApplicationDbContext db, CartStore store, PurchaseLimits limits, IClock clock) : IRequestHandler<UpdateCartItemCommand, CartDto>
 {
     public async Task<CartDto> Handle(UpdateCartItemCommand request, CancellationToken ct)
     {
@@ -216,7 +230,13 @@ public sealed class UpdateCartItemHandler(IApplicationDbContext db, CartStore st
         {
             var sku = await db.Skus.AsNoTracking().SingleAsync(s => s.Id == line.SkuId, ct);
             // Lowering the quantity is always allowed (it fixes "chỉ còn N"); raising needs the stock
-            if (quantity > line.Quantity) CartRules.EnsureAvailable(sku, quantity);
+            if (quantity > line.Quantity)
+            {
+                CartRules.EnsureAvailable(sku, quantity);
+                var name = await db.Products.Where(p => p.Id == sku.ProductId).Select(p => p.Name).SingleAsync(ct);
+                await limits.EnsureAsync(request.Owner.UserId, sku.ProductId, name,
+                    await CartRules.ProductQuantityAsync(db, cart!, sku.ProductId, ct) - line.Quantity + quantity, ct);
+            }
             line.SetQuantity(quantity, now);
             line.AcknowledgePrice(sku.Price);
         }

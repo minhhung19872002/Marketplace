@@ -361,6 +361,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("like_count");
 
+                    b.Property<int?>("MaxPerBuyer")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_per_buyer");
+
                     b.Property<long>("MaxPrice")
                         .HasColumnType("bigint")
                         .HasColumnName("max_price");

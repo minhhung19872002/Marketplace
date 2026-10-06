@@ -48,6 +48,8 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     return matching(product.skus, picked)[0] ?? null;
   }, [tiers.length, picked, product.skus]);
   const available = sku ? sku.available : product.totalAvailable;
+  // The quantity box stops at the stock and at the per-buyer limit (the cart and checkout also count past orders)
+  const maxQty = Math.max(1, Math.min(available, product.maxPerBuyer ?? Number.MAX_SAFE_INTEGER));
 
   // Programme prices (discount / Flash Sale) and shop offers; the countdown runs on the server's clock
   const deals = useQuery({ queryKey: ['deals', product.id], queryFn: () => marketingApi.deals(product.id), staleTime: 30_000 });
@@ -269,16 +271,19 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                 <input
                   type="number"
                   min="1"
-                  max={Math.max(1, available)}
+                  max={maxQty}
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.min(Math.max(1, available), Math.max(1, Number(e.target.value) || 1)))}
+                  onChange={(e) => setQuantity(Math.min(maxQty, Math.max(1, Number(e.target.value) || 1)))}
                   aria-label="Số lượng"
                 />
-                <button onClick={() => setQuantity((q) => Math.min(Math.max(1, available), q + 1))} aria-label="Tăng">+</button>
+                <button onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))} aria-label="Tăng">+</button>
               </div>
               <span className="pd-stock" data-testid="pd-stock">
                 {available > 0 ? `${available} sản phẩm có sẵn` : 'Hết hàng'}
               </span>
+              {product.maxPerBuyer && (
+                <span className="pd-limit" data-testid="pd-limit">Mỗi người mua tối đa {product.maxPerBuyer} sản phẩm</span>
+              )}
             </div>
 
             {!product.purchasable && (

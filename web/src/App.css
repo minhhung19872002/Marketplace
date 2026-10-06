@@ -14,3 +14,27 @@
   align-items: center;
   min-height: 50vh;
 }
+
+/* Shared breadcrumb (product, category pages) */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-light);
+  padding: 12px 0;
+  flex-wrap: wrap;
+}
+
+.breadcrumb a:hover {
+  color: var(--sh-primary);
+}
+
+.breadcrumb-current {
+  color: var(--text);
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

@@ -37,6 +37,12 @@ public static class ParameterKeys
     public const string MediaMaxImageMb = "MEDIA.MAX_IMAGE_MB";
     public const string MediaMaxVideoMb = "MEDIA.MAX_VIDEO_MB";
     public const string MediaMaxVideoSeconds = "MEDIA.MAX_VIDEO_SECONDS";
+
+    public const string SearchSynonyms = "SEARCH.SYNONYMS";
+    public const string SearchHotKeywords = "SEARCH.HOT_KEYWORDS";
+    public const string SearchHotKeywordDays = "SEARCH.HOT_KEYWORD_DAYS";
+    public const string ProductViewDedupeMinutes = "PRODUCT.VIEW_DEDUPE_MINUTES";
+    public const string JobCounterRecomputeCron = "JOB.COUNTER_RECOMPUTE_CRON";
 }
 
 public static class ParameterGroups
@@ -48,6 +54,7 @@ public static class ParameterGroups
     public const string Product = "PRODUCT";
     public const string Shop = "SHOP";
     public const string Media = "MEDIA";
+    public const string Search = "SEARCH";
 }
 
 public record ParameterDefinition(
@@ -117,5 +124,19 @@ public static class ParameterCatalog
             "Dung lượng video tối đa (MB)", "Video sản phẩm lớn hơn bị từ chối."),
         new(ParameterKeys.MediaMaxVideoSeconds, "30", ParameterDataType.Int, ParameterGroups.Media,
             "Độ dài video tối đa (giây)", "Video sản phẩm dài hơn bị từ chối."),
+
+        new(ParameterKeys.SearchSynonyms,
+            "{\"dt\":[\"dien thoai\"],\"dien thoai\":[\"dt\",\"smartphone\"],\"laptop\":[\"may tinh xach tay\"],\"tai nghe\":[\"headphone\",\"earphone\"],\"ao khoac\":[\"hoodie\"]}",
+            ParameterDataType.Json, ParameterGroups.Search, "Từ đồng nghĩa",
+            "Từ (không dấu) → các từ tương đương khi tìm kiếm. Ví dụ \"dt\" = \"dien thoai\"."),
+        new(ParameterKeys.SearchHotKeywords, "[\"Áo thun\",\"Điện thoại\",\"Tai nghe\",\"Giày sneaker\",\"Nồi chiên không dầu\"]",
+            ParameterDataType.Json, ParameterGroups.Search, "Từ khoá hot thủ công",
+            "Dùng khi nhật ký tìm kiếm chưa đủ dữ liệu; từ khoá thật lấy từ lượt tìm 7 ngày gần nhất."),
+        new(ParameterKeys.SearchHotKeywordDays, "7", ParameterDataType.Int, ParameterGroups.Search,
+            "Số ngày tính từ khoá hot", "Khoảng thời gian (ngày) để xếp hạng từ khoá được tìm nhiều."),
+        new(ParameterKeys.ProductViewDedupeMinutes, "30", ParameterDataType.Int, ParameterGroups.Product,
+            "Chống đếm trùng lượt xem (phút)", "Cùng người xem cùng sản phẩm trong khoảng này chỉ tính một lượt."),
+        new(ParameterKeys.JobCounterRecomputeCron, "30 18 * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch tính lại chỉ số", "Cron tính lại lượt thích, theo dõi, số sản phẩm, lượt xem từ dữ liệu gốc (01:30 giờ VN)."),
     ];
 }

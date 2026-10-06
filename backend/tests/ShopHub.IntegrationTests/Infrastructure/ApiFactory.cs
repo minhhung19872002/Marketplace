@@ -49,6 +49,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r.ForPort(9000).ForPath("/minio/health/ready")))
         .Build();
 
+    private readonly IContainer _meili = new ContainerBuilder()
+        .WithImage("getmeili/meilisearch:v1.11")
+        .WithEnvironment("MEILI_MASTER_KEY", "integration-test-meili-key")
+        .WithEnvironment("MEILI_NO_ANALYTICS", "true")
+        .WithPortBinding(7700, true)
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r.ForPort(7700).ForPath("/health")))
+        .Build();
+
     private static int _phoneSeq = Random.Shared.Next(1_000_000, 9_000_000);
 
     public string ConnectionString => _postgres.GetConnectionString();
@@ -58,7 +66,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await Task.WhenAll(_postgres.StartAsync(), _redis.StartAsync(), _minio.StartAsync());
+        await Task.WhenAll(_postgres.StartAsync(), _redis.StartAsync(), _minio.StartAsync(), _meili.StartAsync());
 
         // Program reads SH_* before the host is built, so they are provided as environment variables
         Environment.SetEnvironmentVariable("SH_DB_CONNECTION", ConnectionString);
@@ -72,7 +80,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // In tests the browser-facing base is MinIO itself (no gateway)
         Environment.SetEnvironmentVariable("SH_MEDIA_PUBLIC_URL", MediaBaseUrl);
         Environment.SetEnvironmentVariable("SH_DATA_KEY", Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)));
-        Environment.SetEnvironmentVariable("SH_MEILI_URL", "http://127.0.0.1:1");
+        Environment.SetEnvironmentVariable("SH_MEILI_URL", $"http://127.0.0.1:{_meili.GetMappedPublicPort(7700)}");
+        Environment.SetEnvironmentVariable("SH_MEILI_MASTER_KEY", "integration-test-meili-key");
         Environment.SetEnvironmentVariable("SH_LOG_DIR", Path.Combine(Path.GetTempPath(), "shophub-it-logs"));
 
         // The whole suite signs in from one IP
@@ -86,7 +95,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public new async Task DisposeAsync()
     {
         await base.DisposeAsync();
-        await Task.WhenAll(_postgres.DisposeAsync().AsTask(), _redis.DisposeAsync().AsTask(), _minio.DisposeAsync().AsTask());
+        await Task.WhenAll(_postgres.DisposeAsync().AsTask(), _redis.DisposeAsync().AsTask(), _minio.DisposeAsync().AsTask(),
+            _meili.DisposeAsync().AsTask());
     }
 
     /// <summary>Unique, valid-looking Vietnamese mobile number per call.</summary>

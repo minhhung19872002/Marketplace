@@ -10,7 +10,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 1 | Nền móng backend | **Xong** | Xem bảng Phase 1 dưới đây |
 | 2 | Tài khoản | **Xong** | Xem bảng Phase 2 dưới đây |
 | 3 | Danh mục & sản phẩm | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 3 dưới đây |
-| 4 | Tìm kiếm & trang người mua | Chưa làm | |
+| 4 | Tìm kiếm & trang người mua | **Xong** | Xem bảng Phase 4 dưới đây |
 | 5 | Giỏ hàng & thanh toán | Chưa làm | |
 | 6 | Đơn hàng & vận chuyển | Chưa làm | |
 | 7 | Đánh giá, trả hàng, khiếu nại | Chưa làm | |
@@ -94,3 +94,23 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Gieo 40 sản phẩm cũ thành dữ liệu thật | `CatalogSeeder` + `catalog-seed.json` (18 ngành, 87 danh mục lá, 30 shop gồm 6 Mall, 40 sản phẩm, 151 SKU, 107 ảnh) | stack: `catalog.products` 40 dòng `Active`, ảnh `GET /s3/…` → 200 `image/webp` |
 | Ảnh đại diện | `PUT /api/account/avatar` (ảnh ≤ 1 MB, cỡ 600) | `Avatar_is_limited_to_one_megabyte` |
 | **Chưa làm** (xem 00 #41) | Excel hàng loạt, tài khoản phụ & trang trí shop, UI ảnh đại diện ở `web` | — |
+
+## Phase 4 — Tìm kiếm & trang người mua
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| Tìm không dấu, chịu lỗi gõ, đồng nghĩa | Meilisearch, trường bỏ dấu, `SEARCH.SYNONYMS` (00 #42) | `Accent_insensitive_typo_tolerant_and_synonyms`; e2e `Tìm "dien thoai" (không dấu) ra "Điện Thoại…"` |
+| Facet: danh mục, nơi bán, thương hiệu, đánh giá, loại shop, tình trạng, thuộc tính; lọc giá | `MeiliProductSearch` / `PostgresProductSearch`, `FacetLabeler` | `Facet_counts_match_an_independent_sql_count` (đếm bằng SQL độc lập); e2e `Số trên facet khớp số kết quả khi bấm lọc` |
+| Sắp xếp liên quan / mới / bán chạy / giá; phân trang ổn định 60/trang | `sort` + `id` làm khoá cuối | e2e `Sắp xếp theo giá tăng dần…`, `…vẫn đúng khi có từ khoá` |
+| Dự phòng khi công cụ tìm kiếm ngừng | `ResilientProductSearch` (00 #43) | `Postgres_fallback_returns_the_same_results_and_counts_as_meilisearch` (kể cả từ khoá chỉ có ở tên ngành) |
+| Đồng bộ chỉ mục | outbox `search.sync.*` (00 #44) | mọi phép thử Phase 4 tạo dữ liệu qua EF rồi tìm thấy sau khi chạy outbox; `Hidden_or_sold_out_products_leave_the_results` |
+| Gợi ý khi gõ + từ khoá hot | `SuggestQuery`, `HotKeywordsQuery` (`engage.search_logs`, từ khoá bỏ dấu) | `Hot_keywords_and_suggestions_come_from_real_searches`; e2e `Gợi ý tìm kiếm từ máy chủ…` |
+| Trang sản phẩm: breadcrumb, ảnh/video, 2 tầng phân loại, lựa chọn hết hàng bị mờ, giá theo SKU, shop, sản phẩm liên quan / cùng shop, shop tạm nghỉ không mua được | `GetProductPage`, `ProductDetail.tsx` | `Product_page_marks_sold_out_options_and_vacation_shops_cannot_sell`; e2e `Bắt buộc chọn phân loại; phân loại hết hàng bị mờ` |
+| Lượt xem chống trùng, "đã xem gần đây" | `RecordProductView` + advisory lock, cookie `sh_vid` | `Views_are_counted_once_per_viewer_within_the_window` (song song) |
+| Yêu thích, theo dõi shop, bộ đếm | `EngageController`, tính lại từ nguồn (00 #45) | `Parallel_likes_and_follows_are_counted_once_and_recomputed`, `A_seller_cannot_follow_their_own_shop`; e2e yêu thích & theo dõi |
+| Trang chủ: danh mục, Mall, tìm kiếm hàng đầu, gợi ý hôm nay (cá nhân hoá theo đã xem), đã xem | `/api/home/*`, `HomePage.tsx` | `Recommendations_put_the_viewers_interests_first`; e2e `Các section trang chủ lấy dữ liệu thật từ API` |
+| Trang danh mục, trang shop | `/danh-muc/{slug}`, `/shop/{slug}` | e2e `Click danh mục mở trang danh mục có breadcrumb`, `Trang Shop: theo dõi tăng số người theo dõi` |
+| ~1.000 sản phẩm mẫu | `ProductGenerator` (tất định, qua domain) | stack: 999 sản phẩm `Active` được lập chỉ mục khi khởi động |
+| Bỏ dữ liệu giả ở `web` | xoá `data/products.ts`, `data/images.ts`; giỏ hàng theo SKU | `tsc -b`, `vitest` (quy tắc màu / ngày giờ / đường dẫn API), 23 e2e người mua |
+| **Dời lại** | Flash Sale (Phase 9), giỏ & thanh toán thật (Phase 5), đánh giá (Phase 7) | 00 #47 |
+

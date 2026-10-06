@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { formatPrice, handleImgError } from '../data/products';
+import { formatPrice } from '../lib/money';
+import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import './Checkout.css';
 
 const SHIPPING_OPTIONS = [
@@ -126,7 +127,7 @@ const Checkout = () => {
           {orderItems.map((it) => (
             <div key={it.cartKey} className="checkout-product" data-testid="checkout-item">
               <div className="cp-col-product checkout-product-info">
-                <img src={it.image} alt={it.name} onError={(e) => handleImgError(e, it.fallbackImage)} />
+                <img src={imageOrPlaceholder(it.image)} alt={it.name} onError={handleImgError} />
                 <div>
                   <div className="checkout-product-name">{it.name}</div>
                   {it.selectedVariant && (

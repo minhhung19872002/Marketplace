@@ -1,15 +1,16 @@
 import type { MouseEvent } from 'react';
-import type { Product } from '../types';
+import type { ProductCard as Card } from '../types';
 import { Link } from 'react-router-dom';
-import { formatPrice, formatSold, handleImgError } from '../data/products';
+import { formatPrice, formatSold } from '../lib/money';
+import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { useWishlist } from '../context/WishlistContext';
 import './ProductCard.css';
 
-// Vẽ 5 sao theo rating (sao vàng + phần lẻ)
+// Five stars, filled up to the rounded-down rating
 const Stars = ({ rating }: { rating: number }) => {
   const full = Math.floor(rating);
   return (
-    <span className="pc-stars" aria-label={`${rating} sao`}>
+    <span className="pc-stars" aria-label={`${rating.toFixed(1)} sao`}>
       {[0, 1, 2, 3, 4].map((i) => (
         <span key={i} className={i < full ? 'pc-star on' : 'pc-star'}>★</span>
       ))}
@@ -17,7 +18,7 @@ const Stars = ({ rating }: { rating: number }) => {
   );
 };
 
-const ProductCard = ({ product }: { product: Product }) => {
+const ProductCard = ({ product }: { product: Card }) => {
   const { has, toggle } = useWishlist();
   const liked = has(product.id);
 
@@ -28,51 +29,37 @@ const ProductCard = ({ product }: { product: Product }) => {
   };
 
   return (
-    <Link to={`/san-pham/${product.id}`} className="product-card" data-testid="product-card">
+    <Link to={`/san-pham/${product.id}`} className={`product-card ${product.inStock ? '' : 'sold-out'}`} data-testid="product-card">
       <div className="product-card-img">
-        <img
-          src={product.image}
-          alt={product.name}
-          loading="lazy"
-          onError={(e) => handleImgError(e, product.fallbackImage)}
-        />
-        {product.discount > 0 && (
+        <img src={imageOrPlaceholder(product.imageUrl)} alt={product.name} loading="lazy" onError={handleImgError} />
+        {product.discountPercent > 0 && (
           <span className="product-card-discount">
-            {product.discount}%<br />GIẢM
+            {product.discountPercent}%<br />GIẢM
           </span>
         )}
         {product.isMall && <span className="product-card-mall">Mall</span>}
-        <button
-          className={`product-card-heart ${liked ? 'liked' : ''}`}
-          onClick={handleHeart}
-          aria-label="Yêu thích"
-          data-testid="card-heart"
-        >
+        {!product.inStock && <span className="product-card-soldout">Hết hàng</span>}
+        <button className={`product-card-heart ${liked ? 'liked' : ''}`} onClick={handleHeart} aria-label="Yêu thích" data-testid="card-heart">
           {liked ? '♥' : '♡'}
         </button>
       </div>
 
       <div className="product-card-body">
-        <h3 className="product-card-name">
+        <h3 className="product-card-name" data-testid="product-card-name">
           {product.isPreferred && !product.isMall && <span className="pc-name-tag">Yêu thích</span>}
           {product.name}
         </h3>
 
-        <div className="product-card-tags">
-          {product.hasVoucher && <span className="tag-voucher">Voucher giảm ₫30k</span>}
-          {product.freeship && <span className="tag-freeship">Freeship</span>}
-        </div>
-
         <div className="product-card-price-row">
-          <span className="product-card-price">{formatPrice(product.price)}</span>
-          <span className="product-card-original">{formatPrice(product.originalPrice)}</span>
+          <span className="product-card-price" data-testid="product-card-price">{formatPrice(product.minPrice)}</span>
+          {product.originalPrice > product.minPrice && <span className="product-card-original">{formatPrice(product.originalPrice)}</span>}
         </div>
 
         <div className="product-card-meta">
-          <Stars rating={product.rating} />
-          <span className="product-card-sold">Đã bán {formatSold(product.sold)}</span>
+          {product.ratingCount > 0 ? <Stars rating={product.ratingAvg} /> : <span className="pc-no-rating">Chưa có đánh giá</span>}
+          <span className="product-card-sold">Đã bán {formatSold(product.soldCount)}</span>
         </div>
-        <div className="product-card-location">📍 {product.location}</div>
+        {product.provinceName && <div className="product-card-location">📍 {product.provinceName}</div>}
       </div>
     </Link>
   );

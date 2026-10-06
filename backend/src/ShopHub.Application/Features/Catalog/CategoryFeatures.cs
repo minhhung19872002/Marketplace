@@ -126,7 +126,10 @@ public sealed class SaveCategoryHandler(IApplicationDbContext db) : IRequestHand
                 throw new ConflictException("Danh mục cha đang có sản phẩm, không thể thêm danh mục con.", "CATEGORY_HAS_PRODUCTS");
         }
 
-        var slug = Slug.From(request.Name);
+        // Slugs are global (URL /danh-muc/{slug}): suffix -2, -3… when another category already uses it
+        var baseSlug = Slug.From(request.Name);
+        var slug = baseSlug;
+        for (var n = 2; await db.Categories.AnyAsync(c => c.Slug == slug && c.Id != request.Id, ct); n++) slug = $"{baseSlug}-{n}";
         Category category;
         if (request.Id is { } id)
         {

@@ -30,7 +30,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Catalog.Brand", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -90,7 +89,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Catalog.Category", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -155,12 +153,13 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_categories");
 
-                    b.HasIndex("ParentId", "Slug")
-                        .IsUnique()
-                        .HasDatabaseName("ux_categories_parent_slug")
-                        .HasFilter("deleted_at IS NULL");
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_categories_parent_id");
 
-                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ParentId", "Slug"), false);
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_categories_slug")
+                        .HasFilter("deleted_at IS NULL");
 
                     b.ToTable("categories", "catalog", t =>
                         {
@@ -171,7 +170,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Catalog.CategoryAttribute", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -246,7 +244,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Catalog.InventoryMovement", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -303,7 +300,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Catalog.Product", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -500,7 +496,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Catalog.ProductMedia", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -545,7 +540,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Catalog.Sku", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -625,7 +619,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Catalog.VariantOption", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -666,7 +659,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Catalog.VariantTier", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -698,10 +690,151 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Engage.ProductView", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<string>("SessionKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("session_key");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("ViewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("viewed_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_product_views");
+
+                    b.HasIndex("ProductId", "ViewedAt")
+                        .HasDatabaseName("ix_product_views_product");
+
+                    b.HasIndex("SessionKey", "ViewedAt")
+                        .HasDatabaseName("ix_product_views_session");
+
+                    b.HasIndex("UserId", "ViewedAt")
+                        .HasDatabaseName("ix_product_views_user");
+
+                    b.ToTable("product_views", "engage");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.SearchLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Keyword")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("keyword");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<int>("ResultCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("result_count");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_search_logs");
+
+                    b.HasIndex("Keyword")
+                        .HasDatabaseName("ix_search_logs_keyword");
+
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Keyword"), new[] { "text_pattern_ops" });
+
+                    b.HasIndex("OccurredAt", "Keyword")
+                        .HasDatabaseName("ix_search_logs_time");
+
+                    b.ToTable("search_logs", "engage");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.ShopFollower", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_followers");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_shop_followers_user");
+
+                    b.HasIndex("ShopId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_shop_followers_shop_user");
+
+                    b.ToTable("shop_followers", "shop");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.Wishlist", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_wishlists");
+
+                    b.HasIndex("ProductId")
+                        .HasDatabaseName("ix_wishlists_product");
+
+                    b.HasIndex("UserId", "ProductId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_wishlists_user_product");
+
+                    b.ToTable("wishlists", "engage");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Iam.Address", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -838,7 +971,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Iam.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -904,7 +1036,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Iam.OtpCode", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -997,7 +1128,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Iam.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1063,7 +1193,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Iam.Role", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1141,7 +1270,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Iam.User", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1298,7 +1426,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Media.MediaAsset", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1369,7 +1496,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Shops.Shop", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1401,6 +1527,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("description");
 
+                    b.Property<int>("FollowerCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("follower_count");
+
                     b.Property<bool>("IsPreferred")
                         .HasColumnType("boolean")
                         .HasColumnName("is_preferred");
@@ -1428,6 +1558,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.Property<int>("PenaltyPoints")
                         .HasColumnType("integer")
                         .HasColumnName("penalty_points");
+
+                    b.Property<int>("ProductCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_count");
 
                     b.Property<string>("RejectReason")
                         .HasMaxLength(500)
@@ -1490,7 +1624,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopBankAccount", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1565,7 +1698,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopKyc", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1657,7 +1789,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopStaff", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1718,7 +1849,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopWarehouse", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1809,7 +1939,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.SystemConfig.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1855,7 +1984,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.SystemConfig.SimulatedSms", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -1888,7 +2016,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ShopHub.Domain.SystemConfig.SystemParameter", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
@@ -2085,6 +2212,50 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_variant_tiers_products_product_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.ProductView", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_views_products_product_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.ShopFollower", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_followers_shops_shop_id");
+
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_followers_users_user_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.Wishlist", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_wishlists_products_product_id");
+
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_wishlists_users_user_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Iam.Address", b =>

@@ -10,7 +10,26 @@
   --text-light: #757575;
   --border: #e8e8e8;
   --star: #ffce3d;
+  --sh-overlay: rgba(0, 0, 0, 0.55);
+  --sh-skeleton: #f2f2f2;
+  --sh-skeleton-shine: #fafafa;
+  /* Marketing tones for banners and shortcuts */
+  --sh-tone-primary: linear-gradient(135deg, #ee4d2d, #ff7337);
+  --sh-tone-mall: linear-gradient(135deg, #d0011b, #f53d2d);
+  --sh-tone-tech: linear-gradient(135deg, #2b6cb0, #4299e1);
+  --sh-tone-amber: #eb9b00;
+  --sh-tone-orange: #f69113;
+  --sh-tone-teal: #26aa99;
+  --sh-tone-violet: #7c3aed;
 }
+
+.tone-primary { background: var(--sh-tone-primary); }
+.tone-mall { background: var(--sh-tone-mall); }
+.tone-tech { background: var(--sh-tone-tech); }
+.tone-amber { background: var(--sh-tone-amber); }
+.tone-orange { background: var(--sh-tone-orange); }
+.tone-teal { background: var(--sh-tone-teal); }
+.tone-violet { background: var(--sh-tone-violet); }
 
 * {
   margin: 0;

@@ -10,6 +10,7 @@ using ShopHub.Infrastructure.Notifications;
 using ShopHub.Infrastructure.Seed;
 using ShopHub.Infrastructure.Jobs;
 using ShopHub.Infrastructure.Media;
+using ShopHub.Infrastructure.Search;
 using ShopHub.Infrastructure.Outbox;
 using ShopHub.Infrastructure.Persistence;
 using ShopHub.Infrastructure.Persistence.Interceptors;
@@ -28,11 +29,12 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
 
         services.AddScoped<AuditSaveChangesInterceptor>();
+        services.AddSingleton<SearchSyncInterceptor>();
         services.AddDbContext<ShopHubDbContext>((sp, options) => options
             .UseNpgsql(settings.DbConnectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", "sys"))
             .UseSnakeCaseNamingConvention()
-            .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
+            .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>(), sp.GetRequiredService<SearchSyncInterceptor>()));
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ShopHubDbContext>());
 
         services.AddSingleton<ISystemParameters, CachedSystemParameters>();
@@ -69,6 +71,19 @@ public static class DependencyInjection
         services.AddSingleton<Application.Abstractions.IHtmlSanitizer, HtmlSanitizerAdapter>();
         services.AddSingleton<IDataEncryptor, AesGcmDataEncryptor>();
         services.AddScoped<CatalogSeeder>();
+        services.AddScoped<ProductGenerator>();
+
+        // Search (Meilisearch with PostgreSQL fallback) and denormalised counters
+        services.AddHttpClient<MeiliClient>();
+        services.AddScoped<MeiliProductSearch>();
+        services.AddScoped<PostgresProductSearch>();
+        services.AddScoped<IProductSearch, ResilientProductSearch>();
+        services.AddScoped<MeiliSearchIndexer>();
+        services.AddScoped<ISearchIndexer>(sp => sp.GetRequiredService<MeiliSearchIndexer>());
+        services.AddScoped<SqlCounterRecomputer>();
+        services.AddScoped<ICounterRecomputer>(sp => sp.GetRequiredService<SqlCounterRecomputer>());
+        services.AddScoped<IOutboxHandler, SearchSyncProductsHandler>();
+        services.AddScoped<IOutboxHandler, SearchSyncShopHandler>();
 
         // Identity
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();

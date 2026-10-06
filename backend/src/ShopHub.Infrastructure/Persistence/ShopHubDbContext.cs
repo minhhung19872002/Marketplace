@@ -5,6 +5,7 @@ using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
 using ShopHub.Domain.Catalog;
 using ShopHub.Domain.Common;
+using ShopHub.Domain.Engage;
 using ShopHub.Domain.Iam;
 using ShopHub.Domain.Media;
 using ShopHub.Domain.Shops;
@@ -41,6 +42,10 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<ShopWarehouse> ShopWarehouses => Set<ShopWarehouse>();
     public DbSet<ShopStaff> ShopStaff => Set<ShopStaff>();
     public DbSet<ShopBankAccount> ShopBankAccounts => Set<ShopBankAccount>();
+    public DbSet<Wishlist> Wishlists => Set<Wishlist>();
+    public DbSet<ShopFollower> ShopFollowers => Set<ShopFollower>();
+    public DbSet<ProductView> ProductViews => Set<ProductView>();
+    public DbSet<SearchLog> SearchLogs => Set<SearchLog>();
 
     // Unique index name → what the user is told when a parallel request already took the value
     private static readonly Dictionary<string, string> UniqueMessages = new()
@@ -54,7 +59,9 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         ["ux_shops_name"] = "Tên shop đã được sử dụng.",
         ["ux_shop_staff_shop_user"] = "Người này đã là nhân viên của shop.",
         ["ux_brands_slug"] = "Thương hiệu đã tồn tại.",
-        ["ux_categories_parent_slug"] = "Danh mục cùng cấp đã có tên này.",
+        ["ux_categories_slug"] = "Đã có danh mục trùng tên.",
+        ["ux_wishlists_user_product"] = "Sản phẩm đã có trong danh sách yêu thích.",
+        ["ux_shop_followers_shop_user"] = "Bạn đã theo dõi shop này.",
         ["ux_variant_options_tier_value"] = "Phân loại có lựa chọn bị trùng.",
     };
 
@@ -80,6 +87,15 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         }
     }
 
+    public async Task<T> InLockedTransactionAsync<T>(string lockKey, Func<Task<T>> work, CancellationToken ct)
+    {
+        await using var tx = await Database.BeginTransactionAsync(ct);
+        await Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", ct);
+        var result = await work();
+        await tx.CommitAsync(ct);
+        return result;
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("unaccent");
@@ -88,6 +104,9 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
         modelBuilder.HasPostgresExtension("pgcrypto");
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ShopHubDbContext).Assembly);
+
+        modelBuilder.HasDbFunction(typeof(Search.SearchFunctions).GetMethod(nameof(Search.SearchFunctions.Unaccent))!)
+            .HasName("immutable_unaccent").HasSchema("public");
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {

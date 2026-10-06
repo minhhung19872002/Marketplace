@@ -3,28 +3,6 @@
   position: relative;
 }
 
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-light);
-  padding: 12px 0;
-  flex-wrap: wrap;
-}
-
-.breadcrumb a:hover {
-  color: var(--sh-primary);
-}
-
-.breadcrumb-current {
-  color: var(--text);
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Toast thông báo */
 .pd-toast {
   position: fixed;
@@ -595,4 +573,52 @@
   .pd-variant-error {
     margin-left: 0;
   }
+}
+
+.pd-variant:disabled {
+  color: var(--sh-text-muted);
+  background: var(--bg);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.pd-variant-img {
+  width: 24px;
+  height: 24px;
+  margin-right: 6px;
+  object-fit: cover;
+  vertical-align: middle;
+}
+
+.pd-video {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.pd-unavailable {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 2px;
+  color: var(--sh-primary-dark);
+  background: var(--bg);
+}
+
+.product-detail-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pd-review-empty {
+  color: var(--text-light);
+}
+
+.pd-shop-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.pd-description img {
+  max-width: 100%;
 }

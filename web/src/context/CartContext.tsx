@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { CartLine, Product } from '../types';
+import type { CartLine } from '../types';
 
-// Product as passed to addToCart (variant chosen on the detail page)
-type CartInput = Product & { selectedVariant?: string };
+// A SKU as chosen on the product page (the cart key is the SKU id)
+type CartInput = Omit<CartLine, 'cartKey' | 'quantity'>;
 
 interface CartValue {
   items: CartLine[];
@@ -17,17 +17,16 @@ interface CartValue {
 
 const CartContext = createContext<CartValue | null>(null);
 
-const STORAGE_KEY = 'shophub_cart';
+// v2: lines are SKUs from the API (v1 held mock products with numeric ids)
+const STORAGE_KEY = 'shophub_cart_v2';
 
-// Khóa dòng giỏ hàng: cùng SP khác phân loại -> 2 dòng riêng
-const makeKey = (product: CartInput): string => `${product.id}::${product.selectedVariant || ''}`;
-
-// Số lượng hợp lệ: tối thiểu 1, tối đa bằng tồn kho (nếu có)
-const clampQty = (item: Pick<Product, 'stock'>, quantity: number): number => Math.max(1, Math.min(item.stock ?? Infinity, quantity));
+// Quantity between 1 and what the SKU had available when it was added
+const clampQty = (item: Pick<CartLine, 'available'>, quantity: number): number => Math.max(1, Math.min(item.available, quantity));
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartLine[]>(() => {
     try {
+      localStorage.removeItem('shophub_cart');
       const stored = localStorage.getItem(STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch {
@@ -36,11 +35,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      // storage blocked: the cart lives for this tab only
+    }
   }, [items]);
 
   const addToCart = useCallback((product: CartInput, quantity = 1) => {
-    const key = makeKey(product);
+    const key = product.skuId;
     setItems((prev) => {
       const existing = prev.find((it) => it.cartKey === key);
       if (existing) {
@@ -50,7 +53,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
       return [
         ...prev,
-        { ...product, selectedVariant: product.selectedVariant || '', cartKey: key, quantity: clampQty(product, quantity) },
+        { ...product, cartKey: key, quantity: clampQty(product, quantity) },
       ];
     });
   }, []);

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ShopHub.Domain.Catalog;
+using ShopHub.Domain.Engage;
 using ShopHub.Domain.Iam;
 using ShopHub.Domain.Media;
 using ShopHub.Domain.Shops;
@@ -38,5 +39,16 @@ public interface IApplicationDbContext
     DbSet<ShopStaff> ShopStaff { get; }
     DbSet<ShopBankAccount> ShopBankAccounts { get; }
 
+    DbSet<Wishlist> Wishlists { get; }
+    DbSet<ShopFollower> ShopFollowers { get; }
+    DbSet<ProductView> ProductViews { get; }
+    DbSet<SearchLog> SearchLogs { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs <paramref name="work"/> in a transaction holding a PostgreSQL advisory lock on <paramref name="lockKey"/>,
+    /// so concurrent requests for the same key run one after another (check-then-insert without races).
+    /// </summary>
+    Task<T> InLockedTransactionAsync<T>(string lockKey, Func<Task<T>> work, CancellationToken ct);
 }

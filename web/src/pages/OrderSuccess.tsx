@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { formatPrice } from '../data/products';
+import { formatPrice } from '../lib/money';
 import './OrderSuccess.css';
 
 // Đọc đơn vừa đặt từ sessionStorage (fallback khi reload mất location.state)

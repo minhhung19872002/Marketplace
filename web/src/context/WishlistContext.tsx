@@ -1,45 +1,59 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { storefrontApi } from '../api/storefront';
+import { useAuth } from './AuthContext';
 
 interface WishlistValue {
-  ids: number[];
-  toggle: (id: number) => void;
-  has: (id: number) => boolean;
+  ids: string[];
+  has: (productId: string) => boolean;
+  /** Likes / unlikes on the server; guests are sent to the login page first. */
+  toggle: (productId: string) => void;
   count: number;
 }
 
-const WishlistContext = createContext<WishlistValue | null>(null);
-
-const STORAGE_KEY = 'shophub_wishlist';
-
-export const WishlistProvider = ({ children }: { children: ReactNode }) => {
-  const [ids, setIds] = useState<number[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-  }, [ids]);
-
-  const toggle = useCallback((id: number) => {
-    setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }, []);
-
-  const has = useCallback((id: number) => ids.includes(id), [ids]);
-
-  return (
-    <WishlistContext.Provider value={{ ids, toggle, has, count: ids.length }}>
-      {children}
-    </WishlistContext.Provider>
-  );
-};
+const WISHLIST_IDS = ['wishlist', 'ids'] as const;
 
 export const useWishlist = (): WishlistValue => {
-  const ctx = useContext(WishlistContext);
-  if (!ctx) throw new Error('useWishlist must be used within WishlistProvider');
-  return ctx;
+  const { isLoggedIn } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: ids = [] } = useQuery({
+    queryKey: WISHLIST_IDS,
+    queryFn: storefrontApi.wishlistIds,
+    enabled: isLoggedIn,
+    staleTime: 60_000,
+  });
+  const set = useMemo(() => new Set(ids), [ids]);
+
+  const mutation = useMutation({
+    mutationFn: ({ productId, on }: { productId: string; on: boolean }) => storefrontApi.like(productId, on),
+    // Optimistic: the heart flips at once, the server's answer settles it
+    onMutate: async ({ productId, on }) => {
+      await queryClient.cancelQueries({ queryKey: WISHLIST_IDS });
+      const previous = queryClient.getQueryData<string[]>(WISHLIST_IDS) ?? [];
+      queryClient.setQueryData<string[]>(WISHLIST_IDS, on ? [...previous, productId] : previous.filter((x) => x !== productId));
+      return { previous };
+    },
+    onError: (_e, _v, context) => context && queryClient.setQueryData(WISHLIST_IDS, context.previous),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: WISHLIST_IDS });
+      void queryClient.invalidateQueries({ queryKey: ['wishlist', 'page'] });
+    },
+  });
+
+  const toggle = useCallback(
+    (productId: string) => {
+      if (!isLoggedIn) {
+        navigate('/dang-nhap', { state: { from: window.location.pathname + window.location.search } });
+        return;
+      }
+      mutation.mutate({ productId, on: !set.has(productId) });
+    },
+    [isLoggedIn, navigate, mutation, set],
+  );
+
+  const has = useCallback((productId: string) => set.has(productId), [set]);
+  return { ids, has, toggle, count: ids.length };
 };

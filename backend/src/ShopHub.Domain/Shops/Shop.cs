@@ -46,6 +46,10 @@ public class Shop : AuditableEntity
     public string? LockReason { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
     public int PenaltyPoints { get; private set; }
+
+    // Denormalised, recomputed from source rows (followers, active products) — never incremented in place
+    public int FollowerCount { get; private set; }
+    public int ProductCount { get; private set; }
     public uint Version { get; private set; }
 
     public bool CanSell => Status == ShopStatus.Active;

@@ -34,16 +34,40 @@ async function registerViaApi(request, fullName = 'Khách Thử E2E') {
   return { phone, password, fullName };
 }
 
+
+// ---------- real catalogue lookups (seeded sample data, no fixed ids) ----------
+
+async function api(request, path) {
+  const res = await request.get(`${BASE}/api${path}`);
+  if (!res.ok()) throw new Error(`GET ${path} → ${res.status()}: ${await res.text()}`);
+  return (await res.json()).data;
+}
+
+/** First in-stock, purchasable product whose page matches the predicate. */
+async function findProduct(request, predicate, query = 'inStock=true&sort=BestSelling&pageSize=60') {
+  const result = await api(request, `/search/products?${query}`);
+  for (const card of result.items) {
+    const page = await api(request, `/products/${card.id}`);
+    if (page.purchasable && predicate(page)) return page;
+  }
+  throw new Error('Không tìm thấy sản phẩm phù hợp trong dữ liệu mẫu');
+}
+
+const withTiers = (p) => p.tiers.length > 0 && p.skus.some((s) => s.available > 2);
+const withoutTiers = (p) => p.tiers.length === 0 && p.skus[0].available > 2;
+
+async function loginInBrowser(page, account) {
+  await page.goto(`${BASE}/dang-nhap`);
+  await page.locator('input[aria-label="Tên đăng nhập"]').fill(account.phone);
+  await page.locator('input[aria-label="Mật khẩu"]').fill(account.password);
+  await page.locator('[data-testid="login-submit"]').click();
+  await expect(page.locator('[data-testid="user-menu"]')).toBeVisible();
+}
+
+const stripTones = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+
 const filterRealErrors = (errors) =>
-  errors.filter(
-    (e) =>
-      !e.includes('Warning') &&
-      !e.includes('warn') &&
-      !e.includes('Failed to load resource') &&
-      !e.includes('favicon') &&
-      !e.includes('loremflickr') &&
-      !e.includes('dummyjson')
-  );
+  errors.filter((e) => !e.includes('Warning') && !e.includes('warn') && !e.includes('Failed to load resource') && !e.includes('favicon'));
 
 test.describe('ShopHub Marketplace', () => {
   test('Trang chủ load không lỗi và hiển thị đủ các section', async ({ page }) => {
@@ -60,72 +84,80 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('.banner')).toBeVisible();
     await expect(page.locator('.feature-shortcuts')).toBeVisible();
     await expect(page.locator('.category-grid-section')).toBeVisible();
-    await expect(page.locator('.flash-sale')).toBeVisible();
     await expect(page.locator('.mall-brands')).toBeVisible();
+    await expect(page.locator('.top-categories')).toBeVisible();
     await expect(page.locator('.product-grid-section')).toBeVisible();
+    // Flash Sale comes back with real campaigns in Phase 9
+    await expect(page.locator('.flash-sale')).toHaveCount(0);
 
     expect(filterRealErrors(errors)).toHaveLength(0);
   });
 
-  test('Các section trang chủ có đủ dữ liệu', async ({ page }) => {
+  test('Các section trang chủ lấy dữ liệu thật từ API', async ({ page, request }) => {
+    const tree = await api(request, '/categories');
+    const mall = await api(request, '/home/mall');
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
 
     await expect(page.locator('[data-testid="feature-shortcut"]')).toHaveCount(10);
-    await expect(page.locator('[data-testid="category-item"]')).toHaveCount(18);
-    await expect(page.locator('[data-testid="flash-item"]')).toHaveCount(8);
-    await expect(page.locator('[data-testid="mall-brand"]')).toHaveCount(6);
+    await expect(page.locator('[data-testid="category-item"]')).toHaveCount(tree.filter((c) => c.isActive).length);
+    await expect(page.locator('[data-testid="mall-brand"]')).toHaveCount(mall.length);
     await expect(page.locator('[data-testid="product-card"]')).toHaveCount(24);
+    await expect(page.locator('[data-testid="category-item"]').first()).toContainText(tree[0].name);
   });
 
-  test('Nút Xem Thêm tải thêm sản phẩm', async ({ page }) => {
+  test('Nút Xem Thêm tải thêm sản phẩm gợi ý', async ({ page }) => {
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="product-card"]')).toHaveCount(24);
     await page.locator('[data-testid="load-more"]').click();
-    const count = await page.locator('[data-testid="product-card"]').count();
-    expect(count).toBeGreaterThan(24);
+    await expect(page.locator('[data-testid="product-card"]')).toHaveCount(48);
   });
 
-  test('Flash sale có bộ đếm ngược 3 ô', async ({ page }) => {
+  test('Gợi ý tìm kiếm từ máy chủ khi gõ không dấu', async ({ page }) => {
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('.flash-sale-countdown .countdown-box')).toHaveCount(3);
-  });
-
-  test('Gợi ý tìm kiếm hiển thị khi gõ từ khóa', async ({ page }) => {
-    await page.goto(BASE);
-    await page.waitForLoadState('networkidle');
-    await page.locator('.header-search-input').fill('áo');
+    await page.locator('.header-search-input').fill('ao thun');
     await expect(page.locator('[data-testid="search-suggest"]')).toBeVisible();
-    await expect(page.locator('.header-suggest-item').first()).toBeVisible();
+    const first = page.locator('[data-testid="suggest-product"]').first();
+    await expect(first).toBeVisible();
+    expect(stripTones(await first.textContent())).toContain('ao thun');
   });
 
   test('Click sản phẩm mở trang chi tiết đầy đủ', async ({ page }) => {
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
+    const name = (await page.locator('[data-testid="product-card-name"]').first().textContent()).replace('Yêu thích', '').trim();
     await page.locator('[data-testid="product-card"]').first().click();
-    await page.waitForURL(/\/san-pham\/\d+/);
+    await page.waitForURL(/\/san-pham\/[0-9a-f-]{36}/);
 
-    await expect(page.locator('.product-detail-name')).toBeVisible();
+    await expect(page.locator('[data-testid="pd-name"]')).toContainText(name);
     await expect(page.locator('.price-current')).toBeVisible();
     await expect(page.locator('.btn-add-cart')).toBeVisible();
     await expect(page.locator('.btn-buy-now')).toBeVisible();
-    await expect(page.locator('.pd-shop')).toBeVisible();
-    await expect(page.locator('.pd-specs')).toBeVisible();
+    await expect(page.locator('[data-testid="pd-shop"]')).toBeVisible();
+    await expect(page.locator('[data-testid="pd-specs"]')).toBeVisible();
+    await expect(page.locator('[data-testid="product-breadcrumb"] a')).toHaveCount(4); // Trang chủ + 3 cấp danh mục
     await expect(page.locator('[data-testid="reviews"]')).toBeVisible();
   });
 
-  test('Bắt buộc chọn phân loại trước khi thêm giỏ (SP #1 có biến thể)', async ({ page }) => {
-    await page.goto(`${BASE}/san-pham/1`);
+  test('Bắt buộc chọn phân loại; phân loại hết hàng bị mờ', async ({ page, request }) => {
+    const product = await findProduct(request, withTiers);
+    await page.goto(`${BASE}/san-pham/${product.id}`);
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('[data-testid="variant-option"]').first()).toBeVisible();
     await page.locator('[data-testid="add-to-cart"]').click();
     await expect(page.locator('[data-testid="variant-error"]')).toBeVisible();
-    await expect(page.locator('.header-cart-badge')).toHaveCount(0);
+    await expect(page.locator('.header-cart .header-cart-badge')).toHaveCount(0);
 
-    await page.locator('[data-testid="variant-option"]').first().click();
+    const options = page.locator('[data-testid="variant-option"]');
+    const soldOut = product.tiers[0].options.filter((o) => !o.available).map((o) => o.value);
+    for (const value of soldOut) await expect(options.filter({ hasText: value }).first()).toBeDisabled();
+
+    const sku = product.skus.find((s) => s.available > 2);
+    await options.filter({ hasText: sku.option1 }).first().click();
+    if (sku.option2) await options.filter({ hasText: sku.option2 }).last().click();
+    await expect(page.locator('[data-testid="pd-stock"]')).toContainText(`${sku.available} sản phẩm có sẵn`);
     await page.locator('[data-testid="add-to-cart"]').click();
     await expect(page.locator('.header-cart .header-cart-badge')).toHaveText('1');
   });
@@ -203,25 +235,39 @@ test.describe('ShopHub Marketplace', () => {
     await expect(item).toContainText('Mặc định');
   });
 
-  test('Yêu thích: tim trên thẻ sản phẩm cập nhật danh sách', async ({ page }) => {
+  test('Yêu thích: khách bị chuyển tới đăng nhập, người mua lưu trên máy chủ', async ({ page, request }) => {
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
+    await page.locator('[data-testid="card-heart"]').first().click();
+    await page.waitForURL(/\/dang-nhap/);
 
+    const account = await registerViaApi(request, 'Người Thích Hàng');
+    await loginInBrowser(page, account);
+    await page.goto(BASE);
+    await page.waitForLoadState('networkidle');
     await page.locator('[data-testid="card-heart"]').first().click();
     await expect(page.locator('[data-testid="wishlist-link"] .header-cart-badge')).toHaveText('1');
 
+    // Survives a reload: it is on the server, not in localStorage
+    await page.reload();
+    await expect(page.locator('[data-testid="wishlist-link"] .header-cart-badge')).toHaveText('1');
     await page.locator('[data-testid="wishlist-link"]').click();
     await page.waitForURL(/\/yeu-thich/);
     await expect(page.locator('[data-testid="product-card"]')).toHaveCount(1);
   });
 
-  test('Giỏ hàng: checkbox chọn item quyết định tổng tiền', async ({ page }) => {
-    await page.goto(`${BASE}/san-pham/1`);
+  test('Giỏ hàng: checkbox chọn item quyết định tổng tiền', async ({ page, request }) => {
+    const a = await findProduct(request, withTiers);
+    const b = await findProduct(request, withoutTiers);
+    const skuA = a.skus.find((s) => s.available > 2);
+
+    await page.goto(`${BASE}/san-pham/${a.id}`);
     await page.waitForLoadState('networkidle');
-    await page.locator('[data-testid="variant-option"]').first().click();
+    await page.locator('[data-testid="variant-option"]').filter({ hasText: skuA.option1 }).first().click();
+    if (skuA.option2) await page.locator('[data-testid="variant-option"]').filter({ hasText: skuA.option2 }).last().click();
     await page.locator('[data-testid="add-to-cart"]').click();
 
-    await page.goto(`${BASE}/san-pham/9`);
+    await page.goto(`${BASE}/san-pham/${b.id}`);
     await page.waitForLoadState('networkidle');
     await page.locator('[data-testid="add-to-cart"]').click();
     await expect(page.locator('.header-cart .header-cart-badge')).toHaveText('2');
@@ -229,9 +275,8 @@ test.describe('ShopHub Marketplace', () => {
     await page.goto(`${BASE}/gio-hang`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="cart-item"]')).toHaveCount(2);
-
-    const totalAll = await page.locator('[data-testid="cart-total"]').textContent();
-    expect(totalAll).not.toBe('₫0');
+    const expected = skuA.price + b.skus[0].price;
+    await expect(page.locator('[data-testid="cart-total"]')).toHaveText(`₫${expected.toLocaleString('vi-VN')}`);
 
     await page.locator('[data-testid="select-all"]').uncheck();
     await expect(page.locator('[data-testid="cart-total"]')).toHaveText('₫0');
@@ -240,8 +285,9 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('[data-testid="cart-total"]')).not.toHaveText('₫0');
   });
 
-  test('Luồng thanh toán: địa chỉ + voucher + đặt hàng thành công', async ({ page }) => {
-    await page.goto(`${BASE}/san-pham/9`); // không biến thể
+  test('Luồng thanh toán (tạm, Phase 5 thay bằng đơn thật): voucher + đặt hàng', async ({ page, request }) => {
+    const product = await findProduct(request, withoutTiers);
+    await page.goto(`${BASE}/san-pham/${product.id}`);
     await page.waitForLoadState('networkidle');
     await page.locator('[data-testid="add-to-cart"]').click();
 
@@ -249,19 +295,15 @@ test.describe('ShopHub Marketplace', () => {
     await page.waitForLoadState('networkidle');
     await page.locator('[data-testid="checkout"]').click();
     await page.waitForURL(/\/thanh-toan/);
-
     await expect(page.locator('[data-testid="checkout-item"]')).toHaveCount(1);
 
-    // Áp voucher hợp lệ
     await page.locator('input[aria-label="Mã giảm giá"]').fill('SHOPHUB50');
     await page.locator('[data-testid="apply-voucher"]').click();
     await expect(page.locator('[data-testid="voucher-msg"]')).toContainText('SHOPHUB50');
 
-    // Thiếu địa chỉ -> báo lỗi
     await page.locator('[data-testid="place-order"]').click();
     await expect(page.locator('[data-testid="checkout-error"]')).toBeVisible();
 
-    // Nhập địa chỉ rồi đặt hàng
     await page.locator('input[aria-label="Họ và tên"]').fill('Nguyễn Văn A');
     await page.locator('input[aria-label="Số điện thoại"]').fill('0901234567');
     await page.locator('input[aria-label="Địa chỉ"]').fill('123 Lê Lợi, Q1, TP.HCM');
@@ -269,12 +311,12 @@ test.describe('ShopHub Marketplace', () => {
 
     await page.waitForURL(/\/dat-hang-thanh-cong/);
     await expect(page.locator('[data-testid="order-success"]')).toBeVisible();
-    // Giỏ hàng đã được xóa sau khi đặt
     await expect(page.locator('.header-cart .header-cart-badge')).toHaveCount(0);
   });
 
-  test('Cập nhật số lượng và xóa trong giỏ hàng', async ({ page }) => {
-    await page.goto(`${BASE}/san-pham/9`);
+  test('Cập nhật số lượng và xóa trong giỏ hàng', async ({ page, request }) => {
+    const product = await findProduct(request, withoutTiers);
+    await page.goto(`${BASE}/san-pham/${product.id}`);
     await page.waitForLoadState('networkidle');
     await page.locator('[data-testid="add-to-cart"]').click();
     await expect(page.locator('.header-cart .header-cart-badge')).toHaveText('1');
@@ -297,74 +339,107 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('.cart-empty-btn')).toBeVisible();
   });
 
-  test('Tìm kiếm không dấu lọc ra kết quả đúng', async ({ page }) => {
+  test('Tìm "dien thoai" (không dấu) ra "Điện Thoại…"', async ({ page }) => {
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
-
-    await page.locator('.header-search-input').fill('áo');
+    await page.locator('.header-search-input').fill('dien thoai');
     await page.locator('.header-search-btn').click();
-    await page.waitForURL(/\/tim-kiem/);
+    await page.waitForURL(/\/tim-kiem\?q=dien/);
 
-    await expect(page.locator('[data-testid="search-heading"]')).toContainText('áo');
-    const count = await page.locator('[data-testid="product-card"]').count();
-    expect(count).toBeGreaterThan(0);
-
-    const stripTones = (s) =>
-      s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').toLowerCase();
-    const names = await page.locator('.product-card-name').allTextContents();
-    for (const name of names) {
-      expect(stripTones(name)).toContain('ao');
-    }
+    await expect(page.locator('[data-testid="search-heading"]')).toContainText('dien thoai');
+    await expect(page.locator('[data-testid="product-card"]').first()).toBeVisible();
+    const names = await page.locator('[data-testid="product-card-name"]').allTextContents();
+    expect(names.length).toBeGreaterThan(0);
+    // Name matches rank first; accessories of "Điện Thoại & Phụ Kiện" follow (category-name match)
+    for (const name of names.slice(0, 5)) expect(name).toContain('Điện Thoại');
   });
 
-  test('Sidebar lọc theo đánh giá', async ({ page }) => {
+  test('Số trên facet khớp số kết quả khi bấm lọc', async ({ page }) => {
+    await page.goto(`${BASE}/tim-kiem?q=ao`);
+    await page.waitForLoadState('networkidle');
+    const option = page.locator('[data-testid="facet-provinces"] label').first();
+    await expect(option).toBeVisible();
+    const facetCount = Number((await option.locator('.filter-count').textContent()).replace(/[^\d]/g, ''));
+
+    await option.locator('input').check();
+    await expect(page).toHaveURL(/provinces=/);
+    await expect(page.locator('[data-testid="search-count"]')).toHaveText(`${facetCount.toLocaleString('vi-VN')} sản phẩm`);
+  });
+
+  test('Khoảng giá sai báo lỗi rõ ràng', async ({ page }) => {
+    await page.goto(`${BASE}/tim-kiem`);
+    await page.waitForLoadState('networkidle');
+    await page.locator('input[aria-label="Giá từ"]').fill('500000');
+    await page.locator('input[aria-label="Giá đến"]').fill('100000');
+    await page.locator('[data-testid="price-apply"]').click();
+    await expect(page.locator('[data-testid="price-error"]')).toContainText('Khoảng giá không hợp lệ');
+  });
+
+  test('Sidebar lọc theo đánh giá và xoá bộ lọc', async ({ page }) => {
     await page.goto(`${BASE}/tim-kiem`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="filter-sidebar"]')).toBeVisible();
 
-    const before = await page.locator('[data-testid="product-card"]').count();
     await page.locator('[data-testid="filter-rating"]').first().click();
-    await page.waitForTimeout(200);
-    const after = await page.locator('[data-testid="product-card"]').count();
-    expect(after).toBeLessThanOrEqual(before);
-
+    await expect(page).toHaveURL(/minRating=5/);
     await page.locator('[data-testid="filter-clear"]').click();
-    await page.waitForTimeout(200);
-    const cleared = await page.locator('[data-testid="product-card"]').count();
-    expect(cleared).toBeGreaterThanOrEqual(after);
+    await expect(page).not.toHaveURL(/minRating/);
+    await expect(page.locator('[data-testid="product-card"]').first()).toBeVisible();
   });
 
   test('Sắp xếp theo giá tăng dần hoạt động', async ({ page }) => {
     await page.goto(`${BASE}/tim-kiem`);
     await page.waitForLoadState('networkidle');
 
-    await page.locator('.search-sort-price').click();
-    await page.waitForTimeout(200);
+    await page.locator('[data-testid="sort-price"]').click();
+    await expect(page).toHaveURL(/sort=PriceAsc/);
+    await page.waitForLoadState('networkidle');
 
-    const priceTexts = await page.locator('.product-card-price').allTextContents();
+    const priceTexts = await page.locator('[data-testid="product-card-price"]').allTextContents();
     const prices = priceTexts.map((t) => Number(t.replace(/[^\d]/g, '')));
-    const sorted = [...prices].sort((a, b) => a - b);
-    expect(prices).toEqual(sorted);
+    expect(prices.length).toBeGreaterThan(1);
+    expect(prices).toEqual([...prices].sort((x, y) => x - y));
   });
 
-  test('Click danh mục điều hướng tới trang lọc', async ({ page }) => {
+  test('Sắp xếp theo giá vẫn đúng khi có từ khoá', async ({ page }) => {
+    await page.goto(`${BASE}/tim-kiem?q=dien+thoai&sort=PriceDesc`);
+    await page.waitForLoadState('networkidle');
+    const prices = (await page.locator('[data-testid="product-card-price"]').allTextContents()).map((t) => Number(t.replace(/[^\d]/g, '')));
+    expect(prices.length).toBeGreaterThan(1);
+    expect(prices).toEqual([...prices].sort((x, y) => y - x));
+  });
+
+  test('Click danh mục mở trang danh mục có breadcrumb', async ({ page, request }) => {
+    const tree = await api(request, '/categories');
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
     await page.locator('[data-testid="category-item"]').first().click();
-    await page.waitForURL(/\/tim-kiem\?category=/);
-    await expect(page.locator('[data-testid="search-heading"]')).toContainText('Danh mục');
+    await page.waitForURL(new RegExp(`/danh-muc/${tree[0].slug}$`));
+    await expect(page.locator('[data-testid="search-heading"]')).toHaveText(tree[0].name);
+    await expect(page.locator('[data-testid="category-children"] a')).toHaveCount(tree[0].children.filter((c) => c.isActive).length);
+    await expect(page.locator('[data-testid="product-card"]').first()).toBeVisible();
   });
 
-  test('Trang thông báo và trang Shop hiển thị', async ({ page }) => {
+  test('Trang Shop: theo dõi tăng số người theo dõi', async ({ page, request }) => {
+    const [first] = await api(request, '/home/mall');
+    await page.goto(`${BASE}/shop/${first.slug}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-testid="shop-name"]')).toContainText(first.name);
+    await expect(page.locator('[data-testid="product-card"]').first()).toBeVisible();
+
+    const account = await registerViaApi(request, 'Người Theo Dõi');
+    await loginInBrowser(page, account);
+    await page.goto(`${BASE}/shop/${first.slug}`);
+    const before = Number((await page.locator('[data-testid="shop-followers"]').textContent()).replace(/[^\d]/g, ''));
+    await page.locator('[data-testid="shop-follow"]').click();
+    await expect(page.locator('[data-testid="shop-follow"]')).toContainText('Đang Theo Dõi');
+    await expect(page.locator('[data-testid="shop-followers"]')).toHaveText(String(before + 1));
+  });
+
+  test('Trang thông báo hiển thị', async ({ page }) => {
     await page.goto(`${BASE}/thong-bao`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="noti-list"]')).toBeVisible();
-    expect(await page.locator('[data-testid="noti-item"]').count()).toBeGreaterThan(0);
-
-    await page.goto(`${BASE}/shop`);
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('.shop-banner')).toBeVisible();
-    expect(await page.locator('[data-testid="product-card"]').count()).toBeGreaterThan(0);
   });
 
   test('Footer hiển thị đầy đủ', async ({ page }) => {

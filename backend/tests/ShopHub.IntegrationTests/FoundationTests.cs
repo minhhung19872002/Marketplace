@@ -326,9 +326,8 @@ public class FoundationTests(ApiFactory factory)
         json.GetProperty("postgres").GetProperty("status").GetString().Should().Be("Healthy");
         json.GetProperty("redis").GetProperty("status").GetString().Should().Be("Healthy");
         json.GetProperty("minio").GetProperty("status").GetString().Should().Be("Healthy");
-        // Meilisearch is deliberately absent in this suite → readiness must say so, not lie
-        json.GetProperty("meilisearch").GetProperty("status").GetString().Should().Be("Unhealthy");
-        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        json.GetProperty("meilisearch").GetProperty("status").GetString().Should().Be("Healthy");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     private async Task<OutboxDispatchResult> DispatchAsync()

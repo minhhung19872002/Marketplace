@@ -396,3 +396,22 @@
   color: var(--sh-text-muted);
   flex-shrink: 0;
 }
+
+.header-suggest-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.header-suggest-mall {
+  margin-left: auto;
+  padding: 0 4px;
+  font-size: 10px;
+  color: var(--sh-on-primary);
+  background: var(--sh-primary);
+}
+
+.header-suggest-all {
+  color: var(--sh-primary);
+}

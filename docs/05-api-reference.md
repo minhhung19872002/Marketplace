@@ -125,6 +125,90 @@ Mã phường phải thuộc quận, quận thuộc tỉnh (400 kèm trường l
 Tài khoản đang ở trạng thái "phải đổi mật khẩu" (quản trị gieo sẵn) nhận **403** "Bạn cần đổi mật khẩu trước khi tiếp
 tục." ở mọi đường dẫn trừ `/api/auth/*`, `/api/account/me`, `/api/account/password`.
 
+## Ngành hàng & tệp (Phase 3)
+
+| Phương thức | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/categories` | công khai | Cây danh mục 3 cấp (`iconUrl` là emoji hoặc URL ảnh) |
+| GET | `/api/categories/{id}/attributes` | công khai | Thuộc tính của danh mục lá |
+| GET | `/api/brands?q=` | công khai | Thương hiệu |
+| POST | `/api/media/{purpose}` | đăng nhập | `multipart/form-data` (`file`); `purpose`: `product`, `review`, `kyc`, `chat`, `banner`. Ảnh mã hoá lại WebP 1200/600/200, video MP4 ≤ 30 s, KYC riêng tư |
+| PUT | `/api/account/avatar` | đăng nhập | `{ assetId }` — ảnh ≤ 1 MB của chính mình |
+
+## Kênh Người Bán (`/api/seller`, đăng nhập; shop của người khác → 404, thiếu quyền nhân viên → 403)
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET / POST | `/shops` | Shop của tôi / đăng ký shop mới (KYC, kho lấy hàng, tài khoản ngân hàng) |
+| POST | `/shops/{shopId}/resubmit` | Gửi lại hồ sơ bị từ chối |
+| PUT | `/shops/{shopId}/profile` · `/shops/{shopId}/vacation` | Hồ sơ shop · tạm nghỉ `{ until? }` |
+| GET / POST | `/shops/{shopId}/products?tab=&q=&page=` | Danh sách theo tab · tạo nháp |
+| GET / PUT | `/shops/{shopId}/products/{id}` | Chi tiết · sửa (trường nhạy cảm → chờ duyệt lại) |
+| POST | `/shops/{shopId}/products/{id}/actions/{operation}` | `submit` / `hide` / `show` / `delete` |
+| GET | `/category-suggestions?name=` | Gợi ý danh mục lá theo tên sản phẩm |
+| PUT | `/shops/{shopId}/skus/{skuId}` | Sửa nhanh giá / bật-tắt |
+| POST | `/shops/{shopId}/skus/{skuId}/stock-adjustments` | `{ delta, note }` — UPDATE có điều kiện, không xuống dưới số đang giữ |
+| GET | `/shops/{shopId}/skus/{skuId}/movements` | Lịch sử nhập–xuất kho |
+
+## Quản trị — ngành hàng, sản phẩm, shop
+
+| Phương thức | Đường dẫn | Quyền |
+|---|---|---|
+| GET / POST | `/api/admin/categories` · POST/DELETE `/api/admin/categories/attributes[/{id}]` | `CATALOG.CATEGORY.MANAGE` |
+| POST | `/api/admin/brands` | `CATALOG.BRAND.MANAGE` |
+| GET | `/api/admin/products[/{id}]` · POST `…/{id}/approve` · `…/{id}/reject` `{ reason }` | `CATALOG.PRODUCT.REVIEW` |
+| POST | `/api/admin/products/{id}/ban` `{ reason }` · `…/unban` | `CATALOG.PRODUCT.BAN` |
+| GET | `/api/admin/shops[/{id}]` (giấy tờ KYC qua URL ký 5 phút) | `SHOP.SHOP.VIEW` |
+| POST | `/api/admin/shops/{id}/approve` · `…/reject` `{ reason }` | `SHOP.SHOP.REVIEW` |
+| POST | `/api/admin/shops/{id}/lock` · `…/unlock` | `SHOP.SHOP.LOCK` |
+| PUT | `/api/admin/shops/{id}/labels` `{ isMall, isPreferred }` | `SHOP.SHOP.LABEL` |
+| POST | `/api/admin/search/reindex` | `SYS.SEARCH.REINDEX` — dựng lại chỉ mục từ CSDL (bình thường tự đồng bộ qua outbox) |
+
+## Trang người mua (Phase 4, công khai trừ khi ghi khác)
+
+**Tìm kiếm** — `GET /api/search/products`
+
+| Tham số | Ý nghĩa |
+|---|---|
+| `q` | Từ khoá ≤ 100 ký tự; không dấu, sai 1 ký tự (từ ≥ 4 chữ) và từ đồng nghĩa (`SEARCH.SYNONYMS`, vd. `dt` = `điện thoại`) đều khớp. Mọi từ phải xuất hiện trong tên sản phẩm, đường dẫn danh mục, thương hiệu hoặc tên shop |
+| `categoryId` | Cả cây con của danh mục |
+| `shopId`, `provinces` (lặp), `brands` (lặp) | Lọc |
+| `minPrice`, `maxPrice` | VND; sản phẩm khớp nếu **một** SKU nằm trong khoảng; `minPrice > maxPrice` → 400 "Khoảng giá không hợp lệ…" |
+| `minRating` (1–5), `mall`, `preferred`, `inStock`, `condition` (`New`/`Used`) | Lọc |
+| `attrs` (lặp) | `Tên thuộc tính=Giá trị`; cùng thuộc tính = HOẶC, khác thuộc tính = VÀ |
+| `sort` | `Relevance` (mặc định) · `Newest` · `BestSelling` · `PriceAsc` · `PriceDesc` — sắp xếp chọn rõ luôn thắng độ liên quan |
+| `page`, `pageSize` | Mặc định 60/trang, tối đa 100 trang |
+
+Kết quả: `{ items: ProductCard[], totalCount, page, pageSize, facets, engine }`. `facets` gồm `categories`, `provinces`,
+`brands`, `ratings`, `shopTypes` (`mall`/`preferred`), `conditions`, `attributes` (theo tên thuộc tính, `value` dạng
+`Tên=Giá trị`), mỗi mục `{ value, label, count }` — số đếm theo đúng bộ lọc hiện tại. `engine` = `meilisearch`, hoặc
+`postgres` khi công cụ tìm kiếm ngừng (cùng kết quả & số đếm, không chịu lỗi gõ).
+
+`ProductCard`: `{ id, name, slug, imageUrl, minPrice, maxPrice, originalPrice, discountPercent, ratingAvg, ratingCount,
+soldCount, inStock, shopId, shopName, isMall, isPreferred, provinceName }`. Sản phẩm ẩn / bị khoá / shop bị khoá không bao giờ xuất hiện.
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/api/search/suggest?q=` | `{ keywords, products, shops }` — gợi ý khi gõ |
+| GET | `/api/search/hot-keywords` | Từ khoá được tìm nhiều nhất `SEARCH.HOT_KEYWORD_DAYS` ngày (hoặc `SEARCH.HOT_KEYWORDS`) |
+| GET | `/api/categories/by-slug/{slug}` | `{ category, breadcrumb, children }` cho trang danh mục |
+| GET | `/api/products/{id}` | Trang sản phẩm: breadcrumb, ảnh/video, `tiers[].options[].available` (còn SKU có hàng), `skus[]` (`available` = tồn − giữ), thuộc tính, shop, `purchasable` (false khi shop tạm nghỉ / hết hàng). Ẩn/khoá → 404 |
+| POST | `/api/products/{id}/views` | Đếm lượt xem — cùng người xem trong `PRODUCT.VIEW_DEDUPE_MINUTES` chỉ tính 1 (khách nhận cookie `sh_vid`) |
+| GET | `/api/products/{id}/related` · `/api/products/{id}/shop-products` | Sản phẩm tương tự · cùng shop |
+| GET | `/api/home/recommendations?page=&pageSize=` | Gợi ý hôm nay — ưu tiên danh mục người xem vừa xem |
+| GET | `/api/home/top-categories` · `/api/home/mall` | Tìm kiếm hàng đầu · shop Mall |
+| GET | `/api/viewed` | Đã xem gần đây (theo tài khoản hoặc cookie khách) |
+| GET | `/api/shops/{slug}` | Trang shop (`isFollowing` khi đã đăng nhập) |
+
+**Của chính người mua** (đăng nhập; chỉ dữ liệu của mình):
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| POST / DELETE | `/api/shops/{id}/follow` | Theo dõi / bỏ — trả số người theo dõi; theo dõi shop của chính mình → 409 |
+| GET | `/api/account/followed-shops` | Shop đang theo dõi |
+| POST / DELETE | `/api/account/wishlist/{productId}` | Thích / bỏ thích — trả số lượt thích (gọi lặp/song song vẫn đếm 1) |
+| GET | `/api/account/wishlist?page=` · `/api/account/wishlist/ids` | Danh sách yêu thích · chỉ id (để tô tim) |
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

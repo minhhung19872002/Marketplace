@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { banners } from '../data/products';
+import { Link } from 'react-router-dom';
+import { banners } from '../data/home';
 import './Banner.css';
 
 const Banner = () => {
@@ -17,15 +18,11 @@ const Banner = () => {
     <section className="banner" aria-label="Khuyến mãi nổi bật">
       <div className="banner-slider">
         {banners.map((b, i) => (
-          <div
-            key={b.id}
-            className={`banner-slide ${i === active ? 'active' : ''}`}
-            style={{ background: b.bg }}
-          >
+          <div key={b.id} className={`banner-slide ${b.tone} ${i === active ? 'active' : ''}`}>
             <div className="banner-content">
               <h2 className="banner-title">{b.title}</h2>
               <p className="banner-subtitle">{b.subtitle}</p>
-              <button className="banner-cta">Mua Ngay</button>
+              <Link to={b.to} className="banner-cta">Mua Ngay</Link>
             </div>
           </div>
         ))}
@@ -35,23 +32,18 @@ const Banner = () => {
 
         <div className="banner-dots">
           {banners.map((b, i) => (
-            <button
-              key={b.id}
-              className={`banner-dot ${i === active ? 'active' : ''}`}
-              onClick={() => setActive(i)}
-              aria-label={`Chuyển tới banner ${i + 1}`}
-            />
+            <button key={b.id} className={`banner-dot ${i === active ? 'active' : ''}`} onClick={() => setActive(i)} aria-label={`Chuyển tới banner ${i + 1}`} />
           ))}
         </div>
       </div>
 
       <div className="banner-side">
-        <div className="banner-side-item banner-side-item--voucher">
-          <span>Mã Giảm 50%</span>
-        </div>
-        <div className="banner-side-item banner-side-item--freeship">
-          <span>Freeship Xtra</span>
-        </div>
+        <Link to="/tim-kiem?mall=true" className="banner-side-item banner-side-item--voucher">
+          <span>ShopHub Mall</span>
+        </Link>
+        <Link to="/tim-kiem?sort=BestSelling" className="banner-side-item banner-side-item--freeship">
+          <span>Bán Chạy Nhất</span>
+        </Link>
       </div>
     </section>
   );

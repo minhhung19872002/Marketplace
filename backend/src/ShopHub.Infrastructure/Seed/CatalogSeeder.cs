@@ -23,6 +23,7 @@ public sealed class CatalogSeeder(
     IObjectStorage storage,
     IImageProcessor images,
     IDataEncryptor encryptor,
+    ProductGenerator generator,
     IClock clock,
     ILogger<CatalogSeeder> logger)
 {
@@ -37,6 +38,7 @@ public sealed class CatalogSeeder(
         if (!sampleData) return;
         await SeedShopsAsync(seed, ct);
         await SeedProductsAsync(seed, ct);
+        await generator.GenerateAsync(ct);
     }
 
     private async Task SeedCategoriesAsync(CatalogSeed seed, CancellationToken ct)

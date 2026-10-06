@@ -35,6 +35,18 @@ public static class DatabaseInitializer
         // Buckets first: the catalog seed uploads product images
         await sp.GetRequiredService<ShopHub.Infrastructure.Media.MinioObjectStorage>().EnsureBucketsAsync(ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.CatalogSeeder>().SeedAsync(settings.SeedSampleData, ct);
+        await sp.GetRequiredService<ShopHub.Application.Abstractions.ICounterRecomputer>().RecomputeAllAsync(ct);
+
+        // The search index is a projection: rebuild it whenever it disagrees with the database. If the engine is
+        // down the API still starts (searches fall back to PostgreSQL) and the outbox catches up later.
+        try
+        {
+            await sp.GetRequiredService<ShopHub.Infrastructure.Search.MeiliSearchIndexer>().EnsureFreshAsync(ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException)
+        {
+            logger.LogWarning(ex, "Meilisearch not reachable at startup; search falls back to PostgreSQL");
+        }
 
         if (settings.JobsEnabled)
             await sp.GetRequiredService<IJobScheduler>().RegisterRecurringJobsAsync(ct);

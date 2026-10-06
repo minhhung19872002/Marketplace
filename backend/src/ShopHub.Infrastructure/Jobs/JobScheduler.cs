@@ -9,6 +9,7 @@ public static class JobIds
 {
     public const string OutboxDispatch = "sys.outbox-dispatch";
     public const string OutboxCleanup = "sys.outbox-cleanup";
+    public const string CounterRecompute = "sys.counter-recompute";
 }
 
 /// <summary>
@@ -25,6 +26,12 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
             JobIds.OutboxDispatch,
             d => d.RunJobAsync(),
             await parameters.GetStringAsync(ParameterKeys.JobOutboxDispatchCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<Search.SqlCounterRecomputer>(
+            JobIds.CounterRecompute,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobCounterRecomputeCron, ct),
             options);
 
         recurringJobs.AddOrUpdate<OutboxCleanupJob>(

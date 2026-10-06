@@ -15,6 +15,10 @@ public static class OutboxTypes
 
     // Product moderation outcome: APPROVED / REJECTED / BANNED → notify the shop owner
     public const string ProductEvent = "catalog.product.event";
+
+    // Push product / shop changes into the search index (after commit, retried by the outbox)
+    public const string SearchSyncProducts = "search.sync.products";
+    public const string SearchSyncShop = "search.sync.shop";
 }
 
 public record SystemParameterChangedPayload(string Key);
@@ -28,3 +32,7 @@ public record SessionsChangedPayload(Guid UserId, Guid? SessionId);
 public record ShopEventPayload(Guid ShopId, string Event, string? Reason);
 
 public record ProductEventPayload(Guid ProductId, string Event, string? Reason);
+
+public record SearchSyncProductsPayload(IReadOnlyList<Guid> ProductIds);
+
+public record SearchSyncShopPayload(Guid ShopId);

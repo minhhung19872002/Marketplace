@@ -497,7 +497,7 @@ public sealed class AdjustStockValidator : AbstractValidator<AdjustStockCommand>
 /// +N (goods received) or −N (damage, loss). One conditional UPDATE: parallel adjustments can never push stock
 /// below what is reserved for orders, and no read-then-write race exists.
 /// </summary>
-public sealed class AdjustStockHandler(IApplicationDbContext db, SellerAccess access, ICurrentUser currentUser, IClock clock)
+public sealed class AdjustStockHandler(IApplicationDbContext db, SellerAccess access, ICurrentUser currentUser, IOutbox outbox, IClock clock)
     : IRequestHandler<AdjustStockCommand, int>
 {
     public async Task<int> Handle(AdjustStockCommand request, CancellationToken ct)
@@ -514,6 +514,9 @@ public sealed class AdjustStockHandler(IApplicationDbContext db, SellerAccess ac
 
         db.InventoryMovements.Add(new InventoryMovement(request.SkuId, request.Delta, 0, InventoryReason.SellerAdjust, "sku", request.SkuId,
             currentUser.UserId, request.Note, clock.UtcNow));
+        // Set-based update bypassed the change tracker: tell the search index explicitly ("còn hàng" may have changed)
+        var productId = await db.Skus.Where(s => s.Id == request.SkuId).Select(s => s.ProductId).SingleAsync(ct);
+        outbox.Enqueue(OutboxTypes.SearchSyncProducts, new SearchSyncProductsPayload([productId]));
         await db.SaveChangesAsync(ct);
         return await db.Skus.Where(s => s.Id == request.SkuId).Select(s => s.Stock).SingleAsync(ct);
     }

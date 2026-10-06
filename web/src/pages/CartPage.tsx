@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { formatPrice, handleImgError } from '../data/products';
+import { formatPrice } from '../lib/money';
+import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import './CartPage.css';
 
 const CartPage = () => {
@@ -99,13 +100,13 @@ const CartPage = () => {
               </span>
               <div className="cart-col-product cart-item-product">
                 <img
-                  src={item.image}
+                  src={imageOrPlaceholder(item.image)}
                   alt={item.name}
                   className="cart-item-img"
-                  onError={(e) => handleImgError(e, item.fallbackImage)}
+                  onError={handleImgError}
                 />
                 <div className="cart-item-textblock">
-                  <Link to={`/san-pham/${item.id}`} className="cart-item-name">{item.name}</Link>
+                  <Link to={`/san-pham/${item.productId}`} className="cart-item-name">{item.name}</Link>
                   {item.selectedVariant && (
                     <span className="cart-item-variant">Phân loại: {item.selectedVariant}</span>
                   )}
@@ -117,14 +118,14 @@ const CartPage = () => {
                 <input
                   type="number"
                   min="1"
-                  max={item.stock}
+                  max={item.available}
                   value={item.quantity}
                   onChange={(e) => updateQuantity(item.cartKey, Math.max(1, Number(e.target.value) || 1))}
                   aria-label="Số lượng"
                 />
                 <button
                   onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
-                  disabled={item.stock != null && item.quantity >= item.stock}
+                  disabled={item.quantity >= item.available}
                   aria-label="Tăng"
                 >
                   +

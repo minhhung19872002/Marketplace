@@ -10,6 +10,7 @@ public static class Permissions
     public const string SystemParameterUpdate = "SYS.PARAMETER.UPDATE";
     public const string AuditLogView = "SYS.AUDIT.VIEW";
     public const string JobDashboardView = "SYS.JOB.VIEW";
+    public const string SearchReindex = "SYS.SEARCH.REINDEX";
 
     public const string UserView = "IAM.USER.VIEW";
     public const string UserLock = "IAM.USER.LOCK";
@@ -39,6 +40,7 @@ public static class PermissionCatalog
         new(Permissions.SystemParameterUpdate, "Hệ thống", "Sửa tham số hệ thống"),
         new(Permissions.AuditLogView, "Hệ thống", "Xem nhật ký thao tác"),
         new(Permissions.JobDashboardView, "Hệ thống", "Xem bảng việc nền"),
+        new(Permissions.SearchReindex, "Hệ thống", "Lập lại chỉ mục tìm kiếm"),
         new(Permissions.UserView, "Người dùng", "Xem người dùng"),
         new(Permissions.UserLock, "Người dùng", "Khoá / mở khoá người dùng"),
         new(Permissions.UserAssignRole, "Người dùng", "Gán vai trò quản trị"),

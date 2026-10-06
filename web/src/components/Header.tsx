@@ -2,12 +2,25 @@ import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { useWishlist } from '../context/WishlistContext';
-import { products, formatPrice, removeTones, handleImgError } from '../data/products';
+import { storefrontApi } from '../api/storefront';
+import { formatPrice } from '../lib/money';
+import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import './Header.css';
 
-const TOP_LINKS = ['Kênh Người Bán', 'Trở thành Người bán', 'Tải ứng dụng', 'Kết nối'];
-const HOT_KEYWORDS = ['Áo thun', 'Điện thoại', 'Tai nghe', 'Giày sneaker', 'Nồi chiên không dầu'];
+// The seller centre is its own app under /seller (full page load, not a client route)
+const SELLER_URL = '/seller/';
+
+/** The value once it has stopped changing for `ms` (avoids one request per keystroke). */
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebounced(value), ms);
+    return () => window.clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
 
 const Header = () => {
   const navigate = useNavigate();
@@ -42,14 +55,19 @@ const Header = () => {
     goSearch(keyword);
   };
 
-  // Gợi ý sản phẩm khớp từ khóa — so khớp không dấu như trang tìm kiếm
-  const needle = removeTones(keyword.trim().toLowerCase());
-  const suggestions =
-    needle.length >= 1
-      ? products
-          .filter((p) => removeTones(p.name.toLowerCase()).includes(needle))
-          .slice(0, 6)
-      : [];
+  // Suggestions (accent-insensitive on the server) and the week's most searched keywords
+  const needle = useDebounced(keyword.trim(), 250);
+  const { data: suggestion } = useQuery({
+    queryKey: ['suggest', needle],
+    queryFn: () => storefrontApi.suggest(needle),
+    enabled: needle.length >= 1,
+    staleTime: 60_000,
+  });
+  const { data: hotKeywords = [] } = useQuery({ queryKey: ['hot-keywords'], queryFn: storefrontApi.hotKeywords, staleTime: 10 * 60_000 });
+  const typed = keyword.trim().length > 0;
+  const suggestedKeywords = typed ? suggestion?.keywords ?? [] : [];
+  const suggestedProducts = typed ? suggestion?.products ?? [] : [];
+  const suggestedShops = typed ? suggestion?.shops ?? [] : [];
 
   return (
     <header className="header">
@@ -57,9 +75,8 @@ const Header = () => {
       <div className="header-top">
         <div className="container header-top-inner">
           <nav className="header-top-links">
-            {TOP_LINKS.map((label) => (
-              <span key={label} className="header-top-link">{label}</span>
-            ))}
+            <a href={SELLER_URL} className="header-top-link">Kênh Người Bán</a>
+            <a href={`${SELLER_URL}dang-ky-ban-hang`} className="header-top-link">Trở thành Người bán</a>
           </nav>
           <nav className="header-top-links">
             <Link to="/thong-bao" className="header-top-link">🔔 Thông Báo</Link>
@@ -139,37 +156,64 @@ const Header = () => {
           {/* Dropdown gợi ý tìm kiếm */}
           {showSuggest && (
             <div className="header-suggest" data-testid="search-suggest">
-              {suggestions.length > 0 ? (
-                suggestions.map((p) => (
-                  <button
-                    key={p.id}
-                    className="header-suggest-item"
-                    onClick={() => {
-                      setShowSuggest(false);
-                      navigate(`/san-pham/${p.id}`);
-                    }}
-                  >
-                    <svg className="header-suggest-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-                    </svg>
-                    <span>{p.name}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="header-suggest-trending">
-                  <div className="header-suggest-title">Tìm kiếm phổ biến</div>
-                  {HOT_KEYWORDS.map((k) => (
-                    <button key={k} className="header-suggest-item" onClick={() => goSearch(k)}>
-                      🔥 <span>{k}</span>
+              {typed ? (
+                <>
+                  {suggestedShops.map((shop) => (
+                    <button
+                      key={shop.id}
+                      className="header-suggest-item"
+                      onClick={() => {
+                        setShowSuggest(false);
+                        navigate(`/shop/${shop.slug}`);
+                      }}
+                    >
+                      🏪 <span>Shop: {shop.name}</span>
+                      {shop.isMall && <span className="header-suggest-mall">Mall</span>}
                     </button>
                   ))}
-                </div>
+                  {suggestedKeywords.map((k) => (
+                    <button key={k} className="header-suggest-item" onClick={() => goSearch(k)}>
+                      <svg className="header-suggest-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                      </svg>
+                      <span>{k}</span>
+                    </button>
+                  ))}
+                  {suggestedProducts.map((p) => (
+                    <button
+                      key={p.id}
+                      className="header-suggest-item"
+                      onClick={() => {
+                        setShowSuggest(false);
+                        navigate(`/san-pham/${p.id}`);
+                      }}
+                      data-testid="suggest-product"
+                    >
+                      <img className="header-suggest-thumb" src={imageOrPlaceholder(p.imageUrl)} alt="" onError={handleImgError} />
+                      <span>{p.name}</span>
+                    </button>
+                  ))}
+                  <button className="header-suggest-item header-suggest-all" onClick={() => goSearch(keyword)}>
+                    Tìm “{keyword.trim()}”
+                  </button>
+                </>
+              ) : (
+                hotKeywords.length > 0 && (
+                  <div className="header-suggest-trending">
+                    <div className="header-suggest-title">Tìm kiếm phổ biến</div>
+                    {hotKeywords.map((k) => (
+                      <button key={k} className="header-suggest-item" onClick={() => goSearch(k)}>
+                        🔥 <span>{k}</span>
+                      </button>
+                    ))}
+                  </div>
+                )
               )}
             </div>
           )}
 
           <div className="header-hot-keywords">
-            {HOT_KEYWORDS.map((k) => (
+            {hotKeywords.slice(0, 6).map((k) => (
               <Link key={k} to={`/tim-kiem?q=${encodeURIComponent(k)}`} className="header-hot-keyword">
                 {k}
               </Link>
@@ -206,8 +250,8 @@ const Header = () => {
                   <div className="header-cart-preview-title">Sản Phẩm Mới Thêm</div>
                   <div className="header-cart-preview-list">
                     {items.slice(0, 5).map((it) => (
-                      <Link key={it.cartKey} to={`/san-pham/${it.id}`} className="header-cart-preview-item">
-                        <img src={it.image} alt={it.name} onError={(e) => handleImgError(e, it.fallbackImage)} />
+                      <Link key={it.cartKey} to={`/san-pham/${it.productId}`} className="header-cart-preview-item">
+                        <img src={imageOrPlaceholder(it.image)} alt={it.name} onError={handleImgError} />
                         <span className="header-cart-preview-name">{it.name}</span>
                         <span className="header-cart-preview-price">{formatPrice(it.price)}</span>
                       </Link>

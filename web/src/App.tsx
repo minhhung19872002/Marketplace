@@ -2,7 +2,6 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
-import { WishlistProvider } from './context/WishlistContext'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
@@ -14,6 +13,7 @@ const HomePage = lazy(() => import('./pages/HomePage'))
 const ProductDetail = lazy(() => import('./pages/ProductDetail'))
 const CartPage = lazy(() => import('./pages/CartPage'))
 const SearchResults = lazy(() => import('./pages/SearchResults'))
+const CategoryResults = lazy(() => import('./pages/SearchResults').then((m) => ({ default: m.CategoryResults })))
 const Login = lazy(() => import('./pages/Login'))
 const Register = lazy(() => import('./pages/Register'))
 const Checkout = lazy(() => import('./pages/Checkout'))
@@ -37,7 +37,6 @@ const PageLoader = () => (
 function App() {
   return (
     <AuthProvider>
-      <WishlistProvider>
         <CartProvider>
           <Router>
             <ScrollToTop />
@@ -50,13 +49,14 @@ function App() {
                     <Route path="/san-pham/:id" element={<ProductDetail />} />
                     <Route path="/gio-hang" element={<CartPage />} />
                     <Route path="/tim-kiem" element={<SearchResults />} />
+                    <Route path="/danh-muc/:slug" element={<CategoryResults />} />
                     <Route path="/dang-nhap" element={<Login />} />
                     <Route path="/dang-ky" element={<Register />} />
                     <Route path="/thanh-toan" element={<Checkout />} />
                     <Route path="/dat-hang-thanh-cong" element={<OrderSuccess />} />
                     <Route path="/yeu-thich" element={<Wishlist />} />
                     <Route path="/thong-bao" element={<Notifications />} />
-                    <Route path="/shop" element={<ShopPage />} />
+                    <Route path="/shop/:slug" element={<ShopPage />} />
                     <Route path="/quen-mat-khau" element={<ForgotPassword />} />
                     <Route path="/tai-khoan" element={<AccountLayout />}>
                       <Route index element={<Navigate to="ho-so" replace />} />
@@ -73,7 +73,6 @@ function App() {
             </div>
           </Router>
         </CartProvider>
-      </WishlistProvider>
     </AuthProvider>
   )
 }

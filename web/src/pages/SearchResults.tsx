@@ -1,151 +1,238 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { products, categories, removeTones } from '../data/products';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { storefrontApi } from '../api/storefront';
+import { ApiError } from '../api/http';
 import ProductGrid from '../components/ProductGrid';
+import { formatCount } from '../lib/money';
+import type { CategoryPage, FacetValue, ProductSort, SearchParams } from '../types';
 import './SearchResults.css';
 
-const SORTS = [
-  { key: 'relevant', label: 'Liên Quan' },
-  { key: 'newest', label: 'Mới Nhất' },
-  { key: 'sold', label: 'Bán Chạy' },
+const SORTS: { key: ProductSort; label: string }[] = [
+  { key: 'Relevance', label: 'Liên Quan' },
+  { key: 'Newest', label: 'Mới Nhất' },
+  { key: 'BestSelling', label: 'Bán Chạy' },
 ];
 
-const CAT_LIMIT = 10;
+const FACET_LIMIT = 8;
+const SORT_KEYS = new Set<string>(['Relevance', 'Newest', 'BestSelling', 'PriceAsc', 'PriceDesc']);
 
-const SearchResults = () => {
-  const [params] = useSearchParams();
-  const q = params.get('q') || '';
-  const category = params.get('category') || '';
-  // ?sort=discount: "Xem tất cả" của Flash Sale -> giảm giá sâu nhất lên đầu
-  const sortParam = params.get('sort') || 'relevant';
+const num = (v: string | null): number | undefined => (v && /^\d+$/.test(v) ? Number(v) : undefined);
 
-  const [sort, setSort] = useState(sortParam);
-  const [priceSort, setPriceSort] = useState(''); // '', 'asc', 'desc'
-  const [selectedCats, setSelectedCats] = useState<string[]>(category ? [category] : []);
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [minRating, setMinRating] = useState(0);
-  const [showAllCats, setShowAllCats] = useState(false);
+/** The URL is the single source of truth for filters, so results are shareable and Back works. */
+function readParams(sp: URLSearchParams, categoryId?: string): SearchParams {
+  const sort = sp.get('sort') ?? 'Relevance';
+  return {
+    q: sp.get('q') ?? undefined,
+    categoryId: categoryId ?? sp.get('categoryId') ?? undefined,
+    provinces: sp.getAll('provinces'),
+    brands: sp.getAll('brands'),
+    minPrice: num(sp.get('minPrice')),
+    maxPrice: num(sp.get('maxPrice')),
+    minRating: num(sp.get('minRating')),
+    mall: sp.get('mall') === 'true',
+    preferred: sp.get('preferred') === 'true',
+    inStock: sp.get('inStock') === 'true',
+    condition: sp.get('condition') ?? undefined,
+    attrs: sp.getAll('attrs'),
+    sort: (SORT_KEYS.has(sort) ? sort : 'Relevance') as ProductSort,
+    page: num(sp.get('page')) ?? 1,
+  };
+}
 
-  // Mặc định hiện 10 danh mục đầu + danh mục từ URL / đang chọn
-  // (giữ dòng hiển thị cả sau khi bỏ chọn, không bị "nhảy mất")
-  const visibleCats = showAllCats
-    ? categories
-    : categories.filter(
-        (c, i) => i < CAT_LIMIT || c.id === category || selectedCats.includes(c.id)
-      );
+interface FacetListProps {
+  title: string;
+  values: FacetValue[];
+  selected: string[];
+  onToggle: (value: string) => void;
+  testId: string;
+}
 
-  // Đồng bộ bộ lọc khi URL đổi mà component không remount (breadcrumb, link danh mục khác)
+const FacetList = ({ title, values, selected, onToggle, testId }: FacetListProps) => {
+  const [expanded, setExpanded] = useState(false);
+  if (values.length === 0) return null;
+  // Selected values always stay visible, even beyond the limit
+  const shown = expanded ? values : values.filter((v, i) => i < FACET_LIMIT || selected.includes(v.value));
+  return (
+    <div className="filter-group" data-testid={`facet-${testId}`}>
+      <h4 className="filter-group-title">{title}</h4>
+      <div className="filter-cats">
+        {shown.map((v) => (
+          <label key={v.value} className="filter-cat">
+            <input type="checkbox" checked={selected.includes(v.value)} onChange={() => onToggle(v.value)} data-testid="facet-option" />
+            <span>
+              {v.label} <span className="filter-count">({v.count})</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {values.length > FACET_LIMIT && (
+        <button className="filter-cats-more" onClick={() => setExpanded((x) => !x)}>
+          {expanded ? 'Thu gọn ▴' : 'Thêm ▾'}
+        </button>
+      )}
+    </div>
+  );
+};
+
+const SearchView = ({ category }: { category?: CategoryPage }) => {
+  const [sp, setSp] = useSearchParams();
+  const params = readParams(sp, category?.category.id);
+  const [minDraft, setMinDraft] = useState(sp.get('minPrice') ?? '');
+  const [maxDraft, setMaxDraft] = useState(sp.get('maxPrice') ?? '');
+  const [priceError, setPriceError] = useState('');
+
   useEffect(() => {
-    setSelectedCats(category ? [category] : []);
-  }, [category]);
+    setMinDraft(sp.get('minPrice') ?? '');
+    setMaxDraft(sp.get('maxPrice') ?? '');
+  }, [sp]);
 
-  useEffect(() => {
-    setSort(sortParam);
-    setPriceSort('');
-  }, [sortParam]);
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: ['search', params],
+    queryFn: () => storefrontApi.search(params),
+    placeholderData: keepPreviousData,
+  });
 
-  const toggleCat = (id: string) => {
-    setSelectedCats((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-    );
+  /** Change URL params; any filter change goes back to page 1. */
+  const update = (change: (next: URLSearchParams) => void, keepPage = false) => {
+    const next = new URLSearchParams(sp);
+    change(next);
+    if (!keepPage) next.delete('page');
+    setSp(next);
+  };
+  const toggleMulti = (key: string, value: string) =>
+    update((n) => {
+      const all = n.getAll(key);
+      n.delete(key);
+      (all.includes(value) ? all.filter((x) => x !== value) : [...all, value]).forEach((v) => n.append(key, v));
+    });
+  const setFlag = (key: string, on: boolean) => update((n) => (on ? n.set(key, 'true') : n.delete(key)));
+
+  const applyPrice = (e: FormEvent) => {
+    e.preventDefault();
+    const min = minDraft.trim() === '' ? undefined : Number(minDraft);
+    const max = maxDraft.trim() === '' ? undefined : Number(maxDraft);
+    if ((min !== undefined && (!Number.isInteger(min) || min < 0)) || (max !== undefined && (!Number.isInteger(max) || max < 0))) {
+      setPriceError('Vui lòng nhập giá là số nguyên không âm.');
+      return;
+    }
+    if (min !== undefined && max !== undefined && min > max) {
+      setPriceError('Khoảng giá không hợp lệ: giá từ phải nhỏ hơn hoặc bằng giá đến.');
+      return;
+    }
+    setPriceError('');
+    update((n) => {
+      if (min === undefined) n.delete('minPrice');
+      else n.set('minPrice', String(min));
+      if (max === undefined) n.delete('maxPrice');
+      else n.set('maxPrice', String(max));
+    });
   };
 
-  const clearFilters = () => {
-    setSelectedCats([]);
-    setMinPrice('');
-    setMaxPrice('');
-    setMinRating(0);
-  };
+  const clearFilters = () =>
+    update((n) => {
+      for (const key of ['categoryId', 'provinces', 'brands', 'minPrice', 'maxPrice', 'minRating', 'mall', 'preferred', 'inStock', 'condition', 'attrs'])
+        n.delete(key);
+    });
 
-  const results = useMemo(() => {
-    let list = products;
-
-    if (q) {
-      const needle = removeTones(q.toLowerCase());
-      list = list.filter((p) => removeTones(p.name.toLowerCase()).includes(needle));
-    }
-    if (selectedCats.length > 0) {
-      list = list.filter((p) => selectedCats.includes(p.categoryId));
-    }
-    if (minPrice) list = list.filter((p) => p.price >= Number(minPrice));
-    if (maxPrice) list = list.filter((p) => p.price <= Number(maxPrice));
-    if (minRating > 0) list = list.filter((p) => p.rating >= minRating);
-
-    const sorted = [...list];
-    if (priceSort === 'asc') sorted.sort((a, b) => a.price - b.price);
-    else if (priceSort === 'desc') sorted.sort((a, b) => b.price - a.price);
-    else if (sort === 'newest') sorted.sort((a, b) => b.id - a.id);
-    else if (sort === 'sold') sorted.sort((a, b) => b.sold - a.sold);
-    else if (sort === 'discount') sorted.sort((a, b) => b.discount - a.discount);
-
-    return sorted;
-  }, [q, selectedCats, minPrice, maxPrice, minRating, sort, priceSort]);
-
-  const categoryName = categories.find((c) => c.id === category)?.name;
-  const heading = q
-    ? `Kết quả tìm kiếm cho "${q}"`
-    : categoryName
-      ? `Danh mục: ${categoryName}`
-      : sortParam === 'discount'
-        ? 'Flash Sale - Giảm giá sốc'
+  const facets = data?.facets;
+  const items = data?.items ?? [];
+  const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / data.pageSize)) : 1;
+  const page = params.page ?? 1;
+  const priceSort = params.sort === 'PriceAsc' ? 'asc' : params.sort === 'PriceDesc' ? 'desc' : '';
+  const heading = params.q
+    ? `Kết quả tìm kiếm cho "${params.q}"`
+    : category
+      ? category.category.name
+      : params.mall
+        ? 'ShopHub Mall'
         : 'Tất cả sản phẩm';
 
   return (
     <div className="search-results">
+      <div className="container">
+        {category && (
+          <>
+            <div className="breadcrumb" data-testid="category-breadcrumb">
+              <Link to="/">Trang chủ</Link>
+              {category.breadcrumb.map((c) => (
+                <span key={c.id}>
+                  <span> › </span>
+                  {c.id === category.category.id ? <span className="breadcrumb-current">{c.name}</span> : <Link to={`/danh-muc/${c.slug}`}>{c.name}</Link>}
+                </span>
+              ))}
+            </div>
+            {category.children.length > 0 && (
+              <div className="category-children" data-testid="category-children">
+                {category.children.map((c) => (
+                  <Link key={c.id} to={`/danh-muc/${c.slug}`} className="category-child">
+                    {c.name}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       <div className="container search-layout">
-        {/* Sidebar bộ lọc */}
         <aside className="search-sidebar" data-testid="filter-sidebar">
           <div className="filter-title">
             <span>☰ BỘ LỌC TÌM KIẾM</span>
           </div>
 
-          <div className="filter-group">
-            <h4 className="filter-group-title">Theo Danh Mục</h4>
-            <div className="filter-cats">
-              {visibleCats.map((c) => (
-                <label key={c.id} className="filter-cat">
-                  <input
-                    type="checkbox"
-                    checked={selectedCats.includes(c.id)}
-                    onChange={() => toggleCat(c.id)}
-                    data-testid="filter-cat"
-                  />
-                  <span>{c.icon} {c.name}</span>
-                </label>
-              ))}
-            </div>
-            {categories.length > CAT_LIMIT && (
-              <button
-                className="filter-cats-more"
-                onClick={() => setShowAllCats((v) => !v)}
-                data-testid="filter-cats-more"
-              >
-                {showAllCats ? 'Thu gọn ▴' : 'Thêm ▾'}
-              </button>
-            )}
-          </div>
+          {!category && facets && (
+            <FacetList
+              title="Theo Danh Mục"
+              values={facets.categories}
+              selected={params.categoryId ? [params.categoryId] : []}
+              onToggle={(v) => update((n) => (n.get('categoryId') === v ? n.delete('categoryId') : n.set('categoryId', v)))}
+              testId="categories"
+            />
+          )}
+          {facets && (
+            <FacetList title="Nơi Bán" values={facets.provinces} selected={params.provinces ?? []} onToggle={(v) => toggleMulti('provinces', v)} testId="provinces" />
+          )}
+          {facets && (
+            <FacetList title="Thương Hiệu" values={facets.brands} selected={params.brands ?? []} onToggle={(v) => toggleMulti('brands', v)} testId="brands" />
+          )}
 
           <div className="filter-group">
             <h4 className="filter-group-title">Khoảng Giá</h4>
-            <div className="filter-price">
-              <input
-                type="number"
-                placeholder="₫ TỪ"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                aria-label="Giá từ"
-              />
+            <form className="filter-price" onSubmit={applyPrice}>
+              <input type="number" min="0" placeholder="₫ TỪ" value={minDraft} onChange={(e) => setMinDraft(e.target.value)} aria-label="Giá từ" />
               <span className="filter-price-sep">—</span>
-              <input
-                type="number"
-                placeholder="₫ ĐẾN"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                aria-label="Giá đến"
-              />
-            </div>
+              <input type="number" min="0" placeholder="₫ ĐẾN" value={maxDraft} onChange={(e) => setMaxDraft(e.target.value)} aria-label="Giá đến" />
+              <button type="submit" className="filter-price-apply" data-testid="price-apply">ÁP DỤNG</button>
+            </form>
+            {priceError && <div className="filter-error" role="alert" data-testid="price-error">{priceError}</div>}
           </div>
+
+          <div className="filter-group">
+            <h4 className="filter-group-title">Loại Shop</h4>
+            <label className="filter-cat">
+              <input type="checkbox" checked={!!params.mall} onChange={(e) => setFlag('mall', e.target.checked)} data-testid="filter-mall" />
+              <span>ShopHub Mall {facets && <span className="filter-count">({facets.shopTypes.find((s) => s.value === 'mall')?.count ?? 0})</span>}</span>
+            </label>
+            <label className="filter-cat">
+              <input type="checkbox" checked={!!params.preferred} onChange={(e) => setFlag('preferred', e.target.checked)} />
+              <span>Shop Yêu Thích {facets && <span className="filter-count">({facets.shopTypes.find((s) => s.value === 'preferred')?.count ?? 0})</span>}</span>
+            </label>
+            <label className="filter-cat">
+              <input type="checkbox" checked={!!params.inStock} onChange={(e) => setFlag('inStock', e.target.checked)} data-testid="filter-in-stock" />
+              <span>Còn hàng</span>
+            </label>
+          </div>
+
+          {facets && facets.conditions.length > 1 && (
+            <FacetList
+              title="Tình Trạng"
+              values={facets.conditions}
+              selected={params.condition ? [params.condition] : []}
+              onToggle={(v) => update((n) => (n.get('condition') === v ? n.delete('condition') : n.set('condition', v)))}
+              testId="conditions"
+            />
+          )}
 
           <div className="filter-group">
             <h4 className="filter-group-title">Đánh Giá</h4>
@@ -153,27 +240,41 @@ const SearchResults = () => {
               {[5, 4, 3].map((r) => (
                 <button
                   key={r}
-                  className={`filter-rating ${minRating === r ? 'active' : ''}`}
-                  onClick={() => setMinRating(minRating === r ? 0 : r)}
+                  className={`filter-rating ${params.minRating === r ? 'active' : ''}`}
+                  onClick={() => update((n) => (params.minRating === r ? n.delete('minRating') : n.set('minRating', String(r))))}
                   data-testid="filter-rating"
                 >
                   <span className="filter-rating-stars">{'★'.repeat(r)}{'☆'.repeat(5 - r)}</span>
-                  <span>trở lên</span>
+                  {r < 5 && <span>trở lên</span>}
                 </button>
               ))}
             </div>
           </div>
+
+          {facets &&
+            Object.entries(facets.attributes).map(([name, values]) => (
+              <FacetList
+                key={name}
+                title={name}
+                values={values}
+                // Attribute facet values are already "Name=Value"
+                selected={(params.attrs ?? []).filter((a) => a.startsWith(`${name}=`))}
+                onToggle={(v) => toggleMulti('attrs', v)}
+                testId={`attr-${name}`}
+              />
+            ))}
 
           <button className="filter-clear" onClick={clearFilters} data-testid="filter-clear">
             XÓA TẤT CẢ
           </button>
         </aside>
 
-        {/* Nội dung */}
         <div className="search-content">
           <div className="search-results-head">
             <h1 className="search-results-title" data-testid="search-heading">{heading}</h1>
-            <span className="search-results-count">{results.length} sản phẩm</span>
+            <span className="search-results-count" data-testid="search-count">
+              {data ? `${formatCount(data.totalCount)} sản phẩm` : ''}
+            </span>
           </div>
 
           <div className="search-sort-bar">
@@ -181,35 +282,73 @@ const SearchResults = () => {
             {SORTS.map((s) => (
               <button
                 key={s.key}
-                className={`search-sort-btn ${sort === s.key && !priceSort ? 'active' : ''}`}
-                onClick={() => {
-                  setSort(s.key);
-                  setPriceSort('');
-                }}
+                className={`search-sort-btn ${params.sort === s.key ? 'active' : ''}`}
+                onClick={() => update((n) => (s.key === 'Relevance' ? n.delete('sort') : n.set('sort', s.key)))}
               >
                 {s.label}
               </button>
             ))}
             <button
               className={`search-sort-btn search-sort-price ${priceSort ? 'active' : ''}`}
-              onClick={() => setPriceSort((p) => (p === 'asc' ? 'desc' : 'asc'))}
+              onClick={() => update((n) => n.set('sort', priceSort === 'asc' ? 'PriceDesc' : 'PriceAsc'))}
+              data-testid="sort-price"
             >
               Giá {priceSort === 'asc' ? '↑' : priceSort === 'desc' ? '↓' : '⇅'}
             </button>
+            {data && totalPages > 1 && (
+              <span className="search-mini-pager">
+                {page}/{totalPages}
+              </span>
+            )}
           </div>
 
-          {results.length === 0 ? (
-            <div className="search-empty">
+          {error ? (
+            <div className="search-empty" role="alert">
+              <p>{error instanceof ApiError ? error.message : 'Không tải được kết quả, vui lòng thử lại.'}</p>
+            </div>
+          ) : !isLoading && items.length === 0 ? (
+            <div className="search-empty" data-testid="search-empty">
               <p>Không tìm thấy sản phẩm nào phù hợp.</p>
+              <p className="search-empty-hint">Hãy thử từ khoá khác hoặc bỏ bớt bộ lọc.</p>
               <Link to="/" className="search-empty-btn">Về trang chủ</Link>
             </div>
           ) : (
-            <ProductGrid title="" products={results} />
+            <div className={isFetching && !isLoading ? 'search-refreshing' : ''}>
+              <ProductGrid title="" products={items} loading={isLoading} />
+            </div>
+          )}
+
+          {data && totalPages > 1 && (
+            <nav className="search-pager" aria-label="Phân trang" data-testid="search-pager">
+              <button disabled={page <= 1} onClick={() => update((n) => n.set('page', String(page - 1)), true)}>‹</button>
+              <span>
+                Trang {page} / {totalPages}
+              </span>
+              <button disabled={page >= totalPages} onClick={() => update((n) => n.set('page', String(page + 1)), true)} data-testid="next-page">›</button>
+            </nav>
           )}
         </div>
       </div>
     </div>
   );
+};
+
+/** /tim-kiem */
+export const SearchResults = () => <SearchView />;
+
+/** /danh-muc/:slug — the same search, scoped to a category subtree. */
+export const CategoryResults = () => {
+  const { slug = '' } = useParams();
+  const { data, error } = useQuery({ queryKey: ['category', slug], queryFn: () => storefrontApi.categoryBySlug(slug) });
+  if (error)
+    return (
+      <div className="container search-empty">
+        <p>Danh mục không tồn tại hoặc đã ngừng hoạt động.</p>
+        <Link to="/" className="search-empty-btn">Về trang chủ</Link>
+      </div>
+    );
+  if (!data) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  return <SearchView key={data.category.id} category={data} />;
 };
 
 export default SearchResults;

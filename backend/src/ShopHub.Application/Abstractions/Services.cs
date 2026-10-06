@@ -4,6 +4,10 @@ namespace ShopHub.Application.Abstractions;
 public interface ICurrentUser
 {
     Guid? UserId { get; }
+
+    // Login session (refresh token family) behind the current access token
+    Guid? SessionId { get; }
+
     string? IpAddress { get; }
     string? UserAgent { get; }
     bool HasPermission(string permission);

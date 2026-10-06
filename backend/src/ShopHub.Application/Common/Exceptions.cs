@@ -8,3 +8,9 @@ public class ConflictException(string message, string? code = null) : Exception(
 {
     public string? Code { get; } = code;
 }
+
+/// <summary>Credentials or session not accepted — HTTP 401 (message stays generic: never says which part was wrong).</summary>
+public class AuthenticationFailedException(string message = "Thông tin đăng nhập không đúng.", string? code = null) : Exception(message)
+{
+    public string? Code { get; } = code;
+}

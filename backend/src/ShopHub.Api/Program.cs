@@ -19,6 +19,13 @@ CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog's own failures (e.g. a sink that cannot write) — opt-in diagnostics
+if (builder.Configuration["SH_SERILOG_SELFLOG"] is { Length: > 0 } selfLogPath)
+{
+    var selfLog = TextWriter.Synchronized(File.AppendText(selfLogPath));
+    Serilog.Debugging.SelfLog.Enable(msg => { selfLog.WriteLine(msg); selfLog.Flush(); });
+}
 var settings = ShopHubSettings.FromConfiguration(builder.Configuration);
 
 builder.Host.UseSerilog((ctx, cfg) => cfg
@@ -32,7 +39,9 @@ builder.Host.UseSerilog((ctx, cfg) => cfg
         rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30)
     // Warnings and errors also go to PostgreSQL (sys.logs) for the admin log viewer
     .WriteTo.PostgreSQL(settings.DbConnectionString, "logs", LogTableColumns.Writers, schemaName: "sys",
-        needAutoCreateTable: false, restrictedToMinimumLevel: LogEventLevel.Warning));
+        needAutoCreateTable: false, restrictedToMinimumLevel: LogEventLevel.Warning,
+        // COPY mode calls an Npgsql API whose signature changed in Npgsql 8 (MissingMethodException); INSERT works
+        useCopy: false));
 
 builder.Services
     .AddApplication()
@@ -55,6 +64,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+app.UseMiddleware<PasswordChangeGateMiddleware>();
 app.UseAuthorization();
 
 // Liveness: process is up. Readiness: DB, Redis, MinIO, Meilisearch reachable.

@@ -19,7 +19,9 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
     private static readonly string[] SensitiveFragments =
         ["password", "token", "otp", "secret", "accountno", "account_no", "cardnumber", "idcard"];
 
-    private static readonly HashSet<Type> NotAudited = [typeof(AuditLog), typeof(OutboxMessage)];
+    // High-volume or secret-bearing rows are not journalled (sessions/OTPs have their own tables and timestamps)
+    private static readonly HashSet<Type> NotAudited =
+        [typeof(AuditLog), typeof(OutboxMessage), typeof(SimulatedSms), typeof(AdminDivision), typeof(RefreshToken), typeof(OtpCode)];
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {

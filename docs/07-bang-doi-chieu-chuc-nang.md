@@ -8,7 +8,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 |---|---|---|---|
 | 0 | Chuyển đổi repo | **Xong** | Xem bảng Phase 0 dưới đây |
 | 1 | Nền móng backend | **Xong** | Xem bảng Phase 1 dưới đây |
-| 2 | Tài khoản | Chưa làm | |
+| 2 | Tài khoản | **Xong** | Xem bảng Phase 2 dưới đây |
 | 3 | Danh mục & sản phẩm | Chưa làm | |
 | 4 | Tìm kiếm & trang người mua | Chưa làm | |
 | 5 | Giỏ hàng & thanh toán | Chưa làm | |
@@ -51,3 +51,26 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Hangfire (PostgreSQL storage) | `HangfireJobScheduler` đọc lịch từ tham số `JOB.*`, đăng ký lại ngay khi sửa | `hangfire.set` có `sys.outbox-dispatch`, `sys.outbox-cleanup`; job `Succeeded` trên stack |
 | Bảo mật nền | JWT (issuer ShopHub), `[RequirePermission]`, ForwardedHeaders theo `SH_TRUSTED_PROXIES`, giới hạn tốc độ 429 JSON, lọc U+0000 | `Admin_endpoint_requires_token_then_permission`, `Expired_or_forged_tokens_are_rejected`, `Null_character_*` |
 | Phép thử quét mã nguồn (8) | `EndpointAuthorisationTests`, `OrderStatusWriteTests`, `MoneyTypeTests`, `StablePagingOrderTests`, `SystemParameterReadersTests`, `NginxConfigParityTests`, `MigrationRegistrationTests`, `OutboxHandlerRegistrationTests`; `palette` / `datetime` / `api-paths` `.test.ts` × 3 gói | `dotnet test` (34 unit), `npx vitest run` ở `web`, `seller`, `admin` |
+
+## Phase 2 — Tài khoản (Phân hệ I) + RBAC quản trị
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| Đăng ký SĐT + OTP (6 số, 5 phút, sai ≤ 5, gửi lại sau 60 s) | `OtpService`, `SendOtp/VerifyOtp/Register` (`Features/Auth`), trang `/dang-ky` 3 bước | `Phone_otp_registration_then_password_login`, `Otp_resend_has_a_cooldown`, `Parallel_otp_guessing_never_exceeds_the_attempt_cap`, `One_ticket_registers_one_account_even_when_replayed_in_parallel`; e2e "Đăng ký bằng SĐT + OTP → đăng nhập → thêm địa chỉ" |
+| Đăng ký bằng email + mã qua thư | Cùng luồng, đích là email → outbox `notify.email` → SMTP (Mailpit) | `OtpService.EnqueueDelivery` |
+| Mật khẩu ≥ 8, có chữ và số; BCrypt ≥ 12 | `PasswordRules.StrongPassword`, `BCryptPasswordHasher.WorkFactor = 12` | `Registration_needs_consent_strong_password_and_a_valid_ticket` |
+| Đăng nhập SĐT/email/tên đăng nhập + mật khẩu; đăng nhập OTP | `Login`, `LoginWithOtp`; trang `/dang-nhap` 2 tab | `Login_with_otp`; e2e "Đăng nhập cập nhật trạng thái header", "Sai mật khẩu bị từ chối" |
+| Khoá tạm sau N lần sai, giới hạn tốc độ IP | `AUTH.MAX_FAILED_LOGIN`, `AUTH.LOCKOUT_MINUTES` (UPDATE nguyên tử); chính sách `auth`/`otp` | `Repeated_wrong_passwords_lock_the_account_temporarily`, `Parallel_wrong_passwords_still_trigger_the_lockout` |
+| Quên mật khẩu qua OTP; đổi mật khẩu thu hồi token khác | `ResetPassword`, `ChangePassword`; trang `/quen-mat-khau`, `/tai-khoan/mat-khau` | `Forgot_password_resets_and_ends_every_session`, `Changing_password_signs_out_other_devices_only`, `Forgot_password_answers_the_same_for_unknown_numbers_and_sends_nothing` |
+| JWT 15 phút + refresh xoay vòng, lưu băm, phát hiện dùng lại → thu hồi cả chuỗi | `SessionService.RotateAsync` | `Refresh_rotates_and_a_replayed_token_kills_the_whole_session`, `Parallel_refresh_of_one_token_succeeds_once`, `Refresh_also_works_from_the_httponly_cookie` |
+| Thiết bị đăng nhập, đăng xuất từ xa | `GET/DELETE /api/account/sessions`, trang `/tai-khoan/thiet-bi` | `Devices_list_and_remote_logout_with_ownership`, `Logout_ends_the_session_immediately` |
+| Hồ sơ; đổi SĐT/email qua OTP | `UpdateProfile`, `RequestContactChange/ConfirmContactChange`, trang `/tai-khoan/ho-so` | `Profile_update_and_phone_change_via_otp` |
+| Sổ địa chỉ (Tỉnh → Quận → Phường, mặc định, ≤ 10) | `iam.addresses` (chỉ mục duy nhất một mặc định/người), `AddressFeatures`, trang `/tai-khoan/dia-chi` | `First_address_becomes_default_and_hierarchy_is_validated`, `Address_limit_is_enforced`, `Parallel_set_default_leaves_exactly_one_default`, `Deleting_the_default_promotes_another_address`, `Someone_elses_address_is_404_for_every_action` |
+| Danh mục hành chính | `iam.admin_divisions` (10.810 đơn vị), `GET /api/admin-divisions` | `Administrative_divisions_are_complete_and_hierarchical` |
+| Quyền riêng tư: tải dữ liệu, xoá tài khoản | `GET /api/account/export`, `POST /api/account/delete` (ẩn danh hoá, `IAccountDeletionGuard`) | `Deleting_the_account_anonymises_it_and_frees_the_number` |
+| RBAC quản trị | `iam.roles/permissions/role_permissions/user_roles`, `PermissionCatalog`, `RoleCatalog` (6 vai trò), API `/api/admin/roles`, `/permissions`, `/users` | `Role_permissions_reach_the_token_and_the_last_super_admin_is_protected`, `Admin_user_search_pages_and_filters_in_sql` |
+| Khoá người dùng cắt phiên ngay (e2e 12) | `LockUser` + `CachedSessionValidator` trong `OnTokenValidated` | `Locking_a_signed_in_user_rejects_their_very_next_request` |
+| Quản trị buộc đổi mật khẩu lần đầu | claim `pcr` + `PasswordChangeGateMiddleware` | `Seeded_admin_must_change_password_before_doing_anything_else` |
+| Khung `admin` có đăng nhập, menu theo quyền | `admin/src/App.tsx` (menu lọc theo `permissions`), trang Người dùng / Vai trò & quyền / Tham số / Nhật ký | e2e `admin.spec.cjs`; kiểm thủ công 1366×768 (đăng nhập → buộc đổi mật khẩu → menu đủ 5 mục → khoá/mở khoá → nhật ký) |
+| Thay `AuthContext` giả | `web/src/context/AuthContext.tsx` + `stores/auth.ts` (Zustand) + `api/http.ts` (tự làm mới 401, gộp một lượt) | 21 e2e xanh trên dev, 26 trên stack |
+| Chưa làm trong Phase 2 (xem 00 #30) | Ảnh đại diện, tài khoản ngân hàng/thẻ, cài đặt thông báo, Google | — |

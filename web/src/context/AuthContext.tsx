@@ -1,48 +1,45 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { User } from '../types';
+import { useCallback, useEffect, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { authApi } from '../api/auth';
+import { refreshSession } from '../api/http';
+import { useAuthStore, type AuthResult, type AuthUser } from '../stores/auth';
 
-interface AuthValue {
-  user: User | null;
-  isLoggedIn: boolean;
-  login: (username: string) => void;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthValue | null>(null);
-
-const STORAGE_KEY = 'shophub_user';
-
+/** Restores the session from the refresh cookie once, when the app loads. */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-
   useEffect(() => {
-    if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    else localStorage.removeItem(STORAGE_KEY);
-  }, [user]);
-
-  // Đăng nhập/đăng ký giả lập bằng localStorage (không cần backend)
-  const login = useCallback((username: string) => {
-    setUser({ name: username, joinedAt: '2024' });
+    void refreshSession();
   }, []);
-
-  const logout = useCallback(() => setUser(null), []);
-
-  return (
-    <AuthContext.Provider value={{ user, isLoggedIn: Boolean(user), login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <>{children}</>;
 };
 
+interface AuthValue {
+  user: AuthUser | null;
+  isLoggedIn: boolean;
+  isChecking: boolean;
+  signIn: (result: AuthResult) => void;
+  logout: () => Promise<void>;
+}
+
 export const useAuth = (): AuthValue => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const queryClient = useQueryClient();
+  const { user, status, setSession, clear } = useAuthStore();
+
+  const signIn = useCallback(
+    (result: AuthResult) => {
+      setSession(result);
+      queryClient.clear();
+    },
+    [setSession, queryClient],
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      clear();
+      queryClient.clear();
+    }
+  }, [clear, queryClient]);
+
+  return { user, isLoggedIn: status === 'authenticated', isChecking: status === 'checking', signIn, logout };
 };

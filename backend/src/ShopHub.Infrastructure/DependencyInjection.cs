@@ -5,6 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using ShopHub.Application.Abstractions;
 using ShopHub.Infrastructure.Configuration;
 using ShopHub.Infrastructure.Health;
+using ShopHub.Infrastructure.Identity;
+using ShopHub.Infrastructure.Notifications;
+using ShopHub.Infrastructure.Seed;
 using ShopHub.Infrastructure.Jobs;
 using ShopHub.Infrastructure.Outbox;
 using ShopHub.Infrastructure.Persistence;
@@ -41,6 +44,26 @@ public static class DependencyInjection
         services.AddHostedService<ParameterChangeSubscriber>();
 
         services.AddScoped<IOutboxHandler, SystemParameterChangedHandler>();
+        services.AddScoped<IOutboxHandler, SmsOutboxHandler>();
+        services.AddScoped<IOutboxHandler, EmailOutboxHandler>();
+        services.AddScoped<IOutboxHandler, SessionsChangedHandler>();
+        services.AddSingleton<ImmediateOutboxDispatcher>();
+        services.AddSingleton<IOutboxSignal>(sp => sp.GetRequiredService<ImmediateOutboxDispatcher>());
+        services.AddHostedService(sp => sp.GetRequiredService<ImmediateOutboxDispatcher>());
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddScoped<ISmsSender>(sp => settings.SmsProvider switch
+        {
+            "simulated" => ActivatorUtilities.CreateInstance<SimulatedSmsSender>(sp),
+            _ => throw new InvalidOperationException($"Nhà cung cấp SMS '{settings.SmsProvider}' chưa được hỗ trợ."),
+        });
+        services.AddHostedService<SessionsChangedSubscriber>();
+
+        // Identity
+        services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
+        services.AddSingleton<ISecretGenerator, SecretGenerator>();
+        services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+        services.AddSingleton<ISessionValidator, CachedSessionValidator>();
+        services.AddScoped<IdentitySeeder>();
         services.AddScoped<OutboxDispatcher>();
         services.AddScoped<OutboxCleanupJob>();
 

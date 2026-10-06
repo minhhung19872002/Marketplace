@@ -71,17 +71,18 @@ const Header = () => {
                   onClick={() => setShowUserMenu((v) => !v)}
                   data-testid="user-menu"
                 >
-                  <span className="header-user-avatar">{user.name.charAt(0).toUpperCase()}</span>
-                  {user.name}
+                  <span className="header-user-avatar">{user.fullName.charAt(0).toUpperCase()}</span>
+                  {user.fullName}
                 </button>
                 {showUserMenu && (
                   <div className="header-user-dropdown">
+                    <Link to="/tai-khoan/ho-so" onClick={() => setShowUserMenu(false)}>Tài Khoản Của Tôi</Link>
                     <Link to="/yeu-thich" onClick={() => setShowUserMenu(false)}>Sản Phẩm Yêu Thích</Link>
                     <Link to="/gio-hang" onClick={() => setShowUserMenu(false)}>Giỏ Hàng</Link>
                     <button
-                      onClick={() => {
-                        logout();
+                      onClick={async () => {
                         setShowUserMenu(false);
+                        await logout();
                         navigate('/');
                       }}
                       data-testid="logout"

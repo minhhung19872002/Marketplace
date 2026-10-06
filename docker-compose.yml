@@ -122,6 +122,9 @@ services:
       # Only the gateway's Docker network may set X-Forwarded-For
       SH_TRUSTED_PROXIES: 172.16.0.0/12,10.0.0.0/8,192.168.0.0/16
       SH_LOG_DIR: /app/logs
+      # Dev/demo stack: every browser and the e2e suite share one IP behind the gateway
+      SH_RATE_LIMIT_AUTH: ${SH_RATE_LIMIT_AUTH:-300}
+      SH_RATE_LIMIT_OTP: ${SH_RATE_LIMIT_OTP:-300}
     volumes:
       - apilogs:/app/logs
     depends_on:

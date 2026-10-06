@@ -13,13 +13,14 @@ using ShopHub.Api.ErrorHandling;
 using ShopHub.Api.Security;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Security;
+using ShopHub.Infrastructure.Identity;
 
 namespace ShopHub.Api.Hosting;
 
 public static class ApiServiceExtensions
 {
-    public const string JwtIssuer = "ShopHub";
-    public const string JwtAudience = "ShopHub";
+    public const string AuthRateLimit = "auth";
+    public const string OtpRateLimit = "otp";
 
     public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration config)
     {
@@ -39,7 +40,7 @@ public static class ApiServiceExtensions
         services.AddProblemDetails();
 
         AddJwt(services, config);
-        AddRateLimiting(services);
+        AddRateLimiting(services, config);
         AddForwardedHeaders(services, config);
         AddSwagger(services);
         return services;
@@ -57,8 +58,8 @@ public static class ApiServiceExtensions
                 o.MapInboundClaims = false;
                 o.TokenValidationParameters = new TokenValidationParameters
                 {
-                    ValidIssuer = JwtIssuer,
-                    ValidAudience = JwtAudience,
+                    ValidIssuer = JwtAccessTokenIssuer.Issuer,
+                    ValidAudience = JwtAccessTokenIssuer.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
                     ValidateIssuer = true,
                     ValidateAudience = true,
@@ -66,6 +67,18 @@ public static class ApiServiceExtensions
                     ValidateIssuerSigningKey = true,
                     ClockSkew = TimeSpan.FromSeconds(30),
                     NameClaimType = "sub",
+                };
+                o.Events = new JwtBearerEvents
+                {
+                    // A valid signature is not enough: the account must still be active and the session still open
+                    OnTokenValidated = async ctx =>
+                    {
+                        var validator = ctx.HttpContext.RequestServices.GetRequiredService<ISessionValidator>();
+                        var ok = Guid.TryParse(ctx.Principal?.FindFirst("sub")?.Value, out var userId)
+                                 & Guid.TryParse(ctx.Principal?.FindFirst("sid")?.Value, out var sessionId)
+                                 && await validator.IsValidAsync(userId, sessionId, ctx.HttpContext.RequestAborted);
+                        if (!ok) ctx.Fail("Phiên đăng nhập không còn hiệu lực.");
+                    },
                 };
             });
 
@@ -76,8 +89,16 @@ public static class ApiServiceExtensions
         services.AddAuthorization();
     }
 
-    private static void AddRateLimiting(IServiceCollection services)
+    // Per-IP limits for sign-in and OTP; SH_RATE_LIMIT_AUTH / SH_RATE_LIMIT_OTP raise them for test/demo stacks
+    // where every client shares one IP
+    private static int AuthPermitsPerMinute = 20;
+    private static int OtpPermitsPerMinute = 10;
+
+    private static void AddRateLimiting(IServiceCollection services, IConfiguration config)
     {
+        if (int.TryParse(config["SH_RATE_LIMIT_AUTH"], out var auth) && auth > 0) AuthPermitsPerMinute = auth;
+        if (int.TryParse(config["SH_RATE_LIMIT_OTP"], out var otp) && otp > 0) OtpPermitsPerMinute = otp;
+
         services.AddRateLimiter(o =>
         {
             o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -88,6 +109,14 @@ public static class ApiServiceExtensions
                 await ctx.HttpContext.Response.WriteAsJsonAsync(
                     ApiResponse.Fail("Bạn thao tác quá nhanh, vui lòng thử lại sau giây lát."), ct);
             };
+            // Sign-in attempts and OTP requests per IP (per-target limits for OTP live in OtpService)
+            o.AddPolicy(AuthRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = AuthPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
+            o.AddPolicy(OtpRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = OtpPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
+
             // Coarse per-IP ceiling; tighter named policies (login, OTP, checkout…) are added per feature
             o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
                 RateLimitPartition.GetFixedWindowLimiter(

@@ -70,8 +70,12 @@ public sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUse
             ? id
             : null;
 
+    public Guid? SessionId => Guid.TryParse(Context?.User.FindFirstValue("sid"), out var sid) ? sid : null;
+
     // Only trustworthy after ForwardedHeaders has processed the request with the configured proxy ranges
-    public string? IpAddress => Context?.Connection.RemoteIpAddress?.ToString();
+    public string? IpAddress => Context?.Connection.RemoteIpAddress is { } ip
+        ? (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip).ToString()
+        : null;
 
     public string? UserAgent => Context?.Request.Headers.UserAgent.ToString();
 

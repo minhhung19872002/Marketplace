@@ -70,9 +70,9 @@ public class FoundationTests(ApiFactory factory)
     public async Task Admin_endpoint_requires_token_then_permission()
     {
         var anonymous = await factory.CreateClient().GetAsync(ParamsUrl);
-        var noPermission = await factory.ClientWithPermissions("SOMETHING.ELSE").GetAsync(ParamsUrl);
-        var allowed = await factory.ClientWithPermissions(Permissions.SystemParameterView).GetAsync(ParamsUrl);
-        var superAdmin = await factory.ClientWithPermissions(Permissions.All).GetAsync(ParamsUrl);
+        var noPermission = await (await factory.ClientWithPermissionsAsync("SOMETHING.ELSE")).GetAsync(ParamsUrl);
+        var allowed = await (await factory.ClientWithPermissionsAsync(Permissions.SystemParameterView)).GetAsync(ParamsUrl);
+        var superAdmin = await (await factory.ClientWithPermissionsAsync(Permissions.All)).GetAsync(ParamsUrl);
 
         anonymous.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         (await anonymous.ReadEnvelopeAsync()).Message.Should().Be("Bạn cần đăng nhập để tiếp tục.");
@@ -99,10 +99,9 @@ public class FoundationTests(ApiFactory factory)
     [Fact]
     public async Task Updating_a_parameter_writes_audit_and_outbox_in_the_same_transaction()
     {
-        var userId = Guid.NewGuid();
-        var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new("Bearer",
-            ApiFactory.IssueToken(userId, [Permissions.SystemParameterUpdate]));
+        var admin = await factory.CreateUserAsync(Permissions.SystemParameterUpdate);
+        var userId = admin.Id;
+        var client = admin.Client;
 
         var response = await client.PutAsJsonAsync($"{ParamsUrl}/{ParameterKeys.SiteHotline}", new { value = "1900 1234" });
 
@@ -127,7 +126,7 @@ public class FoundationTests(ApiFactory factory)
     [Fact]
     public async Task Wrong_type_is_a_400_with_field_errors_in_vietnamese()
     {
-        var client = factory.ClientWithPermissions(Permissions.SystemParameterUpdate);
+        var client = await factory.ClientWithPermissionsAsync(Permissions.SystemParameterUpdate);
 
         var response = await client.PutAsJsonAsync($"{ParamsUrl}/{ParameterKeys.JobOutboxRetentionDays}", new { value = "mười" });
 
@@ -139,7 +138,7 @@ public class FoundationTests(ApiFactory factory)
     [Fact]
     public async Task Unknown_parameter_is_404_and_stale_version_is_409()
     {
-        var client = factory.ClientWithPermissions(Permissions.SystemParameterUpdate);
+        var client = await factory.ClientWithPermissionsAsync(Permissions.SystemParameterUpdate);
 
         var missing = await client.PutAsJsonAsync($"{ParamsUrl}/KHONG.CO", new { value = "1" });
         var stale = await client.PutAsJsonAsync($"{ParamsUrl}/{ParameterKeys.SiteTaxCode}", new { value = "0101010101", version = 1u });
@@ -155,10 +154,11 @@ public class FoundationTests(ApiFactory factory)
         var key = ParameterKeys.JobOutboxBatchSize;
         var version = await factory.WithDbAsync(db => db.SystemParameters.Where(p => p.Key == key).Select(p => p.Version).SingleAsync());
 
-        // Truly parallel requests, each with its own client/connection
-        var results = await Task.WhenAll(Enumerable.Range(0, 20).Select(i =>
-            factory.ClientWithPermissions(Permissions.SystemParameterUpdate)
-                .PutAsJsonAsync($"{ParamsUrl}/{key}", new { value = (200 + i).ToString(), version })));
+        // Clients are prepared first, then the 20 requests fire truly in parallel
+        var clients = new List<HttpClient>();
+        for (var i = 0; i < 20; i++) clients.Add(await factory.ClientWithPermissionsAsync(Permissions.SystemParameterUpdate));
+        var results = await Task.WhenAll(clients.Select((c, i) =>
+            c.PutAsJsonAsync($"{ParamsUrl}/{key}", new { value = (200 + i).ToString(), version })));
 
         results.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(1);
         results.Count(r => r.StatusCode == HttpStatusCode.Conflict).Should().Be(19);
@@ -178,7 +178,7 @@ public class FoundationTests(ApiFactory factory)
     [InlineData("{\"value\":\"a\\U0000b\"}")]
     public async Task Null_character_in_json_body_is_rejected(string json)
     {
-        var client = factory.ClientWithPermissions(Permissions.SystemParameterUpdate);
+        var client = await factory.ClientWithPermissionsAsync(Permissions.SystemParameterUpdate);
 
         var response = await client.PutAsync($"{ParamsUrl}/{ParameterKeys.SiteHotline}",
             new StringContent(json, Encoding.UTF8, "application/json"));
@@ -198,7 +198,7 @@ public class FoundationTests(ApiFactory factory)
     [Fact]
     public async Task Malformed_json_never_leaks_framework_english()
     {
-        var client = factory.ClientWithPermissions(Permissions.SystemParameterUpdate);
+        var client = await factory.ClientWithPermissionsAsync(Permissions.SystemParameterUpdate);
 
         var response = await client.PutAsync($"{ParamsUrl}/{ParameterKeys.SiteHotline}",
             new StringContent("{\"value\": 12,", Encoding.UTF8, "application/json"));
@@ -212,7 +212,7 @@ public class FoundationTests(ApiFactory factory)
     [Fact]
     public async Task Audit_log_search_rejects_inverted_range_and_pages_stably()
     {
-        var client = factory.ClientWithPermissions(Permissions.AuditLogView);
+        var client = await factory.ClientWithPermissionsAsync(Permissions.AuditLogView);
 
         var inverted = await client.GetAsync("/api/admin/audit-logs?from=2026-10-06T00:00:00Z&to=2026-10-01T00:00:00Z");
         var tooBig = await client.GetAsync("/api/admin/audit-logs?pageSize=1000");
@@ -234,7 +234,7 @@ public class FoundationTests(ApiFactory factory)
         var received = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         await redis.GetSubscriber().SubscribeAsync(RedisChannels.ParameterChanged, (_, v) => received.TrySetResult(v.ToString()));
 
-        var client = factory.ClientWithPermissions(Permissions.SystemParameterUpdate);
+        var client = await factory.ClientWithPermissionsAsync(Permissions.SystemParameterUpdate);
         (await client.PutAsJsonAsync($"{ParamsUrl}/{ParameterKeys.SiteSupportEmail}", new { value = "cskh@shophub.local" }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 

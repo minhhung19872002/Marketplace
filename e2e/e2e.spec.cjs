@@ -2,6 +2,38 @@ const { test, expect } = require('@playwright/test');
 
 const BASE = process.env.SH_E2E_BASE_URL || 'http://localhost:5173';
 
+// Unique VN mobile number per test run
+let phoneSeq = Date.now() % 100000000;
+const newPhone = () => `09${String(++phoneSeq % 100000000).padStart(8, '0')}`;
+
+// Newest OTP texted by the simulated SMS provider (dev-only inbox)
+async function latestOtp(request, phone) {
+  for (let i = 0; i < 40; i++) {
+    const res = await request.get(`${BASE}/api/dev/sms?to=${phone}`);
+    const body = await res.json();
+    const text = body.data?.[0]?.content;
+    const code = text && text.match(/\b\d{6}\b/);
+    if (code) return code[0];
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`Không nhận được OTP cho ${phone}`);
+}
+
+// Real account through the public API: OTP → ticket → register
+async function registerViaApi(request, fullName = 'Khách Thử E2E') {
+  const phone = newPhone();
+  const password = 'Matkhau123';
+  const sent = await request.post(`${BASE}/api/auth/otp/send`, { data: { target: phone, purpose: 'Register' } });
+  if (!sent.ok()) throw new Error(`Gửi OTP thất bại (${sent.status()}): ${await sent.text()}`);
+  const code = await latestOtp(request, phone);
+  const verify = await (await request.post(`${BASE}/api/auth/otp/verify`, { data: { target: phone, purpose: 'Register', code } })).json();
+  const res = await request.post(`${BASE}/api/auth/register`, {
+    data: { target: phone, ticket: verify.data.ticket, password, fullName, acceptTerms: true },
+  });
+  if (!res.ok()) throw new Error(`Đăng ký thất bại: ${await res.text()}`);
+  return { phone, password, fullName };
+}
+
 const filterRealErrors = (errors) =>
   errors.filter(
     (e) =>
@@ -98,18 +130,77 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('.header-cart .header-cart-badge')).toHaveText('1');
   });
 
-  test('Đăng nhập cập nhật trạng thái header', async ({ page }) => {
+  test('Đăng nhập cập nhật trạng thái header', async ({ page, request }) => {
+    const account = await registerViaApi(request, 'Nguyễn Văn E2E');
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
 
     await page.locator('[data-testid="login-link"]').click();
     await page.waitForURL(/\/dang-nhap/);
-    await page.locator('input[aria-label="Tên đăng nhập"]').fill('nguyenvana');
-    await page.locator('input[aria-label="Mật khẩu"]').fill('123456');
+    await page.locator('input[aria-label="Tên đăng nhập"]').fill(account.phone);
+    await page.locator('input[aria-label="Mật khẩu"]').fill(account.password);
     await page.locator('[data-testid="login-submit"]').click();
 
     await page.waitForURL(BASE + '/');
-    await expect(page.locator('[data-testid="user-menu"]')).toContainText('nguyenvana');
+    await expect(page.locator('[data-testid="user-menu"]')).toContainText('Nguyễn Văn E2E');
+
+    // Session survives a reload (refresh token cookie)
+    await page.reload();
+    await expect(page.locator('[data-testid="user-menu"]')).toContainText('Nguyễn Văn E2E');
+  });
+
+  test('Sai mật khẩu bị từ chối', async ({ page, request }) => {
+    const account = await registerViaApi(request);
+    await page.goto(`${BASE}/dang-nhap`);
+    await page.locator('input[aria-label="Tên đăng nhập"]').fill(account.phone);
+    await page.locator('input[aria-label="Mật khẩu"]').fill('SaiMatKhau9');
+    await page.locator('[data-testid="login-submit"]').click();
+
+    await expect(page.locator('[data-testid="auth-error"]')).toHaveText('Thông tin đăng nhập không đúng.');
+    await expect(page.locator('[data-testid="login-link"]')).toBeVisible();
+  });
+
+  test('Đăng ký bằng SĐT + OTP → đăng nhập → thêm địa chỉ', async ({ page, request }) => {
+    const phone = newPhone();
+    await page.goto(`${BASE}/dang-ky`);
+    await page.locator('input[aria-label="Số điện thoại"]').fill(phone);
+    await page.locator('[data-testid="register-send-otp"]').click();
+    const code = await latestOtp(request, phone);
+    await page.locator('input[aria-label="Mã xác thực"]').fill(code);
+    await page.locator('[data-testid="register-verify"]').click();
+    await page.locator('input[aria-label="Họ và tên"]').fill('Trần Thị Đăng Ký');
+    await page.locator('input[aria-label="Mật khẩu"]').fill('Matkhau123');
+    await page.locator('input[aria-label="Đồng ý điều khoản"]').check();
+    await page.locator('[data-testid="register-submit"]').click();
+
+    await page.waitForURL(BASE + '/');
+    await expect(page.locator('[data-testid="user-menu"]')).toContainText('Trần Thị Đăng Ký');
+
+    // Log out, log back in with the new password
+    await page.locator('[data-testid="user-menu"]').click();
+    await page.locator('[data-testid="logout"]').click();
+    await expect(page.locator('[data-testid="login-link"]')).toBeVisible();
+    await page.goto(`${BASE}/dang-nhap`);
+    await page.locator('input[aria-label="Tên đăng nhập"]').fill(phone);
+    await page.locator('input[aria-label="Mật khẩu"]').fill('Matkhau123');
+    await page.locator('[data-testid="login-submit"]').click();
+    await page.waitForURL(BASE + '/');
+
+    // Address book: Tỉnh → Quận → Phường
+    await page.goto(`${BASE}/tai-khoan/dia-chi`);
+    await page.locator('[data-testid="address-add"]').click();
+    await page.locator('input[aria-label="Tên người nhận"]').fill('Trần Thị Đăng Ký');
+    await page.locator('input[aria-label="Số điện thoại người nhận"]').fill(phone);
+    await page.locator('select[aria-label="Tỉnh/Thành phố"]').selectOption({ label: 'Thành phố Hà Nội' });
+    await page.locator('select[aria-label="Quận/Huyện"]').selectOption({ label: 'Quận Ba Đình' });
+    await page.locator('select[aria-label="Phường/Xã"]').selectOption({ label: 'Phường Phúc Xá' });
+    await page.locator('input[aria-label="Địa chỉ cụ thể"]').fill('12 Phố Thử');
+    await page.locator('[data-testid="address-save"]').click();
+
+    const item = page.locator('[data-testid="address-item"]');
+    await expect(item).toHaveCount(1);
+    await expect(item).toContainText('Phường Phúc Xá, Quận Ba Đình, Thành phố Hà Nội');
+    await expect(item).toContainText('Mặc định');
   });
 
   test('Yêu thích: tim trên thẻ sản phẩm cập nhật danh sách', async ({ page }) => {

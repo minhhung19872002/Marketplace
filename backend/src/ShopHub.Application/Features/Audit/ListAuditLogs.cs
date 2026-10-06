@@ -9,6 +9,7 @@ namespace ShopHub.Application.Features.Audit;
 public record AuditLogDto(
     Guid Id,
     Guid? UserId,
+    string? UserName,
     string? Ip,
     string Action,
     string Entity,
@@ -52,7 +53,9 @@ public sealed class ListAuditLogsHandler(IApplicationDbContext db) : IRequestHan
         return await query
             .OrderByDescending(a => a.OccurredAt).ThenByDescending(a => a.Id)
             .ToPagedResultAsync(
-                a => new AuditLogDto(a.Id, a.UserId, a.Ip, a.Action, a.Entity, a.EntityId, a.OldValue, a.NewValue, a.OccurredAt),
+                a => new AuditLogDto(a.Id, a.UserId,
+                    db.Users.IgnoreQueryFilters().Where(u => u.Id == a.UserId).Select(u => u.FullName).FirstOrDefault(),
+                    a.Ip, a.Action, a.Entity, a.EntityId, a.OldValue, a.NewValue, a.OccurredAt),
                 request, ct);
     }
 }

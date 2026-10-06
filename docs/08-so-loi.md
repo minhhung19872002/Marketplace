@@ -10,11 +10,14 @@ Ghi thẳng, có bằng chứng. Mỗi lỗi: mã, ngày, mô tả, nguyên nhâ
 | L004 | 2026-10-06 | Số lượng trong giỏ vượt tồn kho | `updateQuantity` không chặn trên | `clampQty` trong `CartContext` | như trên |
 | L005 | 2026-10-06 | Reload trang đặt hàng thành công mất tổng tiền | Chỉ đọc `location.state` | Lưu `sessionStorage` | như trên |
 | L006 | 2026-10-06 | Danh mục chọn qua URL nằm ngoài top 10 không hiện ô tích ở sidebar | Sidebar chỉ render 10 mục đầu | Luôn hiện mục từ URL/đang chọn + nút "Thêm" | Playwright tạm (commit `41cdc4a`) |
-
 | L007 | 2026-10-06 | `deploy/nginx/spa.conf` thiếu `limit_req_status 429`, `resolver`, trang lỗi JSON | Viết trước khi có luật chung | Bổ sung đủ bộ cấu hình chung | `NginxConfigParityTests` đỏ → xanh |
 | L008 | 2026-10-06 | Màu viết thẳng trong TSX (`Banner.tsx` gradient, icon SVG `#fff`/`#999` ở `Header.tsx`, ảnh dự phòng ở `MallBrands.tsx`) | Mã kế thừa từ bản giả | Chuyển sang biến CSS / `currentColor` / `data/products.ts` | `palette.test.ts` đỏ trên bản cũ → xanh |
 | L009 | 2026-10-06 | Đếm ngược Flash Sale theo giờ máy khách (`getHours`) | Mã kế thừa | `lib/datetime.secondsToNextSlot` theo giờ Việt Nam | `datetime.test.ts` |
 | L010 | 2026-10-06 | Đường dẫn API không tồn tại trả 401 thay vì 404 | `FallbackPolicy` áp cả khi không khớp endpoint | Bỏ fallback, dựa vào `EndpointAuthorisationTests` | `Unknown_route_is_a_json_404` |
+| L011 | 2026-10-06 | Sink Serilog → PostgreSQL **chưa từng ghi được dòng nào** từ Phase 1 | (1) `Serilog.Sinks.PostgreSQL` 2.1.0 gọi `NpgsqlBinaryImporter.Complete()` kiểu cũ → `MissingMethodException` ở Npgsql 8; (2) bộ ghi thời gian gửi `DateTimeOffset` +07:00, Npgsql 8 chỉ nhận UTC. Cả hai lỗi bị nuốt trong SelfLog. | `useCopy: false` + `UtcTimestampColumnWriter`; thêm `SH_SERILOG_SELFLOG` để chẩn đoán | `Seeded_credentials_never_reach_the_log_table` (có đối chứng dương: cảnh báo đã biết phải xuất hiện trong `sys.logs`) |
+| L012 | 2026-10-06 | Mật khẩu quản trị khởi tạo ghi vào tệp log và bảng `sys.logs` | Gieo dữ liệu dùng `logger.LogWarning` | In ra stdout (`[SEED]`), không qua Serilog; xoá dòng đã lọt ở môi trường dev | như trên — đỏ khi dùng logger, xanh sau khi sửa |
+| L013 | 2026-10-06 | E2E không nhận được OTP trên stack | Giới hạn 10 OTP/phút/IP (mọi test chung IP) + helper không kiểm phản hồi nên lỗi 429 bị che; thêm vào đó regex trong test bị chèn ký tự backspace (0x08) | Giới hạn cấu hình được (`SH_RATE_LIMIT_*`), helper kiểm `res.ok()`, sửa regex | 24 → 26 e2e xanh trên stack |
+| L014 | 2026-10-06 | Nhật ký thao tác ghi IP dạng `::ffff:192.168.x.x` lẫn `192.168.x.x` | IPv4 ánh xạ sang IPv6 khi gọi thẳng Kestrel | Chuẩn hoá về IPv4 trong `HttpCurrentUser` | kiểm thủ công trang Nhật ký |
 
 > L001–L006 sửa trước khi có quy trình "đỏ trước, xanh sau" của mục 8; từ Phase 1 mọi lỗi phải kèm phép thử
 > đỏ trước khi sửa và nằm lại trong bộ test.

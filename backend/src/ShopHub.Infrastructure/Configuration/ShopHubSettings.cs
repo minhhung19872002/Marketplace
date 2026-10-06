@@ -13,6 +13,16 @@ public sealed class ShopHubSettings
     public string? MeiliMasterKey { get; init; }
     public bool MigrateOnStartup { get; init; }
     public bool JobsEnabled { get; init; }
+    public required string JwtSecret { get; init; }
+    public required string SmtpHost { get; init; }
+    public int SmtpPort { get; init; }
+    public required string SmtpFrom { get; init; }
+
+    // "simulated" (default) writes SMS to sys.simulated_sms; a real provider plugs in behind ISmsSender
+    public required string SmsProvider { get; init; }
+
+    // Sample accounts/data for demo (on by default; set SH_SEED_SAMPLE=false for a clean production DB)
+    public bool SeedSampleData { get; init; }
 
     public static ShopHubSettings FromConfiguration(IConfiguration config)
     {
@@ -38,6 +48,14 @@ public sealed class ShopHubSettings
             MeiliMasterKey = config["SH_MEILI_MASTER_KEY"],
             MigrateOnStartup = !string.Equals(config["SH_DB_MIGRATE"], "false", StringComparison.OrdinalIgnoreCase),
             JobsEnabled = !string.Equals(config["SH_JOBS_ENABLED"], "false", StringComparison.OrdinalIgnoreCase),
+            JwtSecret = config["SH_JWT_SECRET"] is { Length: >= 32 } secret
+                ? secret
+                : throw new InvalidOperationException("SH_JWT_SECRET phải có ít nhất 32 ký tự."),
+            SmtpHost = config["SH_SMTP_HOST"] ?? "localhost",
+            SmtpPort = int.TryParse(config["SH_SMTP_PORT"], out var smtpPort) ? smtpPort : 18125,
+            SmtpFrom = config["SH_SMTP_FROM"] ?? "ShopHub <no-reply@shophub.local>",
+            SmsProvider = config["SH_SMS_PROVIDER"] ?? "simulated",
+            SeedSampleData = !string.Equals(config["SH_SEED_SAMPLE"], "false", StringComparison.OrdinalIgnoreCase),
         };
     }
 }

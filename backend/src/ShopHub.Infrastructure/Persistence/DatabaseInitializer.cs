@@ -30,6 +30,7 @@ public static class DatabaseInitializer
         }
 
         await SeedSystemParametersAsync(db, logger, ct);
+        await sp.GetRequiredService<ShopHub.Infrastructure.Seed.IdentitySeeder>().SeedAsync(settings.SeedSampleData, ct);
 
         if (settings.JobsEnabled)
             await sp.GetRequiredService<IJobScheduler>().RegisterRecurringJobsAsync(ct);

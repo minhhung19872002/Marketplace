@@ -19,12 +19,25 @@ public static class ParameterKeys
     public const string JobOutboxMaxAttempts = "JOB.OUTBOX_MAX_ATTEMPTS";
     public const string JobOutboxCleanupCron = "JOB.OUTBOX_CLEANUP_CRON";
     public const string JobOutboxRetentionDays = "JOB.OUTBOX_RETENTION_DAYS";
+
+    public const string AuthAccessTokenMinutes = "AUTH.ACCESS_TOKEN_MINUTES";
+    public const string AuthRefreshTokenDays = "AUTH.REFRESH_TOKEN_DAYS";
+    public const string AuthMaxFailedLogin = "AUTH.MAX_FAILED_LOGIN";
+    public const string AuthLockoutMinutes = "AUTH.LOCKOUT_MINUTES";
+    public const string AuthOtpTtlSeconds = "AUTH.OTP_TTL_SECONDS";
+    public const string AuthOtpMaxAttempts = "AUTH.OTP_MAX_ATTEMPTS";
+    public const string AuthOtpResendSeconds = "AUTH.OTP_RESEND_SECONDS";
+    public const string AuthOtpMaxPerHour = "AUTH.OTP_MAX_PER_HOUR";
+
+    public const string AccountMaxAddresses = "ACCOUNT.MAX_ADDRESSES";
 }
 
 public static class ParameterGroups
 {
     public const string Site = "SITE";
     public const string Job = "JOB";
+    public const string Auth = "AUTH";
+    public const string Account = "ACCOUNT";
 }
 
 public record ParameterDefinition(
@@ -60,5 +73,25 @@ public static class ParameterCatalog
             "Lịch dọn outbox", "Cron dọn tin outbox đã gửi (mặc định 02:00 giờ Việt Nam = 19:00 UTC)."),
         new(ParameterKeys.JobOutboxRetentionDays, "14", ParameterDataType.Int, ParameterGroups.Job,
             "Số ngày giữ outbox đã gửi", "Tin đã gửi cũ hơn số ngày này sẽ bị xoá."),
+
+        new(ParameterKeys.AuthAccessTokenMinutes, "15", ParameterDataType.Int, ParameterGroups.Auth,
+            "Hạn access token (phút)", "Thời gian sống của access token."),
+        new(ParameterKeys.AuthRefreshTokenDays, "30", ParameterDataType.Int, ParameterGroups.Auth,
+            "Hạn refresh token (ngày)", "Sau số ngày này không dùng, phiên đăng nhập hết hạn."),
+        new(ParameterKeys.AuthMaxFailedLogin, "5", ParameterDataType.Int, ParameterGroups.Auth,
+            "Số lần đăng nhập sai tối đa", "Sai liên tiếp số lần này thì tài khoản bị khoá tạm."),
+        new(ParameterKeys.AuthLockoutMinutes, "15", ParameterDataType.Int, ParameterGroups.Auth,
+            "Thời gian khoá tạm (phút)", "Thời gian khoá sau khi đăng nhập sai quá số lần cho phép."),
+        new(ParameterKeys.AuthOtpTtlSeconds, "300", ParameterDataType.Int, ParameterGroups.Auth,
+            "Hạn mã OTP (giây)", "Mã OTP hết hiệu lực sau số giây này."),
+        new(ParameterKeys.AuthOtpMaxAttempts, "5", ParameterDataType.Int, ParameterGroups.Auth,
+            "Số lần nhập OTP sai tối đa", "Sai quá số lần này mã bị vô hiệu, phải gửi mã mới."),
+        new(ParameterKeys.AuthOtpResendSeconds, "60", ParameterDataType.Int, ParameterGroups.Auth,
+            "Chờ gửi lại OTP (giây)", "Khoảng cách tối thiểu giữa hai lần gửi mã cho cùng một đích."),
+        new(ParameterKeys.AuthOtpMaxPerHour, "5", ParameterDataType.Int, ParameterGroups.Auth,
+            "Số OTP tối đa mỗi giờ", "Số mã tối đa gửi tới một số điện thoại/email trong 60 phút."),
+
+        new(ParameterKeys.AccountMaxAddresses, "10", ParameterDataType.Int, ParameterGroups.Account,
+            "Số địa chỉ tối đa", "Số địa chỉ nhận hàng tối đa của một tài khoản."),
     ];
 }

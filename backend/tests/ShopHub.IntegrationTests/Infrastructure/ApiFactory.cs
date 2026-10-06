@@ -1,13 +1,19 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using ShopHub.Application.Abstractions;
 using ShopHub.Application.Security;
+using ShopHub.Domain.Iam;
+using ShopHub.Infrastructure.Outbox;
 using ShopHub.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -19,6 +25,7 @@ namespace ShopHub.IntegrationTests.Infrastructure;
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public const string JwtSecret = "integration-test-secret-key-at-least-32-chars!";
+    public const string DefaultPassword = "Matkhau123";
 
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:16-alpine")
@@ -33,6 +40,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("redis-cli", "ping"))
         .Build();
 
+    private static int _phoneSeq = Random.Shared.Next(1_000_000, 9_000_000);
+
     public string ConnectionString => _postgres.GetConnectionString();
     public string RedisEndpoint => $"{_redis.Hostname}:{_redis.GetMappedPublicPort(6379)}";
 
@@ -45,9 +54,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("SH_REDIS_URL", RedisEndpoint);
         Environment.SetEnvironmentVariable("SH_JWT_SECRET", JwtSecret);
         Environment.SetEnvironmentVariable("SH_JOBS_ENABLED", "false");
+        Environment.SetEnvironmentVariable("SH_SEED_SAMPLE", "false");
         Environment.SetEnvironmentVariable("SH_MINIO_ENDPOINT", "127.0.0.1:1");
         Environment.SetEnvironmentVariable("SH_MEILI_URL", "http://127.0.0.1:1");
         Environment.SetEnvironmentVariable("SH_LOG_DIR", Path.Combine(Path.GetTempPath(), "shophub-it-logs"));
+
+        // The whole suite signs in from one IP
+        Environment.SetEnvironmentVariable("SH_RATE_LIMIT_AUTH", "100000");
+        Environment.SetEnvironmentVariable("SH_RATE_LIMIT_OTP", "100000");
 
         // Force host start (migrations + seed) before tests run
         _ = Server;
@@ -59,21 +73,93 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await Task.WhenAll(_postgres.DisposeAsync().AsTask(), _redis.DisposeAsync().AsTask());
     }
 
-    public HttpClient ClientWithPermissions(params string[] permissions)
+    /// <summary>Unique, valid-looking Vietnamese mobile number per call.</summary>
+    public static string NewPhone() => $"09{Interlocked.Increment(ref _phoneSeq):D8}";
+
+    public HttpClient Authorized(string accessToken)
     {
         var client = CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", IssueToken(Guid.NewGuid(), permissions));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return client;
     }
 
+    /// <summary>Create a user directly in the DB (optionally with a role holding the given permissions) and sign in via the API.</summary>
+    public async Task<TestUser> CreateUserAsync(params string[] permissions)
+    {
+        var phone = NewPhone();
+        Guid userId;
+        using (var scope = Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ShopHubDbContext>();
+            var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+            var user = User.Register(phone, null, hasher.Hash(DefaultPassword), $"Người thử {phone[^4..]}", DateTimeOffset.UtcNow);
+            db.Users.Add(user);
+            if (permissions.Length > 0)
+            {
+                var role = new Role($"T_{Guid.NewGuid():N}"[..20].ToUpperInvariant(), "Vai trò thử", "", isSystem: false);
+                role.SetPermissions(permissions);
+                db.Roles.Add(role);
+                db.UserRoles.Add(new UserRole(user.Id, role.Id));
+            }
+            await db.SaveChangesAsync();
+            userId = user.Id;
+        }
+
+        var login = await LoginAsync(phone, DefaultPassword);
+        return new TestUser(userId, phone, login.AccessToken, login.RefreshToken, Authorized(login.AccessToken));
+    }
+
+    public Task<HttpClient> ClientWithPermissionsAsync(params string[] permissions) =>
+        CreateUserAsync(permissions).ContinueWith(t => t.Result.Client);
+
+    public async Task<LoginData> LoginAsync(string identifier, string password)
+    {
+        var response = await CreateClient().PostAsJsonAsync("/api/auth/login", new { identifier, password });
+        response.EnsureSuccessStatusCode();
+        return (await response.ReadEnvelopeAsync<LoginData>()).Data!;
+    }
+
+    /// <summary>Deliver pending outbox messages (background jobs are disabled in tests).</summary>
+    public async Task<OutboxDispatchResult> DispatchOutboxAsync()
+    {
+        using var scope = Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<OutboxDispatcher>().DispatchAsync(CancellationToken.None);
+    }
+
+    /// <summary>Read the newest OTP texted to a phone by the simulated SMS provider.</summary>
+    public async Task<string> LatestOtpAsync(string phone)
+    {
+        await DispatchOutboxAsync();
+        var text = await WithDbAsync(db => db.SimulatedSms.Where(s => s.To == phone)
+            .OrderByDescending(s => s.CreatedAt).Select(s => s.Content).FirstAsync());
+        return System.Text.RegularExpressions.Regex.Match(text, @"\b\d{6}\b").Value;
+    }
+
+    /// <summary>Full phone + OTP registration through the public API.</summary>
+    public async Task<LoginData> RegisterAsync(string phone, string password = DefaultPassword, string fullName = "Khách Hàng Thử")
+    {
+        var client = CreateClient();
+        (await client.PostAsJsonAsync("/api/auth/otp/send", new { target = phone, purpose = "Register" })).EnsureSuccessStatusCode();
+        var code = await LatestOtpAsync(ShopHub.Application.Identity.Identifiers.NormalisePhone(phone) ?? phone);
+        var verify = await client.PostAsJsonAsync("/api/auth/otp/verify", new { target = phone, purpose = "Register", code });
+        verify.EnsureSuccessStatusCode();
+        var ticket = (await verify.ReadEnvelopeAsync()).Data.GetProperty("ticket").GetString();
+        var register = await client.PostAsJsonAsync("/api/auth/register",
+            new { target = phone, ticket, password, fullName, acceptTerms = true });
+        register.EnsureSuccessStatusCode();
+        return (await register.ReadEnvelopeAsync<LoginData>()).Data!;
+    }
+
+    // Hand-signed tokens are only used to prove that forged/expired tokens are refused
     public static string IssueToken(Guid userId, IEnumerable<string> permissions, TimeSpan? lifetime = null)
     {
-        var claims = new List<Claim> { new("sub", userId.ToString()) };
+        var claims = new List<Claim> { new("sub", userId.ToString()), new("sid", Guid.NewGuid().ToString()) };
         claims.AddRange(permissions.Select(p => new Claim(Permissions.ClaimType, p)));
         var token = new JwtSecurityToken(
             issuer: "ShopHub",
             audience: "ShopHub",
             claims: claims,
+            notBefore: DateTime.UtcNow.AddMinutes(-30),
             expires: DateTime.UtcNow.Add(lifetime ?? TimeSpan.FromMinutes(15)),
             signingCredentials: new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret)), SecurityAlgorithms.HmacSha256));
@@ -93,8 +179,19 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     }
 }
 
+public record LoginUser(Guid Id, string FullName, string? Phone, string? Email, bool MustChangePassword);
+
+public record LoginData(string AccessToken, DateTimeOffset AccessTokenExpiresAt, string RefreshToken, DateTimeOffset RefreshTokenExpiresAt, LoginUser User);
+
+public record TestUser(Guid Id, string Phone, string AccessToken, string RefreshToken, HttpClient Client);
+
 [CollectionDefinition(Name)]
 public sealed class ApiCollection : ICollectionFixture<ApiFactory>
 {
     public const string Name = "api";
+}
+
+internal static class JsonElementExtensions
+{
+    public static string Str(this JsonElement e, string name) => e.GetProperty(name).GetString()!;
 }

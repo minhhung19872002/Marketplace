@@ -1,4 +1,5 @@
 using NpgsqlTypes;
+using Serilog.Events;
 using Serilog.Sinks.PostgreSQL;
 
 namespace ShopHub.Infrastructure.Logging;
@@ -11,7 +12,7 @@ public static class LogTableColumns
 {
     public static readonly IDictionary<string, ColumnWriterBase> Writers = new Dictionary<string, ColumnWriterBase>
     {
-        ["raise_date"] = new TimestampColumnWriter(NpgsqlDbType.TimestampTz),
+        ["raise_date"] = new UtcTimestampColumnWriter(),
         ["level"] = new LevelColumnWriter(true, NpgsqlDbType.Varchar),
         ["message"] = new RenderedMessageColumnWriter(NpgsqlDbType.Text),
         ["message_template"] = new MessageTemplateColumnWriter(NpgsqlDbType.Text),
@@ -31,4 +32,14 @@ public static class LogTableColumns
         );
         CREATE INDEX IF NOT EXISTS ix_logs_raise_date ON sys.logs (raise_date DESC, id DESC);
         """;
+}
+
+/// <summary>
+/// Npgsql 8 only accepts UTC DateTimeOffset for timestamptz; the stock writer passes the local offset (+07:00)
+/// and every batch fails silently. Always store the UTC instant.
+/// </summary>
+public sealed class UtcTimestampColumnWriter() : ColumnWriterBase(NpgsqlDbType.TimestampTz)
+{
+    public override object GetValue(LogEvent logEvent, IFormatProvider? formatProvider = null) =>
+        logEvent.Timestamp.ToUniversalTime();
 }

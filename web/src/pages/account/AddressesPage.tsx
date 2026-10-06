@@ -1,0 +1,153 @@
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { accountApi, type Address, type AddressInput, type AddressType } from '../../api/account';
+import { ApiError } from '../../api/http';
+
+const EMPTY: AddressInput = {
+  receiverName: '',
+  phone: '',
+  provinceCode: '',
+  districtCode: '',
+  wardCode: '',
+  street: '',
+  type: 'Home',
+  isDefault: false,
+};
+
+const AddressForm = ({ initial, onDone }: { initial: Address | null; onDone: () => void }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<AddressInput>(initial ? { ...initial } : EMPTY);
+  const set = <K extends keyof AddressInput>(key: K, value: AddressInput[K]) => setForm((f) => ({ ...f, [key]: value }));
+
+  const provinces = useQuery({ queryKey: ['divisions', ''], queryFn: () => accountApi.divisions(), staleTime: Infinity });
+  const districts = useQuery({
+    queryKey: ['divisions', form.provinceCode],
+    queryFn: () => accountApi.divisions(form.provinceCode),
+    enabled: Boolean(form.provinceCode),
+    staleTime: Infinity,
+  });
+  const wards = useQuery({
+    queryKey: ['divisions', form.districtCode],
+    queryFn: () => accountApi.divisions(form.districtCode),
+    enabled: Boolean(form.districtCode),
+    staleTime: Infinity,
+  });
+
+  const save = useMutation({
+    mutationFn: () => (initial ? accountApi.updateAddress(initial.id, form) : accountApi.createAddress(form)),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['addresses'] });
+      onDone();
+    },
+  });
+  const errors = save.error instanceof ApiError ? save.error.fieldErrors.map((f) => f.message) : [];
+  const errorMessage = save.isError
+    ? errors.length > 0 ? errors.join(' ') : save.error instanceof ApiError ? save.error.message : 'Đã có lỗi xảy ra.'
+    : '';
+
+  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    save.mutate();
+  };
+
+  return (
+    <form className="account-form address-form" onSubmit={onSubmit} data-testid="address-form">
+      <h2 className="account-card-title">{initial ? 'Cập nhật địa chỉ' : 'Địa chỉ mới'}</h2>
+      <div className="address-grid">
+        <input className="account-input" placeholder="Họ và tên" value={form.receiverName}
+          onChange={(e) => set('receiverName', e.target.value)} aria-label="Tên người nhận" />
+        <input className="account-input" placeholder="Số điện thoại" value={form.phone}
+          onChange={(e) => set('phone', e.target.value)} aria-label="Số điện thoại người nhận" />
+      </div>
+      <select className="account-input" value={form.provinceCode} aria-label="Tỉnh/Thành phố"
+        onChange={(e) => setForm((f) => ({ ...f, provinceCode: e.target.value, districtCode: '', wardCode: '' }))}>
+        <option value="">Tỉnh/Thành phố</option>
+        {provinces.data?.map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
+      </select>
+      <select className="account-input" value={form.districtCode} aria-label="Quận/Huyện" disabled={!form.provinceCode}
+        onChange={(e) => setForm((f) => ({ ...f, districtCode: e.target.value, wardCode: '' }))}>
+        <option value="">Quận/Huyện</option>
+        {districts.data?.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
+      </select>
+      <select className="account-input" value={form.wardCode} aria-label="Phường/Xã" disabled={!form.districtCode}
+        onChange={(e) => set('wardCode', e.target.value)}>
+        <option value="">Phường/Xã</option>
+        {wards.data?.map((w) => <option key={w.code} value={w.code}>{w.name}</option>)}
+      </select>
+      <input className="account-input" placeholder="Địa chỉ cụ thể (số nhà, tên đường)" value={form.street}
+        onChange={(e) => set('street', e.target.value)} aria-label="Địa chỉ cụ thể" />
+      <div className="account-radios">
+        {(['Home', 'Office'] as AddressType[]).map((t) => (
+          <label key={t} className="account-radio">
+            <input type="radio" name="address-type" checked={form.type === t} onChange={() => set('type', t)} />
+            {t === 'Home' ? 'Nhà riêng' : 'Văn phòng'}
+          </label>
+        ))}
+      </div>
+      <label className="account-radio">
+        <input type="checkbox" checked={form.isDefault} onChange={(e) => set('isDefault', e.target.checked)} />
+        Đặt làm địa chỉ mặc định
+      </label>
+      {errorMessage && <div className="account-error" role="alert">{errorMessage}</div>}
+      <div className="account-actions">
+        <button type="button" className="account-btn-outline" onClick={onDone}>Trở lại</button>
+        <button type="submit" className="account-btn-primary" disabled={save.isPending} data-testid="address-save">Hoàn thành</button>
+      </div>
+    </form>
+  );
+};
+
+const AddressesPage = () => {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState<Address | 'new' | null>(null);
+  const addresses = useQuery({ queryKey: ['addresses'], queryFn: accountApi.addresses });
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['addresses'] });
+  const setDefault = useMutation({ mutationFn: accountApi.setDefaultAddress, onSuccess: refresh });
+  const remove = useMutation({ mutationFn: accountApi.deleteAddress, onSuccess: refresh });
+
+  return (
+    <div className="account-card">
+      <div className="account-card-head account-card-head-row">
+        <h1 className="account-card-title">Địa Chỉ Của Tôi</h1>
+        {!editing && (
+          <button className="account-btn-primary" onClick={() => setEditing('new')} data-testid="address-add">
+            + Thêm địa chỉ mới
+          </button>
+        )}
+      </div>
+
+      {editing && <AddressForm initial={editing === 'new' ? null : editing} onDone={() => setEditing(null)} />}
+
+      {addresses.isPending && <div className="account-skeleton" aria-busy="true" />}
+      {addresses.isError && <div className="account-error">Không tải được danh sách địa chỉ.</div>}
+      {addresses.data?.length === 0 && !editing && <div className="account-empty">Bạn chưa có địa chỉ nào.</div>}
+
+      <ul className="address-list">
+        {addresses.data?.map((a) => (
+          <li key={a.id} className="address-item" data-testid="address-item">
+            <div className="address-main">
+              <div>
+                <strong>{a.receiverName}</strong> <span className="address-phone">| {a.phone}</span>
+              </div>
+              <div className="address-line">{a.street}</div>
+              <div className="address-line">{a.wardName}, {a.districtName}, {a.provinceName}</div>
+              {a.isDefault && <span className="address-default">Mặc định</span>}
+            </div>
+            <div className="address-actions">
+              <button className="account-link" onClick={() => setEditing(a)}>Cập nhật</button>
+              {!a.isDefault && (
+                <>
+                  <button className="account-link" onClick={() => remove.mutate(a.id)}>Xoá</button>
+                  <button className="account-btn-outline" onClick={() => setDefault.mutate(a.id)}>Thiết lập mặc định</button>
+                </>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default AddressesPage;

@@ -1,0 +1,79 @@
+import { useState } from 'react'
+import { Alert, DatePicker, Input, Select, Space, Table, Tag, Typography } from 'antd'
+import { useQuery } from '@tanstack/react-query'
+import type { Dayjs } from 'dayjs'
+import { adminApi, type AuditLog } from '../api/admin'
+import { ApiError } from '../api/http'
+import { formatDateTime, vnDayBoundsIso } from '../lib/datetime'
+
+const ACTION_COLOR = { CREATE: 'green', UPDATE: 'blue', DELETE: 'red' } as const
+
+const pretty = (json: string | null) => {
+  if (!json) return '—'
+  try {
+    return JSON.stringify(JSON.parse(json), null, 2)
+  } catch {
+    return json
+  }
+}
+
+const AuditLogsPage = () => {
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [action, setAction] = useState<string | undefined>()
+  const [entity, setEntity] = useState('')
+  const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
+
+  // The picker yields calendar days; bounds are computed in Vietnam time
+  const { from, to } = vnDayBoundsIso(range?.[0]?.format('YYYY-MM-DD'), range?.[1]?.format('YYYY-MM-DD'))
+  const logs = useQuery({
+    queryKey: ['audit', page, pageSize, action, entity, from, to],
+    queryFn: () => adminApi.auditLogs({ page, pageSize, action, entity, from, to }),
+  })
+
+  return (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Typography.Title level={3} style={{ margin: 0 }}>Nhật ký thao tác</Typography.Title>
+      <Space wrap>
+        <Select placeholder="Hành động" allowClear style={{ width: 140 }} value={action}
+          onChange={(v) => { setAction(v); setPage(1) }}
+          options={[{ value: 'CREATE', label: 'Tạo' }, { value: 'UPDATE', label: 'Sửa' }, { value: 'DELETE', label: 'Xoá' }]} />
+        <Input.Search placeholder="Đối tượng (VD: User)" allowClear style={{ width: 220 }} onSearch={(v) => { setEntity(v); setPage(1) }} />
+        <DatePicker.RangePicker format="DD/MM/YYYY" value={range} onChange={(v) => { setRange(v); setPage(1) }} />
+      </Space>
+      {logs.isError && <Alert type="error" showIcon message={logs.error instanceof ApiError ? logs.error.message : 'Không tải được nhật ký.'} />}
+      <Table<AuditLog>
+        rowKey="id"
+        loading={logs.isPending}
+        dataSource={logs.data?.items}
+        pagination={{
+          current: page,
+          pageSize,
+          total: logs.data?.totalCount,
+          showSizeChanger: true,
+          onChange: (p, s) => { setPage(p); setPageSize(s) },
+        }}
+        expandable={{
+          expandedRowRender: (l) => (
+            <div className="diff-grid">
+              <div><Typography.Text strong>Trước</Typography.Text><pre>{pretty(l.oldValue)}</pre></div>
+              <div><Typography.Text strong>Sau</Typography.Text><pre>{pretty(l.newValue)}</pre></div>
+            </div>
+          ),
+        }}
+        columns={[
+          { title: 'Thời điểm', dataIndex: 'occurredAt', render: (v: string) => formatDateTime(v) },
+          { title: 'Hành động', dataIndex: 'action', render: (a: AuditLog['action']) => <Tag color={ACTION_COLOR[a]}>{a}</Tag> },
+          { title: 'Đối tượng', render: (_, l) => <>{l.entity} <Typography.Text type="secondary" code>{l.entityId}</Typography.Text></> },
+          {
+            title: 'Người làm',
+            render: (_, l) => (l.userId ? <span title={l.userId}>{l.userName ?? l.userId}</span> : 'Hệ thống'),
+          },
+          { title: 'IP', dataIndex: 'ip', render: (v: string | null) => v ?? '—' },
+        ]}
+      />
+    </Space>
+  )
+}
+
+export default AuditLogsPage

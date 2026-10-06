@@ -19,6 +19,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
                 "Dữ liệu gửi lên chưa hợp lệ.",
                 ve.Errors.Select(e => new ApiError(ToCamel(e.PropertyName), e.ErrorMessage)).ToList())),
             NotFoundException nf => (StatusCodes.Status404NotFound, ApiResponse.Fail(nf.Message)),
+            AuthenticationFailedException af => (StatusCodes.Status401Unauthorized, ApiResponse.Fail(af.Message)),
             ConflictException ce => (StatusCodes.Status409Conflict, ApiResponse.Fail(ce.Message)),
             BusinessRuleException be => (StatusCodes.Status409Conflict, ApiResponse.Fail(be.Message)),
             BadHttpRequestException bhr => (bhr.StatusCode, ApiResponse.Fail(
@@ -36,8 +37,14 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         return true;
     }
 
-    private static string ToCamel(string propertyName) =>
-        string.IsNullOrEmpty(propertyName) ? string.Empty : JsonNamingPolicy.CamelCase.ConvertName(propertyName);
+    // "Input.ReceiverName" → "receiverName": camelCase every segment and drop the command's wrapper ("Input")
+    private static string ToCamel(string propertyName)
+    {
+        if (string.IsNullOrEmpty(propertyName)) return string.Empty;
+        var segments = propertyName.Split('.').Select(JsonNamingPolicy.CamelCase.ConvertName).ToList();
+        if (segments.Count > 1 && segments[0] == "input") segments.RemoveAt(0);
+        return string.Join('.', segments);
+    }
 }
 
 public static class StatusCodeEnvelope

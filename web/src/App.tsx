@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
 import { WishlistProvider } from './context/WishlistContext'
@@ -21,6 +21,12 @@ const OrderSuccess = lazy(() => import('./pages/OrderSuccess'))
 const Wishlist = lazy(() => import('./pages/Wishlist'))
 const Notifications = lazy(() => import('./pages/Notifications'))
 const ShopPage = lazy(() => import('./pages/ShopPage'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
+const AccountLayout = lazy(() => import('./pages/account/AccountLayout'))
+const ProfilePage = lazy(() => import('./pages/account/ProfilePage'))
+const AddressesPage = lazy(() => import('./pages/account/AddressesPage'))
+const PasswordPage = lazy(() => import('./pages/account/PasswordPage'))
+const DevicesPage = lazy(() => import('./pages/account/DevicesPage'))
 
 const PageLoader = () => (
   <div className="page-loader">
@@ -51,6 +57,14 @@ function App() {
                     <Route path="/yeu-thich" element={<Wishlist />} />
                     <Route path="/thong-bao" element={<Notifications />} />
                     <Route path="/shop" element={<ShopPage />} />
+                    <Route path="/quen-mat-khau" element={<ForgotPassword />} />
+                    <Route path="/tai-khoan" element={<AccountLayout />}>
+                      <Route index element={<Navigate to="ho-so" replace />} />
+                      <Route path="ho-so" element={<ProfilePage />} />
+                      <Route path="dia-chi" element={<AddressesPage />} />
+                      <Route path="mat-khau" element={<PasswordPage />} />
+                      <Route path="thiet-bi" element={<DevicesPage />} />
+                    </Route>
                   </Routes>
                 </Suspense>
               </main>

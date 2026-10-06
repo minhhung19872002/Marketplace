@@ -1,61 +1,114 @@
-import { useEffect, useState } from 'react'
-import { Layout, Menu, Typography, Card, Tag, Space } from 'antd'
-import { fetchHealth, type HealthStatus } from './api/system'
+import { useEffect } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { App as AntApp, Button, Layout, Menu, Result, Space, Spin, Typography } from 'antd'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { adminApi } from './api/admin'
+import { refreshSession } from './api/http'
+import { P, can } from './permissions'
+import { useAuthStore } from './stores/auth'
+import LoginPage from './pages/LoginPage'
+import ChangePasswordPage from './pages/ChangePasswordPage'
+import DashboardPage from './pages/DashboardPage'
+import UsersPage from './pages/UsersPage'
+import RolesPage from './pages/RolesPage'
+import ParametersPage from './pages/ParametersPage'
+import AuditLogsPage from './pages/AuditLogsPage'
+import './App.css'
 
 const { Header, Sider, Content } = Layout
 
-const MENU_ITEMS = ['Tổng quan', 'Người dùng', 'Shop', 'Ngành hàng & sản phẩm', 'Đơn hàng & khiếu nại', 'Marketing', 'Tài chính', 'Cấu hình']
+// Menu entries appear only when the signed-in admin holds the permission (the API enforces it regardless)
+const MENU = [
+  { path: '/', label: 'Tổng quan', permission: null },
+  { path: '/nguoi-dung', label: 'Người dùng', permission: P.UserView },
+  { path: '/vai-tro', label: 'Vai trò & quyền', permission: P.RoleView },
+  { path: '/tham-so', label: 'Tham số hệ thống', permission: P.SystemParameterView },
+  { path: '/nhat-ky', label: 'Nhật ký thao tác', permission: P.AuditLogView },
+] as const
 
-const STATUS_LABEL: Record<HealthStatus, { text: string; color: string }> = {
-  Healthy: { text: 'Hoạt động', color: 'success' },
-  Degraded: { text: 'Suy giảm', color: 'warning' },
-  Unhealthy: { text: 'Lỗi', color: 'error' },
-  Unreachable: { text: 'Không kết nối được', color: 'default' },
-}
+const Forbidden = () => <Result status="403" title="Không có quyền" subTitle="Bạn không có quyền truy cập trang này." />
 
-function App() {
-  const [health, setHealth] = useState<HealthStatus | null>(null)
+const Shell = () => {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const queryClient = useQueryClient()
+  const { user, clear } = useAuthStore()
+  const me = useQuery({ queryKey: ['me'], queryFn: adminApi.me })
+  const perms = me.data?.permissions ?? []
+  const items = MENU.filter((m) => m.permission === null || can(perms, m.permission))
+  const guard = (permission: string, element: JSX.Element) => (can(perms, permission) ? element : <Forbidden />)
 
-  useEffect(() => {
-    const ctrl = new AbortController()
-    fetchHealth(ctrl.signal).then(setHealth)
-    return () => ctrl.abort()
-  }, [])
+  const logout = async () => {
+    await adminApi.logout().catch(() => undefined)
+    clear()
+    queryClient.clear()
+  }
+
+  if (me.isPending) return <div className="center-screen"><Spin size="large" /></div>
+  if (me.data && me.data.permissions.length === 0) {
+    return (
+      <Result status="403" title="Tài khoản không có quyền quản trị"
+        extra={<Button onClick={logout}>Đăng xuất</Button>} />
+    )
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={220} theme="light">
-        <Typography.Title level={4} style={{ padding: '16px 24px', margin: 0 }}>
-          ShopHub
-        </Typography.Title>
+      <Sider width={230} theme="light" breakpoint="lg" collapsedWidth={0}>
+        <Typography.Title level={4} className="brand">ShopHub</Typography.Title>
         <Menu
           mode="inline"
-          defaultSelectedKeys={['0']}
-          items={MENU_ITEMS.map((label, i) => ({ key: String(i), label }))}
+          selectedKeys={[items.find((m) => m.path !== '/' && location.pathname.startsWith(m.path))?.path ?? '/']}
+          items={items.map((m) => ({ key: m.path, label: m.label }))}
+          onClick={(e) => navigate(e.key)}
+          data-testid="admin-menu"
         />
       </Sider>
       <Layout>
-        <Header style={{ background: 'transparent', paddingInline: 24 }}>
-          <Typography.Title level={3} style={{ margin: '16px 0' }}>
-            Quản Trị Sàn
-          </Typography.Title>
+        <Header className="app-header">
+          <Typography.Text strong>Quản Trị Sàn</Typography.Text>
+          <Space>
+            <Typography.Text>{user?.fullName}</Typography.Text>
+            <Button size="small" onClick={() => navigate('/doi-mat-khau')}>Đổi mật khẩu</Button>
+            <Button size="small" onClick={logout} data-testid="logout">Đăng xuất</Button>
+          </Space>
         </Header>
-        <Content style={{ padding: 24 }}>
-          <Card title="Trạng thái hệ thống">
-            <Space>
-              <span>API:</span>
-              {health ? (
-                <Tag color={STATUS_LABEL[health].color} data-testid="api-health">
-                  {STATUS_LABEL[health].text}
-                </Tag>
-              ) : (
-                <Tag>Đang kiểm tra…</Tag>
-              )}
-            </Space>
-          </Card>
+        <Content className="app-content">
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/nguoi-dung" element={guard(P.UserView, <UsersPage permissions={perms} />)} />
+            <Route path="/vai-tro" element={guard(P.RoleView, <RolesPage permissions={perms} />)} />
+            <Route path="/tham-so" element={guard(P.SystemParameterView, <ParametersPage permissions={perms} />)} />
+            <Route path="/nhat-ky" element={guard(P.AuditLogView, <AuditLogsPage />)} />
+            <Route path="/doi-mat-khau" element={<ChangePasswordPage forced={false} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </Content>
       </Layout>
     </Layout>
+  )
+}
+
+const Gate = () => {
+  const { status, user } = useAuthStore()
+
+  useEffect(() => {
+    void refreshSession()
+  }, [])
+
+  if (status === 'checking') return <div className="center-screen"><Spin size="large" /></div>
+  if (status === 'anonymous' || !user) return <LoginPage />
+  if (user.mustChangePassword) return <ChangePasswordPage forced />
+  return <Shell />
+}
+
+function App() {
+  return (
+    <AntApp>
+      <BrowserRouter basename="/admin">
+        <Gate />
+      </BrowserRouter>
+    </AntApp>
   )
 }
 

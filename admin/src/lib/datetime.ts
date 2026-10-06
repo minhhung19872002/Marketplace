@@ -41,3 +41,12 @@ export const secondsToNextSlot = (nowMs: number, slotHours: number): number => {
   const nextBoundary = Math.floor(vnWallMs / slotMs) * slotMs + slotMs;
   return Math.max(1, Math.floor((nextBoundary - vnWallMs) / 1000));
 };
+
+/**
+ * ISO instants bounding Vietnam calendar days "YYYY-MM-DD" (inclusive), e.g. for report/audit filters —
+ * independent of the browser's own time zone.
+ */
+export const vnDayBoundsIso = (fromDay?: string, toDay?: string): { from?: string; to?: string } => ({
+  from: fromDay ? new Date(`${fromDay}T00:00:00+07:00`).toISOString() : undefined,
+  to: toDay ? new Date(`${toDay}T23:59:59.999+07:00`).toISOString() : undefined,
+});

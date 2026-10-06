@@ -10,5 +10,14 @@ public interface IApplicationDbContext
     DbSet<OutboxMessage> OutboxMessages { get; }
     DbSet<AuditLog> AuditLogs { get; }
 
+    DbSet<User> Users { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<OtpCode> OtpCodes { get; }
+    DbSet<Role> Roles { get; }
+    DbSet<Permission> Permissions { get; }
+    DbSet<UserRole> UserRoles { get; }
+    DbSet<Address> Addresses { get; }
+    DbSet<AdminDivision> AdminDivisions { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -39,6 +39,7 @@ const ProductCard = ({ product }: { product: Card }) => {
           </span>
         )}
         {product.isMall && <span className="product-card-mall">Mall</span>}
+        {product.isFlashSale && <span className="product-card-flash" data-testid="product-card-flash">⚡ Flash Sale</span>}
         {!product.inStock && <span className="product-card-soldout">Hết hàng</span>}
         <button className={`product-card-heart ${liked ? 'liked' : ''}`} onClick={handleHeart} aria-label="Yêu thích" data-testid="card-heart">
           {liked ? '♥' : '♡'}

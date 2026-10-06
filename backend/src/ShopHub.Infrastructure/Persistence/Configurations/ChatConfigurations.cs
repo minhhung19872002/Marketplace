@@ -73,7 +73,10 @@ internal sealed class ChatReportConfiguration : IEntityTypeConfiguration<ChatRep
         b.ToTable("chat_reports", "engage");
         b.HasKey(r => r.Id);
         b.Property(r => r.Reason).HasMaxLength(500).IsRequired();
+        b.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(r => r.Resolution).HasMaxLength(500);
         b.HasOne<Conversation>().WithMany().HasForeignKey(r => r.ConversationId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(r => new { r.Status, r.CreatedAt }).HasDatabaseName("ix_chat_reports_status");
     }
 }
 

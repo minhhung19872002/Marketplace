@@ -17,7 +17,7 @@ public record ShopHomeQuery(Guid ShopId) : IRequest<IReadOnlyList<ShopHomeBlockD
 /// Resolves the published layout for buyers: product blocks keep only products a buyer can see (in the chosen order),
 /// a category block shows the first products of a visible category; blocks left empty are dropped.
 /// </summary>
-public sealed class ShopHomeHandler(IApplicationDbContext db) : IRequestHandler<ShopHomeQuery, IReadOnlyList<ShopHomeBlockDto>>
+public sealed class ShopHomeHandler(IApplicationDbContext db, CardPricing pricing) : IRequestHandler<ShopHomeQuery, IReadOnlyList<ShopHomeBlockDto>>
 {
     private const int CategoryPreview = 10;
 
@@ -30,8 +30,8 @@ public sealed class ShopHomeHandler(IApplicationDbContext db) : IRequestHandler<
 
         var picked = blocks.SelectMany(b => b.ProductIds ?? []).Distinct().ToList();
         var cards = picked.Count == 0 ? new Dictionary<Guid, ProductCardDto>()
-            : (await ProductCards.Visible(db).Where(p => picked.Contains(p.Id) && p.ShopId == request.ShopId).Select(ProductCards.Row(db)).ToListAsync(ct))
-                .Select(ProductCards.ToDto).ToDictionary(c => c.Id);
+            : (await pricing.ApplyAsync((await ProductCards.Visible(db).Where(p => picked.Contains(p.Id) && p.ShopId == request.ShopId)
+                .Select(ProductCards.Row(db)).ToListAsync(ct)).Select(ProductCards.ToDto).ToList(), ct)).ToDictionary(c => c.Id);
 
         var categoryIds = blocks.Where(b => b.ShopCategoryId is not null).Select(b => b.ShopCategoryId!.Value).Distinct().ToList();
         var categories = await db.ShopCategories.AsNoTracking()
@@ -41,7 +41,7 @@ public sealed class ShopHomeHandler(IApplicationDbContext db) : IRequestHandler<
         foreach (var id in categories.Keys)
         {
             var ids = await ShopCategoryListing.Members(db, id, request.ShopId).OrderBy(m => m.SortOrder).ThenBy(m => m.Id).Select(m => m.ProductId).Take(CategoryPreview).ToListAsync(ct);
-            previews[id] = await ShopCategoryListing.CardsAsync(db, ids, ct);
+            previews[id] = await pricing.ApplyAsync(await ShopCategoryListing.CardsAsync(db, ids, ct), ct);
         }
 
         var result = new List<ShopHomeBlockDto>();
@@ -97,7 +97,7 @@ internal static class ShopCategoryListing
 public record ShopCategoryProductsQuery(Guid ShopId, Guid CategoryId, int Page = 1, int PageSize = 30)
     : IRequest<PagedResult<ProductCardDto>>, IPagedRequest;
 
-public sealed class ShopCategoryProductsHandler(IApplicationDbContext db) : IRequestHandler<ShopCategoryProductsQuery, PagedResult<ProductCardDto>>
+public sealed class ShopCategoryProductsHandler(IApplicationDbContext db, CardPricing pricing) : IRequestHandler<ShopCategoryProductsQuery, PagedResult<ProductCardDto>>
 {
     public async Task<PagedResult<ProductCardDto>> Handle(ShopCategoryProductsQuery request, CancellationToken ct)
     {
@@ -105,6 +105,7 @@ public sealed class ShopCategoryProductsHandler(IApplicationDbContext db) : IReq
             throw new NotFoundException("Không tìm thấy danh mục của shop.");
         var page = await ShopCategoryListing.Members(db, request.CategoryId, request.ShopId)
             .OrderBy(m => m.SortOrder).ThenBy(m => m.Id).ToPagedResultAsync(m => m.ProductId, request, ct);
-        return new PagedResult<ProductCardDto>(await ShopCategoryListing.CardsAsync(db, page.Items, ct), page.TotalCount, page.Page, page.PageSize);
+        return new PagedResult<ProductCardDto>(await pricing.ApplyAsync(await ShopCategoryListing.CardsAsync(db, page.Items, ct), ct), page.TotalCount,
+            page.Page, page.PageSize);
     }
 }

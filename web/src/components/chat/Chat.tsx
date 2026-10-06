@@ -153,7 +153,9 @@ export const ChatThread = ({ conversation, productId, onProductSent }: { convers
     <div className="chat-thread" data-testid="chat-thread">
       <div className="chat-thread-head">
         <Link to={`/shop/${conversation.shopSlug}`}><b>{conversation.shopName}</b></Link>
+        <ThreadActions conversation={conversation} onNotice={setError} />
       </div>
+      {conversation.blockedByBuyer && <div className="chat-notice" role="status">Bạn đã chặn shop này — shop không gửi được tin cho bạn.</div>}
       <div className="chat-messages" data-testid="chat-messages">
         {more && messages.length > 0 && <button className="chat-older" onClick={older}>Xem tin cũ hơn</button>}
         {messages.map((m) => (
@@ -196,6 +198,47 @@ export const ChatThread = ({ conversation, productId, onProductSent }: { convers
         <button type="submit" data-testid="chat-send">Gửi</button>
       </form>
     </div>
+  );
+};
+
+/** Chặn / bỏ chặn shop and báo cáo shop vi phạm (spec II.11); the platform reviews reports in admin. */
+const ThreadActions = ({ conversation, onNotice }: { conversation: Conversation; onNotice: (text: string) => void }) => {
+  const queryClient = useQueryClient();
+  const [reporting, setReporting] = useState(false);
+  const [reason, setReason] = useState('');
+  const run = async (work: () => Promise<{ message: string }>) => {
+    try {
+      const r = await work();
+      onNotice(r.message);
+      void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
+      return true;
+    } catch (e) {
+      onNotice(e instanceof ApiError ? e.message : 'Không thực hiện được, vui lòng thử lại.');
+      return false;
+    }
+  };
+  return (
+    <span className="chat-thread-actions">
+      <button type="button" data-testid="chat-block" onClick={() => void run(() => chatApi.block(conversation.id, !conversation.blockedByBuyer))}>
+        {conversation.blockedByBuyer ? 'Bỏ chặn' : 'Chặn'}
+      </button>
+      <button type="button" data-testid="chat-report" onClick={() => setReporting((v) => !v)}>Báo cáo</button>
+      {reporting && (
+        <form className="chat-report-form" onSubmit={async (e) => {
+          e.preventDefault();
+          if (reason.trim() && await run(() => chatApi.report(conversation.id, reason.trim()))) { setReporting(false); setReason(''); }
+        }}>
+          <select value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Lý do báo cáo" data-testid="chat-report-reason">
+            <option value="">Chọn lý do…</option>
+            <option>Yêu cầu giao dịch / chuyển khoản ngoài sàn</option>
+            <option>Ngôn từ xúc phạm, quấy rối</option>
+            <option>Lừa đảo, hàng giả</option>
+            <option>Spam, quảng cáo</option>
+          </select>
+          <button type="submit" disabled={!reason} data-testid="chat-report-send">Gửi báo cáo</button>
+        </form>
+      )}
+    </span>
   );
 };
 

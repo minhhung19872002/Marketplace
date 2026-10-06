@@ -165,6 +165,36 @@ public class FulfilmentTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Order_notifications_use_the_template_the_platform_edited_and_unknown_placeholders_are_refused()
+    {
+        var admin = await factory.ClientWithPermissionsAsync(Application.Security.Permissions.ContentManage);
+        var templates = (await (await admin.GetAsync("/api/admin/message-templates")).ReadEnvelopeAsync()).Data;
+        var codBuyer = templates.EnumerateArray().Single(t => t.Str("key") == "ORDER.PLACED_COD.BUYER" && t.Str("channel") == "InApp");
+        var id = codBuyer.Str("id");
+        var original = new { subject = codBuyer.Str("subject"), body = codBuyer.Str("body") };
+        try
+        {
+            (await admin.PutAsJsonAsync($"/api/admin/message-templates/{id}", new { subject = "Đã nhận đơn {{code}}", body = "{{shop}} sẽ gọi xác nhận đơn {{code}} trị giá {{total}}." }))
+                .StatusCode.Should().Be(HttpStatusCode.OK);
+            (await admin.PutAsJsonAsync($"/api/admin/message-templates/{id}", new { subject = "x", body = "Mã giảm {{voucher}}" }))
+                .StatusCode.Should().Be(HttpStatusCode.Conflict, "{{voucher}} is not a placeholder of order templates");
+            (await admin.PutAsJsonAsync($"/api/admin/message-templates/{id}", new { subject = "", body = "Đơn {{code}}" }))
+                .StatusCode.Should().Be(HttpStatusCode.Conflict, "an in-app notification needs a title");
+
+            var p = await PlaceAsync();
+            await factory.DispatchOutboxAsync();
+            var n = await factory.WithDbAsync(db => db.Notifications.SingleAsync(x => x.UserId == p.Buyer.Id && x.RefId == p.OrderId));
+            n.Title.Should().Be($"Đã nhận đơn {p.Code}");
+            var total = await factory.WithDbAsync(db => db.Orders.Where(o => o.Id == p.OrderId).Select(o => o.GrandTotal).SingleAsync());
+            n.Body.Should().Be($"Shop {p.Store.Marker} sẽ gọi xác nhận đơn {p.Code} trị giá ₫{total.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN"))}.");
+        }
+        finally
+        {
+            (await admin.PutAsJsonAsync($"/api/admin/message-templates/{id}", original)).StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+    }
+
+    [Fact]
     public async Task A_parcel_that_cannot_be_delivered_comes_back_into_stock_and_the_money_goes_back()
     {
         var p = await PlaceAsync("Simulated", quantity: 1, coins: 5_000);

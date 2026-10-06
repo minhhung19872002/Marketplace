@@ -109,6 +109,10 @@ public static class TemplateCatalog
 {
     public const string Otp = "OTP";
     public const string Notification = "NOTIFICATION";
+    public const string OrderPlaceholders = "code,total,shop,note,deadline";
+
+    /// <summary>In-app notification of an order event for one side: ORDER.{EVENT}.{BUYER|SHOP} ("PLACED_COD" for a COD order placed).</summary>
+    public static string OrderKey(string orderEvent, string side) => $"ORDER.{orderEvent}.{side}";
 
     public static readonly IReadOnlyList<TemplateDefinition> All =
     [
@@ -120,6 +124,54 @@ public static class TemplateCatalog
         new(Notification, TemplateChannel.Email, "Thư thông báo (đơn hàng, ví, khuyến mãi…)", "{{title}}",
             "<p>{{body}}</p><p><a href=\"{{link}}\">Xem chi tiết trên ShopHub</a></p><p style=\"color:#888;font-size:12px\">Bạn nhận thư này vì đã bật thông báo qua email. Tắt tại {{settings}}.</p>",
             "title,body,link,settings"),
+        new(OrderKey("PLACED_COD", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — đặt hàng COD thành công", "Đặt hàng thành công",
+            "Đơn {{code}} ({{total}}) đã được đặt, đang chờ {{shop}} xác nhận.", OrderPlaceholders),
+        new(OrderKey("PLACED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — đơn chờ thanh toán", "Đơn hàng chờ thanh toán",
+            "Vui lòng thanh toán đơn {{code}} ({{total}}){{deadline}}, quá hạn đơn sẽ tự huỷ.", OrderPlaceholders),
+        new(OrderKey("PAID", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — thanh toán thành công", "Thanh toán thành công",
+            "Đã nhận thanh toán {{total}} cho đơn {{code}}.", OrderPlaceholders),
+        new(OrderKey("CONFIRMED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — shop xác nhận đơn", "Shop đã xác nhận đơn hàng",
+            "{{shop}} đang chuẩn bị đơn {{code}}. Mã vận đơn: {{note}}.", OrderPlaceholders),
+        new(OrderKey("SHIPPED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — đang giao", "Đơn hàng đang được giao",
+            "Đơn {{code}} đã được giao cho đơn vị vận chuyển.", OrderPlaceholders),
+        new(OrderKey("DELIVERED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — giao thành công", "Giao hàng thành công",
+            "Đơn {{code}} đã được giao. Vui lòng kiểm tra và bấm \"Đã nhận được hàng\"; đơn sẽ tự hoàn thành sau vài ngày.", OrderPlaceholders),
+        new(OrderKey("DELIVERY_FAILED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — giao không thành công", "Giao hàng không thành công",
+            "Đơn {{code}}: {{note}}. Đơn vị vận chuyển sẽ liên hệ giao lại.", OrderPlaceholders),
+        new(OrderKey("COMPLETED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — đơn hoàn thành", "Đơn hàng đã hoàn thành",
+            "Cảm ơn bạn đã mua sắm tại {{shop}}. Hãy đánh giá sản phẩm của đơn {{code}}.", OrderPlaceholders),
+        new(OrderKey("CANCELLED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — đơn bị huỷ", "Đơn hàng đã huỷ",
+            "Đơn {{code}} đã huỷ. Lý do: {{note}}.", OrderPlaceholders),
+        new(OrderKey("RETURNED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — đơn hoàn về shop", "Đơn hàng đã hoàn về shop",
+            "Đơn {{code}} không giao được và đã hoàn về {{shop}}.", OrderPlaceholders),
+        new(OrderKey("CANCEL_REJECTED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — shop từ chối huỷ", "Shop từ chối yêu cầu huỷ",
+            "Đơn {{code}} vẫn được giao. Lý do: {{note}}.", OrderPlaceholders),
+        new(OrderKey("REFUNDED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — đã hoàn tiền", "Đã hoàn tiền",
+            "Đã hoàn {{total}} của đơn {{code}} về phương thức thanh toán ban đầu.", OrderPlaceholders),
+        new(OrderKey("RETURN_UPDATED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — cập nhật trả hàng", "Cập nhật yêu cầu trả hàng",
+            "Yêu cầu {{note}} của đơn {{code}} vừa được cập nhật.", OrderPlaceholders),
+        new(OrderKey("RETURN_REFUNDED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — hoàn tiền trả hàng", "Hoàn tiền trả hàng",
+            "Yêu cầu {{note}} của đơn {{code}} đã được hoàn tiền.", OrderPlaceholders),
+        new(OrderKey("DISPUTE_DECIDED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — kết quả khiếu nại", "Kết quả khiếu nại",
+            "Sàn đã phân xử khiếu nại của đơn {{code}}.", OrderPlaceholders),
+        new(OrderKey("PLACED_COD", "SHOP"), TemplateChannel.InApp, "Thông báo đơn hàng: Shop — đơn COD mới", "Đơn hàng mới",
+            "Đơn {{code}} ({{total}}, COD) đang chờ xác nhận.", OrderPlaceholders),
+        new(OrderKey("PAID", "SHOP"), TemplateChannel.InApp, "Thông báo đơn hàng: Shop — đơn đã thanh toán", "Đơn hàng mới",
+            "Đơn {{code}} ({{total}}) đã thanh toán, đang chờ xác nhận.", OrderPlaceholders),
+        new(OrderKey("CANCEL_REQUESTED", "SHOP"), TemplateChannel.InApp, "Thông báo đơn hàng: Shop — người mua yêu cầu huỷ", "Yêu cầu huỷ đơn",
+            "Người mua muốn huỷ đơn {{code}}. Lý do: {{note}}. Vui lòng phản hồi trong 24 giờ.", OrderPlaceholders),
+        new(OrderKey("CANCELLED", "SHOP"), TemplateChannel.InApp, "Thông báo đơn hàng: Shop — đơn bị huỷ", "Đơn hàng đã huỷ",
+            "Đơn {{code}} đã huỷ. Lý do: {{note}}.", OrderPlaceholders),
+        new(OrderKey("COMPLETED", "SHOP"), TemplateChannel.InApp, "Thông báo đơn hàng: Shop — đơn hoàn thành", "Đơn hàng hoàn thành",
+            "Đơn {{code}} ({{total}}) đã hoàn thành.", OrderPlaceholders),
+        new(OrderKey("RETURNED", "SHOP"), TemplateChannel.InApp, "Thông báo đơn hàng: Shop — đơn hoàn về", "Đơn hàng hoàn về",
+            "Đơn {{code}} giao không thành công đã hoàn về kho.", OrderPlaceholders),
+        new(OrderKey("RETURN_REQUESTED", "SHOP"), TemplateChannel.InApp, "Thông báo đơn hàng: Shop — yêu cầu trả hàng mới", "Yêu cầu trả hàng mới",
+            "Người mua gửi yêu cầu trả hàng {{note}} cho đơn {{code}}. Vui lòng phản hồi trong 2 ngày.", OrderPlaceholders),
+        new(OrderKey("DISPUTE_OPENED", "SHOP"), TemplateChannel.InApp, "Thông báo đơn hàng: Shop — người mua khiếu nại", "Người mua khiếu nại",
+            "Yêu cầu trả hàng {{note}} (đơn {{code}}) đã được chuyển lên sàn phân xử.", OrderPlaceholders),
+        new(OrderKey("DISPUTE_DECIDED", "SHOP"), TemplateChannel.InApp, "Thông báo đơn hàng: Shop — kết quả khiếu nại", "Kết quả khiếu nại",
+            "Sàn đã phân xử khiếu nại của đơn {{code}}.", OrderPlaceholders),
     ];
 }
 

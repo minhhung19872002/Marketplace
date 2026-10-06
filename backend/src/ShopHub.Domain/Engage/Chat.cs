@@ -194,6 +194,18 @@ public class ChatReport : Entity
     public Guid ReporterId { get; private set; }
     public string Reason { get; private set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; private set; }
+    public ChatReportStatus Status { get; private set; } = ChatReportStatus.Open;
+    public string? Resolution { get; private set; }
+    public Guid? ResolvedBy { get; private set; }
+    // Set by the platform's decision (one conditional UPDATE, see ResolveChatReportHandler)
+    public DateTimeOffset? ResolvedAt { get; private set; }
+}
+
+public enum ChatReportStatus
+{
+    Open,       // waiting for the platform
+    Dismissed,  // no violation found
+    Penalized,  // the shop got penalty points
 }
 
 public enum NotificationChannel

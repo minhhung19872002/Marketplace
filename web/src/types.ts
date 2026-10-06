@@ -52,6 +52,8 @@ export interface ProductCard {
   isMall: boolean;
   isPreferred: boolean;
   provinceName: string | null;
+  /** The shown price is a Flash Sale price */
+  isFlashSale?: boolean;
 }
 
 // ---------- search ----------

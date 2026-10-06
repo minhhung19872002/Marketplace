@@ -47,6 +47,7 @@ public enum TemplateChannel
 {
     Sms,
     Email,
+    InApp,  // in-app notification: Subject = title, Body = text (also the email / SMS / push of that notification)
 }
 
 /// <summary>
@@ -78,7 +79,8 @@ public class MessageTemplate : Entity
     public void Update(string? subject, string body, DateTimeOffset now)
     {
         if (string.IsNullOrWhiteSpace(body)) throw new BusinessRuleException("Nội dung mẫu không được để trống.");
-        if (Channel == TemplateChannel.Email && string.IsNullOrWhiteSpace(subject)) throw new BusinessRuleException("Mẫu email cần tiêu đề.");
+        if (Channel is TemplateChannel.Email or TemplateChannel.InApp && string.IsNullOrWhiteSpace(subject))
+            throw new BusinessRuleException(Channel == TemplateChannel.Email ? "Mẫu email cần tiêu đề." : "Mẫu thông báo cần tiêu đề.");
         var allowed = Placeholders.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet();
         foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(body + subject, @"\{\{(\w+)\}\}"))
             if (!allowed.Contains(m.Groups[1].Value)) throw new BusinessRuleException($"Biến {{{{{m.Groups[1].Value}}}}} không có trong mẫu này.");

@@ -45,7 +45,9 @@ public record ProductCardDto(
     string ShopName,
     bool IsMall,
     bool IsPreferred,
-    string? ProvinceName);
+    string? ProvinceName,
+    // True when the shown price is a Flash Sale price (set by CardPricing)
+    bool IsFlashSale = false);
 
 public record FacetValue(string Value, string Label, int Count);
 

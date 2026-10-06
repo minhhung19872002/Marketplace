@@ -169,7 +169,7 @@ public sealed class RecordProductViewHandler(IApplicationDbContext db, ICurrentU
 
 public record RelatedProductsQuery(Guid ProductId, int Take = 12) : IRequest<IReadOnlyList<ProductCardDto>>;
 
-public sealed class RelatedProductsHandler(IApplicationDbContext db) : IRequestHandler<RelatedProductsQuery, IReadOnlyList<ProductCardDto>>
+public sealed class RelatedProductsHandler(IApplicationDbContext db, CardPricing pricing) : IRequestHandler<RelatedProductsQuery, IReadOnlyList<ProductCardDto>>
 {
     public async Task<IReadOnlyList<ProductCardDto>> Handle(RelatedProductsQuery request, CancellationToken ct)
     {
@@ -180,13 +180,13 @@ public sealed class RelatedProductsHandler(IApplicationDbContext db) : IRequestH
             .Where(p => p.Id != request.ProductId && p.CategoryId == product.CategoryId)
             .OrderByDescending(p => p.SoldCount).ThenByDescending(p => p.RatingAvg).ThenByDescending(p => p.PublishedAt).ThenBy(p => p.Id)
             .Take(take).Select(ProductCards.Row(db)).ToListAsync(ct);
-        return rows.Select(ProductCards.ToDto).ToList();
+        return await pricing.ApplyAsync(rows.Select(ProductCards.ToDto).ToList(), ct);
     }
 }
 
 public record ShopOtherProductsQuery(Guid ProductId, int Take = 12) : IRequest<IReadOnlyList<ProductCardDto>>;
 
-public sealed class ShopOtherProductsHandler(IApplicationDbContext db) : IRequestHandler<ShopOtherProductsQuery, IReadOnlyList<ProductCardDto>>
+public sealed class ShopOtherProductsHandler(IApplicationDbContext db, CardPricing pricing) : IRequestHandler<ShopOtherProductsQuery, IReadOnlyList<ProductCardDto>>
 {
     public async Task<IReadOnlyList<ProductCardDto>> Handle(ShopOtherProductsQuery request, CancellationToken ct)
     {
@@ -196,7 +196,7 @@ public sealed class ShopOtherProductsHandler(IApplicationDbContext db) : IReques
             .Where(p => p.ShopId == shopId && p.Id != request.ProductId)
             .OrderByDescending(p => p.SoldCount).ThenByDescending(p => p.PublishedAt).ThenBy(p => p.Id)
             .Take(Math.Clamp(request.Take, 1, 30)).Select(ProductCards.Row(db)).ToListAsync(ct);
-        return rows.Select(ProductCards.ToDto).ToList();
+        return await pricing.ApplyAsync(rows.Select(ProductCards.ToDto).ToList(), ct);
     }
 }
 
@@ -213,7 +213,8 @@ public sealed class RecommendationsValidator : AbstractValidator<Recommendations
 /// "Gợi ý hôm nay": categories the viewer looked at in the last 30 days come first, then best sellers. Anonymous
 /// visitors without history simply get the best sellers.
 /// </summary>
-public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUser currentUser, ISystemParameters parameters, IClock clock)
+public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUser currentUser, ISystemParameters parameters, IClock clock,
+    CardPricing pricing)
     : IRequestHandler<RecommendationsQuery, PagedResult<ProductCardDto>>
 {
     public async Task<PagedResult<ProductCardDto>> Handle(RecommendationsQuery request, CancellationToken ct)
@@ -248,7 +249,7 @@ public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUse
             rows.AddRange(await BestSelling(first).Skip(offset).Take(Math.Min(take, firstCount - offset)).Select(ProductCards.Row(db)).ToListAsync(ct));
         if (rows.Count < take)
             rows.AddRange(await BestSelling(rest).Skip(Math.Max(0, offset - firstCount)).Take(take - rows.Count).Select(ProductCards.Row(db)).ToListAsync(ct));
-        return new PagedResult<ProductCardDto>(rows.Select(ProductCards.ToDto).ToList(), total, request.Page, request.PageSize);
+        return new PagedResult<ProductCardDto>(await pricing.ApplyAsync(rows.Select(ProductCards.ToDto).ToList(), ct), total, request.Page, request.PageSize);
     }
 
     /// <summary>Products in "Gợi ý hôm nay" at most (60 per "Xem thêm" × 20).</summary>
@@ -264,7 +265,7 @@ public record TopCategoryProductDto(CategoryCrumbDto Category, ProductCardDto Pr
 public record TopProductsByCategoryQuery : IRequest<IReadOnlyList<TopCategoryProductDto>>;
 
 /// <summary>"Tìm kiếm hàng đầu": the best-selling product of each top-level category.</summary>
-public sealed class TopProductsByCategoryHandler(IApplicationDbContext db) : IRequestHandler<TopProductsByCategoryQuery, IReadOnlyList<TopCategoryProductDto>>
+public sealed class TopProductsByCategoryHandler(IApplicationDbContext db, CardPricing pricing) : IRequestHandler<TopProductsByCategoryQuery, IReadOnlyList<TopCategoryProductDto>>
 {
     public async Task<IReadOnlyList<TopCategoryProductDto>> Handle(TopProductsByCategoryQuery request, CancellationToken ct)
     {
@@ -285,7 +286,8 @@ public sealed class TopProductsByCategoryHandler(IApplicationDbContext db) : IRe
                 .Select(ProductCards.Row(db)).FirstOrDefaultAsync(ct);
             if (row is not null) result.Add(new TopCategoryProductDto(new CategoryCrumbDto(top.Id, top.Name, top.Slug), ProductCards.ToDto(row)));
         }
-        return result;
+        var priced = (await pricing.ApplyAsync(result.Select(r => r.Product).ToList(), ct)).ToDictionary(c => c.Id);
+        return result.Select(r => r with { Product = priced[r.Product.Id] }).ToList();
     }
 }
 

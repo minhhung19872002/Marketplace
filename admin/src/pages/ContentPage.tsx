@@ -69,7 +69,7 @@ const TemplatesTab = () => {
   const [body, setBody] = useState('')
   const list = useQuery({ queryKey: ['templates'], queryFn: platformApi.templates })
   const save = useMutation({
-    mutationFn: () => platformApi.saveTemplate(editing!.id, editing!.channel === 'Email' ? subject : null, body),
+    mutationFn: () => platformApi.saveTemplate(editing!.id, editing!.channel === 'Sms' ? null : subject, body),
     onSuccess: (r) => { message.success(r.message); setEditing(null); void queryClient.invalidateQueries({ queryKey: ['templates'] }) },
     onError: (e) => message.error(errorText(e, 'Không lưu được mẫu.')),
   })
@@ -78,7 +78,7 @@ const TemplatesTab = () => {
       <Table<MessageTemplate> rowKey="id" loading={list.isLoading} dataSource={list.data ?? []} pagination={false}
         columns={[
           { title: 'Mẫu', dataIndex: 'name' },
-          { title: 'Kênh', dataIndex: 'channel', render: (c: string) => <Tag>{c === 'Sms' ? 'SMS' : 'Email'}</Tag> },
+          { title: 'Kênh', dataIndex: 'channel', render: (c: string) => <Tag>{c === 'Sms' ? 'SMS' : c === 'Email' ? 'Email' : 'Thông báo'}</Tag> },
           { title: 'Biến', dataIndex: 'placeholders', render: (v: string) => v.split(',').map((p) => <Tag key={p}>{`{{${p}}}`}</Tag>) },
           { title: 'Cập nhật', dataIndex: 'updatedAt', render: (v: string) => formatDateTime(v) },
           { title: '', key: 'x', render: (_, t) => <Button size="small" onClick={() => { setEditing(t); setSubject(t.subject ?? ''); setBody(t.body) }}>Sửa</Button> },
@@ -87,7 +87,7 @@ const TemplatesTab = () => {
         <Typography.Paragraph type="secondary">
           Biến dùng được: {editing?.placeholders.split(',').map((p) => `{{${p}}}`).join(', ')}. {editing?.channel === 'Sms' ? 'SMS tối đa 320 ký tự, nên viết không dấu.' : ''}
         </Typography.Paragraph>
-        {editing?.channel === 'Email' && <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Tiêu đề thư" style={{ marginBottom: 8 }} />}
+        {editing && editing.channel !== 'Sms' && <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={editing.channel === 'Email' ? 'Tiêu đề thư' : 'Tiêu đề thông báo'} style={{ marginBottom: 8 }} data-testid="template-subject" />}
         <Input.TextArea rows={8} value={body} onChange={(e) => setBody(e.target.value)} style={{ fontFamily: 'monospace' }} />
       </Modal>
     </>

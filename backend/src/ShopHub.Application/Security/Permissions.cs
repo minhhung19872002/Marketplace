@@ -45,6 +45,7 @@ public static class Permissions
     public const string ReportView = "REPORT.REPORT.VIEW";
     public const string ContentManage = "SYS.CONTENT.MANAGE";
     public const string ProviderManage = "SYS.PROVIDER.MANAGE";
+    public const string ChatReview = "ENGAGE.CHAT.REVIEW";
 
     public const string ClaimType = "perm";
 }
@@ -90,6 +91,7 @@ public static class PermissionCatalog
         new(Permissions.ReportView, "Báo cáo", "Xem tổng quan và báo cáo toàn sàn"),
         new(Permissions.ContentManage, "Hệ thống", "Trang tĩnh, trợ giúp, mẫu thư / SMS"),
         new(Permissions.ProviderManage, "Hệ thống", "Bật / tắt đơn vị vận chuyển và cổng thanh toán"),
+        new(Permissions.ChatReview, "Chat", "Xem hội thoại bị báo cáo và xử lý (có ghi nhật ký mỗi lần xem)"),
     ];
 }
 
@@ -110,9 +112,10 @@ public static class RoleCatalog
              Permissions.ContentManage, Permissions.ProviderManage]),
         new("CONTENT_REVIEW", "Duyệt nội dung", "Duyệt sản phẩm, xử lý vi phạm.",
             [Permissions.UserView, Permissions.ProductReview, Permissions.ProductBan, Permissions.ShopView,
-             Permissions.CategoryManage, Permissions.BrandManage, Permissions.ShopPenalty, Permissions.ContentManage]),
+             Permissions.CategoryManage, Permissions.BrandManage, Permissions.ShopPenalty, Permissions.ContentManage, Permissions.ChatReview]),
         new("CUSTOMER_SERVICE", "Chăm sóc khách hàng", "Hỗ trợ người mua và người bán.",
-            [Permissions.UserView, Permissions.OrderView, Permissions.DisputeResolve, Permissions.ReviewModerate, Permissions.UserResetPassword]),
+            [Permissions.UserView, Permissions.OrderView, Permissions.DisputeResolve, Permissions.ReviewModerate, Permissions.UserResetPassword,
+             Permissions.ChatReview]),
         new("ACCOUNTING", "Kế toán", "Đối soát, giải ngân, báo cáo tài chính.",
             [Permissions.AuditLogView, Permissions.OrderView, Permissions.FinanceLedgerView, Permissions.FinanceFeeManage,
              Permissions.FinanceWithdrawalApprove, Permissions.FinanceReconcile, Permissions.JobRun, Permissions.ReportView, Permissions.OrderIntervene]),

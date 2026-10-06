@@ -135,7 +135,8 @@ public record CampaignPageDto(string Name, string Slug, DateTimeOffset StartAt, 
 
 public record CampaignPageQuery(string Slug) : IRequest<CampaignPageDto>;
 
-public sealed class CampaignPageHandler(IApplicationDbContext db, ISender sender, IClock clock) : IRequestHandler<CampaignPageQuery, CampaignPageDto>
+public sealed class CampaignPageHandler(IApplicationDbContext db, ISender sender, IClock clock, Storefront.CardPricing pricing)
+    : IRequestHandler<CampaignPageQuery, CampaignPageDto>
 {
     public async Task<CampaignPageDto> Handle(CampaignPageQuery request, CancellationToken ct)
     {
@@ -174,7 +175,7 @@ public sealed class CampaignPageHandler(IApplicationDbContext db, ISender sender
                     }
                     var cards = await query.OrderByDescending(p => p.SoldCount).ThenBy(p => p.Id).Take(Math.Clamp(b.Limit ?? 12, 1, 48))
                         .Select(ProductCards.Row(db)).ToListAsync(ct);
-                    blocks.Add(new CampaignBlockDto(b.Type, b.Title, null, b.Link, null, null, cards.Select(ProductCards.ToDto).ToList()));
+                    blocks.Add(new CampaignBlockDto(b.Type, b.Title, null, b.Link, null, null, await pricing.ApplyAsync(cards.Select(ProductCards.ToDto).ToList(), ct)));
                     break;
             }
         }

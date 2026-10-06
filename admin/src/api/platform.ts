@@ -189,7 +189,7 @@ export type CmsKind = 'Page' | 'Help'
 
 export interface CmsPage { id: string; kind: CmsKind; slug: string; title: string; content: string; topic: string | null; sortOrder: number; isPublished: boolean; updatedAt: string }
 
-export interface MessageTemplate { id: string; key: string; channel: 'Sms' | 'Email'; name: string; subject: string | null; body: string; placeholders: string; updatedAt: string }
+export interface MessageTemplate { id: string; key: string; channel: 'Sms' | 'Email' | 'InApp'; name: string; subject: string | null; body: string; placeholders: string; updatedAt: string }
 
 // ---------- providers ----------
 
@@ -208,6 +208,37 @@ export interface CarrierRow {
 }
 
 export interface GatewayRow { method: string; name: string; provider: string; enabled: boolean }
+
+export type ChatReportStatus = 'Open' | 'Dismissed' | 'Penalized'
+
+export interface ChatReportRow {
+  id: string
+  conversationId: string
+  shopId: string
+  shopName: string
+  reporterName: string
+  reason: string
+  status: ChatReportStatus
+  resolution: string | null
+  createdAt: string
+  resolvedAt: string | null
+  reportsOnConversation: number
+}
+
+export interface ChatReviewMessage {
+  id: string
+  senderRole: 'Buyer' | 'Shop' | 'System'
+  type: 'Text' | 'Image' | 'Product' | 'Order' | 'Voucher'
+  body: string
+  flagged: boolean
+  createdAt: string
+}
+
+export interface ChatReportDetail {
+  report: ChatReportRow
+  messages: ChatReviewMessage[]
+  totalMessages: number
+}
 
 export const platformApi = {
   user: (id: string) => apiRequest<UserDetail>(`/admin/users/${id}`),
@@ -233,6 +264,12 @@ export const platformApi = {
     apiRequest<PagedResult<ProductReport>>(`/admin/product-reports${query({ status, page, pageSize: 20 })}`),
   resolveReport: (id: string, ban: boolean, resolution: string | null) =>
     apiCommand(`/admin/product-reports/${id}/resolve`, { method: 'POST', body: { ban, resolution } }),
+
+  chatReports: (status: ChatReportStatus | undefined, page: number) =>
+    apiRequest<PagedResult<ChatReportRow>>(`/admin/chat-reports${query({ status, page, pageSize: 20 })}`),
+  chatReport: (id: string) => apiRequest<ChatReportDetail>(`/admin/chat-reports/${id}`),
+  resolveChatReport: (id: string, resolution: string, penaltyPoints: number | null) =>
+    apiCommand(`/admin/chat-reports/${id}/resolve`, { method: 'POST', body: { resolution, penaltyPoints } }),
 
   cms: () => apiRequest<CmsPage[]>('/admin/cms'),
   saveCms: (body: Omit<CmsPage, 'id' | 'updatedAt'> & { id: string | null }) => apiCommand<string>('/admin/cms', { method: 'POST', body }),

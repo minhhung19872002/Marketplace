@@ -224,3 +224,14 @@
 @keyframes pc-shimmer {
   to { background-position: -200% 0; }
 }
+
+.product-card-flash {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+}

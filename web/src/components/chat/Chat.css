@@ -138,6 +138,43 @@
 .chat-thread-head {
   padding: 8px 12px;
   border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.chat-thread-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.chat-thread-actions > button {
+  border: 1px solid var(--sh-text-muted);
+  background: var(--sh-on-primary);
+  padding: 2px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.chat-report-form {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.chat-report-form select {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-notice {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--sh-text-muted);
 }
 
 .chat-messages {

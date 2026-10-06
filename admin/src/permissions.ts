@@ -34,6 +34,7 @@ export const P = {
   ReportView: 'REPORT.REPORT.VIEW',
   ContentManage: 'SYS.CONTENT.MANAGE',
   ProviderManage: 'SYS.PROVIDER.MANAGE',
+  ChatReview: 'ENGAGE.CHAT.REVIEW',
 } as const
 
 export const can = (permissions: readonly string[] | undefined, code: string): boolean =>

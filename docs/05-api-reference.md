@@ -538,6 +538,17 @@ Ngày là ngày Việt Nam `YYYY-MM-DD`, tính cả hai đầu (mặc định 30
 `GET /api/shops/{slug}` trả thêm `categories` (tab danh mục) và `hasDecoration`; `GET /api/seller/shops` trả thêm
 `description`, `coverUrl`. `POST /api/media/shop` nhận cả video MP4.
 
+## Chat bị báo cáo (Phase 13)
+
+| Phương thức | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/admin/chat-reports?status=Open\|Dismissed\|Penalized&page=` | `ENGAGE.CHAT.REVIEW` | Báo cáo của người mua về shop |
+| GET | `/api/admin/chat-reports/{id}` | `ENGAGE.CHAT.REVIEW` | Báo cáo + 200 tin gần nhất của hội thoại; ghi nhật ký mỗi lần gọi |
+| POST | `/api/admin/chat-reports/{id}/resolve` | `ENGAGE.CHAT.REVIEW` (+ `SHOP.SHOP.PENALTY` khi phạt) | `{ resolution, penaltyPoints? }` — 409 nếu đã xử lý |
+
+Thẻ sản phẩm ở mọi danh sách có thêm `isFlashSale`; `minPrice` / `originalPrice` / `discountPercent` là giá đang hiệu lực.
+Mẫu tin có thêm kênh `InApp` (`ORDER.*`).
+
 ## SEO (Phase 13)
 
 Gateway chuyển máy thu thập (User-Agent: Googlebot, Bingbot, Cốc Cốc, Facebook, Zalo…) trên mọi trang người mua sang

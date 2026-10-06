@@ -173,6 +173,30 @@ public sealed class PlatformAdminController : ApiControllerBase
         return OkData<object?>(null, body.Ban ? "Đã khoá sản phẩm và đóng các báo cáo." : "Đã bỏ qua báo cáo.");
     }
 
+    // ---------- reported chats ----------
+
+    [HttpGet("chat-reports")]
+    [RequirePermission(Permissions.ChatReview)]
+    [ProducesResponseType<ApiResponse<PagedResult<ChatReportRowDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ChatReports([FromQuery] AdminChatReportsQuery query, CancellationToken ct) => OkData(await Sender.Send(query, ct));
+
+    /// <summary>The report and the conversation's last 200 messages; every call is written to the audit log.</summary>
+    [HttpGet("chat-reports/{id:guid}")]
+    [RequirePermission(Permissions.ChatReview)]
+    [ProducesResponseType<ApiResponse<ChatReportDetailDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ChatReport(Guid id, CancellationToken ct) => OkData(await Sender.Send(new AdminChatReportDetailQuery(id), ct));
+
+    public record ResolveChatReportBody(string Resolution, int? PenaltyPoints);
+
+    [HttpPost("chat-reports/{id:guid}/resolve")]
+    [RequirePermission(Permissions.ChatReview)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResolveChatReport(Guid id, [FromBody] ResolveChatReportBody body, CancellationToken ct)
+    {
+        await Sender.Send(new ResolveChatReportCommand(id, body.Resolution, body.PenaltyPoints), ct);
+        return OkData<object?>(null, body.PenaltyPoints is null ? "Đã đóng báo cáo, không vi phạm." : $"Đã ghi {body.PenaltyPoints} điểm phạt cho shop.");
+    }
+
     // ---------- content ----------
 
     [HttpGet("cms")]

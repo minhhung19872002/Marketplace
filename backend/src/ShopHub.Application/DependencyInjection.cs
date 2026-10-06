@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<Features.Finance.WalletPins>();
         services.AddScoped<Features.Finance.TopupProcessor>();
         services.AddScoped<Features.Marketing.PriceBook>();
+        services.AddScoped<Features.Storefront.CardPricing>();
         services.AddScoped<Features.Marketing.DealsBook>();
         services.AddScoped<Features.Marketing.FlashSaleQuota>();
         services.AddScoped<Features.Marketing.FlashSaleReconciler>();

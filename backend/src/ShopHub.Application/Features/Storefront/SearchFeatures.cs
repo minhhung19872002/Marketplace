@@ -40,7 +40,7 @@ public sealed class SearchProductsValidator : AbstractValidator<SearchProductsQu
     }
 }
 
-public sealed class SearchProductsHandler(IProductSearch search, IApplicationDbContext db, ICurrentUser currentUser, IClock clock)
+public sealed class SearchProductsHandler(IProductSearch search, IApplicationDbContext db, ICurrentUser currentUser, IClock clock, CardPricing pricing)
     : IRequestHandler<SearchProductsQuery, ProductSearchResult>
 {
     public async Task<ProductSearchResult> Handle(SearchProductsQuery r, CancellationToken ct)
@@ -59,7 +59,7 @@ public sealed class SearchProductsHandler(IProductSearch search, IApplicationDbC
                 await db.SaveChangesAsync(ct);
             }
         }
-        return result;
+        return result with { Items = await pricing.ApplyAsync(result.Items, ct) };
     }
 }
 

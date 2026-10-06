@@ -156,7 +156,7 @@ public sealed class WishlistValidator : AbstractValidator<WishlistQuery>
     public WishlistValidator() => this.ApplyPagingRules();
 }
 
-public sealed class WishlistHandler(IApplicationDbContext db, ICurrentUser currentUser) : IRequestHandler<WishlistQuery, PagedResult<ProductCardDto>>
+public sealed class WishlistHandler(IApplicationDbContext db, ICurrentUser currentUser, CardPricing pricing) : IRequestHandler<WishlistQuery, PagedResult<ProductCardDto>>
 {
     public async Task<PagedResult<ProductCardDto>> Handle(WishlistQuery request, CancellationToken ct)
     {
@@ -166,7 +166,7 @@ public sealed class WishlistHandler(IApplicationDbContext db, ICurrentUser curre
             .OrderByDescending(p => db.Wishlists.Where(w => w.UserId == userId && w.ProductId == p.Id).Select(w => w.CreatedAt).FirstOrDefault())
             .ThenBy(p => p.Id)
             .ToPagedResultAsync(ProductCards.Row(db), request, ct);
-        return new PagedResult<ProductCardDto>(page.Items.Select(ProductCards.ToDto).ToList(), page.TotalCount, page.Page, page.PageSize);
+        return new PagedResult<ProductCardDto>(await pricing.ApplyAsync(page.Items.Select(ProductCards.ToDto).ToList(), ct), page.TotalCount, page.Page, page.PageSize);
     }
 }
 
@@ -174,7 +174,7 @@ public sealed class WishlistHandler(IApplicationDbContext db, ICurrentUser curre
 
 public record RecentlyViewedQuery(string? SessionKey, int Take = 20) : IRequest<IReadOnlyList<ProductCardDto>>;
 
-public sealed class RecentlyViewedHandler(IApplicationDbContext db, ICurrentUser currentUser) : IRequestHandler<RecentlyViewedQuery, IReadOnlyList<ProductCardDto>>
+public sealed class RecentlyViewedHandler(IApplicationDbContext db, ICurrentUser currentUser, CardPricing pricing) : IRequestHandler<RecentlyViewedQuery, IReadOnlyList<ProductCardDto>>
 {
     public async Task<IReadOnlyList<ProductCardDto>> Handle(RecentlyViewedQuery request, CancellationToken ct)
     {
@@ -190,6 +190,6 @@ public sealed class RecentlyViewedHandler(IApplicationDbContext db, ICurrentUser
             .Take(Math.Clamp(request.Take, 1, 50)).ToListAsync(ct);
         var ids = latest.Select(x => x.ProductId).ToList();
         var rows = await ProductCards.Visible(db).AsNoTracking().Where(p => ids.Contains(p.Id)).Select(ProductCards.Row(db)).ToListAsync(ct);
-        return ids.Select(id => rows.FirstOrDefault(r => r.Id == id)).Where(r => r is not null).Select(r => ProductCards.ToDto(r!)).ToList();
+        return await pricing.ApplyAsync(ids.Select(id => rows.FirstOrDefault(r => r.Id == id)).Where(r => r is not null).Select(r => ProductCards.ToDto(r!)).ToList(), ct);
     }
 }

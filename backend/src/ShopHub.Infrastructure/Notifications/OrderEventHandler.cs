@@ -3,10 +3,12 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
+using ShopHub.Application.Features.Admin;
 using ShopHub.Application.SystemConfig;
 using ShopHub.Domain.Engage;
 using ShopHub.Domain.Sales;
 using ShopHub.Domain.Shops;
+using ShopHub.Domain.SystemConfig;
 using ShopHub.Infrastructure.Outbox;
 using ShopHub.Infrastructure.Persistence;
 
@@ -16,7 +18,7 @@ namespace ShopHub.Infrastructure.Notifications;
 /// Turns order events into in-app notifications for the buyer and for the shop's staff who handle orders (spec VII).
 /// Runs after the business transaction committed; a redelivered message creates nothing twice (dedupe key).
 /// </summary>
-public sealed class OrderEventHandler(ShopHubDbContext db, IClock clock) : IOutboxHandler
+public sealed class OrderEventHandler(ShopHubDbContext db, MessageTemplates templates, IClock clock) : IOutboxHandler
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private static readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
@@ -34,41 +36,41 @@ public sealed class OrderEventHandler(ShopHubDbContext db, IClock clock) : IOutb
         var total = $"₫{order.GrandTotal.ToString("N0", Vi)}";
         var expires = await db.CheckoutSessions.AsNoTracking().Where(c => c.Id == order.CheckoutId).Select(c => c.PaymentExpiresAt).FirstOrDefaultAsync(ct);
 
-        Message? buyer = e.Event switch
+        // Which side hears about which event; the words are the editable templates ORDER.{EVENT}.{BUYER|SHOP} (admin → Nội dung & mẫu tin)
+        var placed = order.PaymentMethod == PaymentMethod.Cod ? "PLACED_COD" : OrderEvents.Placed;
+        string? buyerEvent = e.Event switch
         {
-            OrderEvents.Placed when order.PaymentMethod == PaymentMethod.Cod =>
-                new("Đặt hàng thành công", $"Đơn {order.Code} ({total}) đã được đặt, đang chờ {shop.Name} xác nhận."),
-            OrderEvents.Placed => new("Đơn hàng chờ thanh toán",
-                $"Vui lòng thanh toán đơn {order.Code} ({total}){(expires is { } x ? $" trước {VietnamTime.Format(x)}" : "")}, quá hạn đơn sẽ tự huỷ."),
-            OrderEvents.Paid => new("Thanh toán thành công", $"Đã nhận thanh toán {total} cho đơn {order.Code}."),
-            OrderEvents.Confirmed => new("Shop đã xác nhận đơn hàng", $"{shop.Name} đang chuẩn bị đơn {order.Code}. Mã vận đơn: {e.Note}."),
-            OrderEvents.Shipped => new("Đơn hàng đang được giao", $"Đơn {order.Code} đã được giao cho đơn vị vận chuyển."),
-            OrderEvents.Delivered => new("Giao hàng thành công",
-                $"Đơn {order.Code} đã được giao. Vui lòng kiểm tra và bấm \"Đã nhận được hàng\"; đơn sẽ tự hoàn thành sau vài ngày."),
-            OrderEvents.DeliveryFailed => new("Giao hàng không thành công", $"Đơn {order.Code}: {e.Note}. Đơn vị vận chuyển sẽ liên hệ giao lại."),
-            OrderEvents.Completed => new("Đơn hàng đã hoàn thành", $"Cảm ơn bạn đã mua sắm tại {shop.Name}. Hãy đánh giá sản phẩm của đơn {order.Code}."),
-            OrderEvents.Cancelled => new("Đơn hàng đã huỷ", $"Đơn {order.Code} đã huỷ. Lý do: {e.Note}."),
-            OrderEvents.Returned => new("Đơn hàng đã hoàn về shop", $"Đơn {order.Code} không giao được và đã hoàn về {shop.Name}."),
-            OrderEvents.CancelRejected => new("Shop từ chối yêu cầu huỷ", $"Đơn {order.Code} vẫn được giao. Lý do: {e.Note}."),
-            OrderEvents.Refunded => new("Đã hoàn tiền", $"Đã hoàn {total} của đơn {order.Code} về phương thức thanh toán ban đầu.", NotificationCategory.Wallet),
-            OrderEvents.ReturnUpdated => new("Cập nhật yêu cầu trả hàng", $"Yêu cầu {e.Note} của đơn {order.Code} vừa được cập nhật."),
-            OrderEvents.ReturnRefunded => new("Hoàn tiền trả hàng", $"Yêu cầu {e.Note} của đơn {order.Code} đã được hoàn tiền.", NotificationCategory.Wallet),
-            OrderEvents.DisputeDecided => new("Kết quả khiếu nại", $"Sàn đã phân xử khiếu nại của đơn {order.Code}."),
+            OrderEvents.Placed => placed,
+            OrderEvents.Paid or OrderEvents.Confirmed or OrderEvents.Shipped or OrderEvents.Delivered or OrderEvents.DeliveryFailed
+                or OrderEvents.Completed or OrderEvents.Cancelled or OrderEvents.Returned or OrderEvents.CancelRejected or OrderEvents.Refunded
+                or OrderEvents.ReturnUpdated or OrderEvents.ReturnRefunded or OrderEvents.DisputeDecided => e.Event,
             _ => null,
         };
-        Message? seller = e.Event switch
+        string? sellerEvent = e.Event switch
         {
-            OrderEvents.Placed when order.PaymentMethod == PaymentMethod.Cod => new("Đơn hàng mới", $"Đơn {order.Code} ({total}, COD) đang chờ xác nhận."),
-            OrderEvents.Paid => new("Đơn hàng mới", $"Đơn {order.Code} ({total}) đã thanh toán, đang chờ xác nhận."),
-            OrderEvents.CancelRequested => new("Yêu cầu huỷ đơn", $"Người mua muốn huỷ đơn {order.Code}. Lý do: {e.Note}. Vui lòng phản hồi trong 24 giờ."),
-            OrderEvents.Cancelled => new("Đơn hàng đã huỷ", $"Đơn {order.Code} đã huỷ. Lý do: {e.Note}."),
-            OrderEvents.Completed => new("Đơn hàng hoàn thành", $"Đơn {order.Code} ({total}) đã hoàn thành."),
-            OrderEvents.Returned => new("Đơn hàng hoàn về", $"Đơn {order.Code} giao không thành công đã hoàn về kho."),
-            OrderEvents.ReturnRequested => new("Yêu cầu trả hàng mới", $"Người mua gửi yêu cầu trả hàng {e.Note} cho đơn {order.Code}. Vui lòng phản hồi trong 2 ngày."),
-            OrderEvents.DisputeOpened => new("Người mua khiếu nại", $"Yêu cầu trả hàng {e.Note} (đơn {order.Code}) đã được chuyển lên sàn phân xử."),
-            OrderEvents.DisputeDecided => new("Kết quả khiếu nại", $"Sàn đã phân xử khiếu nại của đơn {order.Code}."),
+            OrderEvents.Placed when order.PaymentMethod == PaymentMethod.Cod => placed,
+            OrderEvents.Paid or OrderEvents.CancelRequested or OrderEvents.Cancelled or OrderEvents.Completed or OrderEvents.Returned
+                or OrderEvents.ReturnRequested or OrderEvents.DisputeOpened or OrderEvents.DisputeDecided => e.Event,
             _ => null,
         };
+        var values = new Dictionary<string, string>
+        {
+            ["code"] = order.Code,
+            ["total"] = total,
+            ["shop"] = shop.Name,
+            ["note"] = e.Note ?? "",
+            ["deadline"] = expires is { } x ? $" trước {VietnamTime.Format(x)}" : "",
+        };
+        async Task<Message?> RenderAsync(string? orderEvent, string side)
+        {
+            if (orderEvent is null) return null;
+            var (title, body) = await templates.RenderAsync(TemplateCatalog.OrderKey(orderEvent, side), TemplateChannel.InApp, values, ct);
+            var category = orderEvent is OrderEvents.Refunded or OrderEvents.ReturnRefunded && side == "BUYER"
+                ? NotificationCategory.Wallet : NotificationCategory.Order;
+            return new Message(title ?? "", body, category);
+        }
+        var buyer = await RenderAsync(buyerEvent, "BUYER");
+        var seller = await RenderAsync(sellerEvent, "SHOP");
 
         var now = clock.UtcNow;
         // Stable across processes (string.GetHashCode is randomised): same event + note → same key

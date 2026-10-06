@@ -59,3 +59,22 @@ body {
 .product-description img {
   max-width: 100%;
 }
+
+.chat-review {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--ant-color-border-secondary, rgba(0, 0, 0, 0.06));
+}
+
+.chat-review-msg {
+  max-width: 85%;
+}
+
+.chat-review-shop {
+  align-self: flex-end;
+  text-align: right;
+}

@@ -131,7 +131,14 @@ public sealed class SqlCounterRecomputer(ShopHubDbContext db) : ICounterRecomput
 
     public async Task<int> RecomputeAllAsync(CancellationToken ct)
     {
+        // A whole-catalogue pass (1M products) outlives the default 30 s command timeout
+        db.Database.SetCommandTimeout(TimeSpan.FromMinutes(15));
+        // A product with no source row and all-zero counters would be recomputed to the same zeros: skip it,
+        // so the pass only rewrites rows that can change (the perf catalogue is mostly untouched products)
         var n = await db.Products.IgnoreQueryFilters()
+            .Where(p => p.SoldCount != 0 || p.RatingCount != 0 || p.RatingAvg != 0 || p.LikeCount != 0 || p.ViewCount != 0
+                        || db.OrderItems.Any(i => i.ProductId == p.Id) || db.Reviews.Any(r => r.ProductId == p.Id)
+                        || db.Wishlists.Any(w => w.ProductId == p.Id) || db.ProductViews.Any(v => v.ProductId == p.Id))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(p => p.LikeCount, p => db.Wishlists.Count(w => w.ProductId == p.Id))
                 .SetProperty(p => p.ViewCount, p => db.ProductViews.Count(v => v.ProductId == p.Id))

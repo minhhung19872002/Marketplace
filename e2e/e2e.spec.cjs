@@ -25,10 +25,16 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('.mall-brands')).toBeVisible();
     await expect(page.locator('.top-categories')).toBeVisible();
     await expect(page.locator('.product-grid-section')).toBeVisible();
-    // Flash Sale of the platform (seeded slot running now): real items, countdown on the server's clock
-    await expect(page.getByTestId('flash-sale')).toBeVisible();
-    await expect(page.getByTestId('flash-item').first()).toBeVisible();
-    await expect(page.getByTestId('countdown').first()).toHaveText(/\d{2}:\d{2}:\d{2}/);
+    // Flash Sale of the platform: shown exactly when a slot runs now (the seeded one lasts until the next 3-hour mark,
+    // a long-lived stack may be between slots), real items, countdown on the server's clock
+    const board = (await (await page.request.get(`${BASE}/api/flash-sale`)).json()).data;
+    if (board.slot && board.items.length > 0) {
+      await expect(page.getByTestId('flash-sale')).toBeVisible();
+      await expect(page.getByTestId('flash-item').first()).toBeVisible();
+      await expect(page.getByTestId('countdown').first()).toHaveText(/\d{2}:\d{2}:\d{2}/);
+    } else {
+      await expect(page.getByTestId('flash-sale')).toHaveCount(0);
+    }
 
     expect(filterRealErrors(errors)).toHaveLength(0);
   });
@@ -69,7 +75,7 @@ test.describe('ShopHub Marketplace', () => {
     await page.waitForLoadState('networkidle');
     const name = (await page.locator('[data-testid="product-card-name"]').first().textContent()).replace('Yêu thích', '').trim();
     await page.locator('[data-testid="product-card"]').first().click();
-    await page.waitForURL(/\/san-pham\/[0-9a-f-]{36}/);
+    await page.waitForURL(/\/san-pham\/.+-i\.[0-9a-f-]{36}\.[0-9a-f-]{36}$/);
 
     await expect(page.locator('[data-testid="pd-name"]')).toContainText(name);
     await expect(page.locator('.price-current')).toBeVisible();

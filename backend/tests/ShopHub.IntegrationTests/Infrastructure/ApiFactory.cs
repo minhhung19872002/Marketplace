@@ -106,6 +106,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // Every test request shares one (unknown) client IP: the per-IP ceiling would trip across the whole suite
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_GLOBAL", "1000000");
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_OTP", "100000");
+        // Tests read what they just wrote: no output cache
+        Environment.SetEnvironmentVariable("SH_OUTPUT_CACHE_SECONDS", "0");
 
         // Real gateways / carriers switched on with test keys, answered by FakeProviders
         Environment.SetEnvironmentVariable("SH_VNPAY_TMN_CODE", FakeProviders.VnPayTmn);

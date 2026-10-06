@@ -33,7 +33,21 @@ public sealed class MeiliClient
     public async Task UpdateSettingsAsync(string uid, object settings, CancellationToken ct)
     {
         var res = await _http.PatchAsJsonAsync($"indexes/{uid}/settings", settings, Json, ct);
-        await WaitAsync(await TaskUidAsync(res, ct), ct);
+        // A real change re-indexes every document (minutes on a large catalogue); an identical PATCH is quick
+        await WaitForAsync(await TaskUidAsync(res, ct), TimeSpan.FromMinutes(30), ct);
+    }
+
+    /// <summary>Until no task of the index is enqueued or processing (counts only mean something then).</summary>
+    public async Task WaitIdleAsync(string uid, TimeSpan timeout, CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            var node = await _http.GetFromJsonAsync<JsonObject>($"tasks?indexUids={uid}&statuses=enqueued,processing&limit=1", Json, ct);
+            if ((node?["results"]?.AsArray().Count ?? 0) == 0) return;
+            await Task.Delay(2_000, ct);
+        }
+        throw new TimeoutException($"Meilisearch index {uid} still busy after {timeout}");
     }
 
     public async Task AddOrReplaceAsync<T>(string uid, IReadOnlyCollection<T> documents, CancellationToken ct)
@@ -41,6 +55,28 @@ public sealed class MeiliClient
         if (documents.Count == 0) return;
         var res = await _http.PostAsJsonAsync($"indexes/{uid}/documents", documents, Json, ct);
         await WaitAsync(await TaskUidAsync(res, ct), ct);
+    }
+
+    /// <summary>Queue documents without waiting (bulk loads queue many batches, then wait once with <see cref="WaitForAsync"/>).</summary>
+    public async Task<long> EnqueueAsync<T>(string uid, IReadOnlyCollection<T> documents, CancellationToken ct)
+    {
+        var res = await _http.PostAsJsonAsync($"indexes/{uid}/documents", documents, Json, ct);
+        return await TaskUidAsync(res, ct);
+    }
+
+    public async Task WaitForAsync(long taskUid, TimeSpan timeout, CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            var node = await _http.GetFromJsonAsync<JsonObject>($"tasks/{taskUid}", Json, ct);
+            var status = node?["status"]?.GetValue<string>();
+            if (status == "succeeded") return;
+            if (status is "failed" or "canceled")
+                throw new HttpRequestException($"Meilisearch task {taskUid} {status}: {node?["error"]?.ToJsonString()}");
+            await Task.Delay(1_000, ct);
+        }
+        throw new TimeoutException($"Meilisearch task {taskUid} did not finish in time");
     }
 
     public async Task DeleteAsync(string uid, IReadOnlyCollection<string> ids, CancellationToken ct)

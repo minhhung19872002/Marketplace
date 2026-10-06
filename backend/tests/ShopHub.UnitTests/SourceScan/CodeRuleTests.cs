@@ -149,6 +149,7 @@ public class NginxConfigParityTests
     private static readonly string[] Required =
     [
         "X-Content-Type-Options",
+        "Strict-Transport-Security",
         "X-Frame-Options",
         "Content-Security-Policy",
         "Referrer-Policy",
@@ -169,6 +170,20 @@ public class NginxConfigParityTests
         var text = File.ReadAllText(Path.Combine(RepoFiles.RepoRoot, relativePath));
 
         Required.Where(r => !text.Contains(r, StringComparison.Ordinal)).Should().BeEmpty($"{relativePath} thiếu cấu hình chung");
+    }
+
+    /// <summary>The production HTTPS gateway serves the same routes as the dev gateway: everything from the first location on is identical.</summary>
+    [Fact]
+    public void The_https_gateway_routes_exactly_like_the_dev_gateway()
+    {
+        static string Routes(string file)
+        {
+            var text = File.ReadAllText(Path.Combine(RepoFiles.RepoRoot, "deploy", "nginx", file)).Replace("\r\n", "\n");
+            var server = text.LastIndexOf("server {", StringComparison.Ordinal);
+            return text[text.IndexOf("    proxy_set_header Host $host;", server, StringComparison.Ordinal)..];
+        }
+
+        Routes("gateway-https.conf").Should().Be(Routes("gateway.conf"), "sửa gateway.conf thì sửa cả gateway-https.conf");
     }
 }
 

@@ -7,6 +7,7 @@ Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** 
 [`docs/07-bang-doi-chieu-chuc-nang.md`](docs/07-bang-doi-chieu-chuc-nang.md).
 
 > **Trạng thái hiện tại: xong Phase 0–12** (chuyển đổi repo, nền móng backend, tài khoản, danh mục & sản phẩm, tìm kiếm & trang người mua, giỏ hàng & thanh toán, đơn hàng & vận chuyển, đánh giá & trả hàng / khiếu nại, tài chính: sổ cái, giải ngân, rút tiền, Ví ShopHub, marketing: Flash Sale, combo, mua kèm, quà tặng, banner, chiến dịch, hạng thành viên, điểm danh xu, chat người mua ↔ shop thời gian thực (SignalR), thông báo đa kênh, thông báo hàng loạt, cổng VNPay / MoMo và hãng GHN / GHTK bật bằng khoá trong `.env`, quản trị đủ phân hệ VI: tổng quan, 11 báo cáo có biểu đồ + Excel/PDF, điểm phạt, can thiệp đơn, nội dung & mẫu tin; phân tích cho shop).
+> **Phase 13 (hoàn thiện) đang làm:** đã có SEO cho máy thu thập (HTML render sẵn, JSON-LD, sitemap), đo 1 triệu sản phẩm đạt ngưỡng, giao diện 375 px / 1366 px, WCAG AA, `docker-compose.prod.yml` (HTTPS, sao lưu / phục hồi); còn tài liệu hướng dẫn 01–03, 06 và các mục dời lại ghi ở `docs/07`.
 > Kênh Người Bán (đăng ký shop, đăng/sửa sản phẩm, tồn kho) và quản trị (duyệt shop/sản phẩm, ngành hàng) chạy thật.
 > Trang người mua đọc dữ liệu thật: tìm kiếm không dấu có facet (Meilisearch, dự phòng PostgreSQL), trang danh mục / sản phẩm / shop,
 > yêu thích, theo dõi shop, ~1.000 sản phẩm mẫu. Giỏ hàng trên máy chủ, thanh toán tách đơn theo shop với voucher sàn/shop, xu, phí vận
@@ -21,8 +22,8 @@ backend/   ShopHub.sln — Domain, Application, Infrastructure, Reporting, Api +
 web/       Site người mua — React 18 + TypeScript + Vite (@shophub/web)
 seller/    Kênh Người Bán — React + TS + Ant Design 5 (@shophub/seller)
 admin/     Quản trị sàn — React + TS + Ant Design 5 (@shophub/admin)
-e2e/       Playwright (19 kịch bản người mua + smoke test stack)
-deploy/    nginx/ (gateway + SPA), postgres/init/ (extension), frontend.Dockerfile
+e2e/       Playwright (19 kịch bản cũ + kịch bản mục 9) · e2e/load/ k6 (Flash Sale 1.000 người, hiệu năng 1 triệu sản phẩm)
+deploy/    nginx/ (gateway, gateway-https, SPA), postgres/init/, scripts/ (deploy, backup-db, restore), frontend.Dockerfile
 docs/      Quyết định kỹ thuật, đối chiếu chức năng, sổ lỗi…
 ```
 
@@ -50,6 +51,17 @@ Mọi cổng chỉ mở trên `127.0.0.1`, dải 18xxx (xem `docs/00-quyet-dinh-
 
 **Tài khoản lần đầu:** mật khẩu quản trị (`admin`) và các tài khoản mẫu được sinh ngẫu nhiên, in **một lần** ra
 `docker compose logs api | grep SEED`. Quản trị phải đổi mật khẩu ở lần đăng nhập đầu. Chi tiết: [`docs/04-cai-dat-van-hanh.md`](docs/04-cai-dat-van-hanh.md).
+
+## Production
+
+```bash
+cp .env.example .env                 # mọi bí mật + SH_SMTP_HOST, SH_SMTP_FROM, SH_MEDIA_PUBLIC_URL
+# chứng chỉ vào deploy/certs/{fullchain,privkey}.pem
+deploy/scripts/deploy.sh             # build theo mã commit, up -d, chờ sẵn sàng, dọn ảnh cũ (giữ 2 bản)
+deploy/scripts/restore.sh backups/db/<tệp>.dump [--files]
+```
+
+HTTPS, sao lưu mỗi đêm, giám sát, đo hiệu năng 1 triệu sản phẩm: [`docs/04-cai-dat-van-hanh.md`](docs/04-cai-dat-van-hanh.md).
 
 ## Phát triển từng phần
 

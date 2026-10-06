@@ -31,6 +31,17 @@ public static class ApiServiceExtensions
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
 
+        // Anonymous catalogue reads are cached in Redis (shared by every API instance, spec 6.3); signed-in requests,
+        // non-200 answers and responses setting cookies never are. SH_OUTPUT_CACHE_SECONDS=0 turns it off (tests, dev).
+        var cacheSeconds = int.TryParse(config["SH_OUTPUT_CACHE_SECONDS"], out var s) ? Math.Clamp(s, 0, 3600) : 30;
+        services.AddStackExchangeRedisOutputCache(o =>
+        {
+            o.Configuration = config["SH_REDIS_URL"] ?? "localhost:18379";
+            o.InstanceName = "sh:oc:";
+        });
+        services.AddOutputCache(o => o.AddPolicy(OutputCachePolicies.Storefront,
+            b => { if (cacheSeconds > 0) b.Expire(TimeSpan.FromSeconds(cacheSeconds)); else b.NoCache(); }));
+
         services.AddControllers(o =>
             {
                 ModelStateResponse.UseVietnameseMessages(o.ModelBindingMessageProvider);

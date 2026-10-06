@@ -71,6 +71,7 @@ app.UseAuthentication();
 app.UseRateLimiter();
 app.UseMiddleware<PasswordChangeGateMiddleware>();
 app.UseAuthorization();
+app.UseOutputCache();
 
 // Liveness: process is up. Readiness: DB, Redis, MinIO, Meilisearch reachable.
 app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();

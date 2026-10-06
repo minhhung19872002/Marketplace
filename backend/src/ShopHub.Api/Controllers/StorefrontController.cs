@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using ShopHub.Api.Common;
 using ShopHub.Api.Security;
 using ShopHub.Application.Abstractions;
@@ -36,21 +37,25 @@ public sealed class StorefrontController : ApiControllerBase
     /// 60 results per page by default, stable order.
     /// </summary>
     [HttpGet("search/products")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<ProductSearchResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Search([FromQuery] SearchProductsQuery query, CancellationToken ct) => OkData(await Sender.Send(query, ct));
 
     [HttpGet("search/suggest")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<SuggestionDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Suggest([FromQuery] string q, CancellationToken ct) => OkData(await Sender.Send(new SuggestQuery(q ?? string.Empty), ct));
 
     [HttpGet("search/hot-keywords")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<IReadOnlyList<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> HotKeywords(CancellationToken ct) => OkData(await Sender.Send(new HotKeywordsQuery(), ct));
 
     [HttpGet("products/{id:guid}")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<ProductPageDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
@@ -67,11 +72,13 @@ public sealed class StorefrontController : ApiControllerBase
     }
 
     [HttpGet("products/{id:guid}/related")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<IReadOnlyList<ProductCardDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Related(Guid id, CancellationToken ct) => OkData(await Sender.Send(new RelatedProductsQuery(id), ct));
 
     [HttpGet("products/{id:guid}/shop-products")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<IReadOnlyList<ProductCardDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ShopProducts(Guid id, CancellationToken ct) => OkData(await Sender.Send(new ShopOtherProductsQuery(id), ct));
@@ -83,11 +90,13 @@ public sealed class StorefrontController : ApiControllerBase
         OkData(await Sender.Send(new RecommendationsQuery(page, pageSize, Request.Cookies[VisitorCookie]), ct));
 
     [HttpGet("home/top-categories")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<IReadOnlyList<TopCategoryProductDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> TopCategories(CancellationToken ct) => OkData(await Sender.Send(new TopProductsByCategoryQuery(), ct));
 
     [HttpGet("home/mall")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<IReadOnlyList<MallShopDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Mall(CancellationToken ct) => OkData(await Sender.Send(new MallShopsQuery(), ct));
@@ -99,11 +108,13 @@ public sealed class StorefrontController : ApiControllerBase
         OkData(await Sender.Send(new RecentlyViewedQuery(Request.Cookies[VisitorCookie]), ct));
 
     [HttpGet("categories/by-slug/{slug}")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<CategoryPageDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> CategoryBySlug(string slug, CancellationToken ct) => OkData(await Sender.Send(new GetCategoryBySlugQuery(slug), ct));
 
     [HttpGet("shops/{slug}")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<ShopPageDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Shop(string slug, CancellationToken ct) => OkData(await Sender.Send(new GetShopPageQuery(slug), ct));

@@ -85,6 +85,9 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         b.HasIndex(p => new { p.ShopId, p.Status, p.UpdatedAt }).HasDatabaseName("ix_products_shop_status");
         b.HasIndex(p => new { p.Status, p.SubmittedAt }).HasDatabaseName("ix_products_status_submitted");
+        // "Gợi ý hôm nay" / best-seller lists walk this instead of sorting the catalogue (spec 6.3, 1 triệu sản phẩm)
+        b.HasIndex(p => new { p.SoldCount, p.RatingAvg, p.PublishedAt, p.Id }).IsDescending(true, true, true, false)
+            .HasFilter("status = 'Active' AND deleted_at IS NULL").HasDatabaseName("ix_products_best_selling");
         b.HasIndex(p => p.CategoryId).HasDatabaseName("ix_products_category");
     }
 }

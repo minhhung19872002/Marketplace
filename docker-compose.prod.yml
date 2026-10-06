@@ -1,0 +1,156 @@
+# Production overrides — always used together with the base file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# (deploy/scripts/deploy.sh does exactly that, tags images with the git revision and prunes old ones).
+#
+# What changes compared with the dev/demo stack:
+#  - HTTPS on 443 (deploy/nginx/gateway-https.conf, certificates in ./deploy/certs), HTTP only redirects / serves ACME
+#  - no service publishes a port except the gateway; mailpit is not started (real SMTP from .env)
+#  - production settings: no simulated gateway, no sample data, code default rate limits, Production environment
+#  - restart always, CPU / memory limits, rotated json-file logs
+#  - backup-db (nightly pg_dump, kept SH_BACKUP_KEEP_DAYS) and backup-files (MinIO mirrored continuously)
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+
+x-prod: &prod
+  restart: always
+  <<: *logging
+
+services:
+  postgres:
+    <<: *prod
+    ports: !reset []
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2g }
+
+  redis:
+    <<: *prod
+    ports: !reset []
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512m }
+
+  minio:
+    <<: *prod
+    ports: !reset []
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1g }
+
+  meilisearch:
+    <<: *prod
+    ports: !reset []
+    environment:
+      MEILI_ENV: production
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2g }
+
+  # Not part of production: mails go to the SMTP server configured in .env
+  mailpit:
+    profiles: ["dev"]
+
+  api:
+    <<: *prod
+    image: shophub/api:${SH_IMAGE_TAG:-latest}
+    ports: !reset []
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      SH_SMTP_HOST: ${SH_SMTP_HOST:?Production cần SH_SMTP_HOST}
+      SH_SMTP_PORT: ${SH_SMTP_PORT:-587}
+      SH_SMTP_FROM: ${SH_SMTP_FROM:?Production cần SH_SMTP_FROM}
+      SH_MEDIA_PUBLIC_URL: ${SH_MEDIA_PUBLIC_URL:?Production cần SH_MEDIA_PUBLIC_URL (https://…/s3)}
+      SH_PAYMENT_SIMULATED: "false"
+      SH_OUTPUT_CACHE_SECONDS: ${SH_OUTPUT_CACHE_SECONDS:-30}
+      SH_SEED_SAMPLE: "false"
+      SH_SEED_LOAD_USERS: "0"
+      # Empty = the code defaults (20 / 10 / 600 per minute and IP)
+      SH_RATE_LIMIT_AUTH: ""
+      SH_RATE_LIMIT_OTP: ""
+      SH_RATE_LIMIT_GLOBAL: ""
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1536m }
+
+  web:
+    <<: *prod
+    image: shophub/web:${SH_IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+
+  seller:
+    <<: *prod
+    image: shophub/seller:${SH_IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+
+  admin:
+    <<: *prod
+    image: shophub/admin:${SH_IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+
+  nginx:
+    <<: *prod
+    environment:
+      SH_GATEWAY_RATE: 30r/s
+      SH_GATEWAY_BURST: "60"
+    volumes: !override
+      - ./deploy/nginx/gateway-https.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+      - certbot-www:/var/www/certbot:ro
+    ports: !override
+      - "80:80"
+      - "443:443"
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 256m }
+
+  # Nightly logical backup of PostgreSQL into ./backups/db (busybox crond inside the postgres image)
+  backup-db:
+    <<: *prod
+    image: postgres:16-alpine
+    environment:
+      PGHOST: postgres
+      PGUSER: ${SH_DB_USER:-shophub}
+      PGPASSWORD: ${SH_DB_PASSWORD}
+      PGDATABASE: ${SH_DB_NAME:-shophub}
+      SH_BACKUP_KEEP_DAYS: ${SH_BACKUP_KEEP_DAYS:-14}
+      SH_BACKUP_CRON: ${SH_BACKUP_CRON:-30 19 * * *}
+    volumes:
+      - ./deploy/scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
+      - ./backups/db:/backups
+    entrypoint: ["/bin/sh", "-c", "echo \"$$SH_BACKUP_CRON /bin/sh /usr/local/bin/backup-db.sh >> /proc/1/fd/1 2>&1\" > /etc/crontabs/root && exec crond -f -l 8"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
+
+  # Files (product images, reviews, KYC, chat) mirrored continuously into ./backups/minio
+  backup-files:
+    <<: *prod
+    image: minio/mc:latest
+    environment:
+      MC_HOST_sh: http://${SH_MINIO_ACCESS_KEY:-shophub}:${SH_MINIO_SECRET_KEY}@minio:9000
+    volumes:
+      - ./backups/minio:/backups
+    entrypoint: ["/bin/sh", "-c", "for b in sh-products sh-reviews sh-kyc sh-chat sh-banners; do mkdir -p /backups/$$b; done; exec mc mirror --watch --overwrite sh/ /backups/"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
+
+volumes:
+  certbot-www:

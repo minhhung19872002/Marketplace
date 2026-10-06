@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using ShopHub.Api.Common;
 using ShopHub.Api.Security;
@@ -51,6 +52,7 @@ public sealed class AvatarController : ApiControllerBase
 public sealed class CatalogController : ApiControllerBase
 {
     [HttpGet("categories")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ResponseCache(Duration = 300)]
     [ProducesResponseType<ApiResponse<IReadOnlyList<CategoryNodeDto>>>(StatusCodes.Status200OK)]

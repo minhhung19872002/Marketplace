@@ -40,6 +40,12 @@ public static class DatabaseInitializer
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.FinanceSeeder>().SeedAsync(ct);
         if (settings.SeedSampleData) await sp.GetRequiredService<ShopHub.Infrastructure.Seed.MarketingSeeder>().SeedAsync(ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.LoadUserSeeder>().SeedAsync(ct);
+        if (settings.PerfProducts > 0)
+        {
+            // The perf catalogue indexes itself straight into Meilisearch: configure the index first
+            await sp.GetRequiredService<ShopHub.Infrastructure.Search.MeiliSearchIndexer>().ConfigureAsync(ct);
+            await sp.GetRequiredService<ShopHub.Infrastructure.Seed.PerfSeeder>().SeedAsync(ct);
+        }
         await sp.GetRequiredService<ShopHub.Application.Abstractions.ICounterRecomputer>().RecomputeAllAsync(ct);
 
         // The search index is a projection: rebuild it whenever it disagrees with the database. If the engine is

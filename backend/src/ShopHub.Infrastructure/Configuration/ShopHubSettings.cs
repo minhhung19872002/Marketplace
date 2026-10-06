@@ -37,6 +37,9 @@ public sealed class ShopHubSettings
     public int LoadUsers { get; init; }
     public string? LoadUserPassword { get; init; }
 
+    // SH_SEED=perf: grow the catalogue to SH_PERF_PRODUCTS (default 1.000.000) products for performance measurement
+    public int PerfProducts { get; init; }
+
     // SimulatedGateway (fake payment page that can mark any payment as paid): demo/test only, off unless set
     public bool PaymentSimulated { get; init; }
 
@@ -83,6 +86,9 @@ public sealed class ShopHubSettings
             LoadUsers = int.TryParse(config["SH_SEED_LOAD_USERS"], out var loadUsers) ? Math.Clamp(loadUsers, 0, 10_000) : 0,
             LoadUserPassword = string.IsNullOrWhiteSpace(config["SH_LOAD_USER_PASSWORD"]) ? null : config["SH_LOAD_USER_PASSWORD"],
             Providers = ProviderSettings.FromConfiguration(config),
+            PerfProducts = string.Equals(config["SH_SEED"], "perf", StringComparison.OrdinalIgnoreCase)
+                ? int.TryParse(config["SH_PERF_PRODUCTS"], out var perf) ? Math.Clamp(perf, 1, 5_000_000) : 1_000_000
+                : 0,
         };
     }
 

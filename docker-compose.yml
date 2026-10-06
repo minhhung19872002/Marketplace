@@ -138,6 +138,8 @@ services:
       # Load-test buyers for e2e/load (k6): off unless both are set in .env
       SH_SEED_LOAD_USERS: ${SH_SEED_LOAD_USERS:-0}
       SH_LOAD_USER_PASSWORD: ${SH_LOAD_USER_PASSWORD:-}
+      # Anonymous catalogue reads cached in Redis (seconds). Off on the dev stack so e2e always reads fresh data
+      SH_OUTPUT_CACHE_SECONDS: ${SH_OUTPUT_CACHE_SECONDS:-0}
       # Real gateways / carriers (Phase 11): each one is on only when its keys are set in .env
       SH_CALLBACK_BASE_URL: ${SH_CALLBACK_BASE_URL:-}
       SH_VNPAY_TMN_CODE: ${SH_VNPAY_TMN_CODE:-}

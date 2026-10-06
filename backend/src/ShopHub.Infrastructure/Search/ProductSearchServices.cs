@@ -332,6 +332,8 @@ public sealed class MeiliSearchIndexer(MeiliClient meili, ShopHubDbContext db, I
     public async Task EnsureFreshAsync(CancellationToken ct)
     {
         await ConfigureAsync(ct);
+        // Documents still being indexed would look like a mismatch and trigger a needless full rebuild
+        await meili.WaitIdleAsync(MeiliClient.ProductsIndex, TimeSpan.FromMinutes(30), ct);
         var indexed = await meili.CountAsync(MeiliClient.ProductsIndex, ct);
         var expected = await ProductCards.Visible(db).CountAsync(ct);
         if (indexed != expected) await ReindexAllAsync(ct);

@@ -232,13 +232,31 @@ public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUse
 
         // Shops "hạn chế hiển thị" by penalty points are left out of "Gợi ý hôm nay"
         var restrict = await parameters.GetIntAsync(ParameterKeys.ShopPenaltyRestrictPoints, ct);
-        var page = await ProductCards.Visible(db).AsNoTracking()
-            .Where(p => !db.Shops.Any(s => s.Id == p.ShopId && s.PenaltyPoints >= restrict))
-            .OrderByDescending(p => interests.Contains(p.CategoryId))
-            .ThenByDescending(p => p.SoldCount).ThenByDescending(p => p.RatingAvg).ThenByDescending(p => p.PublishedAt).ThenBy(p => p.Id)
-            .ToPagedResultAsync(ProductCards.Row(db), request, ct);
-        return new PagedResult<ProductCardDto>(page.Items.Select(ProductCards.ToDto).ToList(), page.TotalCount, page.Page, page.PageSize);
+        var visible = ProductCards.Visible(db).AsNoTracking().Where(p => !db.Shops.Any(s => s.Id == p.ShopId && s.PenaltyPoints >= restrict));
+
+        // Two index-friendly lists instead of one sort of the whole catalogue (1 triệu sản phẩm, spec 6.3): the viewer's
+        // categories first, then every other best seller; the feed stops after FeedCap products ("Xem thêm" pages)
+        var first = visible.Where(p => interests.Contains(p.CategoryId));
+        var rest = interests.Count == 0 ? visible : visible.Where(p => !interests.Contains(p.CategoryId));
+        var firstCount = interests.Count == 0 ? 0 : await first.Take(FeedCap).CountAsync(ct);
+        var total = Math.Min(FeedCap, firstCount + await rest.Take(FeedCap).CountAsync(ct));
+        var offset = (request.Page - 1) * request.PageSize;
+        var take = Math.Max(0, Math.Min(request.PageSize, total - offset));
+
+        var rows = new List<ProductCardRow>();
+        if (offset < firstCount)
+            rows.AddRange(await BestSelling(first).Skip(offset).Take(Math.Min(take, firstCount - offset)).Select(ProductCards.Row(db)).ToListAsync(ct));
+        if (rows.Count < take)
+            rows.AddRange(await BestSelling(rest).Skip(Math.Max(0, offset - firstCount)).Take(take - rows.Count).Select(ProductCards.Row(db)).ToListAsync(ct));
+        return new PagedResult<ProductCardDto>(rows.Select(ProductCards.ToDto).ToList(), total, request.Page, request.PageSize);
     }
+
+    /// <summary>Products in "Gợi ý hôm nay" at most (60 per "Xem thêm" × 20).</summary>
+    public const int FeedCap = 1_200;
+
+    // Served by ix_products_best_selling (sold, rating, published, id)
+    private static IQueryable<Domain.Catalog.Product> BestSelling(IQueryable<Domain.Catalog.Product> q) =>
+        q.OrderByDescending(p => p.SoldCount).ThenByDescending(p => p.RatingAvg).ThenByDescending(p => p.PublishedAt).ThenBy(p => p.Id);
 }
 
 public record TopCategoryProductDto(CategoryCrumbDto Category, ProductCardDto Product);

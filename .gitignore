@@ -11,3 +11,7 @@ playwright-report
 bin/
 obj/
 *.tsbuildinfo
+
+# Production backups and HTTPS certificates never go to git
+backups/
+deploy/certs/

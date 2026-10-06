@@ -1,0 +1,29 @@
+# Performance stack (spec 6.3: 1 triệu sản phẩm) — its own project, volumes and port so the dev data stays clean:
+#   docker compose -p shophub-perf -f docker-compose.yml -f docker-compose.perf.yml up -d --build
+# The API grows the catalogue to SH_PERF_PRODUCTS on start (SH_SEED=perf), then e2e/load/perf.js measures it
+# through the gateway on http://localhost:18100. Remove everything with: docker compose -p shophub-perf down -v
+
+services:
+  postgres:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  minio:
+    ports: !reset []
+  meilisearch:
+    ports: !reset []
+  mailpit:
+    ports: !reset []
+  api:
+    ports: !reset []
+    environment:
+      SH_SEED: perf
+      SH_PERF_PRODUCTS: ${SH_PERF_PRODUCTS:-1000000}
+      SH_RATE_LIMIT_GLOBAL: "10000000"
+      SH_OUTPUT_CACHE_SECONDS: ${SH_OUTPUT_CACHE_SECONDS:-30}
+  nginx:
+    environment:
+      SH_GATEWAY_RATE: 10000r/s
+      SH_GATEWAY_BURST: "20000"
+    ports: !override
+      - "127.0.0.1:18100:80"

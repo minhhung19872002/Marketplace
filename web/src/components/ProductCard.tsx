@@ -5,6 +5,7 @@ import { formatPrice, formatSold } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { useWishlist } from '../context/WishlistContext';
 import './ProductCard.css';
+import { productPath } from '../lib/urls';
 
 // Five stars, filled up to the rounded-down rating
 const Stars = ({ rating }: { rating: number }) => {
@@ -29,7 +30,7 @@ const ProductCard = ({ product }: { product: Card }) => {
   };
 
   return (
-    <Link to={`/san-pham/${product.id}`} className={`product-card ${product.inStock ? '' : 'sold-out'}`} data-testid="product-card">
+    <Link to={productPath(product.slug, product.shopId, product.id)} className={`product-card ${product.inStock ? '' : 'sold-out'}`} data-testid="product-card">
       <div className="product-card-img">
         <img src={imageOrPlaceholder(product.imageUrl)} alt={product.name} loading="lazy" onError={handleImgError} />
         {product.discountPercent > 0 && (

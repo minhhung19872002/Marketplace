@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { storefrontApi } from '../api/storefront';
 import { ApiError } from '../api/http';
@@ -9,6 +9,7 @@ import ProductGrid from '../components/ProductGrid';
 import ProductReviews from '../components/ProductReviews';
 import Countdown from '../components/Countdown';
 import { viewSource } from '../lib/navigation';
+import { productIdOf, productPath } from '../lib/urls';
 import ReportProduct from '../components/ReportProduct';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { clockSkew, marketingApi } from '../api/marketing';
@@ -388,7 +389,11 @@ const Related = ({ id }: { id: string }) => {
 };
 
 const ProductDetail = () => {
-  const { id = '' } = useParams();
+  const { id: key = '' } = useParams();
+  // /san-pham/{id} and /san-pham/{slug}-i.{shopId}.{id} both open the product
+  const id = productIdOf(key) ?? key;
+  const navigate = useNavigate();
+  const location = useLocation();
   const { data, error, isLoading } = useQuery({ queryKey: ['product', id], queryFn: () => storefrontApi.product(id), retry: false });
 
   useEffect(() => {
@@ -396,6 +401,13 @@ const ProductDetail = () => {
     // One view per viewer per 30 minutes — the server de-duplicates
     if (/^[0-9a-f-]{36}$/i.test(id)) storefrontApi.recordView(id, viewSource()).catch(() => undefined);
   }, [id]);
+
+  // Old or stale URLs settle on the canonical one (the crawler version answers 301 for the same)
+  useEffect(() => {
+    if (!data) return;
+    const canonical = productPath(data.slug, data.shop.id, data.id);
+    if (location.pathname !== canonical) navigate(`${canonical}${location.search}`, { replace: true });
+  }, [data, location.pathname, location.search, navigate]);
 
   if (isLoading) return <div className="page-loader"><div className="loading-spinner" /></div>;
   if (error || !data) {

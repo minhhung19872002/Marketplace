@@ -522,6 +522,18 @@ Ngày là ngày Việt Nam `YYYY-MM-DD`, tính cả hai đầu (mặc định 30
 
 `POST /api/products/{id}/views?source=Home|Search|Category|Shop|Campaign|External|Direct` ghi nguồn lượt xem.
 
+## SEO (Phase 13)
+
+Gateway chuyển máy thu thập (User-Agent: Googlebot, Bingbot, Cốc Cốc, Facebook, Zalo…) trên mọi trang người mua sang
+`/api/seo/render`; `/robots.txt`, `/sitemap.xml`, `/sitemaps/*` công khai cho mọi người.
+
+| Phương thức | Đường dẫn | Mô tả |
+|---|---|---|
+| GET | `/api/seo/render?path=/san-pham/…` | HTML render sẵn (title, meta, Open Graph, canonical, JSON-LD). 301 + `Location` khi đường dẫn không phải URL chuẩn, 404 khi không có |
+| GET | `/api/seo/sitemap.xml` (gateway: `/sitemap.xml`) | Chỉ mục: `pages.xml`, `categories.xml`, `shops.xml`, `products-N.xml` |
+| GET | `/api/seo/sitemaps/{name}.xml` (gateway: `/sitemaps/{name}.xml`) | Tệp con, ≤ 50.000 URL |
+| GET | `/api/seo/robots.txt` (gateway: `/robots.txt`) | Chặn trang riêng tư, trỏ tới sitemap |
+
 ## Chỉ môi trường phát triển
 
 | GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |

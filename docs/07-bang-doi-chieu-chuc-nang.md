@@ -16,10 +16,10 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 7 | Đánh giá, trả hàng, khiếu nại | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 7 dưới đây |
 | 8 | Tài chính | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 8 dưới đây |
 | 9 | Marketing | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 9 dưới đây |
-| 10 | Chat & thông báo thời gian thực | Chưa làm | |
-| 11 | Cổng thật | Chưa làm | |
-| 12 | Quản trị & báo cáo | Chưa làm | |
-| 13 | Hoàn thiện | Chưa làm | |
+| 10 | Chat & thông báo thời gian thực | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 10 dưới đây |
+| 11 | Cổng thật | **Xong** (chưa kiểm với sandbox thật — ghi ở cuối bảng) | Xem bảng Phase 11 dưới đây |
+| 12 | Quản trị & báo cáo | **Xong** (trừ mục ghi ở cuối bảng) | Xem bảng Phase 12 dưới đây |
+| 13 | Hoàn thiện | Đang làm — xem bảng Phase 13 | Xem bảng Phase 13 dưới đây |
 
 ## Phase 0 — Chuyển đổi repo
 
@@ -248,3 +248,17 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | VI.8 Trang tĩnh, trợ giúp, mẫu thư / SMS, tham số có lịch sử, bật / tắt đơn vị vận chuyển & cổng thanh toán | 00 #110, admin → Nội dung & mẫu tin, Vận chuyển & cổng thanh toán | phép thử nội dung ở trên (HTML bị lọc `<script>`, mẫu OTP mới tới SMS, biến lạ → 409, tắt MoMo biến mất khỏi nạp ví); e2e trang pháp lý / trợ giúp / footer |
 | VI.9 Nhật ký: lọc người / hành động / đối tượng / thời gian, khác biệt cũ / mới, xuất Excel | `AuditLogsExportHandler`, admin → Nhật ký | phép thử nội dung ở trên (xuất có dòng đổi tham số) |
 | **Dời lại** | trang trí shop, Excel sản phẩm hàng loạt, mẫu thông báo từng sự kiện | 00 #111 |
+
+## Phase 13 — Hoàn thiện
+
+| Yêu cầu | Hiện thực | Bằng chứng |
+|---|---|---|
+| 6.6 SEO: HTML render sẵn cho máy thu thập — title, meta, Open Graph, canonical, JSON-LD Product/Offer/AggregateRating, breadcrumb | 00 #114, `SeoRenderQuery`, `map $sh_is_bot` ở gateway | `A_product_page_for_crawlers_has_meta_open_graph_canonical_and_product_json_ld`, `Category_shop_search_and_static_pages_render_and_search_is_not_indexed`; e2e `seo.spec.cjs` (qua gateway, người thật vẫn nhận SPA) |
+| 6.6 `sitemap.xml` chia tệp ≤ 50.000 URL, `robots.txt`, URL thân thiện | 00 #115, `SitemapHandlers`, `lib/urls.ts` | `The_sitemap_index_lists_chunked_files_holding_canonical_urls_and_robots_points_to_it`; e2e `seo.spec.cjs`; e2e "Click sản phẩm mở trang chi tiết" (URL chuẩn) |
+| 6.3 Tìm kiếm < 500 ms, trang < 300 ms với 1 triệu sản phẩm | 00 #116–118, `PerfSeeder`, `docker-compose.perf.yml`, `e2e/load/perf.js` | docs/04 mục Hiệu năng: p95 không cache 131 / 110 / 102 / 62 / 58 ms trên 1.001.000 sản phẩm, 0 lỗi |
+| 6.1 Rà bảo mật: IDOR, giới hạn tốc độ, tải tệp, tiêu đề bảo mật (thêm HSTS) | quét mã `EndpointAuthorisationTests`, `NginxConfigParityTests` (thêm `Strict-Transport-Security`) | e2e số 11 (IDOR), số 12 (khoá phiên — `hardening.spec.cjs`); bộ test tích hợp tải tệp / giới hạn tốc độ của Phase 1–3 |
+| 6.5 / 9 #13: 375 px không cuộn ngang, seller/admin 1366 × 768 | 00 #113 | e2e `hardening.spec.cjs` (mọi trang người mua, 1366 px cho hai gói kia); L041–L043 |
+| 6.5 WCAG AA: tương phản, bàn phím | 00 #112, `--sh-focus`, `theme.ts` | `contrast.test.ts` ×3; e2e `a11y.spec.cjs` (axe, Tab tới ô tìm kiếm); L044 |
+| 7 `docker-compose.prod.yml`: HTTPS, giới hạn tài nguyên, restart, log driver; triển khai tự dọn ảnh cũ | 00 #119, `gateway-https.conf`, `deploy/scripts/deploy.sh` | `The_https_gateway_routes_exactly_like_the_dev_gateway`; `docker compose -f docker-compose.yml -f docker-compose.prod.yml config` hợp lệ |
+| 6.4 Sao lưu / phục hồi | `backup-db`, `backup-files`, `deploy/scripts/restore.sh` | Diễn tập trên CSDL dev: 489 đơn, 1.096 sản phẩm, tổng sổ cái khớp trước / sau (docs/04) |
+

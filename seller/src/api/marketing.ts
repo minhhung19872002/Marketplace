@@ -85,6 +85,21 @@ export interface FlashItemInput {
 
 const base = (shopId: string) => `/seller/shops/${shopId}/marketing`
 
+export type XtraProgram = 'FreeshipXtra' | 'VoucherXtra'
+
+export interface XtraProgramState {
+  program: XtraProgram
+  joined: boolean
+  since: string | null
+  rateBp: number
+}
+
+export const xtraApi = {
+  list: (shopId: string) => apiRequest<XtraProgramState[]>(`/seller/shops/${shopId}/xtra`),
+  set: (shopId: string, program: XtraProgram, join: boolean) =>
+    apiCommand(`/seller/shops/${shopId}/xtra/${program}`, { method: 'PUT', body: { join } }),
+}
+
 export const marketingApi = {
   skus: (shopId: string, q: string) => apiRequest<PickSku[]>(`${base(shopId)}/skus?q=${encodeURIComponent(q)}`),
   promotions: (shopId: string) => apiRequest<Promotion[]>(`${base(shopId)}/promotions`),

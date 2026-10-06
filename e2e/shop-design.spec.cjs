@@ -152,4 +152,19 @@ test.describe('Thiết lập & trang trí shop', () => {
     await expect(seller.getByTestId('bulk-status').first()).toHaveText('Xong', { timeout: 90_000 });
     await expect(seller.getByTestId('bulk-message').first()).toHaveText('Đã cập nhật 0 SKU.');
   });
+
+  test('Chương trình dịch vụ: shop bật Freeship Xtra, thấy mức phí; tắt lại được', async ({ browser, request }) => {
+    const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
+    const shop = await shopWithProduct(request, admin);
+    const seller = await sellerLogin(browser, shop.seller);
+    await seller.getByRole('menuitem', { name: 'Kênh Marketing' }).click();
+    await seller.getByRole('tab', { name: 'Chương trình dịch vụ' }).click();
+    await expect(seller.getByText(/Phí dịch vụ 5%/)).toBeVisible();
+    await seller.getByTestId('xtra-FreeshipXtra').click();
+    await expect(seller.getByText('Đã tham gia Freeship Xtra.')).toBeVisible();
+    const state = await apiAs(request, shop.token, 'GET', `/seller/shops/${shop.shopId}/xtra`);
+    expect(state.find((p) => p.program === 'FreeshipXtra').joined).toBe(true);
+    await seller.getByTestId('xtra-FreeshipXtra').click();
+    await expect(seller.getByText('Đã rời Freeship Xtra.')).toBeVisible();
+  });
 });

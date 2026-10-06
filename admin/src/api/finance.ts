@@ -3,7 +3,7 @@ import { ApiError, apiCommand, apiRequest, refreshSession } from './http'
 import { useAuthStore } from '../stores/auth'
 import type { PagedResult } from './admin'
 
-export type FeeType = 'Fixed' | 'Payment' | 'Service'
+export type FeeType = 'Fixed' | 'Payment' | 'FreeshipXtra' | 'VoucherXtra'
 
 export interface FeeRule {
   id: string
@@ -66,7 +66,12 @@ export interface ReconcileResult {
   systemTotal: number
 }
 
-export const FEE_TYPE_LABEL: Record<FeeType, string> = { Fixed: 'Phí cố định', Payment: 'Phí thanh toán', Service: 'Phí dịch vụ' }
+export const FEE_TYPE_LABEL: Record<FeeType, string> = {
+  Fixed: 'Phí cố định',
+  Payment: 'Phí thanh toán',
+  FreeshipXtra: 'Phí dịch vụ Freeship Xtra',
+  VoucherXtra: 'Phí dịch vụ Voucher Xtra',
+}
 
 export const ISSUE_LABEL: Record<string, string> = {
   MissingInSystem: 'ShopHub không có',

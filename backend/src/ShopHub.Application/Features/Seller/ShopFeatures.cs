@@ -175,12 +175,15 @@ public sealed class ResubmitShopHandler(IApplicationDbContext db, SellerAccess a
     public async Task<Unit> Handle(ResubmitShopCommand request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.SettingsManage, ct);
-        var shop = await db.Shops.FirstAsync(s => s.Id == request.ShopId, ct);
-        var kyc = await db.ShopKycs.FirstAsync(k => k.ShopId == shop.Id, ct);
-        await ShopRules.ApplyKycAsync(db, encryptor, kyc, access.UserId, shop.Type, request.Personal, request.Business, ct);
-        shop.Resubmit();
-        outbox.Enqueue(OutboxTypes.ShopEvent, new ShopEventPayload(shop.Id, "SUBMITTED", null));
-        await db.SaveChangesAsync(ct);
+        await db.RetryOnStaleAsync(async () =>
+        {
+            var shop = await db.Shops.FirstAsync(s => s.Id == request.ShopId, ct);
+            var kyc = await db.ShopKycs.FirstAsync(k => k.ShopId == shop.Id, ct);
+            await ShopRules.ApplyKycAsync(db, encryptor, kyc, access.UserId, shop.Type, request.Personal, request.Business, ct);
+            shop.Resubmit();
+            outbox.Enqueue(OutboxTypes.ShopEvent, new ShopEventPayload(shop.Id, "SUBMITTED", null));
+            await db.SaveChangesAsync(ct);
+        });
         return Unit.Value;
     }
 }
@@ -211,14 +214,15 @@ public sealed class UpdateShopProfileHandler(IApplicationDbContext db, SellerAcc
     public async Task<Unit> Handle(UpdateShopProfileCommand request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.SettingsManage, ct);
-        var shop = await db.Shops.FirstAsync(s => s.Id == request.ShopId, ct);
         var ids = new[] { request.LogoAssetId, request.CoverAssetId }.Where(i => i is not null).Select(i => i!.Value).ToList();
         var assets = ids.Count == 0 ? [] : await MediaUrls.LoadOwnedAsync(db, access.UserId, "shop", ids, ct);
         string? Url(Guid? id, int size, string? current) =>
             id is { } v ? storage.PublicUrl(assets[v].Bucket, ImageSizes.Key(assets[v].ObjectKey, size)) : current;
+        var shop = await db.Shops.FirstAsync(s => s.Id == request.ShopId, ct);
         shop.UpdateProfile(request.Description, Url(request.LogoAssetId, ImageSizes.Small, shop.LogoUrl),
             Url(request.CoverAssetId, ImageSizes.Large, shop.CoverUrl));
-        await db.SaveChangesAsync(ct);
+        // Description / logo / cover only: written even if counters changed the row meanwhile
+        await db.SaveOwnChangesAsync(ct);
         return Unit.Value;
     }
 }
@@ -230,10 +234,13 @@ public sealed class SetVacationHandler(IApplicationDbContext db, SellerAccess ac
     public async Task<Unit> Handle(SetVacationCommand request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.SettingsManage, ct);
-        var shop = await db.Shops.FirstAsync(s => s.Id == request.ShopId, ct);
-        if (request.Until is { } until) shop.StartVacation(until, clock.UtcNow);
-        else shop.EndVacation();
-        await db.SaveChangesAsync(ct);
+        await db.RetryOnStaleAsync(async () =>
+        {
+            var shop = await db.Shops.FirstAsync(s => s.Id == request.ShopId, ct);
+            if (request.Until is { } until) shop.StartVacation(until, clock.UtcNow);
+            else shop.EndVacation();
+            await db.SaveChangesAsync(ct);
+        });
         return Unit.Value;
     }
 }

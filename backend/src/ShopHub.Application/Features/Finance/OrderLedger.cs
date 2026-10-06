@@ -104,7 +104,9 @@ public sealed class OrderLedger(IApplicationDbContext db, Ledger ledger, FeeSche
                 item.Discounts.Where(d => d.Source is DiscountSource.Shop or DiscountSource.Combo).Sum(d => d.Amount),
                 item.Discounts.Where(d => d.Source == DiscountSource.Platform).Sum(d => d.Amount),
                 await fees.RateAsync(FeeType.Fixed, category, order.CreatedAt, ct),
-                await fees.RateAsync(FeeType.Service, category, order.CreatedAt, ct)));
+                // Service fee only for the programmes the shop was in when the order was placed
+                (order.FreeshipXtra ? await fees.RateAsync(FeeType.FreeshipXtra, category, order.CreatedAt, ct) : 0)
+                + (order.VoucherXtra ? await fees.RateAsync(FeeType.VoucherXtra, category, order.CreatedAt, ct) : 0)));
         }
 
         var returns = await db.ReturnRequests.AsNoTracking().Include(r => r.Items)

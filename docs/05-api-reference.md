@@ -562,6 +562,13 @@ Mẫu tin có thêm kênh `InApp` (`ORDER.*`).
 `POST /api/account/delete` trả 409 kèm lý do khi còn đơn / trả hàng / số dư / shop (00 #126).
 Sản phẩm (seller `ProductInput`, chi tiết công khai) có `maxPerBuyer`; thêm giỏ / đặt hàng vượt giới hạn → 409 `PURCHASE_LIMIT`.
 
+| Phương thức | Đường dẫn | Quyền shop | Mô tả |
+|---|---|---|---|
+| GET | `/api/seller/shops/{shopId}/xtra` | `MARKETING.MANAGE` | Freeship Xtra / Voucher Xtra: đã tham gia, từ lúc nào, mức phí hiện hành |
+| PUT | `/api/seller/shops/{shopId}/xtra/{FreeshipXtra\|VoucherXtra}` | `MARKETING.MANAGE` | `{ join }` — áp cho đơn đặt từ lúc đó |
+
+Voucher sàn (`/api/admin/vouchers`) có `xtraOnly`; biểu phí có loại `FreeshipXtra`, `VoucherXtra` (thay `Service`).
+
 ## SEO (Phase 13)
 
 Gateway chuyển máy thu thập (User-Agent: Googlebot, Bingbot, Cốc Cốc, Facebook, Zalo…) trên mọi trang người mua sang

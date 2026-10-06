@@ -165,6 +165,9 @@ public sealed class PlaceOrderHandler(
             }
 
             // ----- orders (one per shop) -----
+            var shopIds = pricing.Shops.Select(s => s.ShopId).ToList();
+            var xtra = await db.Shops.AsNoTracking().Where(s => shopIds.Contains(s.Id))
+                .Select(s => new { s.Id, Freeship = s.FreeshipXtraSince != null, Voucher = s.VoucherXtraSince != null }).ToDictionaryAsync(s => s.Id, ct);
             var choices = (request.Request.Shops ?? []).GroupBy(c => c.ShopId).ToDictionary(g => g.Key, g => g.First());
             foreach (var shop in pricing.Shops)
             {
@@ -174,6 +177,7 @@ public sealed class PlaceOrderHandler(
                 // The order's shop discount is everything the shop bears: its voucher and its combos
                 order.SetTotals(shop.Subtotal, shop.ShopDiscount + shop.ComboDiscount, shop.PlatformDiscount, shop.ShippingFee, shop.ShippingDiscount, shop.CoinUsed,
                     shop.ShopVoucherId, carrier.Days);
+                order.MarkXtra(xtra[shop.ShopId].Freeship, xtra[shop.ShopId].Voucher);
                 foreach (var pl in shop.Lines)
                 {
                     var info = plan.Lines[pl.Line.SkuId];

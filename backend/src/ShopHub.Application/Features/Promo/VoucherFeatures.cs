@@ -28,7 +28,9 @@ public record VoucherInput(
     int? TotalQuota,
     int PerUserLimit,
     bool IsPublic,
-    VoucherChannel Channel);
+    VoucherChannel Channel,
+    // Platform vouchers only: covers just the shops in Freeship Xtra (free shipping) / Voucher Xtra (other types)
+    bool XtraOnly = false);
 
 public record VoucherDto(
     Guid Id,
@@ -53,7 +55,8 @@ public record VoucherDto(
     bool IsPublic,
     VoucherChannel Channel,
     bool IsActive,
-    string State);
+    string State,
+    bool XtraOnly);
 
 public sealed class VoucherInputValidator : AbstractValidator<VoucherInput>
 {
@@ -79,11 +82,14 @@ internal static class VoucherMapping
 
     public static VoucherDto ToDto(Voucher v, string? shopName, DateTimeOffset now) => new(v.Id, v.Owner, v.ShopId, shopName, v.Code, v.Name, v.Type,
         v.DiscountValue, v.DiscountPercentBp, v.MaxDiscount, v.MinOrder, v.Audience, v.CategoryIds, v.ProductIds, v.StartAt, v.EndAt, v.TotalQuota,
-        v.UsedCount, v.PerUserLimit, v.IsPublic, v.Channel, v.IsActive, State(v, now));
+        v.UsedCount, v.PerUserLimit, v.IsPublic, v.Channel, v.IsActive, State(v, now), v.XtraOnly);
 
-    public static void Apply(Voucher v, VoucherInput i) =>
+    public static void Apply(Voucher v, VoucherInput i)
+    {
         v.Configure(i.Type, i.DiscountValue, i.DiscountPercentBp, i.MaxDiscount, i.MinOrder, i.Audience, i.CategoryIds ?? [], i.ProductIds ?? [],
             i.StartAt, i.EndAt, i.TotalQuota, i.PerUserLimit, i.IsPublic, i.Channel);
+        v.SetXtraOnly(i.XtraOnly);
+    }
 }
 
 // ---------- platform vouchers (admin) ----------

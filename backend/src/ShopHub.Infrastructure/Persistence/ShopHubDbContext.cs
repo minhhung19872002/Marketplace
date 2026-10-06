@@ -212,6 +212,28 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
 
     public void ClearTracking() => ChangeTracker.Clear();
 
+    public async Task<int> SaveOwnChangesAsync(CancellationToken ct, int attempts = 5)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException ex) when (attempt < attempts)
+            {
+                foreach (var entry in ex.Entries)
+                {
+                    var current = await entry.GetDatabaseValuesAsync(ct);
+                    if (current is null) throw;   // the row is gone: a real conflict
+                    entry.OriginalValues.SetValues(current);
+                }
+                // The audit rows of the failed try would be written twice: the next try writes them again
+                foreach (var log in ChangeTracker.Entries<Domain.Iam.AuditLog>().Where(e => e.State == EntityState.Added).ToList()) log.State = EntityState.Detached;
+            }
+        }
+    }
+
     private sealed class AppTransaction(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction inner) : IAppTransaction
     {
         public Task CommitAsync(CancellationToken ct) => inner.CommitAsync(ct);

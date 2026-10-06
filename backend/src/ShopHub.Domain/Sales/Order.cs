@@ -127,6 +127,16 @@ public class Order : Entity
 {
     private Order() { }
 
+    // The shop's service programmes when the order was placed: they decide the service fee at settlement
+    public bool FreeshipXtra { get; private set; }
+    public bool VoucherXtra { get; private set; }
+
+    public void MarkXtra(bool freeshipXtra, bool voucherXtra)
+    {
+        FreeshipXtra = freeshipXtra;
+        VoucherXtra = voucherXtra;
+    }
+
     public Order(Guid checkoutId, Guid buyerId, Guid shopId, string code, PaymentMethod paymentMethod, string carrierCode,
         string? buyerNote, DateTimeOffset now)
     {

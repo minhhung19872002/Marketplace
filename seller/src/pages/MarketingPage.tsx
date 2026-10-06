@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Typography } from 'antd'
+import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
-import { marketingApi, type FlashItemInput, type FlashSlot, type PickSku, type Promotion, type PromotionType } from '../api/marketing'
+import { marketingApi, xtraApi, type FlashItemInput, type FlashSlot, type PickSku, type Promotion, type PromotionType, type XtraProgram } from '../api/marketing'
 import { ApiError } from '../api/http'
-import { formatPrice } from '../lib/money'
+import { formatPercentBp, formatPrice } from '../lib/money'
 import { formatDateTime } from '../lib/datetime'
 
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : fallback)
@@ -252,12 +252,49 @@ const FlashTab = ({ shopId }: { shopId: string }) => {
   )
 }
 
+const XTRA: Record<XtraProgram, { name: string; text: string }> = {
+  FreeshipXtra: { name: 'Freeship Xtra', text: 'Mã miễn phí vận chuyển của sàn dùng được cho đơn của shop — sàn tài trợ phí ship, shop trả phí dịch vụ trên doanh thu.' },
+  VoucherXtra: { name: 'Voucher Xtra', text: 'Voucher giảm giá Xtra của sàn dùng được cho sản phẩm của shop — sàn chịu phần giảm, shop trả phí dịch vụ.' },
+}
+
+/** Chương trình dịch vụ (spec 3.9): join / leave Freeship Xtra and Voucher Xtra; applies to orders placed from then on. */
+const XtraTab = ({ shopId }: { shopId: string }) => {
+  const { message } = App.useApp()
+  const queryClient = useQueryClient()
+  const list = useQuery({ queryKey: ['xtra', shopId], queryFn: () => xtraApi.list(shopId) })
+  const toggle = useMutation({
+    mutationFn: ({ program, join }: { program: XtraProgram; join: boolean }) => xtraApi.set(shopId, program, join),
+    onSuccess: (r) => {
+      message.success(r.message)
+      void queryClient.invalidateQueries({ queryKey: ['xtra', shopId] })
+    },
+    onError: (e) => message.error(e instanceof ApiError ? e.message : 'Không thực hiện được.'),
+  })
+  return (
+    <Space direction="vertical" style={{ width: '100%' }}>
+      {(list.data ?? []).map((p) => (
+        <Card key={p.program} size="small" title={XTRA[p.program].name} extra={
+          <Switch checked={p.joined} loading={toggle.isPending} data-testid={`xtra-${p.program}`}
+            onChange={(join) => toggle.mutate({ program: p.program, join })} />
+        }>
+          <Typography.Paragraph style={{ marginBottom: 4 }}>{XTRA[p.program].text}</Typography.Paragraph>
+          <Typography.Text type="secondary">
+            Phí dịch vụ {formatPercentBp(p.rateBp)} trên giá trị đơn sau giảm giá của shop
+            {p.joined && p.since ? ` · tham gia từ ${formatDateTime(p.since)}` : ''}. Đơn đã đặt giữ nguyên chương trình lúc đặt.
+          </Typography.Text>
+        </Card>
+      ))}
+    </Space>
+  )
+}
+
 /** Kênh Marketing (spec III.5): programmes, Flash Sale của shop, đăng ký Flash Sale của sàn. Vouchers stay on their own page. */
 const MarketingPage = ({ shopId }: { shopId: string }) => (
   <Card title="Kênh Marketing">
     <Tabs items={[
       { key: 'promotions', label: 'Chương trình của shop', children: <PromotionsTab shopId={shopId} /> },
       { key: 'flash', label: 'Flash Sale', children: <FlashTab shopId={shopId} /> },
+      { key: 'xtra', label: 'Chương trình dịch vụ', children: <XtraTab shopId={shopId} /> },
     ]} />
   </Card>
 )

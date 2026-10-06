@@ -3912,6 +3912,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("used_count");
 
+                    b.Property<bool>("XtraOnly")
+                        .HasColumnType("boolean")
+                        .HasColumnName("xtra_only");
+
                     b.HasKey("Id")
                         .HasName("pk_vouchers");
 
@@ -4371,6 +4375,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("expected_delivery_days");
 
+                    b.Property<bool>("FreeshipXtra")
+                        .HasColumnType("boolean")
+                        .HasColumnName("freeship_xtra");
+
                     b.Property<long>("GrandTotal")
                         .HasColumnType("bigint")
                         .HasColumnName("grand_total");
@@ -4438,6 +4446,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
+
+                    b.Property<bool>("VoucherXtra")
+                        .HasColumnType("boolean")
+                        .HasColumnName("voucher_xtra");
 
                     b.HasKey("Id")
                         .HasName("pk_orders");
@@ -5210,6 +5222,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("follower_count");
 
+                    b.Property<DateTimeOffset?>("FreeshipXtraSince")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("freeship_xtra_since");
+
                     b.Property<bool>("IsPreferred")
                         .HasColumnType("boolean")
                         .HasColumnName("is_preferred");
@@ -5290,6 +5306,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
+
+                    b.Property<DateTimeOffset?>("VoucherXtraSince")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("voucher_xtra_since");
 
                     b.HasKey("Id")
                         .HasName("pk_shops");

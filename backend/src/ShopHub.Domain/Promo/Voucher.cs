@@ -82,6 +82,15 @@ public class Voucher : AuditableEntity
     public bool IsPublic { get; private set; } = true;
     public VoucherChannel Channel { get; private set; }
     public bool IsActive { get; private set; }
+    // Platform voucher that only covers shops in the matching programme (free shipping → Freeship Xtra, others → Voucher Xtra)
+    public bool XtraOnly { get; private set; }
+
+    public void SetXtraOnly(bool xtraOnly)
+    {
+        if (xtraOnly && Owner != VoucherOwner.Platform) throw new BusinessRuleException("Chỉ voucher của sàn mới gắn được Freeship Xtra / Voucher Xtra.");
+        if (xtraOnly && Type == VoucherType.CoinCashback) throw new BusinessRuleException("Voucher hoàn xu không thuộc chương trình Xtra.");
+        XtraOnly = xtraOnly;
+    }
 
     public void Configure(VoucherType type, long discountValue, int discountPercentBp, long? maxDiscount, long minOrder,
         VoucherAudience audience, IReadOnlyList<Guid> categoryIds, IReadOnlyList<Guid> productIds,

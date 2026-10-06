@@ -184,6 +184,23 @@ public sealed class SellerController : ApiControllerBase
     [ProducesResponseType<ApiResponse<BackgroundTaskDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> BulkTask(Guid shopId, Guid taskId, CancellationToken ct) => OkData(await Sender.Send(new BulkTaskQuery(shopId, taskId), ct));
 
+    // ---------- Freeship Xtra / Voucher Xtra ----------
+
+    [HttpGet("shops/{shopId:guid}/xtra")]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<XtraProgramDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Xtra(Guid shopId, CancellationToken ct) => OkData(await Sender.Send(new ShopXtraQuery(shopId), ct));
+
+    public record XtraRequest(bool Join);
+
+    [HttpPut("shops/{shopId:guid}/xtra/{program}")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetXtra(Guid shopId, XtraProgram program, [FromBody] XtraRequest body, CancellationToken ct)
+    {
+        await Sender.Send(new SetShopXtraCommand(shopId, program, body.Join), ct);
+        var name = program == XtraProgram.FreeshipXtra ? "Freeship Xtra" : "Voucher Xtra";
+        return OkData<object?>(null, body.Join ? $"Đã tham gia {name}." : $"Đã rời {name}.");
+    }
+
     // ---------- Products ----------
 
     [HttpGet("shops/{shopId:guid}/products")]

@@ -134,6 +134,13 @@ public interface IApplicationDbContext
 
     /// <summary>Forget tracked entities (after a rolled-back attempt).</summary>
     void ClearTracking();
+
+    /// <summary>
+    /// Saves, and when a row's version changed underneath (system counters), writes again with the fresh version: only the
+    /// columns this unit of work modified are written, so the other writer's columns are kept. Only for changes that do not
+    /// depend on the rest of the row (no state checks) — the others re-run their whole logic (ConcurrencyRetry).
+    /// </summary>
+    Task<int> SaveOwnChangesAsync(CancellationToken ct, int attempts = 5);
 }
 
 public interface IAppTransaction : IAsyncDisposable

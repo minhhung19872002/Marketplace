@@ -42,6 +42,9 @@ public class Shop : AuditableEntity
     public bool IsMall => Type == ShopType.Mall;
     public bool IsPreferred { get; private set; }
     public DateTimeOffset? VacationUntil { get; private set; }
+    // Service programmes the shop joined (spec 3.9 phí dịch vụ): null = not taking part
+    public DateTimeOffset? FreeshipXtraSince { get; private set; }
+    public DateTimeOffset? VoucherXtraSince { get; private set; }
     public string? RejectReason { get; private set; }
     public string? LockReason { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
@@ -124,6 +127,13 @@ public class Shop : AuditableEntity
         if (Status != ShopStatus.Vacation) throw new BusinessRuleException("Shop không ở chế độ tạm nghỉ.");
         Status = ShopStatus.Active;
         VacationUntil = null;
+    }
+
+    public void SetXtra(XtraProgram program, bool join, DateTimeOffset now)
+    {
+        DateTimeOffset? since(DateTimeOffset? current) => join ? current ?? now : null;
+        if (program == XtraProgram.FreeshipXtra) FreeshipXtraSince = since(FreeshipXtraSince);
+        else VoucherXtraSince = since(VoucherXtraSince);
     }
 
     public void SetLabels(bool mall, bool preferred)
@@ -227,6 +237,13 @@ public class ShopWarehouse : AuditableEntity
         IsPickupDefault = isPickupDefault;
         IsReturnDefault = isReturnDefault;
     }
+}
+
+/// <summary>Chương trình dịch vụ của sàn: the platform funds buyer vouchers on the shop's orders, the shop pays a service fee.</summary>
+public enum XtraProgram
+{
+    FreeshipXtra,  // platform free-shipping vouchers apply to the shop
+    VoucherXtra,   // platform discount vouchers marked "Xtra" apply to the shop
 }
 
 public enum ShopStaffRole

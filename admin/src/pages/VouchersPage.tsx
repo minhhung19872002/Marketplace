@@ -33,6 +33,7 @@ interface FormValues {
   perUserLimit: number
   isPublic: boolean
   newBuyer: boolean
+  xtraOnly: boolean
 }
 
 /** Voucher của sàn — sàn chịu phần giảm (spec 3.6). */
@@ -82,6 +83,7 @@ const VouchersPage = () => {
       perUserLimit: v.perUserLimit,
       isPublic: v.isPublic,
       channel: 'All',
+      xtraOnly: v.xtraOnly,
     })
 
   return (
@@ -114,7 +116,7 @@ const VouchersPage = () => {
       />
       <Modal title="Tạo voucher của sàn" open={open} onCancel={() => setOpen(false)} onOk={() => form.submit()} okText="Lưu" confirmLoading={save.isPending} destroyOnClose>
         <Form<FormValues> form={form} layout="vertical" onFinish={submit}
-          initialValues={{ type: 'Amount', minOrder: 0, perUserLimit: 1, isPublic: true, newBuyer: false, period: [dayjs(), dayjs().add(30, 'day')] }}>
+          initialValues={{ type: 'Amount', minOrder: 0, perUserLimit: 1, isPublic: true, newBuyer: false, xtraOnly: false, period: [dayjs(), dayjs().add(30, 'day')] }}>
           <Form.Item name="code" label="Mã" rules={[{ required: true, message: 'Vui lòng nhập mã.' }, { pattern: /^[A-Za-z0-9]{3,20}$/, message: '3–20 chữ cái hoặc số.' }]}>
             <Input />
           </Form.Item>
@@ -142,6 +144,10 @@ const VouchersPage = () => {
           </Space>
           <Space size="large">
             <Form.Item name="isPublic" label="Công khai" valuePropName="checked"><Switch /></Form.Item>
+            <Form.Item name="xtraOnly" label="Chỉ shop tham gia Xtra" valuePropName="checked"
+              tooltip="Miễn phí vận chuyển → chỉ shop Freeship Xtra; loại khác → chỉ shop Voucher Xtra">
+              <Switch data-testid="voucher-xtra" />
+            </Form.Item>
             <Form.Item name="newBuyer" label="Chỉ khách mới" valuePropName="checked"><Switch /></Form.Item>
           </Space>
         </Form>

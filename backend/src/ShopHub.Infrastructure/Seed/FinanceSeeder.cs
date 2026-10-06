@@ -15,6 +15,8 @@ public sealed class FinanceSeeder(ShopHubDbContext db, IClock clock, ILogger<Fin
 {
     public const int DefaultPaymentFeeBp = 200;
     public const int DefaultFixedFeeBp = 400;
+    public const int DefaultFreeshipXtraBp = 500;
+    public const int DefaultVoucherXtraBp = 300;
     private static readonly DateTimeOffset From = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.FromHours(7)).ToUniversalTime();
 
     public async Task SeedAsync(CancellationToken ct)
@@ -29,6 +31,19 @@ public sealed class FinanceSeeder(ShopHubDbContext db, IClock clock, ILogger<Fin
                 db.FeeRules.Add(new FeeRule(c.Id, FeeType.Fixed, c.CommissionRateBp, From, $"Phí cố định ngành {c.Name}", now));
             await db.SaveChangesAsync(ct);
             logger.LogInformation("SEED fee schedule: {Count} rules", 2 + roots.Count(c => c.CommissionRateBp != DefaultFixedFeeBp));
+        }
+
+        // Service programmes (Freeship Xtra / Voucher Xtra): a platform-wide rate each, seeded on their own
+        foreach (var (type, rate, note) in new[]
+                 {
+                     (FeeType.FreeshipXtra, DefaultFreeshipXtraBp, "Phí dịch vụ Freeship Xtra"),
+                     (FeeType.VoucherXtra, DefaultVoucherXtraBp, "Phí dịch vụ Voucher Xtra"),
+                 })
+        {
+            if (await db.FeeRules.AnyAsync(r => r.FeeType == type, ct)) continue;
+            db.FeeRules.Add(new FeeRule(null, type, rate, From, note, clock.UtcNow));
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("SEED fee rule {Type} {Rate} bp", type, rate);
         }
 
         var verified = await db.Database.ExecuteSqlInterpolatedAsync($"""

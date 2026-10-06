@@ -19,6 +19,8 @@ export interface PlatformVoucherInput {
   perUserLimit: number
   isPublic: boolean
   channel: 'All'
+  /** Only shops in Freeship Xtra (free shipping) / Voucher Xtra (other types) */
+  xtraOnly: boolean
 }
 
 export interface PlatformVoucher extends Omit<PlatformVoucherInput, 'audience'> {

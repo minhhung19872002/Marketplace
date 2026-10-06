@@ -137,7 +137,8 @@ public enum FeeType
 {
     Fixed,    // CỐ ĐỊNH — % of the goods value after the shop's own discounts, by category
     Payment,  // THANH TOÁN — % of the money the buyer paid
-    Service,  // DỊCH VỤ — Freeship Xtra / Voucher Xtra (shops that join)
+    FreeshipXtra,  // DỊCH VỤ — Freeship Xtra, only on orders of shops that joined
+    VoucherXtra,   // DỊCH VỤ — Voucher Xtra, only on orders of shops that joined
 }
 
 /// <summary>Fee schedule row (spec 4.7, VI.7): a category (null = every category) and a validity window.</summary>

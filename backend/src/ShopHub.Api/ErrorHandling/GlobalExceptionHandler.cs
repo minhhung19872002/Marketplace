@@ -23,6 +23,9 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             ForbiddenException fe => (StatusCodes.Status403Forbidden, ApiResponse.Fail(fe.Message)),
             ConflictException ce => (StatusCodes.Status409Conflict, ApiResponse.Fail(ce.Message, data: ce.Payload)),
             BusinessRuleException be => (StatusCodes.Status409Conflict, ApiResponse.Fail(be.Message)),
+            // A row changed between read and write and the handler did not retry: never a 500
+            Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => (StatusCodes.Status409Conflict,
+                ApiResponse.Fail("Dữ liệu vừa được cập nhật ở nơi khác. Vui lòng tải lại rồi thử lại.")),
             BadHttpRequestException bhr => (bhr.StatusCode, ApiResponse.Fail(
                 bhr.StatusCode == StatusCodes.Status413PayloadTooLarge
                     ? "Dữ liệu gửi lên quá lớn."

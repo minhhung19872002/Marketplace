@@ -279,39 +279,43 @@ public sealed class ModerateShopHandler(IApplicationDbContext db, IOutbox outbox
 {
     public async Task<ShopStatus> Handle(ModerateShopCommand request, CancellationToken ct)
     {
-        var shop = await db.Shops.FirstOrDefaultAsync(s => s.Id == request.ShopId, ct) ?? throw new NotFoundException("Không tìm thấy shop.");
-        var kyc = await db.ShopKycs.FirstOrDefaultAsync(k => k.ShopId == shop.Id, ct);
-        var reviewer = currentUser.UserId ?? Guid.Empty;
-        switch (request.Action)
-        {
-            case ShopAdminAction.Approve:
-                shop.Approve(clock.UtcNow);
-                kyc?.Review(true, reviewer, null, clock.UtcNow);
-                // The payout account was checked together with the KYC file
-                foreach (var bank in await db.ShopBankAccounts.Where(b => b.ShopId == shop.Id && b.VerifiedAt == null).ToListAsync(ct))
-                    bank.MarkVerified(clock.UtcNow);
-                break;
-            case ShopAdminAction.Reject:
-                shop.Reject(request.Reason!);
-                kyc?.Review(false, reviewer, request.Reason, clock.UtcNow);
-                break;
-            case ShopAdminAction.Lock:
-                shop.Lock(request.Reason!);
-                break;
-            case ShopAdminAction.Unlock:
-                shop.Unlock();
-                break;
-        }
-        outbox.Enqueue(OutboxTypes.ShopEvent, new ShopEventPayload(shop.Id, request.Action.ToString().ToUpperInvariant(), request.Reason));
         try
         {
-            await db.SaveChangesAsync(ct);
+            // Re-run on a stale version: counters bump the row; another admin's decision fails the state checks below instead
+            return await db.RetryOnStaleAsync(async () =>
+            {
+                var shop = await db.Shops.FirstOrDefaultAsync(s => s.Id == request.ShopId, ct) ?? throw new NotFoundException("Không tìm thấy shop.");
+                var kyc = await db.ShopKycs.FirstOrDefaultAsync(k => k.ShopId == shop.Id, ct);
+                var reviewer = currentUser.UserId ?? Guid.Empty;
+                switch (request.Action)
+                {
+                    case ShopAdminAction.Approve:
+                        shop.Approve(clock.UtcNow);
+                        kyc?.Review(true, reviewer, null, clock.UtcNow);
+                        // The payout account was checked together with the KYC file
+                        foreach (var bank in await db.ShopBankAccounts.Where(b => b.ShopId == shop.Id && b.VerifiedAt == null).ToListAsync(ct))
+                            bank.MarkVerified(clock.UtcNow);
+                        break;
+                    case ShopAdminAction.Reject:
+                        shop.Reject(request.Reason!);
+                        kyc?.Review(false, reviewer, request.Reason, clock.UtcNow);
+                        break;
+                    case ShopAdminAction.Lock:
+                        shop.Lock(request.Reason!);
+                        break;
+                    case ShopAdminAction.Unlock:
+                        shop.Unlock();
+                        break;
+                }
+                outbox.Enqueue(OutboxTypes.ShopEvent, new ShopEventPayload(shop.Id, request.Action.ToString().ToUpperInvariant(), request.Reason));
+                await db.SaveChangesAsync(ct);
+                return shop.Status;
+            });
         }
         catch (DbUpdateConcurrencyException)
         {
             throw new ConflictException("Shop vừa được người khác xử lý. Vui lòng tải lại.", "STALE_VERSION");
         }
-        return shop.Status;
     }
 }
 
@@ -321,11 +325,14 @@ public sealed class SetShopLabelsHandler(IApplicationDbContext db) : IRequestHan
 {
     public async Task<Unit> Handle(SetShopLabelsCommand request, CancellationToken ct)
     {
-        var shop = await db.Shops.FirstOrDefaultAsync(s => s.Id == request.ShopId, ct) ?? throw new NotFoundException("Không tìm thấy shop.");
-        if (shop.Status != ShopStatus.Active && shop.Status != ShopStatus.Vacation)
-            throw new ConflictException("Chỉ cấp nhãn cho shop đang hoạt động.", "SHOP_NOT_ACTIVE");
-        shop.SetLabels(request.IsMall, request.IsPreferred);
-        await db.SaveChangesAsync(ct);
+        await db.RetryOnStaleAsync(async () =>
+        {
+            var shop = await db.Shops.FirstOrDefaultAsync(s => s.Id == request.ShopId, ct) ?? throw new NotFoundException("Không tìm thấy shop.");
+            if (shop.Status != ShopStatus.Active && shop.Status != ShopStatus.Vacation)
+                throw new ConflictException("Chỉ cấp nhãn cho shop đang hoạt động.", "SHOP_NOT_ACTIVE");
+            shop.SetLabels(request.IsMall, request.IsPreferred);
+            await db.SaveChangesAsync(ct);
+        });
         return Unit.Value;
     }
 }

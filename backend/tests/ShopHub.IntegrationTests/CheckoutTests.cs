@@ -65,6 +65,74 @@ public class CheckoutTests(ApiFactory factory)
 
     private Task<Sku> SkuAsync(Guid skuId) => factory.WithDbAsync(db => db.Skus.AsNoTracking().SingleAsync(s => s.Id == skuId));
 
+    // ---------- Freeship Xtra / Voucher Xtra ----------
+
+    [Fact]
+    public async Task An_xtra_voucher_covers_only_shops_in_the_programme_and_only_their_orders_carry_the_service_fee()
+    {
+        var inXtra = await factory.CreateStoreAsync("79", products: [new("Ấm Trà Xtra", "Đèn Bàn", 200_000, 20, "Việt Nam")]);
+        var outside = await factory.CreateStoreAsync("79", products: [new("Ấm Trà Thường", "Đèn Bàn", 200_000, 20, "Việt Nam")]);
+        var sellerUser = await factory.CreateUserAsync();
+        await factory.WithDbAsync(async db =>
+        {
+            db.ShopStaff.Add(new Domain.Shops.ShopStaff(inXtra.ShopId, sellerUser.Id, Domain.Shops.ShopStaffRole.Manager, Application.Security.ShopPermissions.All));
+            await db.SaveChangesAsync();
+        });
+        var seller = sellerUser.Client;
+        var join = await seller.PutAsJsonAsync($"/api/seller/shops/{inXtra.ShopId}/xtra/FreeshipXtra", new { join = true });
+        join.StatusCode.Should().Be(HttpStatusCode.OK, await join.Content.ReadAsStringAsync());
+        var programmes = (await (await seller.GetAsync($"/api/seller/shops/{inXtra.ShopId}/xtra")).ReadEnvelopeAsync()).Data;
+        programmes.EnumerateArray().Single(p => p.Str("program") == "FreeshipXtra").GetProperty("joined").GetBoolean().Should().BeTrue();
+
+        // A platform free-shipping voucher reserved to Freeship Xtra shops; a shop voucher cannot be Xtra
+        var voucher = await factory.CreateVoucherAsync(VoucherOwner.Platform, null, VoucherType.FreeShipping, max: 50_000);
+        await factory.WithDbAsync(async db =>
+        {
+            var v = await db.Vouchers.SingleAsync(x => x.Id == voucher.Id);
+            v.SetXtraOnly(true);
+            await db.SaveChangesAsync();
+        });
+        var shopVoucher = await factory.CreateVoucherAsync(VoucherOwner.Shop, outside.ShopId, VoucherType.Amount, value: 5_000);
+        var refuse = () => factory.WithDbAsync(async db =>
+        {
+            (await db.Vouchers.SingleAsync(x => x.Id == shopVoucher.Id)).SetXtraOnly(true);
+            await db.SaveChangesAsync();
+        });
+        await refuse.Should().ThrowAsync<Domain.Common.BusinessRuleException>();
+
+        var (buyer, address) = await BuyerAsync("01");
+        await AddAsync(buyer.Client, inXtra.Skus["Ấm Trà Xtra"]);
+        await AddAsync(buyer.Client, outside.Skus["Ấm Trà Thường"]);
+        var request = Request(address, freeship: voucher.Code, shops: [Shop(inXtra.ShopId), Shop(outside.ShopId)]);
+        var quote = await QuoteAsync(buyer.Client, request);
+        long ShipDiscount(JsonElement q, Guid shopId) =>
+            q.GetProperty("shops").EnumerateArray().Single(x => x.Str("shopId") == shopId.ToString()).GetProperty("shippingDiscount").GetInt64();
+        ShipDiscount(quote, inXtra.ShopId).Should().BeGreaterThan(0);
+        ShipDiscount(quote, outside.ShopId).Should().Be(0, "the shop is not in Freeship Xtra");
+
+        await QuoteAndPlaceAsync(buyer.Client, request);
+        var orders = await factory.WithDbAsync(db => db.Orders.Include(o => o.Items).ThenInclude(i => i.Discounts).Where(o => o.BuyerId == buyer.Id).ToListAsync());
+        var xtraOrder = orders.Single(o => o.ShopId == inXtra.ShopId);
+        var plainOrder = orders.Single(o => o.ShopId == outside.ShopId);
+        xtraOrder.FreeshipXtra.Should().BeTrue();
+        plainOrder.FreeshipXtra.Should().BeFalse();
+
+        using var scope = factory.Services.CreateScope();
+        var ledger = scope.ServiceProvider.GetRequiredService<Application.Features.Finance.OrderLedger>();
+        var withFee = await ledger.BreakdownAsync(xtraOrder, CancellationToken.None);
+        var withoutFee = await ledger.BreakdownAsync(plainOrder, CancellationToken.None);
+        withFee.ServiceFee.Should().Be(Domain.Common.Money.Vnd(withFee.Goods - withFee.ShopDiscount).PercentBp(ShopHub.Infrastructure.Seed.FinanceSeeder.DefaultFreeshipXtraBp).Value);
+        withoutFee.ServiceFee.Should().Be(0);
+
+        // Leaving the programme: the next order is not charged, the placed one keeps its fee
+        (await seller.PutAsJsonAsync($"/api/seller/shops/{inXtra.ShopId}/xtra/FreeshipXtra", new { join = false })).EnsureSuccessStatusCode();
+        await AddAsync(buyer.Client, inXtra.Skus["Ấm Trà Xtra"]);
+        await QuoteAndPlaceAsync(buyer.Client, Request(address, shops: Shop(inXtra.ShopId)));
+        var later = await factory.WithDbAsync(db => db.Orders.Where(o => o.BuyerId == buyer.Id && o.ShopId == inXtra.ShopId).OrderByDescending(o => o.CreatedAt).FirstAsync());
+        later.FreeshipXtra.Should().BeFalse();
+        (await factory.WithDbAsync(db => db.Orders.SingleAsync(o => o.Id == xtraOrder.Id))).FreeshipXtra.Should().BeTrue();
+    }
+
     // ---------- giới hạn mua mỗi người ----------
 
     [Fact]

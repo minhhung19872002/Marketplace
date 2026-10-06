@@ -200,7 +200,8 @@ public sealed class CheckoutBuilder(
         }
 
         // ----- vouchers -----
-        var lines = buyable.Select(l => new PricingLine(l.Sku.Id, l.Product.Id, l.Product.CategoryId, l.Shop.Id, UnitPrice(l), l.Item.Quantity)).ToList();
+        var lines = buyable.Select(l => new PricingLine(l.Sku.Id, l.Product.Id, l.Product.CategoryId, l.Shop.Id, UnitPrice(l), l.Item.Quantity,
+            l.Shop.FreeshipXtraSince is not null, l.Shop.VoucherXtraSince is not null)).ToList();
         var shopIds = shops.Select(s => s.Id).ToList();
         var claimed = await db.VoucherClaims.AsNoTracking().Where(c => c.UserId == userId).Select(c => c.VoucherId).ToListAsync(ct);
         var running = await db.Vouchers.AsNoTracking()

@@ -3,7 +3,8 @@ using ShopHub.Domain.Promo;
 
 namespace ShopHub.Application.Features.Checkout;
 
-public record PricingLine(Guid SkuId, Guid ProductId, Guid CategoryId, Guid ShopId, long UnitPrice, int Quantity)
+public record PricingLine(Guid SkuId, Guid ProductId, Guid CategoryId, Guid ShopId, long UnitPrice, int Quantity,
+    bool FreeshipXtra = false, bool VoucherXtra = false)
 {
     public long LineTotal => checked(UnitPrice * Quantity);
 }
@@ -19,15 +20,17 @@ public record PricingVoucher(
     long? MaxDiscount,
     long MinOrder,
     IReadOnlyCollection<Guid> CategoryIds,
-    IReadOnlyCollection<Guid> ProductIds)
+    IReadOnlyCollection<Guid> ProductIds,
+    bool XtraOnly = false)
 {
     public bool Covers(PricingLine line) =>
         (Owner == VoucherOwner.Platform || line.ShopId == ShopId)
         && (CategoryIds.Count == 0 || CategoryIds.Contains(line.CategoryId))
-        && (ProductIds.Count == 0 || ProductIds.Contains(line.ProductId));
+        && (ProductIds.Count == 0 || ProductIds.Contains(line.ProductId))
+        && (!XtraOnly || (Type == VoucherType.FreeShipping ? line.FreeshipXtra : line.VoucherXtra));
 
     public static PricingVoucher From(Voucher v) =>
-        new(v.Id, v.Code, v.Owner, v.ShopId, v.Type, v.DiscountValue, v.DiscountPercentBp, v.MaxDiscount, v.MinOrder, v.CategoryIds, v.ProductIds);
+        new(v.Id, v.Code, v.Owner, v.ShopId, v.Type, v.DiscountValue, v.DiscountPercentBp, v.MaxDiscount, v.MinOrder, v.CategoryIds, v.ProductIds, v.XtraOnly);
 }
 
 /// <summary>Shop combo: at least <see cref="MinQuantity"/> units of the listed products → % or amount off those lines (the shop bears it).</summary>

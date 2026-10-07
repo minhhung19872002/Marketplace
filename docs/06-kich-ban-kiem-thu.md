@@ -10,8 +10,12 @@ cd e2e && SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=… SH_E2E_AD
 
 (gateway e2e nên nâng giới hạn: `SH_GATEWAY_RATE=100r/s SH_GATEWAY_BURST=200`, mọi trình duyệt cùng một IP.)
 
-Lần chạy gần nhất: **2026-10-07**, 69 kịch bản, 69 đạt (trên dữ liệu mẫu đầy đủ: ~600 đơn, 800 đánh giá). Phần phụ trợ: backend
-`dotnet test` 157 unit + 198 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
+Lần chạy gần nhất: **2026-10-07, bản cài mới** (Phase 14 H — project Docker riêng, CSDL / MinIO / Meilisearch / Redis
+**trắng**, dữ liệu gieo lúc nạp: 1.000 sản phẩm, 606 đơn, 800 đánh giá; xong thì gỡ đúng các volume ấy):
+Playwright **77 kịch bản, 77 đạt** (lần đầu 67 đạt + 2 chập chờn + 8 hỏng: 8 do helper e2e chỉ tìm sản phẩm trên trang
+đầu "bán chạy" — L122, 2 do trùng chữ với toast mới — đã sửa, chạy lại toàn bộ thì đạt hết). k6 Flash Sale: **chưa đạt**
+ngưỡng thời gian (KB38, L123). Sao lưu / phục hồi: đạt (KB40). Phần phụ trợ: backend `dotnet test` 187 unit + 252 tích
+hợp đạt (lượt chạy lại trước commit: 251/252, 1 chập chờn — L147); vitest web 25, seller 22, admin 13 đạt. Sandbox thật (KB41): chưa chạy — chờ tài khoản.
 
 ## A. Mục 9 của đặc tả (bắt buộc)
 
@@ -64,7 +68,7 @@ Lần chạy gần nhất: **2026-10-07**, 69 kịch bản, 69 đạt (trên d�
 | KB35 | SEO | Bot mở trang sản phẩm, đường cũ, sitemap, robots (`seo.spec.cjs`) | HTML render sẵn có JSON-LD; 301; sitemap chia tệp; người thật nhận SPA | Như mong đợi | ✔ |
 | KB36 | Tiếp cận (WCAG AA) | axe trên trang người mua, đăng nhập seller/admin; Tab tới ô tìm kiếm (`a11y.spec.cjs`) | Không lỗi nghiêm trọng; viền focus rõ | Lần đầu đỏ (L044), sau sửa đạt | ✔ |
 | KB37 | Stack | Seller, admin mở được; gateway chuyển `/health` (`stack-smoke.spec.cjs`) | 200 | Như mong đợi | ✔ |
-| KB43 | Tài khoản phụ | Chủ shop thêm CSKH → nhân viên đăng nhập → gỡ (`shop-design.spec.cjs`) | Nhân viên chỉ thấy mục được cấp; gỡ thì gọi API kế tiếp 404 | Như mong đợi | ✔ |
+| KB43 | Tài khoản phụ | Chủ shop **mời** CSKH → nhân viên đăng nhập, mở *Lời mời* và đồng ý → chỉ thấy mục được cấp → gỡ (`shop-design.spec.cjs`) | Nhân viên chỉ thấy mục được cấp; gỡ thì gọi API kế tiếp 404 | Như mong đợi (theo luồng lời mời, L100) | ✔ |
 | KB44 | Trang trí & danh mục shop | Lưu hồ sơ chỉ đổi logo; tạo danh mục, trang trí 3 khối, đổi thứ tự (`shop-design.spec.cjs`) | Giới thiệu không mất; người mua thấy tab Dạo theo đúng thứ tự, tab danh mục, Hồ sơ shop | Lần đầu đỏ (L047), sau sửa đạt | ✔ |
 | KB45 | Ảnh CCCD khi đăng ký bán | Tải ảnh CCCD (`shop-design.spec.cjs`) | Ảnh xem trước hiện được | Lần đầu đỏ (L050), sau sửa đạt | ✔ |
 | KB46 | Excel hàng loạt | Tải tệp mẫu theo ngành; tải tệp giá & tồn rồi đưa lên (`shop-design.spec.cjs`) | Tệp .xlsx; việc nền Hangfire xong, báo kết quả | Như mong đợi | ✔ |
@@ -84,13 +88,20 @@ Lần chạy gần nhất: **2026-10-07**, 69 kịch bản, 69 đạt (trên d�
 | KB60 | ZaloPay | Đặt đơn ZaloPay (thẻ ATM) → callback ký key2 hai lần → huỷ đơn (`ProviderTests`) | Đơn đã trả một lần (lần hai `return_code` 2), huỷ → gọi `/v2/refund`, đơn *Đã hoàn tiền* | Như mong đợi | ✔ |
 | KB61 | Trả góp | Đơn ₫150.000 chọn ZaloPay → Trả góp; đơn ₫3.500.000 chọn lại (`ProviderTests`) | Đơn nhỏ: mờ, lý do "Trả góp áp dụng cho đơn từ ₫3.000.000"; VNPay / MoMo không có trả góp; đơn lớn: ZaloPay nhận mã trả góp của hợp đồng, thanh toán lại giữ hình thức | Như mong đợi | ✔ |
 | KB62 | Việc nền | Admin → Việc nền → *Mở bảng Hangfire* (`reports.spec.cjs`) | Danh sách lịch chạy hiện; tab mới mở bảng Hangfire, mã dùng một lần không còn trên URL | Như mong đợi | ✔ |
+| KB63 | Đăng ký bằng email | Chọn *Email* ở `/dang-ky` → mã đọc từ Mailpit → đặt mật khẩu → đăng nhập lại bằng email (`register-email.spec.cjs`) | Tài khoản tạo bằng email, đăng nhập được | Như mong đợi | ✔ |
+| KB64 | Trang sản phẩm | Phóng to ảnh (Esc đóng); khối shop có điểm đánh giá; *Mua ngay* khi giỏ đã có dòng khác (`product-page.spec.cjs`) | Lightbox mở / đóng; sang thanh toán chỉ với dòng ấy, dòng kia vẫn trong giỏ | Như mong đợi | ✔ |
+| KB65 | Voucher shop trong giỏ | Chọn mã của shop ngay trong khối giỏ → thanh toán (`cart-voucher.spec.cjs`) | Khối hiện "Shop giảm ₫20.000"; trang thanh toán dùng đúng mã ấy | Như mong đợi | ✔ |
+| KB66 | Ghim bản đồ địa chỉ | Thêm địa chỉ, *Ghim vị trí* → bấm bản đồ → lưu (`address-map.spec.cjs`) | Toạ độ lưu ở API; toast báo đã lưu | Như mong đợi | ✔ |
+| KB67 | Shop bị từ chối | Quản trị từ chối hồ sơ → chủ shop thấy lý do, không có menu bán hàng → gửi lại hồ sơ (`shop-review.spec.cjs`) | Trạng thái "Chờ duyệt" sau khi gửi lại | Như mong đợi | ✔ |
+| KB68 | Hỏi trước khi xoá | Giỏ: *Xóa* → *Không* giữ dòng → *Xóa* → *Đồng ý* (`e2e.spec.cjs`) | Dòng chỉ mất sau khi đồng ý | Như mong đợi | ✔ |
+| KB69 | Lối tắt & footer | Trang chủ có Mã Giảm Giá / Freeship / Deal Sốc, lưới Mall; footer chỉ hiện mạng xã hội có liên kết, *Flash Sale* → `/flash-sale` (`e2e.spec.cjs`) | Đúng theo API | Như mong đợi | ✔ |
 
 ## D. Kiểm bằng công cụ khác / tay
 
 | Mã | Chức năng | Bước | Mong đợi | Thực tế | Đạt |
 |---|---|---|---|---|---|
-| KB38 | Tải Flash Sale 1.000 người | k6 `e2e/load/flash-sale.js` (docs/04) | Không lỗi máy chủ, suất bán = số đơn ≤ quota, p95 đặt hàng < 3 s | Đạt sau L033 (pool kết nối) — docs/07 Phase 9 | ✔ |
-| KB39 | Hiệu năng 1 triệu sản phẩm | k6 `e2e/load/perf.js` trên stack `shophub-perf` | Tìm kiếm p95 < 500 ms, trang < 300 ms | 131 / 110 / 102 / 62 / 58 ms, 0 lỗi | ✔ |
-| KB40 | Sao lưu / phục hồi | tay: `backup-db.sh` → xoá dữ liệu → `restore.sh` | Số đơn, sản phẩm, tổng sổ cái như trước | 489 đơn, 1.096 sản phẩm, 35.146.840 ₫ khớp | ✔ |
+| KB38 | Tải Flash Sale 1.000 người | k6 `e2e/load/flash-sale.js` (docs/04) | Không lỗi máy chủ, suất bán = số đơn ≤ quota, p95 đặt hàng < 3 s | Bản cài mới: đúng 75/75 suất → 75 đơn, 925 từ chối đúng luật, 0 lỗi máy chủ; **p95 đặt hàng 4,30 s (ngưỡng 3 s)**. Cùng máy, mã trước Phase 14 (`ea48b76`): p95 3,37 s — L123 | ✘ |
+| KB39 | Hiệu năng 1 triệu sản phẩm | k6 `e2e/load/perf.js` trên stack `shophub-perf` | Tìm kiếm p95 < 500 ms, trang < 300 ms | Không chạy lại ở lượt này (cần stack `shophub-perf` 1 triệu sản phẩm); số gần nhất 2026-10-07: 131 / 110 / 102 / 62 / 58 ms, 0 lỗi | — |
+| KB40 | Sao lưu / phục hồi | tay: Quản trị → Việc nền → *Sao lưu ngay* (`sys.backup`, tệp `backups/db/shophub-*.dump`) → xoá dữ liệu → `restore.sh <tệp>` | Số đơn, sản phẩm, tổng sổ cái như trước | Bản cài mới: 735 đơn, 1.052 sản phẩm, tổng nợ sổ cái 2.967.019.770 ₫ → `TRUNCATE` đơn (0) → khôi phục: 735 / 1.052 / 2.967.019.770 ₫ khớp | ✔ |
 | KB41 | Cổng / hãng thật | tay: VNPay, MoMo, GHN, GHTK sandbox (docs/04) | Thanh toán, IPN, vận đơn, webhook chạy với tài khoản thử | **Chưa chạy** — chưa có tài khoản sandbox; đã kiểm với bản giả lập cùng giao thức (docs/07 Phase 11) | — |
 | KB42 | Đồng thời trong CSDL | `dotnet test` (tồn kho 50 yêu cầu / 10 chiếc, voucher, idempotency, webhook, theo dõi, rút tiền…) | Đúng giới hạn, không âm | Đạt | ✔ |

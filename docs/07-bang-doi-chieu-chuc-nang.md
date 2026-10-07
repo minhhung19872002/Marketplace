@@ -20,7 +20,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 11 | Cổng thật | **Xong** (chưa chạy với sandbox thật — cần tài khoản thử, xem cuối bảng) | Xem bảng Phase 11 dưới đây |
 | 12 | Quản trị & báo cáo | **Xong** | Xem bảng Phase 12 dưới đây |
 | 13 | Hoàn thiện | **Xong** (cổng / hãng thật chờ tài khoản sandbox) | Xem bảng Phase 13 dưới đây |
-| 14 | Vá sau đợt rà soát độc lập (`PROMPT-PHASE-14-RA-SOAT.md`) | **Đang làm** — nhóm A, B, C, D, E xong (C1: chờ CI xanh; E4 phần Zalo chờ tài khoản); F1, F2, F5–F8 xong, F3–F4 đang làm; G chờ tài khoản | Xem bảng Phase 14 cuối tệp |
+| 14 | Vá sau đợt rà soát độc lập (`PROMPT-PHASE-14-RA-SOAT.md`) | **Đang làm** — nhóm A–F xong (C1: backend + 3 frontend xanh trên CI, e2e CI chờ secret quản trị; E4 phần Zalo chờ tài khoản); G chuẩn bị xong, **chờ tài khoản**; G chờ tài khoản | Xem bảng Phase 14 cuối tệp |
 
 ## Phase 0 — Chuyển đổi repo
 
@@ -343,12 +343,18 @@ Mỗi mục là một lỗi trong `08-so-loi.md` (L063…), kèm phép thử đ�
 | E9 | Banner danh mục không tải lại trang | **Xong** | 08 L103, `BannerLink` ở banner ngành; luật quét chỉ áp cho `web` (lý do trong L103) | `internal-links.test.ts` |
 | F1 | Phông Be Vietnam Pro | **Xong** | 08 L112, `@fontsource/be-vietnam-pro` 400–700 ở cả ba gói | `font.test.ts` ×3 |
 | F2 | Hộp xác nhận xoá / huỷ | **Xong** | 08 L115, `ConfirmDialog` / `ConfirmButton` (web), `Popconfirm` (seller, admin), khai báo `data-confirm` | `confirm-actions.test.ts` ×3; e2e giỏ |
-| F3 | Trạng thái lỗi của danh sách | **Chưa** | — | — |
-| F4 | Toast chung | **Chưa** | — | — |
+| F3 | Trạng thái lỗi của danh sách | **Xong** | 08 L120, `QueryState` (21 trang `web`) | `query-state.test.ts` (quét) |
+| F4 | Toast chung | **Xong** | 08 L121, `lib/toast` + `Toaster`, tầng HTTP báo mọi lệnh ghi | `toast.test.ts`; e2e `address-map.spec.cjs` |
 | F5 | Trang 404 | **Xong** | 08 L113, `NotFoundPage` (route `*`, ô tìm kiếm); bot nhận 404 thật từ `/api/seo/render` | `not-found.test.ts`; `SeoTests` |
 | F6 | Tiêu đề tab theo trang | **Xong** | 08 L114, `usePageTitle` (sản phẩm, shop, danh mục, tìm kiếm, đơn mua, chi tiết đơn, 404) | `page-title.test.ts` |
 | F7 | Mẫu nội dung thông báo | **Xong** | 08 L111, 19 mẫu mới (ví, giải ngân, nhắc việc, chat, lời mời nhân viên, cảnh báo quản trị, SMS sự kiện shop, khung SMS), `{{platform}}`, migration `OtpTemplatePlatformName` | `NotificationTextTests` (quét); `The_chat_notification_says_what_the_admin_wrote_in_its_message_template` |
 | F8 | Từ khoá hot cho Marketing | **Xong** | 08 L110, quyền `PROMO.HOT_KEYWORD.MANAGE`, `GET/PUT /api/admin/marketing/hot-keywords`, màn admin "Từ khoá hot" | `The_marketing_role_edits_the_curated_hot_keywords_on_its_own_screen_with_its_own_permission` |
-| G1 | Chạy với sandbox thật VNPay / MoMo / ZaloPay / GHN / GHTK | **Chờ tài khoản** | — | — |
-| G2 | Push FCM thật | **Chờ tài khoản** | — | — |
-| G3 | Nhà cung cấp SMS thật | **Chờ tài khoản** | — | — |
+| G1 | Chạy với sandbox thật VNPay / MoMo / ZaloPay / GHN / GHTK | **Chờ tài khoản** — hướng dẫn + công cụ xong; chưa chạy với sandbox thật | 08 L118, docs/04 "Chạy với sandbox thật", `e2e/tools/sandbox-check.cjs` | Chạy thử không khoá: báo LỖI, thoát mã 1 (không bịa kết quả); docs/06 KB41 vẫn "Chưa chạy" |
+| G2 | Push FCM thật | **Chờ tài khoản** — `FcmPushSender` xong; **chưa kiểm với Firebase thật** | 08 L116, `SH_FCM_SERVICE_ACCOUNT` | `Fcm_push_signs_in_with_the_service_account_sends_each_device_and_forgets_unregistered_tokens` (máy chủ FCM giả) |
+| G3 | Nhà cung cấp SMS thật | **Chờ tài khoản** — `EsmsSmsSender` xong; **chưa kiểm với eSMS thật** | 08 L117, `SH_SMS_PROVIDER=esms` | `Esms_sends_a_brandname_sms_and_a_refused_one_throws_so_the_outbox_retries` (máy chủ eSMS giả) |
+| H1 | Mỗi mục A–F có mã lỗi + phép thử đỏ → xanh | **Xong** | 08 L063–L121 | Mỗi dòng 08 ghi tên phép thử và lần đỏ |
+| H2 | Luật quét mới chạy ở mọi gói liên quan | **Xong** | A2, A6, C4, F7: backend; D1 (`tab-links`): seller; D5 (`datetime`), F2 (`confirm-actions`): web + seller + admin; E9 (`internal-links`): web (lý do ở L103); F3 (`query-state`): web | `vitest` ×3, `dotnet test` |
+| H3 | CI xanh trên `main` | **Một phần** — backend + 3 frontend xanh (run 37620280148); e2e CI: 43 đạt, 1 hỏng đã sửa (L119), **33 bỏ qua vì repo chưa có secret** `SH_E2E_ADMIN_USER` / `SH_E2E_ADMIN_PASSWORD` (người dùng thêm ở GitHub → Settings → Secrets) | `.github/workflows/ci.yml` | GitHub Actions |
+| H4 | docs/07 nhóm G ghi "Chờ tài khoản" | **Xong** | G1–G3 | Bảng này |
+| H5 | Chạy lại docs/06 trên bản cài mới | **Một phần** — Playwright 77/77, sao lưu / phục hồi đạt; k6 Flash Sale **chưa đạt** ngưỡng 3 s (L123); KB39 (1 triệu sản phẩm) không chạy lại; KB41 chờ tài khoản | docs/06 "Lần chạy gần nhất" | docs/06 |
+| H6 | Rà lại theo đặc tả, ghi phát hiện vào 08 | **Xong (ghi)** — 23 phát hiện mới L124–L146: L125 (thưởng xu bị trao lại), L129 (JWT trong log Nginx) đã sửa; 22 mục **đang mở** (gồm L147 — phép thử đồng thời chập chờn) | 08 L124–L146 | — |

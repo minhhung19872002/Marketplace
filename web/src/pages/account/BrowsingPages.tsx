@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { storefrontApi } from '../../api/storefront';
 import { ApiError } from '../../api/http';
 import ProductGrid from '../../components/ProductGrid';
+import QueryState from '../../components/QueryState';
 import { formatSold } from '../../lib/money';
 import { handleImgError } from '../../lib/image';
 
@@ -13,7 +14,9 @@ export const ViewedPage = () => {
   return (
     <div className="account-card" data-testid="viewed-page">
       <h2 className="account-title">Sản Phẩm Đã Xem</h2>
-      <ProductGrid title="" products={viewed.data ?? []} loading={viewed.isLoading} emptyText="Bạn chưa xem sản phẩm nào." />
+      <QueryState query={viewed} loading={<ProductGrid title="" products={[]} loading />}>
+        {(products) => <ProductGrid title="" products={products} emptyText="Bạn chưa xem sản phẩm nào." />}
+      </QueryState>
     </div>
   );
 };
@@ -38,10 +41,10 @@ export const FollowedShopsPage = () => {
     <div className="account-card" data-testid="followed-shops-page">
       <h2 className="account-title">Shop Đang Theo Dõi</h2>
       {message && <div className="account-message" role="status">{message}</div>}
-      {shops.isLoading && <div className="loading-spinner" />}
-      {shops.data?.length === 0 && <p className="account-empty">Bạn chưa theo dõi shop nào.</p>}
+      <QueryState query={shops} isEmpty={(d) => d.length === 0} emptyText={<p className="account-empty">Bạn chưa theo dõi shop nào.</p>}>
+        {(list) => (
       <div className="followed-shops">
-        {(shops.data ?? []).map((s) => (
+        {list.map((s) => (
           <div key={s.id} className="followed-shop" data-testid="followed-shop">
             <Link to={`/shop/${s.slug}`} className="followed-shop-link">
               <span className="followed-shop-logo">{s.logoUrl ? <img src={s.logoUrl} alt="" onError={handleImgError} /> : s.name.charAt(0)}</span>
@@ -55,6 +58,8 @@ export const FollowedShopsPage = () => {
           </div>
         ))}
       </div>
+        )}
+      </QueryState>
     </div>
   );
 };

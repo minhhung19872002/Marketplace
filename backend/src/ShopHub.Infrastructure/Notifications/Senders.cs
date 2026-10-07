@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -32,6 +33,35 @@ public sealed class SimulatedSmsSender(ShopHubDbContext db, IClock clock) : ISms
     {
         db.SimulatedSms.Add(new SimulatedSms(to, text, clock.UtcNow));
         await db.SaveChangesAsync(ct);
+    }
+}
+
+/// <summary>
+/// eSMS brandname SMS (G3) — on with SH_SMS_PROVIDER=esms. eSMS answers HTTP 200 with CodeResult "100" when it accepted
+/// the message; anything else throws so the outbox retries the message.
+/// </summary>
+public sealed class EsmsSmsSender(IHttpClientFactory http, EsmsOptions options, Microsoft.Extensions.Logging.ILogger<EsmsSmsSender> logger) : ISmsSender
+{
+    public const string HttpClientName = "esms";
+    // eSMS reads the field names as written (ApiKey, Phone…), not camelCase
+    private static readonly JsonSerializerOptions Exact = new() { PropertyNamingPolicy = null };
+
+    public async Task SendAsync(string to, string text, CancellationToken ct)
+    {
+        using var response = await http.CreateClient(HttpClientName).PostAsJsonAsync(options.Endpoint, new
+        {
+            ApiKey = options.ApiKey, SecretKey = options.SecretKey, Phone = to, Content = text, Brandname = options.Brandname, SmsType = options.SmsType,
+        }, Exact, ct);
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var code = body.TryGetProperty("CodeResult", out var c) ? c.ToString() : null;
+        if (code != "100")
+        {
+            // Never the phone number or the text (OTP) in the log
+            var reason = body.TryGetProperty("ErrorMessage", out var m) ? m.GetString() : null;
+            throw new InvalidOperationException($"eSMS từ chối tin nhắn (CodeResult {code ?? "?"}): {reason}");
+        }
+        logger.LogDebug("eSMS accepted SMS {SmsId}", body.TryGetProperty("SMSID", out var id) ? id.ToString() : "?");
     }
 }
 

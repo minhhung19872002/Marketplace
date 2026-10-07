@@ -5,6 +5,7 @@ import { notificationsApi, type AppNotification, type NotificationCategory } fro
 import { useAuth } from '../context/AuthContext';
 import { useUnreadNotifications } from '../context/NotificationsContext';
 import { formatDateTime } from '../lib/datetime';
+import QueryState from '../components/QueryState';
 import './Notifications.css';
 
 const TABS: { key: NotificationCategory | null; label: string }[] = [
@@ -44,7 +45,6 @@ const Notifications = () => {
     if (n.link?.startsWith('/seller/')) window.location.assign(n.link);
     else if (n.link) navigate(n.link);
   };
-  const items = list.data?.items ?? [];
   const pages = list.data ? Math.max(1, Math.ceil(list.data.totalCount / list.data.pageSize)) : 1;
 
   return (
@@ -71,8 +71,9 @@ const Notifications = () => {
         </div>
 
         <div className="noti-list" data-testid="noti-list">
-          {items.length === 0 && !list.isLoading && <p className="noti-empty" data-testid="noti-empty">Chưa có thông báo nào.</p>}
-          {items.map((n) => (
+          <QueryState query={list} isEmpty={(d) => d.items.length === 0}
+            emptyText={<p className="noti-empty" data-testid="noti-empty">Chưa có thông báo nào.</p>}>
+            {(d) => d.items.map((n) => (
             <button key={n.id} className={`noti-item ${n.isRead ? '' : 'unread'}`} onClick={() => open(n)} data-testid="noti-item">
               <span className="noti-icon">{ICONS[n.category]}</span>
               <span className="noti-body">
@@ -82,6 +83,7 @@ const Notifications = () => {
               </span>
             </button>
           ))}
+          </QueryState>
         </div>
 
         {pages > 1 && (

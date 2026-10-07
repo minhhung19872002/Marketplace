@@ -15,6 +15,7 @@ import ShopVouchers from '../components/ShopVouchers';
 import ProductShipping from '../components/ProductShipping';
 import ShareProduct from '../components/ShareProduct';
 import ImageLightbox from '../components/ImageLightbox';
+import QueryState from '../components/QueryState';
 import ReportProduct from '../components/ReportProduct';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { clockSkew, marketingApi } from '../api/marketing';
@@ -24,6 +25,7 @@ import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import type { ProductPage, PublicSku } from '../types';
 import './ProductDetail.css';
 import { usePageTitle } from '../lib/pageTitle';
+import { toast } from '../lib/toast';
 
 const priceRange = (min: number, max: number) => (min === max ? formatPrice(min) : `${formatPrice(min)} - ${formatPrice(max)}`);
 
@@ -40,7 +42,6 @@ const ProductView = ({ product }: { product: ProductPage }) => {
   const [picked, setPicked] = useState<(string | null)[]>([null, null]);
   const [quantity, setQuantity] = useState(1);
   const [variantError, setVariantError] = useState(false);
-  const [toast, setToast] = useState('');
   const [activeImg, setActiveImg] = useState(0);
   const [zoomed, setZoomed] = useState(false);
 
@@ -91,10 +92,6 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     }
   };
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(''), 2000);
-  };
 
   const [busy, setBusy] = useState(false);
 
@@ -108,10 +105,11 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     if (sku.available <= 0 || busy) return false;
     setBusy(true);
     try {
-      showToast(await addToCart(sku.id, quantity));
+      // The shared toast reports the server's answer (F4)
+      await addToCart(sku.id, quantity);
       return true;
     } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'Không thêm được vào giỏ, vui lòng thử lại.');
+      if (!(e instanceof ApiError)) toast.error('Không thêm được vào giỏ, vui lòng thử lại.');
       return false;
     } finally {
       setBusy(false);
@@ -126,7 +124,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
       await updateInCart(sku.id, { selected: true });
       navigate('/thanh-toan');
     } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'Không mở được trang thanh toán, vui lòng thử lại.');
+      if (!(e instanceof ApiError)) toast.error('Không mở được trang thanh toán, vui lòng thử lại.');
     }
   };
 
@@ -149,7 +147,6 @@ const ProductView = ({ product }: { product: ProductPage }) => {
           <span className="breadcrumb-current">{product.name}</span>
         </div>
 
-        {toast && <div className="pd-toast" data-testid="pd-toast">{toast}</div>}
 
         <div className="product-detail-main">
           <div className="product-detail-gallery">
@@ -438,7 +435,8 @@ const ProductDetail = () => {
   const id = productIdOf(key) ?? key;
   const navigate = useNavigate();
   const location = useLocation();
-  const { data, error, isLoading } = useQuery({ queryKey: ['product', id], queryFn: () => storefrontApi.product(id), retry: false });
+  const productQuery = useQuery({ queryKey: ['product', id], queryFn: () => storefrontApi.product(id), retry: false });
+  const { data, error, isLoading } = productQuery;
   usePageTitle(data?.name ?? (error ? 'Không tìm thấy sản phẩm' : null));
 
   useEffect(() => { window.scrollTo(0, 0); }, [id]);
@@ -458,6 +456,10 @@ const ProductDetail = () => {
   }, [data, location.pathname, location.search, navigate]);
 
   if (isLoading) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  // A network / server error is not "no such product": the error with "Thử lại" (F3)
+  if (error && !(error instanceof ApiError && error.status === 404)) {
+    return <div className="container"><QueryState query={productQuery}>{() => null}</QueryState></div>;
+  }
   if (error || !data) {
     return (
       <div className="container product-not-found" data-testid="product-not-found">

@@ -16,7 +16,7 @@ test.describe('Tài khoản: ảnh đại diện & quyền riêng tư', () => {
     await page.getByTestId('avatar-file').setInputFiles(SAMPLE_PNG);
     await expect(page.locator('canvas.avatar-crop')).toBeVisible();
     await page.getByTestId('avatar-save').click();
-    await expect(page.getByText('Đã cập nhật ảnh đại diện.')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Đã cập nhật ảnh đại diện.')).toBeVisible();
 
     // The saved photo is what people see (not just a file in MinIO): header + sidebar load the image
     const header = page.locator('img.header-user-avatar');

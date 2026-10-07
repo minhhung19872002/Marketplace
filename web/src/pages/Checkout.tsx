@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { checkoutApi, type CheckoutRequest, type PaymentMethod, type PaymentOption } from '../api/commerce';
 import VoucherPicker from '../components/VoucherPicker';
+import QueryState from '../components/QueryState';
 import { useShopVouchers } from '../stores/shopVouchers';
 import { accountApi } from '../api/account';
 import { ApiError } from '../api/http';
@@ -71,7 +72,8 @@ const Checkout = () => {
   if (isChecking) return <div className="page-loader"><div className="loading-spinner" /></div>;
   if (!isLoggedIn) return <Navigate to="/dang-nhap" replace state={{ from: '/thanh-toan' }} />;
   const quote = quoteQuery.data;
-  if (quoteQuery.isLoading || !quote) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  // First quote still loading, or it failed: spinner or the error with "Thử lại" (F3)
+  if (!quote) return <div className="container"><QueryState query={quoteQuery}>{() => null}</QueryState></div>;
 
   if (quote.shops.length === 0) {
     return (

@@ -2,8 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { trackingApi, type ShipmentEvent } from '../api/commerce';
-import { ApiError } from '../api/http';
 import { formatDate, formatDateTime } from '../lib/datetime';
+import QueryState from '../components/QueryState';
 import './PaymentPages.css';
 
 /** Timeline of carrier events, newest first (shared by the order page and the public tracking page). */
@@ -26,7 +26,7 @@ const TrackingPage = () => {
   const { trackingNo = '' } = useParams();
   const navigate = useNavigate();
   const [input, setInput] = useState(trackingNo);
-  const { data, error, isFetching } = useQuery({
+  const tracking = useQuery({
     queryKey: ['tracking', trackingNo],
     queryFn: () => trackingApi.get(trackingNo),
     enabled: trackingNo.length > 0,
@@ -45,9 +45,9 @@ const TrackingPage = () => {
         <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Nhập mã vận đơn, ví dụ SIM123456789VN" aria-label="Mã vận đơn" />
         <button type="submit" className="payment-result-btn">Tra cứu</button>
       </form>
-      {isFetching && <p>Đang tra cứu…</p>}
-      {error && <p role="alert">{error instanceof ApiError ? error.message : 'Không tra cứu được, vui lòng thử lại.'}</p>}
-      {data && (
+      {trackingNo.length > 0 && (
+      <QueryState query={tracking} loading={<p>Đang tra cứu…</p>}>
+        {(data) => (
         <div className="tracking-result" data-testid="tracking-result">
           <p>
             <strong>{data.trackingNo}</strong> · {data.carrierName} · <span data-testid="tracking-status">{data.statusLabel}</span>
@@ -55,6 +55,8 @@ const TrackingPage = () => {
           <p>Dự kiến giao: {formatDate(data.expectedDeliveryAt)}</p>
           <ShipmentTimeline events={data.events} />
         </div>
+        )}
+      </QueryState>
       )}
     </div>
   );

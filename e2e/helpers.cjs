@@ -43,12 +43,18 @@ async function api(request, path) {
   return (await res.json()).data;
 }
 
-/** First in-stock, purchasable product whose page matches the predicate. */
+/**
+ * First in-stock, purchasable product whose page matches the predicate. Pages through the results: which products sell
+ * best depends on the sample orders, so on a freshly seeded install the first page alone may hold no match (L122).
+ */
 async function findProduct(request, predicate, query = 'inStock=true&sort=BestSelling&pageSize=60') {
-  const result = await api(request, `/search/products?${query}`);
-  for (const card of result.items) {
-    const page = await api(request, `/products/${card.id}`);
-    if (page.purchasable && predicate(page)) return page;
+  for (let page = 1; page <= 10; page++) {
+    const result = await api(request, `/search/products?${query}&page=${page}`);
+    for (const card of result.items) {
+      const product = await api(request, `/products/${card.id}`);
+      if (product.purchasable && predicate(product)) return product;
+    }
+    if (page * result.pageSize >= result.totalCount) break;
   }
   throw new Error('Không tìm thấy sản phẩm phù hợp trong dữ liệu mẫu');
 }

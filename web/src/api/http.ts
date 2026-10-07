@@ -1,5 +1,6 @@
 // The only module that talks HTTP. Every response follows { success, data, message, errors }.
 import { useAuthStore, type AuthResult } from '../stores/auth';
+import { toast, toastFor } from '../lib/toast';
 
 const BASE = '/api';
 
@@ -42,6 +43,15 @@ interface RequestOptions {
   // Send the access token and retry once after a silent refresh on 401
   auth?: boolean;
   headers?: Record<string, string>;
+  // false = this write reports in its own way (no toast)
+  toast?: boolean;
+}
+
+/** Writes report how they went in the shared toast (F4); reads and silent writes never do. */
+function report(method: Method, path: string, ok: boolean, message: string, options: RequestOptions) {
+  if (options.toast === false) return;
+  const shown = toastFor(method, path, ok, message);
+  if (shown) toast[shown.kind](shown.text);
 }
 
 async function send<T>(path: string, options: RequestOptions, retried: boolean): Promise<Envelope<T>> {
@@ -61,7 +71,9 @@ async function send<T>(path: string, options: RequestOptions, retried: boolean):
       credentials: 'include',
     });
   } catch {
-    throw new ApiError(0, 'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.');
+    const message = 'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.';
+    report(method, path, false, message, options);
+    throw new ApiError(0, message);
   }
 
   if (response.status === 401 && auth && token && !retried) {
@@ -70,8 +82,11 @@ async function send<T>(path: string, options: RequestOptions, retried: boolean):
 
   const envelope = (await response.json().catch(() => null)) as Envelope<T> | null;
   if (!response.ok || !envelope?.success) {
-    throw new ApiError(response.status, envelope?.message || 'Yêu cầu không thành công.', envelope?.errors ?? [], envelope?.data ?? null);
+    const message = envelope?.message || 'Yêu cầu không thành công.';
+    report(method, path, false, message, options);
+    throw new ApiError(response.status, message, envelope?.errors ?? [], envelope?.data ?? null);
   }
+  report(method, path, true, envelope.message ?? '', options);
   return envelope;
 }
 

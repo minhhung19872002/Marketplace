@@ -3,20 +3,6 @@
   position: relative;
 }
 
-/* Toast thông báo */
-.pd-toast {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  padding: 18px 30px;
-  border-radius: 6px;
-  font-size: 15px;
-  z-index: 999;
-}
-
 .product-detail-main {
   display: grid;
   grid-template-columns: 40% 60%;
@@ -281,6 +267,7 @@
 
 .product-detail-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   margin-top: 30px;
 }

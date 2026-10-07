@@ -57,9 +57,12 @@ public static class DependencyInjection
         services.AddSingleton<IOutboxSignal>(sp => sp.GetRequiredService<ImmediateOutboxDispatcher>());
         services.AddHostedService(sp => sp.GetRequiredService<ImmediateOutboxDispatcher>());
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddHttpClient(EsmsSmsSender.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(15));
         services.AddScoped<ISmsSender>(sp => settings.SmsProvider switch
         {
             "simulated" => ActivatorUtilities.CreateInstance<SimulatedSmsSender>(sp),
+            "esms" => ActivatorUtilities.CreateInstance<EsmsSmsSender>(sp,
+                settings.Providers.Esms ?? throw new InvalidOperationException("SH_SMS_PROVIDER=esms cần SH_ESMS_API_KEY và SH_ESMS_SECRET_KEY.")),
             _ => throw new InvalidOperationException($"Nhà cung cấp SMS '{settings.SmsProvider}' chưa được hỗ trợ."),
         });
         services.AddHostedService<SessionsChangedSubscriber>();
@@ -112,7 +115,16 @@ public static class DependencyInjection
         services.AddScoped<Seed.OrderSampleSeeder>();
         services.AddScoped<IOutboxHandler, OrderEventHandler>();
         services.AddScoped<IOutboxHandler, NotificationDeliveryHandler>();
-        services.AddScoped<IPushSender, SimulatedPushSender>();
+        // Push: FCM HTTP v1 when the service-account key is set, else the simulated sender (logs only)
+        if (settings.Providers.Fcm is { } fcm)
+        {
+            services.AddSingleton(fcm);
+            services.AddHttpClient(FcmAccessTokens.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(10));
+            services.AddSingleton<FcmAccessTokens>();
+            services.AddScoped<IPushSender, FcmPushSender>();
+        }
+        else
+            services.AddScoped<IPushSender, SimulatedPushSender>();
         services.AddScoped<Jobs.RemindersJob>();
         services.AddScoped<Jobs.CartCleanupJob>();
         services.AddScoped<Jobs.CarrierSyncJob>();

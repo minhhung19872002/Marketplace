@@ -8,6 +8,7 @@ import { formatCount } from '../lib/money';
 import type { CategoryPage, FacetValue, ProductSort, SearchParams } from '../types';
 import { handleImgError } from '../lib/image';
 import { BannerLink } from '../components/Banner';
+import QueryState from '../components/QueryState';
 import './SearchResults.css';
 import { usePageTitle } from '../lib/pageTitle';
 
@@ -95,11 +96,12 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
   }, [sp]);
 
   usePageTitle(params.q?.trim() ? `Kết quả tìm kiếm "${params.q.trim()}"` : 'Tìm kiếm');
-  const { data, isLoading, isFetching, error } = useQuery({
+  const search = useQuery({
     queryKey: ['search', params],
     queryFn: () => storefrontApi.search(params),
     placeholderData: keepPreviousData,
   });
+  const { data, isLoading, isFetching } = search;
   // "Shop liên quan đến từ khoá" (II.3) above the results
   const keyword = (params.q ?? '').trim();
   const relatedShops = useQuery({
@@ -153,7 +155,6 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
     });
 
   const facets = data?.facets;
-  const items = data?.items ?? [];
   const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / data.pageSize)) : 1;
   const page = params.page ?? 1;
   const priceSort = params.sort === 'PriceAsc' ? 'asc' : params.sort === 'PriceDesc' ? 'desc' : '';
@@ -376,21 +377,20 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
             )}
           </div>
 
-          {error ? (
-            <div className="search-empty" role="alert">
-              <p>{error instanceof ApiError ? error.message : 'Không tải được kết quả, vui lòng thử lại.'}</p>
-            </div>
-          ) : !isLoading && items.length === 0 ? (
-            <div className="search-empty" data-testid="search-empty">
-              <p>Không tìm thấy sản phẩm nào phù hợp.</p>
-              <p className="search-empty-hint">Hãy thử từ khoá khác hoặc bỏ bớt bộ lọc.</p>
-              <Link to="/" className="search-empty-btn">Về trang chủ</Link>
-            </div>
-          ) : (
-            <div className={isFetching && !isLoading ? 'search-refreshing' : ''}>
-              <ProductGrid title="" products={items} loading={isLoading} />
-            </div>
-          )}
+          <QueryState query={search} loading={<ProductGrid title="" products={[]} loading />} isEmpty={(d) => d.items.length === 0}
+            emptyText={
+              <div className="search-empty" data-testid="search-empty">
+                <p>Không tìm thấy sản phẩm nào phù hợp.</p>
+                <p className="search-empty-hint">Hãy thử từ khoá khác hoặc bỏ bớt bộ lọc.</p>
+                <Link to="/" className="search-empty-btn">Về trang chủ</Link>
+              </div>
+            }>
+            {(found) => (
+              <div className={isFetching && !isLoading ? 'search-refreshing' : ''}>
+                <ProductGrid title="" products={found.items} />
+              </div>
+            )}
+          </QueryState>
 
           {data && totalPages > 1 && (
             <nav className="search-pager" aria-label="Phân trang" data-testid="search-pager">
@@ -413,8 +413,12 @@ export const SearchResults = () => <SearchView />;
 /** /danh-muc/:slug — the same search, scoped to a category subtree. */
 export const CategoryResults = () => {
   const { slug = '' } = useParams();
-  const { data, error } = useQuery({ queryKey: ['category', slug], queryFn: () => storefrontApi.categoryBySlug(slug) });
+  const categoryQuery = useQuery({ queryKey: ['category', slug], queryFn: () => storefrontApi.categoryBySlug(slug) });
+  const { data, error } = categoryQuery;
   usePageTitle(data?.category.name ?? (error ? 'Không tìm thấy danh mục' : null));
+  // Loading, or a network / server error (not "no such category"): spinner or the error with "Thử lại" (F3)
+  if (categoryQuery.isPending || (error && !(error instanceof ApiError && error.status === 404)))
+    return <div className="container"><QueryState query={categoryQuery}>{() => null}</QueryState></div>;
   if (error)
     return (
       <div className="container search-empty">

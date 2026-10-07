@@ -11,6 +11,7 @@ import { formatDate, formatDateTime } from '../../lib/datetime';
 import { ContactShopButton } from '../../components/chat/Chat';
 import { handleImgError, imageOrPlaceholder } from '../../lib/image';
 import { usePageTitle } from '../../lib/pageTitle';
+import QueryState from '../../components/QueryState';
 
 const ORDER_TABS: { key: OrderTab; label: string }[] = [
   { key: 'All', label: 'Tất cả' },
@@ -29,11 +30,12 @@ export const OrdersPage = () => {
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useQuery({
+  const orders = useQuery({
     queryKey: ['orders', tab, search, page],
     queryFn: () => ordersApi.list(tab, search, page),
     placeholderData: keepPreviousData,
   });
+  const data = orders.data;
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / data.pageSize)) : 1;
 
   return (
@@ -48,12 +50,9 @@ export const OrdersPage = () => {
       <form className="account-search" onSubmit={(e) => { e.preventDefault(); setSearch(q.trim()); setPage(1); }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo mã đơn, tên shop hoặc tên sản phẩm" aria-label="Tìm đơn hàng" />
       </form>
-      {isLoading ? (
-        <div className="page-loader"><div className="loading-spinner" /></div>
-      ) : (data?.items.length ?? 0) === 0 ? (
-        <p className="account-empty" data-testid="orders-empty">Chưa có đơn hàng.</p>
-      ) : (
-        data!.items.map((o) => (
+      <QueryState query={orders} isEmpty={(d) => d.items.length === 0}
+        emptyText={<p className="account-empty" data-testid="orders-empty">Chưa có đơn hàng.</p>}>
+        {(d) => d.items.map((o) => (
           <div key={o.id} className="order-card" data-testid="order-card">
             <div className="order-card-head">
               <Link to={`/shop/${o.shopSlug}`} className="order-card-shop">{o.shopName}</Link>
@@ -78,8 +77,8 @@ export const OrdersPage = () => {
               <Link to={`/tai-khoan/don-mua/${o.code}`} className="account-btn-outline">Xem chi tiết</Link>
             </div>
           </div>
-        ))
-      )}
+        ))}
+      </QueryState>
       {pages > 1 && (
         <div className="account-pager">
           <button disabled={page <= 1} onClick={() => setPage(page - 1)}>‹</button>
@@ -323,8 +322,10 @@ export const VouchersPage = () => {
           <button key={t.key} className={`account-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
         ))}
       </div>
+      <QueryState query={mine} isEmpty={(d) => d.length === 0} emptyText={<p className="account-empty">Chưa có voucher nào.</p>}>
+        {(list) => (
       <div className="voucher-list">
-        {(mine.data ?? []).map((w) => (
+        {list.map((w) => (
           <div key={w.voucher.id} className="voucher-ticket" data-testid="my-voucher">
             <div className="voucher-ticket-side">{w.voucher.owner === 'Platform' ? 'ShopHub' : w.voucher.shopName ?? 'Shop'}</div>
             <div className="voucher-ticket-body">
@@ -334,8 +335,9 @@ export const VouchersPage = () => {
             </div>
           </div>
         ))}
-        {mine.data?.length === 0 && <p className="account-empty">Chưa có voucher nào.</p>}
       </div>
+        )}
+      </QueryState>
 
       <h3 className="account-subtitle">Voucher có thể lưu</h3>
       <div className="voucher-list">
@@ -412,10 +414,12 @@ const LoyaltyPanel = () => {
 
 export const CoinsPage = () => {
   const [page, setPage] = useState(1);
-  const { data } = useQuery({ queryKey: ['coins', page], queryFn: () => walletApi.coins(page), placeholderData: keepPreviousData });
-  if (!data) return <div className="page-loader"><div className="loading-spinner" /></div>;
-  const pages = Math.max(1, Math.ceil(data.history.totalCount / data.history.pageSize));
+  const coins = useQuery({ queryKey: ['coins', page], queryFn: () => walletApi.coins(page), placeholderData: keepPreviousData });
   return (
+    <QueryState query={coins}>
+      {(data) => {
+        const pages = Math.max(1, Math.ceil(data.history.totalCount / data.history.pageSize));
+        return (
     <div className="account-card" data-testid="coins-page">
       <h2 className="account-title">ShopHub Xu</h2>
       <LoyaltyPanel />
@@ -441,5 +445,8 @@ export const CoinsPage = () => {
         </div>
       )}
     </div>
+        );
+      }}
+    </QueryState>
   );
 };

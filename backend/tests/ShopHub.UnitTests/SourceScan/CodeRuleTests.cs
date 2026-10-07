@@ -217,6 +217,26 @@ public class NginxConfigParityTests
         Required.Where(r => !text.Contains(r, StringComparison.Ordinal)).Should().BeEmpty($"{relativePath} thiếu cấu hình chung");
     }
 
+    /// <summary>
+    /// L129 (6.1): access logs never carry the query string — SignalR sends the JWT as <c>?access_token=</c> and the
+    /// private files are <c>/s3/…?X-Amz-Signature=</c>. Every server block logs with <c>sh_noquery</c> (a server-level
+    /// access_log replaces the image's default http-level one), and that format has no request line / args.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Configs))]
+    public void Access_logs_never_write_the_query_string(string relativePath)
+    {
+        var text = string.Join('\n', File.ReadAllText(Path.Combine(RepoFiles.RepoRoot, relativePath)).Replace("\r\n", "\n").Split('\n')
+            .Select(l => l.Split('#')[0]));
+        var format = text.Split('\n').FirstOrDefault(l => l.TrimStart().StartsWith("log_format sh_noquery ", StringComparison.Ordinal));
+        format.Should().NotBeNull($"{relativePath} khai log_format sh_noquery");
+        new[] { "$request ", "$request\"", "$request_uri", "$args", "$query_string", "$arg_" }.Where(v => format!.Contains(v, StringComparison.Ordinal))
+            .Should().BeEmpty("định dạng log không chứa chuỗi truy vấn");
+        Blocks(text).Where(b => b.Header.StartsWith("server", StringComparison.Ordinal))
+            .Where(b => !Direct(b.Body).Contains("access_log /var/log/nginx/access.log sh_noquery;", StringComparison.Ordinal))
+            .Select(b => b.Header).Should().BeEmpty($"{relativePath}: mỗi server ghi log bằng sh_noquery");
+    }
+
     [Fact]
     public void The_shared_security_header_file_carries_every_header()
     {

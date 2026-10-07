@@ -3,13 +3,18 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { contentApi, type HelpItem } from '../api/content';
 import { formatDate } from '../lib/datetime';
+import { ApiError } from '../api/http';
+import QueryState from '../components/QueryState';
 import './ContentPages.css';
 
 /** /trang/:slug and /tro-giup/:slug — a static page or help article edited by the platform (HTML sanitised server-side). */
 export const CmsPageView = () => {
   const { slug = '' } = useParams();
   const page = useQuery({ queryKey: ['cms', slug], queryFn: () => contentApi.page(slug), retry: false });
-  if (page.isLoading) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  // Loading, or a network / server error (not "no such page"): spinner or the error with "Thử lại" (F3)
+  if (page.isPending || (page.isError && !(page.error instanceof ApiError && page.error.status === 404))) {
+    return <div className="container content-page"><QueryState query={page}>{() => null}</QueryState></div>;
+  }
   if (!page.data) {
     return (
       <div className="container content-page">
@@ -52,7 +57,9 @@ export const HelpCenter = () => {
           <button type="submit">Tìm</button>
         </form>
       </div>
-      {items.data && help.length === 0 && pages.length === 0 && <p className="help-empty">Không tìm thấy câu hỏi phù hợp.</p>}
+      <QueryState query={items} isEmpty={(d) => d.length === 0} emptyText={<p className="help-empty">Không tìm thấy câu hỏi phù hợp.</p>}>
+        {() => (
+          <>
       <div className="help-topics">
         {Object.entries(topics).map(([topic, list]) => (
           <section key={topic} className="help-topic">
@@ -67,6 +74,9 @@ export const HelpCenter = () => {
           <ul>{pages.map((i) => <li key={i.slug}><Link to={`/trang/${i.slug}`}>{i.title}</Link></li>)}</ul>
         </section>
       )}
+          </>
+        )}
+      </QueryState>
     </div>
   );
 };

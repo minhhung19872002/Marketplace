@@ -5,6 +5,7 @@ import { storefrontApi } from '../api/storefront';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
 import ProductGrid from '../components/ProductGrid';
+import QueryState from '../components/QueryState';
 import ShopHomeBlocks from '../components/ShopHomeBlocks';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { formatSold } from '../lib/money';
@@ -80,6 +81,10 @@ const ShopPage = () => {
 
   usePageTitle(shopQuery.data?.shop.name ?? (shopQuery.isError ? 'Không tìm thấy shop' : null));
   if (shopQuery.isLoading) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  // A network / server error is not "no such shop": say so and offer "Thử lại" (F3)
+  if (shopQuery.isError && !(shopQuery.error instanceof ApiError && shopQuery.error.status === 404)) {
+    return <div className="container"><QueryState query={shopQuery}>{() => null}</QueryState></div>;
+  }
   if (!shopQuery.data) {
     return (
       <div className="container product-not-found" data-testid="shop-not-found">
@@ -179,8 +184,9 @@ const ShopPage = () => {
         )}
 
         {tab === 'dao' && (
-          home.isLoading ? <div className="page-loader"><div className="loading-spinner" /></div>
-            : <ShopHomeBlocks blocks={home.data ?? []} onOpenCategory={(id) => openTab(`dm-${id}`)} />
+          <QueryState query={home}>
+            {(blocks) => <ShopHomeBlocks blocks={blocks} onOpenCategory={(id) => openTab(`dm-${id}`)} />}
+          </QueryState>
         )}
 
         {tab === 'ho-so' && (
@@ -214,7 +220,9 @@ const ShopPage = () => {
                 </button>
               ))}
             </div>
-            <ProductGrid title="" products={products.data?.items ?? []} loading={products.isLoading} emptyText={q ? 'Không tìm thấy sản phẩm phù hợp trong shop.' : 'Shop chưa có sản phẩm nào đang bán.'} />
+            <QueryState query={products} loading={<ProductGrid title="" products={[]} loading />}>
+              {(found) => <ProductGrid title="" products={found.items} emptyText={q ? 'Không tìm thấy sản phẩm phù hợp trong shop.' : 'Shop chưa có sản phẩm nào đang bán.'} />}
+            </QueryState>
           </>
         )}
 
@@ -222,8 +230,9 @@ const ShopPage = () => {
           category ? (
             <>
               <div className="shop-section-head">{category.name.toUpperCase()}</div>
-              <ProductGrid title="" products={categoryProducts.data?.items ?? []} loading={categoryProducts.isLoading}
-                emptyText="Danh mục chưa có sản phẩm nào đang bán." />
+              <QueryState query={categoryProducts} loading={<ProductGrid title="" products={[]} loading />}>
+                {(found) => <ProductGrid title="" products={found.items} emptyText="Danh mục chưa có sản phẩm nào đang bán." />}
+              </QueryState>
             </>
           ) : <div className="shop-description">Danh mục này không còn hiển thị.</div>
         )}

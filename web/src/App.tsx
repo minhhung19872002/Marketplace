@@ -6,6 +6,7 @@ import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
 import BackToTop from './components/BackToTop'
 import { ChatProvider, ChatWidget } from './components/chat/Chat'
+import Toaster from './components/Toaster'
 import './App.css'
 
 // Lazy load pages - Code Splitting
@@ -118,6 +119,7 @@ function App() {
               </main>
               <Footer />
               <BackToTop />
+              <Toaster />
               <ChatWidget />
             </div>
           </ChatProvider>

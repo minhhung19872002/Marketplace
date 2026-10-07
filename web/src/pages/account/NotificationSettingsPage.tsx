@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationPrefsApi, type NotificationCategory, type NotificationChannel, type NotificationPref } from '../../api/chat';
 import { ApiError } from '../../api/http';
+import QueryState from '../../components/QueryState';
 
 const CATEGORIES: { value: NotificationCategory; label: string }[] = [
   { value: 'Order', label: 'Cập nhật đơn hàng' },
@@ -43,11 +44,10 @@ const NotificationSettingsPage = () => {
         <h1 className="account-card-title">Cài Đặt Thông Báo</h1>
         <p className="account-card-sub">Chọn kênh nhận thông báo cho từng loại. Thông báo đơn hàng, ví và tài khoản luôn hiện trong app; khuyến mãi có thể tắt.</p>
       </div>
-      {prefs.isPending && <div className="account-skeleton" aria-busy="true" />}
-      {prefs.isError && <div className="account-error">Không tải được cài đặt thông báo.</div>}
-      {prefs.data && (
+      <QueryState query={prefs} loading={<div className="account-skeleton" aria-busy="true" />}>
+        {(loaded) => (
         <>
-          {!prefs.data.hasEmail && <p className="account-card-sub">Bạn chưa có email — thông báo qua email sẽ không được gửi.</p>}
+          {!loaded.hasEmail && <p className="account-card-sub">Bạn chưa có email — thông báo qua email sẽ không được gửi.</p>}
           <table className="notif-prefs" data-testid="notification-prefs">
             <thead>
               <tr>
@@ -75,7 +75,8 @@ const NotificationSettingsPage = () => {
           <button className="account-btn-primary" onClick={() => save.mutate()} disabled={save.isPending}>Lưu</button>
           {message && <p className="account-card-sub" role="status">{message}</p>}
         </>
-      )}
+        )}
+      </QueryState>
     </div>
   );
 };

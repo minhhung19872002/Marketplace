@@ -6,6 +6,7 @@ import { formatDate } from '../../lib/datetime';
 import { useCountdown } from '../../lib/useCountdown';
 import { useAuthStore } from '../../stores/auth';
 import AvatarEditor from '../../components/AvatarEditor';
+import QueryState from '../../components/QueryState';
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: 'Male', label: 'Nam' },
@@ -66,7 +67,8 @@ const ProfilePage = () => {
   });
 
   if (me.isPending) return <div className="account-card account-skeleton" aria-busy="true" />;
-  if (me.isError) return <div className="account-card account-error">{errorText(me.error)}</div>;
+  // Not loaded: the error and "Thử lại" (F3)
+  if (me.isError || !me.data) return <div className="account-card"><QueryState query={me}>{() => null}</QueryState></div>;
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

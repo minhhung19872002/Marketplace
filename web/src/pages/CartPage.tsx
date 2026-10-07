@@ -11,6 +11,7 @@ import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { productPath } from '../lib/urls';
 import ProductGrid from '../components/ProductGrid';
 import VoucherPicker from '../components/VoucherPicker';
+import QueryState from '../components/QueryState';
 import { useShopVouchers } from '../stores/shopVouchers';
 import { ConfirmButton } from '../components/ConfirmDialog';
 import './CartPage.css';
@@ -61,15 +62,16 @@ const SimilarProducts = ({ productId }: { productId: string }) => {
       </button>
       {open && (
         <div className="cart-similar-row" data-testid="cart-similar-row">
-          {similar.isLoading && <span className="cart-similar-empty">Đang tải…</span>}
-          {similar.data?.length === 0 && <span className="cart-similar-empty">Chưa có sản phẩm tương tự.</span>}
-          {similar.data?.slice(0, 6).map((p) => (
+          <QueryState query={similar} loading={<span className="cart-similar-empty">Đang tải…</span>} isEmpty={(d) => d.length === 0}
+            emptyText={<span className="cart-similar-empty">Chưa có sản phẩm tương tự.</span>}>
+          {(list) => list.slice(0, 6).map((p) => (
             <Link key={p.id} to={productPath(p.slug, p.shopId, p.id)} className="cart-similar-item" data-testid="cart-similar-item">
               <img src={imageOrPlaceholder(p.imageUrl)} alt="" onError={handleImgError} />
               <span className="cart-similar-name">{p.name}</span>
               <span className="cart-similar-price">{formatPrice(p.minPrice)}</span>
             </Link>
           ))}
+          </QueryState>
         </div>
       )}
     </div>

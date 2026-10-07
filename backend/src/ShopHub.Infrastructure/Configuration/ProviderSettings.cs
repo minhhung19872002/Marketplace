@@ -13,6 +13,10 @@ public sealed class ProviderSettings
     public ZaloPayOptions? ZaloPay { get; init; }
     public GhnOptions? Ghn { get; init; }
     public GhtkOptions? Ghtk { get; init; }
+    // Push (G2): Firebase Cloud Messaging HTTP v1 — on when the service-account key is set
+    public FcmOptions? Fcm { get; init; }
+    // SMS (G3): eSMS brandname — on when SH_SMS_PROVIDER=esms and its keys are set
+    public EsmsOptions? Esms { get; init; }
 
     // Public base URL the providers call back (IPN / webhooks), e.g. https://shophub.example.vn; null = SITE.PUBLIC_URL
     public string? CallbackBaseUrl { get; init; }
@@ -45,6 +49,13 @@ public sealed class ProviderSettings
                     Value(c, "SH_GHTK_WEBHOOK_TOKEN") ?? throw new InvalidOperationException("Bật GHTK cần SH_GHTK_WEBHOOK_TOKEN (chuỗi bí mật trong URL webhook)."))
                 : null,
             CallbackBaseUrl = Value(c, "SH_CALLBACK_BASE_URL")?.TrimEnd('/'),
+            Fcm = Value(c, "SH_FCM_SERVICE_ACCOUNT") is { } account ? FcmOptions.Parse(account, Value(c, "SH_FCM_API_BASE")) : null,
+            Esms = Value(c, "SH_ESMS_API_KEY") is { } esmsKey && Value(c, "SH_ESMS_SECRET_KEY") is { } esmsSecret
+                ? new EsmsOptions(esmsKey, esmsSecret,
+                    Value(c, "SH_ESMS_BRANDNAME") ?? throw new InvalidOperationException("Bật eSMS cần SH_ESMS_BRANDNAME (tên thương hiệu đã đăng ký với eSMS)."),
+                    Value(c, "SH_ESMS_ENDPOINT") ?? "https://rest.esms.vn/MainService.svc/json/SendMultipleMessage_V4_post_json/",
+                    Value(c, "SH_ESMS_SMS_TYPE") ?? "2")
+                : null,
         };
     }
 }
@@ -61,3 +72,27 @@ public sealed record GhnOptions(string Token, int ShopId, string Endpoint, strin
 
 // ClientSource: the partner code GHTK gives (X-Client-Source header), optional on older accounts
 public sealed record GhtkOptions(string Token, string? ClientSource, string Endpoint, string WebhookToken);
+
+/// <summary>
+/// The Firebase service-account key (the JSON Google gives, raw, base64 or a file path) and where FCM lives —
+/// <see cref="ApiBase"/> / <see cref="TokenUri"/> point at a fake server in tests.
+/// </summary>
+public sealed record FcmOptions(string ProjectId, string ClientEmail, string PrivateKey, string TokenUri, string ApiBase)
+{
+    public static FcmOptions Parse(string value, string? apiBase)
+    {
+        var json = value.TrimStart().StartsWith('{') ? value
+            : File.Exists(value) ? File.ReadAllText(value)
+            : System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(value));
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        string Field(string name) => root.TryGetProperty(name, out var v) && v.GetString() is { Length: > 0 } s
+            ? s : throw new InvalidOperationException($"SH_FCM_SERVICE_ACCOUNT thiếu trường \"{name}\".");
+        return new FcmOptions(Field("project_id"), Field("client_email"), Field("private_key"),
+            root.TryGetProperty("token_uri", out var t) && t.GetString() is { Length: > 0 } uri ? uri : "https://oauth2.googleapis.com/token",
+            apiBase ?? "https://fcm.googleapis.com");
+    }
+}
+
+// SmsType "2" = brandname customer-care messages (OTP, order notices); the brandname must be registered with eSMS
+public sealed record EsmsOptions(string ApiKey, string SecretKey, string Brandname, string Endpoint, string SmsType);

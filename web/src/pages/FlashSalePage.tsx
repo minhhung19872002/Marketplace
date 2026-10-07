@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { marketingApi } from '../api/marketing';
 import { FlashSaleBoard } from '../components/FlashSaleBlock';
+import QueryState from '../components/QueryState';
 import { formatClock, formatDate } from '../lib/datetime';
 import './FlashSalePage.css';
 
@@ -15,7 +16,6 @@ const FlashSalePage = () => {
     enabled: !!slotId,
     staleTime: 30_000,
   });
-  const board = slotId ? chosen.data : current.data;
   const slots = current.data ? [...(current.data.slot ? [current.data.slot] : []), ...current.data.upcoming] : [];
 
   return (
@@ -35,13 +35,11 @@ const FlashSalePage = () => {
           })}
         </div>
       )}
-      {current.isPending || (slotId && chosen.isPending) ? (
-        <p className="flash-page-empty">Đang tải…</p>
-      ) : board && board.slot && board.items.length > 0 ? (
-        <FlashSaleBoard key={`${board.slot.id}-${board.serverTime}`} board={board} full />
-      ) : (
-        <p className="flash-page-empty" data-testid="flash-empty">Chưa có khung Flash Sale nào đang mở. Quay lại sau nhé!</p>
-      )}
+      <QueryState query={slotId ? chosen : current} loading={<p className="flash-page-empty">Đang tải…</p>}
+        isEmpty={(b) => !b.slot || b.items.length === 0}
+        emptyText={<p className="flash-page-empty" data-testid="flash-empty">Chưa có khung Flash Sale nào đang mở. Quay lại sau nhé!</p>}>
+        {(b) => <FlashSaleBoard key={`${b.slot!.id}-${b.serverTime}`} board={b} full />}
+      </QueryState>
     </div>
   );
 };

@@ -89,7 +89,7 @@ test.describe('Chat', () => {
     await page.getByTestId('chat-report').click();
     await page.getByTestId('chat-report-reason').selectOption('Yêu cầu giao dịch / chuyển khoản ngoài sàn');
     await page.getByTestId('chat-report-send').click();
-    await expect(page.getByText('Đã gửi báo cáo, sàn sẽ xem xét.')).toBeVisible();
+    await expect(page.getByTestId('chat-thread').getByText('Đã gửi báo cáo, sàn sẽ xem xét.')).toBeVisible();
 
     // The blocked shop can no longer write to the buyer
     const conversations = await apiAs(request, shop.token, 'GET', `/seller/shops/${shop.shopId}/chat/conversations`);

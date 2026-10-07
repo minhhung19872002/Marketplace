@@ -313,5 +313,11 @@ public class AftercareTests(ApiFactory factory)
 
         (await b.Seller.PostAsJsonAsync($"/api/seller/shops/{b.Store.ShopId}/returns/{created.Str("id")}/actions", new { action = "Approve" })).EnsureSuccessStatusCode();
         (await factory.WithDbAsync(db => db.CoinLedger.Where(c => c.UserId == b.Buyer.Id).SumAsync(c => c.Delta))).Should().Be(0, "thưởng 100 xu bị thu hồi");
+
+        // L125: editing the review afterwards must not hand the revoked reward out again
+        var reviewId = await factory.WithDbAsync(db => db.Reviews.Where(r => r.BuyerId == b.Buyer.Id).Select(r => r.Id).SingleAsync());
+        (await b.Buyer.Client.PutAsJsonAsync($"/api/reviews/{reviewId}",
+            new { rating = 4, content = new string('y', 90), anonymous = false, mediaAssetIds = new[] { photo } })).EnsureSuccessStatusCode();
+        (await factory.WithDbAsync(db => db.CoinLedger.Where(c => c.UserId == b.Buyer.Id).SumAsync(c => c.Delta))).Should().Be(0, "xu đã thu hồi không được thưởng lại khi sửa đánh giá");
     }
 }

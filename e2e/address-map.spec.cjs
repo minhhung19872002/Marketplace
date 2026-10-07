@@ -23,6 +23,8 @@ test('Sổ địa chỉ: ghim vị trí trên bản đồ, lưu lại và bỏ g
   await expect(page.getByTestId('address-pin-coords')).toContainText('Đã ghim');
   await page.getByTestId('address-save').click();
   await expect(page.locator('[data-testid="address-item"]')).toHaveCount(1);
+  // The write says how it went in the shared toast (F4)
+  await expect(page.getByTestId('toast').first()).toBeVisible();
 
   const login = await apiLogin(request, buyer.phone, buyer.password);
   const res = await request.get(`${BASE}/api/account/addresses`, { headers: { Authorization: `Bearer ${login.accessToken}` } });

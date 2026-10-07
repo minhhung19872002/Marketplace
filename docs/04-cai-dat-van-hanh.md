@@ -81,6 +81,69 @@ Email thông báo đi qua Mailpit ở stack dev; push FCM là bản giả lập 
    bật cho đơn từ tham số `PAYMENT.INSTALLMENT_MIN_AMOUNT` (mặc định ₫3.000.000). Cổng và đối tác tài chính duyệt khoản
    vay — ShopHub không cấp tín dụng.
 
+## Chạy với sandbox thật (Phase 14 G — cần tài khoản của sàn)
+
+Mọi bản cài thật đã có sẵn và **chỉ bật khi có khoá**; chưa có khoá thì bản giả lập chạy cùng giao thức. Kết quả với
+tài khoản thật **chưa được kiểm** (docs/06 KB41 "Chưa chạy", docs/07 "Chờ tài khoản") — mục này là các bước để người
+có tài khoản tự chạy và ghi kết quả.
+
+**1. Biến `.env`** (mẫu có chú thích trong `.env.example`)
+
+| Nhà cung cấp | Biến bắt buộc | Biến tuỳ chọn |
+|---|---|---|
+| Địa chỉ công khai | `SH_CALLBACK_BASE_URL` (https, nhà cung cấp gọi tới được); tham số `SITE.PUBLIC_URL` | — |
+| VNPay | `SH_VNPAY_TMN_CODE`, `SH_VNPAY_HASH_SECRET` | `SH_VNPAY_PAY_URL`, `SH_VNPAY_API_URL` (mặc định sandbox) |
+| MoMo | `SH_MOMO_PARTNER_CODE`, `SH_MOMO_ACCESS_KEY`, `SH_MOMO_SECRET_KEY` | `SH_MOMO_ENDPOINT` |
+| ZaloPay | `SH_ZALOPAY_APP_ID`, `SH_ZALOPAY_KEY1`, `SH_ZALOPAY_KEY2` | `SH_ZALOPAY_ENDPOINT`, `SH_ZALOPAY_INSTALLMENT_METHOD`, `SH_ZALOPAY_PAYLATER_METHOD` |
+| GHN | `SH_GHN_TOKEN`, `SH_GHN_SHOP_ID`, `SH_GHN_WEBHOOK_TOKEN` | `SH_GHN_ENDPOINT` |
+| GHTK | `SH_GHTK_TOKEN`, `SH_GHTK_WEBHOOK_TOKEN` | `SH_GHTK_CLIENT_SOURCE`, `SH_GHTK_ENDPOINT` |
+| Push FCM | `SH_FCM_SERVICE_ACCOUNT` (JSON / base64 / đường dẫn tệp) | `SH_FCM_API_BASE` |
+| SMS eSMS | `SH_SMS_PROVIDER=esms`, `SH_ESMS_API_KEY`, `SH_ESMS_SECRET_KEY`, `SH_ESMS_BRANDNAME` | `SH_ESMS_SMS_TYPE` (mặc định 2), `SH_ESMS_ENDPOINT` |
+| Chia sẻ Zalo | tham số hệ thống `SITE.ZALO_OA_ID` (mã Official Account) | — |
+
+**2. URL khai với nhà cung cấp**
+
+| Nhà cung cấp | URL gọi lại |
+|---|---|
+| VNPay (IPN, khai ở cổng quản trị merchant) | `<SH_CALLBACK_BASE_URL>/api/payments/webhooks/vnpay` |
+| MoMo (`ipnUrl`, gửi kèm từng giao dịch — không cần khai) | `<SH_CALLBACK_BASE_URL>/api/payments/webhooks/momo` |
+| ZaloPay (`callback_url`, gửi kèm từng giao dịch) | `<SH_CALLBACK_BASE_URL>/api/payments/webhooks/zalopay` |
+| GHN (webhook trạng thái đơn) | `<SH_CALLBACK_BASE_URL>/api/logistics/webhooks/GHN?token=<SH_GHN_WEBHOOK_TOKEN>` |
+| GHTK (webhook trạng thái đơn) | `<SH_CALLBACK_BASE_URL>/api/logistics/webhooks/GHTK?token=<SH_GHTK_WEBHOOK_TOKEN>` |
+
+Trang "quay về" sau cổng chỉ để hiển thị; đơn chỉ chuyển "đã trả tiền" khi IPN / callback tới và qua kiểm chữ ký.
+
+**3. Kiểm tự động một vòng** — `e2e/tools/sandbox-check.cjs` (chỉ in điều nó **quan sát được**; bước không thấy kết
+quả ghi "CHƯA THẤY", không bao giờ "OK"):
+
+```bash
+SH_SANDBOX_BASE_URL=https://<địa chỉ công khai> SH_E2E_ADMIN_USER=... SH_E2E_ADMIN_PASSWORD=... \
+SH_SANDBOX_BUYER=<sđt/email người mua có địa chỉ mặc định> SH_SANDBOX_BUYER_PASSWORD=... \
+SH_SANDBOX_SELLER=<sđt/email chủ shop> SH_SANDBOX_SELLER_PASSWORD=... SH_SANDBOX_SHOP_ID=<id shop> SH_SANDBOX_SKU_ID=<sku còn hàng của shop> \
+SH_SANDBOX_METHOD=VnPay SH_SANDBOX_CARRIER=GHN node e2e/tools/sandbox-check.cjs
+```
+
+Các bước: nhà cung cấp có khoá và đang bật → đặt đơn online → **người kiểm mở URL cổng, trả bằng thẻ / ví thử** →
+chờ IPN (mặc định 10 phút, `SH_SANDBOX_WAIT_MINUTES`) → huỷ đơn đã trả → chờ hoàn tiền về cổng → đơn COD → shop chuẩn
+bị hàng với hãng thật → mã vận đơn → **người kiểm đổi trạng thái trên trang thử của hãng** → chờ webhook cập nhật hành
+trình. Thoát mã 0 chỉ khi mọi bước OK.
+
+**4. Kiểm tay từng nhà cung cấp**
+
+1. VNPay: thẻ NCB thử của sandbox (trang hướng dẫn của VNPay), xác nhận OTP thử → đơn "Chờ xác nhận"; huỷ → giao dịch
+   hoàn trên trang merchant.
+2. MoMo / ZaloPay: ví thử trên ứng dụng sandbox (quét QR) → đơn "Chờ xác nhận"; với ZaloPay kiểm thêm trả góp nếu đã
+   có mã trong hợp đồng.
+3. GHN / GHTK: "Chuẩn bị hàng" → mã vận đơn của hãng, in phiếu của hãng (GHTK); đổi trạng thái trên trang thử → đơn đổi
+   theo (hoặc chờ việc nền `logistics.carrier-sync`).
+4. FCM: đăng ký token thiết bị (ứng dụng đợt sau, hoặc `POST /api/notifications/devices` `{ platform, token }` với token lấy từ một trang web
+   thử Firebase), đặt một đơn → thông báo push tới máy; token đã gỡ ứng dụng bị xoá khỏi `device_tokens` sau lần gửi
+   kế tiếp (FCM trả `UNREGISTERED`).
+5. eSMS: đăng ký bằng số điện thoại thật → SMS OTP mang brandname; tin bị eSMS từ chối được outbox gửi lại và ghi lỗi
+   (không ghi số điện thoại hay nội dung vào log).
+
+Ghi kết quả (ngày giờ, tài khoản sandbox nào, bước nào đạt) vào docs/06 KB41 và đổi trạng thái ở docs/07.
+
 ## Đăng nhập Google (tuỳ chọn)
 
 1. Google Cloud Console → APIs & Services → Credentials → *Create OAuth client ID* loại **Web application**; *Authorized

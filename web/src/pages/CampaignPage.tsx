@@ -11,6 +11,7 @@ import { BannerLink } from '../components/Banner';
 import { formatPrice } from '../lib/money';
 import { formatDate } from '../lib/datetime';
 import { handleImgError, isImageUrl } from '../lib/image';
+import QueryState from '../components/QueryState';
 import './CampaignPage.css';
 
 const describe = (v: CampaignVoucher) =>
@@ -41,8 +42,12 @@ const VoucherTile = ({ v }: { v: CampaignVoucher }) => {
 /** /su-kien/:slug — Ngày hội mua sắm built by the platform from blocks (spec II.13). */
 const CampaignPage = () => {
   const { slug = '' } = useParams();
-  const { data, error, isLoading } = useQuery({ queryKey: ['campaign', slug], queryFn: () => marketingApi.campaign(slug), retry: false });
-  if (isLoading) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  const campaign = useQuery({ queryKey: ['campaign', slug], queryFn: () => marketingApi.campaign(slug), retry: false });
+  const { data, error } = campaign;
+  // Loading, or a network / server error (not "no such campaign"): spinner or the error with "Thử lại" (F3)
+  if (campaign.isPending || (error && !(error instanceof ApiError && error.status === 404))) {
+    return <div className="container"><QueryState query={campaign}>{() => null}</QueryState></div>;
+  }
   if (error || !data) {
     return (
       <div className="container product-not-found" data-testid="campaign-not-found">

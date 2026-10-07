@@ -6,6 +6,7 @@ import { ApiError } from '../api/http';
 import { formatPrice } from '../lib/money';
 import { formatDateTime } from '../lib/datetime';
 import { goTo } from '../lib/navigation';
+import QueryState from '../components/QueryState';
 import './PaymentPages.css';
 
 const useSecondsLeft = (until: string | null | undefined) => {
@@ -28,10 +29,14 @@ export const SimulatedGatewayPage = () => {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const { data, isLoading } = useQuery({ queryKey: ['sim-payment', paymentId], queryFn: () => gatewayApi.view(paymentId), retry: false, staleTime: 0 });
+  const payment = useQuery({ queryKey: ['sim-payment', paymentId], queryFn: () => gatewayApi.view(paymentId), retry: false, staleTime: 0 });
+  const data = payment.data;
   const left = useSecondsLeft(data?.expiresAt);
 
-  if (isLoading) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  // Loading, or a network / server error (not "no such payment"): spinner or the error with "Thử lại" (F3)
+  if (payment.isPending || (payment.isError && !(payment.error instanceof ApiError && payment.error.status === 404))) {
+    return <div className="container gateway-page"><QueryState query={payment}>{() => null}</QueryState></div>;
+  }
   if (!data) return <div className="container gateway-page"><p>Không tìm thấy giao dịch.</p></div>;
   const result = data.returnPath;
 
@@ -76,16 +81,17 @@ export const PaymentResultPage = () => {
   const { checkoutId = '' } = useParams();
   const navigate = useNavigate();
   const [error, setError] = useState('');
-  const { data, refetch } = useQuery({
+  const checkout = useQuery({
     queryKey: ['checkout', checkoutId],
     queryFn: () => checkoutApi.get(checkoutId),
     staleTime: 0,
     // Poll while waiting for the gateway's notification
     refetchInterval: (q) => (q.state.data?.status === 'AwaitingPayment' && q.state.data.payment?.status === 'Initiated' ? 2000 : false),
   });
+  const { data, refetch } = checkout;
   const left = useSecondsLeft(data?.paymentExpiresAt);
 
-  if (!data) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  if (!data) return <div className="container payment-result"><QueryState query={checkout}>{() => null}</QueryState></div>;
 
   const retry = async () => {
     setError('');
@@ -149,9 +155,10 @@ export const PaymentResultPage = () => {
 export const OrderSuccessPage = () => {
   const [params] = useSearchParams();
   const checkoutId = params.get('checkout') ?? '';
-  const { data, isError } = useQuery({ queryKey: ['checkout', checkoutId], queryFn: () => checkoutApi.get(checkoutId), enabled: !!checkoutId, staleTime: 0 });
+  const checkout = useQuery({ queryKey: ['checkout', checkoutId], queryFn: () => checkoutApi.get(checkoutId), enabled: !!checkoutId, staleTime: 0 });
+  const { data, isError, error } = checkout;
 
-  if (!checkoutId || isError) {
+  if (!checkoutId || (isError && error instanceof ApiError && error.status === 404)) {
     return (
       <div className="container payment-result">
         <p>Không tìm thấy đơn hàng.</p>
@@ -159,7 +166,7 @@ export const OrderSuccessPage = () => {
       </div>
     );
   }
-  if (!data) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  if (!data) return <div className="container payment-result"><QueryState query={checkout}>{() => null}</QueryState></div>;
 
   return (
     <div className="container payment-result" data-testid="order-success">

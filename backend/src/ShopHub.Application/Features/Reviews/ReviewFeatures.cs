@@ -73,6 +73,8 @@ public sealed class ReviewRewards(IApplicationDbContext db, ISystemParameters pa
     public async Task GrantIfDueAsync(Review review, CancellationToken ct)
     {
         if (review.Rewarded) return;
+        // Once granted, never again — a reward taken back for a refund is not handed out on the next edit (L125)
+        if (await db.CoinLedger.AnyAsync(c => c.RefType == "review" && c.RefId == review.Id && c.Reason == CoinReason.ReviewReward && c.Delta > 0, ct)) return;
         var min = (int)await parameters.GetIntAsync(ParameterKeys.ReviewRewardMinChars, ct);
         if (!review.QualifiesForReward(min)) return;
         var coins = await parameters.GetIntAsync(ParameterKeys.ReviewRewardCoins, ct);

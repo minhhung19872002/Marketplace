@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { accountApi, type Address, type AddressInput, type AddressType } from '../../api/account';
 import { ApiError } from '../../api/http';
 import { ConfirmButton } from '../../components/ConfirmDialog';
+import QueryState from '../../components/QueryState';
 
 // Leaflet only loads when someone opens the map
 const MapPin = lazy(() => import('../../components/MapPin'));
@@ -143,12 +144,11 @@ const AddressesPage = () => {
 
       {editing && <AddressForm initial={editing === 'new' ? null : editing} onDone={() => setEditing(null)} />}
 
-      {addresses.isPending && <div className="account-skeleton" aria-busy="true" />}
-      {addresses.isError && <div className="account-error">Không tải được danh sách địa chỉ.</div>}
-      {addresses.data?.length === 0 && !editing && <div className="account-empty">Bạn chưa có địa chỉ nào.</div>}
-
+      <QueryState query={addresses} loading={<div className="account-skeleton" aria-busy="true" />}
+        isEmpty={(d) => d.length === 0 && !editing} emptyText={<div className="account-empty">Bạn chưa có địa chỉ nào.</div>}>
+        {(list) => (
       <ul className="address-list">
-        {addresses.data?.map((a) => (
+        {list.map((a) => (
           <li key={a.id} className="address-item" data-testid="address-item">
             <div className="address-main">
               <div>
@@ -171,6 +171,8 @@ const AddressesPage = () => {
           </li>
         ))}
       </ul>
+        )}
+      </QueryState>
     </div>
   );
 };

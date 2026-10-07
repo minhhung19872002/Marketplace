@@ -18,6 +18,7 @@ import { formatDateTime } from '../../lib/datetime';
 import { ContactShopButton } from '../../components/chat/Chat';
 import { handleImgError, imageOrPlaceholder } from '../../lib/image';
 import { ConfirmButton } from '../../components/ConfirmDialog';
+import QueryState from '../../components/QueryState';
 
 /** Pick photos / a short video; each file is uploaded right away and kept as an asset id. */
 const MediaPicker = ({ purpose, value, onChange, max, testId }: {
@@ -118,8 +119,9 @@ export const OrderReviewPage = () => {
   const { code = '' } = useParams();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
-  const { data } = useQuery({ queryKey: ['reviewable', code], queryFn: () => reviewsApi.reviewable(code), staleTime: 0 });
-  if (!data) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  const reviewable = useQuery({ queryKey: ['reviewable', code], queryFn: () => reviewsApi.reviewable(code), staleTime: 0 });
+  const data = reviewable.data;
+  if (!data) return <QueryState query={reviewable}>{() => null}</QueryState>;
   const refresh = () => {
     setEditing(null);
     void queryClient.invalidateQueries({ queryKey: ['reviewable', code] });
@@ -161,14 +163,15 @@ export const OrderReviewPage = () => {
 export const ReturnFormPage = () => {
   const { code = '' } = useParams();
   const navigate = useNavigate();
-  const { data } = useQuery({ queryKey: ['returnable', code], queryFn: () => returnsApi.returnable(code), staleTime: 0 });
+  const returnable = useQuery({ queryKey: ['returnable', code], queryFn: () => returnsApi.returnable(code), staleTime: 0 });
+  const data = returnable.data;
   const [type, setType] = useState<ReturnType>('RefundOnly');
   const [reason, setReason] = useState<ReturnReason>('Damaged');
   const [description, setDescription] = useState('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [evidence, setEvidence] = useState<{ id: string; preview: string }[]>([]);
   const [error, setError] = useState('');
-  if (!data) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  if (!data) return <QueryState query={returnable}>{() => null}</QueryState>;
   if (!data.canReturn) return <div className="account-card"><p>{data.reason}</p><Link to={`/tai-khoan/don-mua/${code}`}>‹ Trở lại</Link></div>;
 
   const lines = Object.entries(quantities).filter(([, q]) => q > 0).map(([orderItemId, quantity]) => ({ orderItemId, quantity }));
@@ -228,12 +231,13 @@ export const ReturnFormPage = () => {
 /** /tai-khoan/tra-hang */
 export const ReturnsPage = () => {
   const [page, setPage] = useState(1);
-  const { data } = useQuery({ queryKey: ['returns', page], queryFn: () => returnsApi.mine(page), placeholderData: keepPreviousData });
+  const returns = useQuery({ queryKey: ['returns', page], queryFn: () => returnsApi.mine(page), placeholderData: keepPreviousData });
+  const data = returns.data;
   return (
     <div className="account-card" data-testid="returns-page">
       <h2 className="account-title">Trả hàng / Hoàn tiền</h2>
-      {(data?.items.length ?? 0) === 0 && <p className="account-empty">Bạn chưa có yêu cầu trả hàng nào.</p>}
-      {data?.items.map((r) => (
+      <QueryState query={returns} isEmpty={(d) => d.items.length === 0} emptyText={<p className="account-empty">Bạn chưa có yêu cầu trả hàng nào.</p>}>
+        {(d) => d.items.map((r) => (
         <Link key={r.id} to={`/tai-khoan/tra-hang/${r.code}`} className="order-card return-card" data-testid="return-card">
           <div className="order-card-head">
             <span>{r.code} · đơn {r.orderCode} · {r.shopName}</span>
@@ -244,7 +248,8 @@ export const ReturnsPage = () => {
             <span>Hoàn: <strong>{formatPrice(r.refundAmount ?? r.requestedAmount)}</strong></span>
           </div>
         </Link>
-      ))}
+        ))}
+      </QueryState>
       {data && data.totalCount > data.pageSize && (
         <div className="account-pager">
           <button disabled={page <= 1} onClick={() => setPage(page - 1)}>‹</button>

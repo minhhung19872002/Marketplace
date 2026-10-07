@@ -5,6 +5,7 @@ import CategoryGrid from '../components/CategoryGrid';
 import MallBrands from '../components/MallBrands';
 import TopCategories from '../components/TopCategories';
 import ProductGrid from '../components/ProductGrid';
+import QueryState from '../components/QueryState';
 import FlashSaleBlock from '../components/FlashSaleBlock';
 import HomePopup from '../components/HomePopup';
 import { storefrontApi } from '../api/storefront';
@@ -23,8 +24,6 @@ const HomePage = () => {
   });
   const viewed = useQuery({ queryKey: ['viewed', isLoggedIn], queryFn: storefrontApi.viewed });
 
-  const shown = recommendations.data?.pages.flatMap((p) => p.items) ?? [];
-
   return (
     <div className="home-page">
       <HomePopup />
@@ -36,7 +35,9 @@ const HomePage = () => {
         <MallBrands />
         <TopCategories />
         {(viewed.data?.length ?? 0) > 0 && <ProductGrid title="SẢN PHẨM ĐÃ XEM" products={viewed.data!.slice(0, 6)} />}
-        <ProductGrid title="GỢI Ý HÔM NAY" products={shown} loading={recommendations.isLoading} />
+        <QueryState query={recommendations} loading={<ProductGrid title="GỢI Ý HÔM NAY" products={[]} loading />}>
+          {(d) => <ProductGrid title="GỢI Ý HÔM NAY" products={d.pages.flatMap((p) => p.items)} />}
+        </QueryState>
         {recommendations.hasNextPage && (
           <div className="home-load-more">
             <button

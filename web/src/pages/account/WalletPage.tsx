@@ -7,6 +7,7 @@ import { formatPrice } from '../../lib/money';
 import { formatDateTime } from '../../lib/datetime';
 import { goTo } from '../../lib/navigation';
 import { ConfirmButton } from '../../components/ConfirmDialog';
+import QueryState from '../../components/QueryState';
 
 type Panel = 'topup' | 'pin' | 'bank' | 'withdraw' | null;
 
@@ -64,7 +65,8 @@ const WalletPage = () => {
     if (!bank.bankCode && banks.data?.length) setBank((b) => ({ ...b, bankCode: banks.data[0].code }));
   }, [banks.data, bank.bankCode]);
   const [bankId, setBankId] = useState('');
-  const { data } = useQuery({ queryKey: ['wallet', page], queryFn: () => walletApi.get(page), placeholderData: keepPreviousData, staleTime: 0 });
+  const wallet = useQuery({ queryKey: ['wallet', page], queryFn: () => walletApi.get(page), placeholderData: keepPreviousData, staleTime: 0 });
+  const data = wallet.data;
 
   // Back from the gateway: show what the server recorded for that top-up (the webhook decides, not the redirect)
   const topupId = params.get('topup');
@@ -94,7 +96,7 @@ const WalletPage = () => {
     }
   };
 
-  if (!data) return <div className="page-loader"><div className="loading-spinner" /></div>;
+  if (!data) return <QueryState query={wallet}>{() => null}</QueryState>;
   const pages = Math.max(1, Math.ceil(data.history.totalCount / data.history.pageSize));
   const money = Number(amount) || 0;
 

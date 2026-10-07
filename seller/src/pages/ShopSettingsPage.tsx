@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, App as AntApp, Button, Card, DatePicker, Descriptions, Input, Space, Tag, Typography } from 'antd'
+import { Alert, App as AntApp, Button, Card, DatePicker, Descriptions, Input, InputNumber, Space, Tag, Typography } from 'antd'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
 import { sellerApi, type MediaAsset, type MyShop } from '../api/seller'
@@ -24,6 +24,7 @@ const ShopSettingsPage = ({ shop }: { shop: MyShop }) => {
   const [logo, setLogo] = useState<MediaAsset | null>(null)
   const [cover, setCover] = useState<MediaAsset | null>(null)
   const [until, setUntil] = useState<Dayjs | null>(null)
+  const [lowStock, setLowStock] = useState<number | null>(shop.lowStockThreshold)
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['my-shops'] })
   const fail = (e: unknown) => void message.error(e instanceof ApiError ? e.message : 'Thao tác thất bại.')
@@ -31,6 +32,11 @@ const ShopSettingsPage = ({ shop }: { shop: MyShop }) => {
   const saveProfile = useMutation({
     mutationFn: () => sellerApi.updateShopProfile(shop.id, { description, logoAssetId: logo?.id ?? null, coverAssetId: cover?.id ?? null }),
     onSuccess: (r) => { void message.success(r.message); setLogo(null); setCover(null); void refresh() },
+    onError: fail,
+  })
+  const saveLowStock = useMutation({
+    mutationFn: () => sellerApi.setLowStock(shop.id, lowStock),
+    onSuccess: (r) => { void message.success(r.message); void refresh() },
     onError: fail,
   })
   const vacation = useMutation({
@@ -72,6 +78,17 @@ const ShopSettingsPage = ({ shop }: { shop: MyShop }) => {
           </Space>
           <Input.TextArea rows={4} placeholder="Giới thiệu shop" data-testid="shop-description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} />
           <Button type="primary" onClick={() => saveProfile.mutate()} loading={saveProfile.isPending}>Lưu hồ sơ</Button>
+        </Space>
+      </Card>
+
+      <Card title="Cảnh báo sắp hết hàng">
+        <Typography.Paragraph type="secondary">
+          Sản phẩm còn từ bấy nhiêu đơn vị trở xuống hiện ở mục "Sắp hết hàng". Để trống để dùng mức chung của sàn.
+        </Typography.Paragraph>
+        <Space>
+          <InputNumber<number> min={0} max={100000} value={lowStock} onChange={setLowStock} placeholder="Mức của sàn" aria-label="Ngưỡng sắp hết hàng"
+            data-testid="low-stock-threshold" />
+          <Button onClick={() => saveLowStock.mutate()} loading={saveLowStock.isPending}>Lưu</Button>
         </Space>
       </Card>
 

@@ -49,6 +49,7 @@ public static class ParameterKeys
     public const string JobCounterRecomputeCron = "JOB.COUNTER_RECOMPUTE_CRON";
 
     public const string CartMaxLines = "CART.MAX_LINES";
+    public const string CartGuestRetentionDays = "CART.GUEST_RETENTION_DAYS";
     public const string PaymentTimeoutMinutes = "PAYMENT.TIMEOUT_MINUTES";
     public const string PaymentCodMaxAmount = "PAYMENT.COD_MAX_AMOUNT";
     public const string CoinMaxPercentBp = "COIN.MAX_PERCENT_BP";
@@ -98,6 +99,7 @@ public static class ParameterKeys
 
     public const string ChatContactPatterns = "CHAT.CONTACT_PATTERNS";
     public const string JobRemindersCron = "JOB.REMINDERS_CRON";
+    public const string JobCartCleanupCron = "JOB.CART_CLEANUP_CRON";
     public const string JobCarrierSyncCron = "JOB.CARRIER_SYNC_CRON";
     public const string PaymentDisabledMethods = "PAYMENT.DISABLED_METHODS";
     public const string LogisticsSyncStaleMinutes = "LOGISTICS.SYNC_STALE_MINUTES";
@@ -218,6 +220,8 @@ public static class ParameterCatalog
         new(ParameterKeys.JobCounterRecomputeCron, "30 18 * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch tính lại chỉ số", "Cron tính lại lượt thích, theo dõi, số sản phẩm, lượt xem từ dữ liệu gốc (01:30 giờ VN)."),
 
+        new(ParameterKeys.CartGuestRetentionDays, "30", ParameterDataType.Int, ParameterGroups.Cart,
+            "Giữ giỏ khách vãng lai (ngày)", "Giỏ của khách chưa đăng nhập không đổi trong bấy nhiêu ngày thì bị dọn (việc JOB.CART_CLEANUP_CRON)."),
         new(ParameterKeys.CartMaxLines, "100", ParameterDataType.Int, ParameterGroups.Cart,
             "Số dòng tối đa trong giỏ", "Giỏ hàng có nhiều nhất bấy nhiêu sản phẩm (phân loại) khác nhau."),
         new(ParameterKeys.PaymentTimeoutMinutes, "15", ParameterDataType.Int, ParameterGroups.Payment,
@@ -305,6 +309,8 @@ public static class ParameterCatalog
             "Xu điểm danh 7 ngày", "Số xu nhận ở ngày 1…7 của chuỗi điểm danh liên tục (bỏ một ngày thì quay lại ngày 1)."),
         new(ParameterKeys.JobPriceIndexCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch cập nhật giá trong tìm kiếm", "Cron (giờ UTC) đánh lại chỉ mục tìm kiếm cho sản phẩm có chương trình giá vừa bắt đầu / kết thúc, để lọc và sắp xếp theo giá đúng giá đang bán."),
+        new(ParameterKeys.JobCartCleanupCron, "30 19 * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch dọn giỏ khách cũ", "Cron (giờ UTC; 19:30 UTC = 02:30 giờ Việt Nam) xoá giỏ của khách chưa đăng nhập đã quá hạn giữ."),
         new(ParameterKeys.JobBulkSweepCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch quét việc hàng loạt bị sót", "Cron (giờ UTC) chạy các việc Excel hàng loạt đã xếp hàng quá 1 phút mà chưa bắt đầu (bình thường việc chạy ngay khi tải tệp)."),
         new(ParameterKeys.JobCoinExpiryCron, "15 17 * * *", ParameterDataType.Cron, ParameterGroups.Job,
@@ -313,8 +319,8 @@ public static class ParameterCatalog
             @"(?:\+?84|0)(?:[\s.\-]?\d){9}||https?://\S+||www\.\S+||\b(?:zalo|facebook|fb\.com|telegram|viber)\b",
             ParameterDataType.String, ParameterGroups.Chat,
             "Mẫu thông tin liên hệ ngoài sàn", "Biểu thức chính quy (cách nhau bằng ||): tin chat khớp mẫu được gắn cảnh báo cho người nhận, không bị chặn."),
-        new(ParameterKeys.JobRemindersCron, "0 1 * * *", ParameterDataType.Cron, ParameterGroups.Job,
-            "Lịch nhắc việc", "Cron (giờ UTC) gửi thông báo: đơn sắp tự hoàn thành, voucher đã lưu sắp hết hạn, sản phẩm yêu thích đang giảm giá."),
+        new(ParameterKeys.JobRemindersCron, "0 * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch nhắc việc", "Cron (giờ UTC) gửi thông báo: đơn sắp tự hoàn thành, voucher đã lưu sắp hết hạn, sản phẩm yêu thích đang giảm giá / có hàng lại (khuyến mãi tối đa 1 tin/ngày/người)."),
         new(ParameterKeys.ChatResponseWindowDays, "30", ParameterDataType.Int, ParameterGroups.Chat,
             "Kỳ tính tỉ lệ phản hồi chat (ngày)", "Tỉ lệ và thời gian phản hồi chat của shop tính trên các cuộc trò chuyện trong bấy nhiêu ngày gần nhất."),
         new(ParameterKeys.SitePublicUrl, "http://localhost:18000", ParameterDataType.String, ParameterGroups.Site,

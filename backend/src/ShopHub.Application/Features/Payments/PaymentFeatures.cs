@@ -84,6 +84,12 @@ public sealed class PaymentProcessor(
         {
             // The buyer may try again ("Thanh toán lại") until the payment window closes
             payment.Fail(callback.ProviderTxnId, callback.FailureReason ?? "Thanh toán không thành công.", callback.Raw);
+            // "Thanh toán thất bại" (spec VII): the buyer hears about it with the way back to "Thanh toán lại"
+            if (checkout.Status == CheckoutStatus.AwaitingPayment)
+                foreach (var orderId in await db.Orders.Where(o => o.CheckoutId == checkout.Id && o.Status == OrderStatus.PendingPayment).Select(o => o.Id)
+                             .ToListAsync(ct))
+                    outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(orderId, OrderEvents.PaymentFailed,
+                        callback.FailureReason ?? "giao dịch bị từ chối"));
             return WebhookResults.Failed;
         }
 

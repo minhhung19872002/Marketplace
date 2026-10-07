@@ -43,7 +43,11 @@ public record SessionsChangedPayload(Guid UserId, Guid? SessionId);
 
 public record ShopEventPayload(Guid ShopId, string Event, string? Reason);
 
-public record ProductEventPayload(Guid ProductId, string Event, string? Reason);
+public record ProductEventPayload(Guid ProductId, string Event, string? Reason)
+{
+    // Fixed when enqueued: a redelivered message notifies once, the same decision taken again later notifies again
+    public Guid EventId { get; init; } = Guid.NewGuid();
+}
 
 public record SearchSyncProductsPayload(IReadOnlyList<Guid> ProductIds);
 
@@ -57,6 +61,7 @@ public static class OrderEvents
 {
     public const string Placed = "PLACED";
     public const string Paid = "PAID";
+    public const string PaymentFailed = "PAYMENT_FAILED";
     public const string Confirmed = "CONFIRMED";
     public const string Shipped = "SHIPPED";
     public const string Delivered = "DELIVERED";

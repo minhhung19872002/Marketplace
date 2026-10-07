@@ -496,7 +496,9 @@ public sealed class SetSellerNoteHandler(IApplicationDbContext db, SellerAccess 
 
 // ---------- dashboard (spec III.2) ----------
 
-public record SalesFigureDto(long Revenue, int Orders);
+public record SalesFigureDto(long Revenue, int Orders, int Views = 0, int Visitors = 0, long ConversionBp = 0);
+
+public record AnnouncementDto(string Title, string Body, string? Link, DateTimeOffset CreatedAt);
 
 public record SellerDashboardDto(
     int ToConfirm,
@@ -509,18 +511,23 @@ public record SellerDashboardDto(
     int PenaltyPoints,
     SalesFigureDto Today,
     SalesFigureDto Last7Days,
-    SalesFigureDto Last30Days);
+    SalesFigureDto Last30Days,
+    // Việc cần làm (III.2): returns waiting for the shop, orders it handled today; the platform's notices to this person
+    int ReturnsPending = 0,
+    int ProcessedToday = 0,
+    int LowStockThreshold = 0,
+    IReadOnlyList<AnnouncementDto>? Announcements = null);
 
 public record SellerDashboardQuery(Guid ShopId) : IRequest<SellerDashboardDto>;
 
-public sealed class SellerDashboardHandler(IApplicationDbContext db, SellerAccess access, ISystemParameters parameters, IClock clock)
-    : IRequestHandler<SellerDashboardQuery, SellerDashboardDto>
+public sealed class SellerDashboardHandler(IApplicationDbContext db, SellerAccess access, ISystemParameters parameters, ICurrentUser currentUser,
+    IClock clock) : IRequestHandler<SellerDashboardQuery, SellerDashboardDto>
 {
     public async Task<SellerDashboardDto> Handle(SellerDashboardQuery request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
         var orders = db.Orders.AsNoTracking().Where(o => o.ShopId == request.ShopId);
-        var low = await parameters.GetIntAsync(ParameterKeys.ShopLowStockThreshold, ct);
+        var low = await LowStock.ThresholdAsync(db, parameters, request.ShopId, ct);
         var todayStart = new DateTimeOffset(VietnamTime.Today(clock.UtcNow).ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(7)).ToUniversalTime();
 
         async Task<SalesFigureDto> Sales(DateTimeOffset since)
@@ -528,7 +535,12 @@ public sealed class SellerDashboardHandler(IApplicationDbContext db, SellerAcces
             // Revenue = goods value after the shop's own discount, of orders not cancelled / returned
             var q = orders.Where(o => o.CreatedAt >= since && o.Status != OrderStatus.Cancelled && o.Status != OrderStatus.Returned
                                       && o.Status != OrderStatus.PendingPayment);
-            return new SalesFigureDto(await q.SumAsync(o => (long?)(o.Subtotal - o.ShopDiscount), ct) ?? 0, await q.CountAsync(ct));
+            // Lượt truy cập: product views of the shop; tỉ lệ chuyển đổi = buyers who ordered / distinct visitors
+            var views = db.ProductViews.AsNoTracking().Where(v => v.ViewedAt >= since && db.Products.Any(p => p.Id == v.ProductId && p.ShopId == request.ShopId));
+            var visitors = await views.Select(v => v.UserId != null ? v.UserId.ToString() : v.SessionKey).Distinct().CountAsync(ct);
+            var buyers = await q.Select(o => o.BuyerId).Distinct().CountAsync(ct);
+            return new SalesFigureDto(await q.SumAsync(o => (long?)(o.Subtotal - o.ShopDiscount), ct) ?? 0, await q.CountAsync(ct), await views.CountAsync(ct),
+                visitors, Reports.ReportOrders.Bp(Math.Min(buyers, visitors), visitors));
         }
 
         return new SellerDashboardDto(
@@ -541,6 +553,22 @@ public sealed class SellerDashboardHandler(IApplicationDbContext db, SellerAcces
             await db.Skus.CountAsync(s => s.IsActive && s.Stock - s.Reserved <= low
                                           && db.Products.Any(p => p.Id == s.ProductId && p.ShopId == request.ShopId && p.Status == ProductStatus.Active), ct),
             await db.Shops.Where(s => s.Id == request.ShopId).Select(s => s.PenaltyPoints).SingleAsync(ct),
-            await Sales(todayStart), await Sales(todayStart.AddDays(-6)), await Sales(todayStart.AddDays(-29)));
+            await Sales(todayStart), await Sales(todayStart.AddDays(-6)), await Sales(todayStart.AddDays(-29)),
+            await db.ReturnRequests.CountAsync(r => r.ShopId == request.ShopId
+                                                    && (r.Status == ReturnStatus.Requested || r.Status == ReturnStatus.AwaitingShopCheck), ct),
+            await orders.CountAsync(o => o.ConfirmedAt >= todayStart, ct),
+            (int)low,
+            await db.Notifications.AsNoTracking()
+                .Where(n => n.UserId == currentUser.UserId && (n.RefType == "broadcast" || n.Category == Domain.Engage.NotificationCategory.Activity))
+                .OrderByDescending(n => n.CreatedAt).ThenBy(n => n.Id).Take(5)
+                .Select(n => new AnnouncementDto(n.Title, n.Body, n.Link, n.CreatedAt)).ToListAsync(ct));
     }
+}
+
+/// <summary>"Sắp hết hàng" threshold: the shop's own setting, else the platform default.</summary>
+public static class LowStock
+{
+    public static async Task<long> ThresholdAsync(IApplicationDbContext db, ISystemParameters parameters, Guid shopId, CancellationToken ct) =>
+        await db.Shops.AsNoTracking().Where(s => s.Id == shopId).Select(s => s.LowStockThreshold).FirstOrDefaultAsync(ct)
+        ?? await parameters.GetIntAsync(ParameterKeys.ShopLowStockThreshold, ct);
 }

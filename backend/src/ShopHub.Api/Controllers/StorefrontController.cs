@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using ShopHub.Api.Hosting;
 using Microsoft.AspNetCore.OutputCaching;
 using ShopHub.Api.Common;
 using ShopHub.Api.Security;
@@ -37,18 +39,21 @@ public sealed class StorefrontController : ApiControllerBase
     /// 60 results per page by default, stable order.
     /// </summary>
     [HttpGet("search/products")]
+    [EnableRateLimiting(ApiServiceExtensions.SearchRateLimit)]
     [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<ProductSearchResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Search([FromQuery] SearchProductsQuery query, CancellationToken ct) => OkData(await Sender.Send(query, ct));
 
     [HttpGet("search/suggest")]
+    [EnableRateLimiting(ApiServiceExtensions.SearchRateLimit)]
     [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<SuggestionDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Suggest([FromQuery] string q, CancellationToken ct) => OkData(await Sender.Send(new SuggestQuery(q ?? string.Empty), ct));
 
     [HttpGet("search/shops")]
+    [EnableRateLimiting(ApiServiceExtensions.SearchRateLimit)]
     [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<IReadOnlyList<RelatedShopDto>>>(StatusCodes.Status200OK)]

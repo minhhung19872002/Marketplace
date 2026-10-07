@@ -32,6 +32,12 @@ public class AdminDivision
     public string Name { get; private set; } = string.Empty;
     public AdminDivisionLevel Level { get; private set; }
     public string? ParentCode { get; private set; }
+
+    public void Rename(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 100) throw new BusinessRuleException("Tên đơn vị hành chính từ 1 đến 100 ký tự.");
+        Name = name.Trim();
+    }
 }
 
 public class Address : AuditableEntity

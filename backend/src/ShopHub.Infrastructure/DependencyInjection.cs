@@ -110,6 +110,7 @@ public static class DependencyInjection
         services.AddScoped<IOutboxHandler, NotificationDeliveryHandler>();
         services.AddScoped<IPushSender, SimulatedPushSender>();
         services.AddScoped<Jobs.RemindersJob>();
+        services.AddScoped<Jobs.CartCleanupJob>();
         services.AddScoped<Jobs.CarrierSyncJob>();
         services.AddScoped<Jobs.OrderAutomationJob>();
         services.AddScoped<Jobs.CarrierSimulatorJob>();

@@ -133,6 +133,8 @@ services:
       SH_RATE_LIMIT_OTP: ${SH_RATE_LIMIT_OTP:-300}
       # Per-IP ceiling for every request (code default 600/min); e2e runs hammer it from one IP
       SH_RATE_LIMIT_GLOBAL: ${SH_RATE_LIMIT_GLOBAL:-20000}
+      # Searches per IP and minute (code default 120)
+      SH_RATE_LIMIT_SEARCH: ${SH_RATE_LIMIT_SEARCH:-5000}
       # Fake payment page that can mark any payment as paid — demo / test stacks only, never production
       SH_PAYMENT_SIMULATED: ${SH_PAYMENT_SIMULATED:-true}
       # Load-test buyers for e2e/load (k6): off unless both are set in .env

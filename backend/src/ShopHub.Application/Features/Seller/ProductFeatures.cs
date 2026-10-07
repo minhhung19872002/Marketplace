@@ -366,11 +366,23 @@ public record ListSellerProductsQuery(
     string? Q = null,
     Guid? CategoryId = null,
     int Page = 1,
-    int PageSize = PagingLimits.DefaultPageSize) : IRequest<PagedResult<SellerProductRowDto>>, IPagedRequest;
+    int PageSize = PagingLimits.DefaultPageSize,
+    // Lọc theo tồn kho (units available, all variants) and giá (any variant inside the range)
+    int? MinStock = null,
+    int? MaxStock = null,
+    long? MinPrice = null,
+    long? MaxPrice = null) : IRequest<PagedResult<SellerProductRowDto>>, IPagedRequest;
 
 public sealed class ListSellerProductsValidator : AbstractValidator<ListSellerProductsQuery>
 {
-    public ListSellerProductsValidator() => this.ApplyPagingRules();
+    public ListSellerProductsValidator()
+    {
+        this.ApplyPagingRules();
+        RuleFor(x => x).Must(x => x.MinStock is null || x.MaxStock is null || x.MinStock <= x.MaxStock)
+            .WithName("minStock").WithMessage("Khoảng tồn kho không hợp lệ: từ phải nhỏ hơn hoặc bằng đến.");
+        RuleFor(x => x).Must(x => x.MinPrice is null || x.MaxPrice is null || x.MinPrice <= x.MaxPrice)
+            .WithName("minPrice").WithMessage("Khoảng giá không hợp lệ: giá từ phải nhỏ hơn hoặc bằng giá đến.");
+    }
 }
 
 public sealed class ListSellerProductsHandler(IApplicationDbContext db, SellerAccess access, ISystemParameters parameters)
@@ -379,7 +391,7 @@ public sealed class ListSellerProductsHandler(IApplicationDbContext db, SellerAc
     public async Task<PagedResult<SellerProductRowDto>> Handle(ListSellerProductsQuery request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.ProductView, ct);
-        var lowStock = (int)await parameters.GetIntAsync(ParameterKeys.ShopLowStockThreshold, ct);
+        var lowStock = (int)await LowStock.ThresholdAsync(db, parameters, request.ShopId, ct);
 
         var products = db.Products.AsNoTracking().Where(p => p.ShopId == request.ShopId);
         products = request.Tab switch
@@ -395,6 +407,10 @@ public sealed class ListSellerProductsHandler(IApplicationDbContext db, SellerAc
             _ => products,
         };
         if (request.CategoryId is { } categoryId) products = products.Where(p => p.CategoryId == categoryId);
+        if (request.MinStock is { } minStock) products = products.Where(p => p.Skus.Where(s => s.IsActive).Sum(s => s.Stock - s.Reserved) >= minStock);
+        if (request.MaxStock is { } maxStock) products = products.Where(p => p.Skus.Where(s => s.IsActive).Sum(s => s.Stock - s.Reserved) <= maxStock);
+        if (request.MinPrice is { } minPrice) products = products.Where(p => p.MaxPrice >= minPrice);
+        if (request.MaxPrice is { } maxPrice) products = products.Where(p => p.MinPrice <= maxPrice);
         if (!string.IsNullOrWhiteSpace(request.Q))
         {
             var q = request.Q.Trim().ToLower();
@@ -455,6 +471,79 @@ public sealed class ChangeProductStatusHandler(IApplicationDbContext db, SellerA
         }
         await db.SaveChangesAsync(ct);
         return product.Status;
+    }
+}
+
+// ---------- Hàng loạt & sao chép (III.3) ----------
+
+public record BulkProductResultDto(Guid ProductId, bool Ok, string? Status, string? Error);
+
+public record BulkProductActionCommand(Guid ShopId, IReadOnlyList<Guid> ProductIds, SellerProductAction Action) : IRequest<IReadOnlyList<BulkProductResultDto>>;
+
+public sealed class BulkProductActionValidator : AbstractValidator<BulkProductActionCommand>
+{
+    public const int Max = 100;
+
+    public BulkProductActionValidator() =>
+        RuleFor(x => x.ProductIds).NotEmpty().WithMessage("Chọn ít nhất một sản phẩm.").Must(i => i.Count <= Max).WithMessage($"Mỗi lần tối đa {Max} sản phẩm.");
+}
+
+/// <summary>Ẩn / hiện / xoá / gửi duyệt many products: each one on its own (one refusal does not stop the rest).</summary>
+public sealed class BulkProductActionHandler(IApplicationDbContext db, ISender sender) : IRequestHandler<BulkProductActionCommand, IReadOnlyList<BulkProductResultDto>>
+{
+    public async Task<IReadOnlyList<BulkProductResultDto>> Handle(BulkProductActionCommand request, CancellationToken ct)
+    {
+        var results = new List<BulkProductResultDto>();
+        foreach (var id in request.ProductIds.Distinct())
+        {
+            try
+            {
+                var status = await sender.Send(new ChangeProductStatusCommand(request.ShopId, id, request.Action), ct);
+                results.Add(new BulkProductResultDto(id, true, status.ToString(), null));
+            }
+            catch (Exception ex) when (ex is ConflictException or NotFoundException or Domain.Common.BusinessRuleException)
+            {
+                db.ClearTracking();
+                results.Add(new BulkProductResultDto(id, false, null, ex.Message));
+            }
+        }
+        return results;
+    }
+}
+
+public record CopyProductCommand(Guid ShopId, Guid ProductId) : IRequest<Guid>;
+
+/// <summary>
+/// "Sao chép": a new draft with the same info, attributes, variants, media and prices — stock 0 and no seller SKU codes
+/// (those are the seller's own warehouse codes), so nothing can be sold twice by mistake.
+/// </summary>
+public sealed class CopyProductHandler(IApplicationDbContext db, SellerAccess access) : IRequestHandler<CopyProductCommand, Guid>
+{
+    public async Task<Guid> Handle(CopyProductCommand request, CancellationToken ct)
+    {
+        await access.RequireAsync(request.ShopId, ShopPermissions.ProductManage, ct);
+        var source = await ProductLoader.LoadForEditAsync(db, request.ShopId, request.ProductId, ct);
+        var name = $"Bản sao - {source.Name}";
+        if (name.Length > Product.MaxNameLength) name = name[..Product.MaxNameLength];
+        var copy = new Product(request.ShopId);
+        copy.SetInfo(source.CategoryId, source.BrandId, name, Slug.From(name), source.Description, source.Condition, source.WeightG, source.LengthMm,
+            source.WidthMm, source.HeightMm, source.IsPreorder, source.PreorderDays);
+        copy.SetAttributes(source.Attributes.Select(a => (a.AttributeId, (IReadOnlyList<string>)a.Values.ToList())));
+        copy.SetPurchaseLimit(source.MaxPerBuyer);
+        copy.ShipFrom(source.WarehouseId);
+        copy.LimitCarriers(source.CarrierCodes);
+        var options = source.Tiers.SelectMany(t => t.Options).ToDictionary(o => o.Id);
+        string? Value(Guid? id) => id is { } v && options.TryGetValue(v, out var o) ? o.Value : null;
+        copy.SetVariants(
+            source.Tiers.OrderBy(t => t.TierIndex).Select(t => new TierSpec(t.Name,
+                t.Options.Where(o => o.IsActive).OrderBy(o => o.SortOrder).Select(o => new OptionSpec(o.Value, o.ImageUrl)).ToList()))
+                .Where(t => t.Options.Count > 0).ToList(),
+            source.Skus.Select(s => new SkuSpec(Value(s.Option1Id), Value(s.Option2Id), null, s.Price, s.OriginalPrice, 0, s.WeightG, s.IsActive)).ToList());
+        copy.SetMedia(source.Media.OrderBy(m => m.SortOrder)
+            .Select(m => new MediaSpec(m.Type, m.AssetId, m.Url, m.VariantOptionId is { } oid && options.TryGetValue(oid, out var o) ? o.Value : null)).ToList());
+        db.Products.Add(copy);
+        await db.SaveChangesAsync(ct);
+        return copy.Id;
     }
 }
 

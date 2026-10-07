@@ -17,6 +17,12 @@ public class Wishlist : Entity
     public Guid UserId { get; private set; }
     public Guid ProductId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    // When the reminders job last saw the product sold out — "có hàng lại" is told once it is back
+    public DateTimeOffset? SoldOutSeenAt { get; private set; }
+
+    public void SeenSoldOut(DateTimeOffset at) => SoldOutSeenAt ??= at;
+
+    public void BackInStock() => SoldOutSeenAt = null;
 }
 
 // A user following a shop (unique per shop + user)

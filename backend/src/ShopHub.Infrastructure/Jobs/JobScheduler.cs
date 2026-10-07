@@ -1,4 +1,6 @@
 using Hangfire;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.SystemConfig;
 using ShopHub.Infrastructure.Outbox;
@@ -18,6 +20,7 @@ public static class JobIds
     public const string FlashReconcile = "promo.flash-reconcile";
     public const string CoinExpiry = "promo.coin-expiry";
     public const string Reminders = "engage.reminders";
+    public const string CartCleanup = "sales.cart-cleanup";
     public const string CarrierSync = "logistics.carrier-sync";
     public const string BulkSweep = "seller.bulk-sweep";
     public const string PriceIndex = "search.price-index";
@@ -25,7 +28,7 @@ public static class JobIds
     // Jobs an admin may trigger on demand (POST /api/admin/job-runs/{id})
     public static readonly IReadOnlyList<string> Runnable =
         [OutboxDispatch, CounterRecompute, PaymentExpiry, OrderAutomation, CarrierSimulator, Settlement, LedgerCheck, FlashReconcile, CoinExpiry, Reminders,
-            CarrierSync];
+            CarrierSync, CartCleanup];
 }
 
 /// <summary>Hangfire entry for <see cref="Application.Features.Orders.OrderAutomationService"/>.</summary>
@@ -44,6 +47,33 @@ public sealed class RemindersJob(Application.Features.Chat.ReminderService servi
 {
     [DisableConcurrentExecution(timeoutInSeconds: 900)]
     public Task RunJobAsync() => service.RunAsync(CancellationToken.None);
+}
+
+/// <summary>
+/// Dọn giỏ khách cũ (6.4): guest carts untouched for CART.GUEST_RETENTION_DAYS go, in batches; signed-in buyers' carts
+/// are never touched.
+/// </summary>
+public sealed class CartCleanupJob(Persistence.ShopHubDbContext db, ISystemParameters parameters, IClock clock, ILogger<CartCleanupJob> logger)
+{
+    [DisableConcurrentExecution(timeoutInSeconds: 900)]
+    public Task RunJobAsync() => RunAsync(CancellationToken.None);
+
+    public async Task<int> RunAsync(CancellationToken ct)
+    {
+        var days = await parameters.GetIntAsync(ParameterKeys.CartGuestRetentionDays, ct);
+        var before = clock.UtcNow.AddDays(-Math.Max(1, days));
+        var removed = 0;
+        while (true)
+        {
+            var ids = await db.Carts.Where(c => c.UserId == null && c.GuestToken != null && c.UpdatedAt < before).OrderBy(c => c.Id).Select(c => c.Id)
+                .Take(1_000).ToListAsync(ct);
+            if (ids.Count == 0) break;
+            await db.CartItems.Where(i => ids.Contains(i.CartId)).ExecuteDeleteAsync(ct);
+            removed += await db.Carts.Where(c => ids.Contains(c.Id)).ExecuteDeleteAsync(ct);
+        }
+        if (removed > 0) logger.LogInformation("Removed {Count} guest carts older than {Days} days", removed, days);
+        return removed;
+    }
 }
 
 /// <summary>Hangfire entry for <see cref="Application.Features.Orders.CarrierSyncService"/>.</summary>
@@ -141,6 +171,12 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
             JobIds.BulkSweep,
             j => j.RunPendingAsync(),
             await parameters.GetStringAsync(ParameterKeys.JobBulkSweepCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<CartCleanupJob>(
+            JobIds.CartCleanup,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobCartCleanupCron, ct),
             options);
 
         recurringJobs.AddOrUpdate<RemindersJob>(

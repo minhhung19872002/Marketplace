@@ -43,34 +43,37 @@ public sealed class ShopEventHandler(ShopHubDbContext db, ISmsSender sms, IEmail
     }
 }
 
-public sealed class ProductEventHandler(ShopHubDbContext db, ISmsSender sms, IEmailSender email) : IOutboxHandler
+/// <summary>
+/// Review / lock decisions on a product (spec VII "sản phẩm bị khoá"): an in-app notification to the shop owner and the
+/// staff who see products, worded by the editable PRODUCT.* templates; email / SMS / push then follow each person's
+/// notification settings (NotificationDeliveryHandler).
+/// </summary>
+public sealed class ProductEventHandler(ShopHubDbContext db, Application.Features.Admin.MessageTemplates templates, Application.Abstractions.IClock clock)
+    : IOutboxHandler
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly string[] Events = ["APPROVE", "REJECT", "BAN", "UNBAN"];
 
     public string Type => OutboxTypes.ProductEvent;
 
     public async Task HandleAsync(string payload, CancellationToken ct)
     {
         var e = JsonSerializer.Deserialize<ProductEventPayload>(payload, Json) ?? throw new InvalidOperationException("Tin outbox rỗng.");
-        var target = await (from p in db.Products.IgnoreQueryFilters()
-                            join s in db.Shops.IgnoreQueryFilters() on p.ShopId equals s.Id
-                            join u in db.Users.IgnoreQueryFilters() on s.OwnerId equals u.Id
-                            where p.Id == e.ProductId
-                            select new { p.Name, u.Phone, u.Email }).FirstOrDefaultAsync(ct);
-        if (target is null) return;
+        if (!Events.Contains(e.Event)) return;
+        var product = await db.Products.IgnoreQueryFilters().AsNoTracking().Where(p => p.Id == e.ProductId)
+            .Select(p => new { p.Id, p.Name, p.ShopId }).FirstOrDefaultAsync(ct);
+        if (product is null) return;
 
-        var name = target.Name.Length > 40 ? target.Name[..40] + "…" : target.Name;
-        var text = e.Event switch
+        var (title, body) = await templates.RenderAsync(Application.Features.Admin.TemplateCatalog.ProductKey(e.Event), Domain.SystemConfig.TemplateChannel.InApp,
+            new Dictionary<string, string> { ["product"] = product.Name, ["reason"] = e.Reason ?? "" }, ct);
+        var key = $"product:{product.Id}:{e.Event}:{e.EventId:N}";
+        var staff = await db.ShopStaff.AsNoTracking().Where(s => s.ShopId == product.ShopId).ToListAsync(ct);
+        foreach (var member in staff.Where(s => s.Role == Domain.Shops.ShopStaffRole.Owner || s.Has(Application.Security.ShopPermissions.ProductView)))
         {
-            "APPROVE" => $"ShopHub: San pham \"{name}\" da duoc duyet va dang ban.",
-            "REJECT" => $"ShopHub: San pham \"{name}\" can chinh sua truoc khi duyet: {e.Reason}",
-            "BAN" => $"ShopHub: San pham \"{name}\" bi khoa do vi pham: {e.Reason}",
-            "UNBAN" => $"ShopHub: San pham \"{name}\" da duoc mo khoa (dang an, ban co the hien lai).",
-            _ => null,
-        };
-        if (text is null) return;
-        if (target.Phone is not null) await sms.SendAsync(target.Phone, text, ct);
-        else if (target.Email is not null)
-            await email.SendAsync(target.Email, "Thông báo sản phẩm", $"<p>{System.Net.WebUtility.HtmlEncode(text)}</p>", ct);
+            if (await db.Notifications.AnyAsync(n => n.UserId == member.UserId && n.DedupeKey == key, ct)) continue;
+            db.Notifications.Add(new Domain.Engage.Notification(member.UserId, Domain.Engage.NotificationCategory.Activity, title ?? "", body,
+                $"/seller/san-pham/{product.Id}", "product", product.Id, clock.UtcNow, key));
+        }
+        await db.SaveChangesAsync(ct);
     }
 }

@@ -24,6 +24,7 @@ export interface Voucher extends Omit<VoucherInput, 'type' | 'audience'> {
   type: 'Amount' | 'Percent' | 'FreeShipping' | 'CoinCashback'
   audience: string
   usedCount: number
+  stats: { claims: number; uses: number; orders: number; sales: number } | null
   isActive: boolean
   state: string
 }

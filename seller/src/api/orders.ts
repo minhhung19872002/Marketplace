@@ -75,10 +75,16 @@ export interface Dashboard {
   bannedProducts: number
   lowStockSkus: number
   penaltyPoints: number
-  today: { revenue: number; orders: number }
-  last7Days: { revenue: number; orders: number }
-  last30Days: { revenue: number; orders: number }
+  today: SalesFigure
+  last7Days: SalesFigure
+  last30Days: SalesFigure
+  returnsPending: number
+  processedToday: number
+  lowStockThreshold: number
+  announcements: { title: string; body: string; link: string | null; createdAt: string }[] | null
 }
+
+export interface SalesFigure { revenue: number; orders: number; views: number; visitors: number; conversionBp: number }
 
 const base = (shopId: string) => `/seller/shops/${shopId}`
 

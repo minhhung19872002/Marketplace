@@ -10,8 +10,8 @@ cd e2e && SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=… SH_E2E_AD
 
 (gateway e2e nên nâng giới hạn: `SH_GATEWAY_RATE=100r/s SH_GATEWAY_BURST=200`, mọi trình duyệt cùng một IP.)
 
-Lần chạy gần nhất: **2026-10-07**, 65 kịch bản, 65 đạt (trên dữ liệu mẫu đầy đủ: ~600 đơn, 800 đánh giá). Phần phụ trợ: backend
-`dotnet test` 157 unit + 187 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
+Lần chạy gần nhất: **2026-10-07**, 66 kịch bản, 66 đạt (trên dữ liệu mẫu đầy đủ: ~600 đơn, 800 đánh giá). Phần phụ trợ: backend
+`dotnet test` 157 unit + 194 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
 
 ## A. Mục 9 của đặc tả (bắt buộc)
 
@@ -77,6 +77,7 @@ Lần chạy gần nhất: **2026-10-07**, 65 kịch bản, 65 đạt (trên d�
 | KB53 | Trang sản phẩm & shop | Lưu voucher shop; đổi tỉnh nhận; tìm trong shop; theo dõi; đã xem; giỏ (`storefront-extras.spec.cjs`) | Voucher "Đã lưu"; phí đổi theo tỉnh; kết quả trong shop; shop ở "Shop theo dõi"; sản phẩm ở "Đã xem"; giỏ có gợi ý | Lần đầu đỏ (L059), sau sửa đạt | ✔ |
 | KB54 | Shop liên quan, thương hiệu ngành | Tìm "techzone"; trang ngành bấm thương hiệu (`storefront-extras.spec.cjs`) | Khối shop dẫn tới shop; thương hiệu lọc kết quả | Như mong đợi | ✔ |
 | KB55 | Facet vận chuyển & dịch vụ | Tìm "ao", bấm *Thanh toán khi nhận hàng*, rồi một đơn vị vận chuyển (`storefront-extras.spec.cjs`) | Số kết quả đúng bằng số đếm của facet | Như mong đợi | ✔ |
+| KB56 | Công cụ người bán | Bảng điều khiển; chọn sản phẩm → Ẩn; Sao chép (`shop-design.spec.cjs`) | Có lượt xem, thông báo của sàn; "Đã xử lý 1/1", trạng thái *Đã ẩn*; mở trang sửa bản sao | Như mong đợi | ✔ |
 
 ## D. Kiểm bằng công cụ khác / tay
 

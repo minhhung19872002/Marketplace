@@ -255,8 +255,9 @@ public sealed class SellerController : ApiControllerBase
     [ProducesResponseType<ApiResponse<PagedResult<SellerProductRowDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Products(Guid shopId, [FromQuery] SellerProductTab tab, [FromQuery] string? q,
         [FromQuery] Guid? categoryId, [FromQuery] int page = 1, [FromQuery] int pageSize = PagingLimits.DefaultPageSize,
+        [FromQuery] int? minStock = null, [FromQuery] int? maxStock = null, [FromQuery] long? minPrice = null, [FromQuery] long? maxPrice = null,
         CancellationToken ct = default) =>
-        OkData(await Sender.Send(new ListSellerProductsQuery(shopId, tab, q, categoryId, page, pageSize), ct));
+        OkData(await Sender.Send(new ListSellerProductsQuery(shopId, tab, q, categoryId, page, pageSize, minStock, maxStock, minPrice, maxPrice), ct));
 
     [HttpGet("shops/{shopId:guid}/products/{productId:guid}")]
     [ProducesResponseType<ApiResponse<SellerProductDetailDto>>(StatusCodes.Status200OK)]
@@ -292,6 +293,32 @@ public sealed class SellerController : ApiControllerBase
             SellerProductAction.Show => "Đã hiện sản phẩm.",
             _ => "Đã xoá sản phẩm.",
         });
+    }
+
+    public record BulkProductRequest(IReadOnlyList<Guid> ProductIds, SellerProductAction Action);
+
+    /// <summary>Ẩn / hiện / xoá / gửi duyệt nhiều sản phẩm một lần (tối đa 100); kết quả từng sản phẩm.</summary>
+    [HttpPost("shops/{shopId:guid}/products/bulk-actions")]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<BulkProductResultDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkProductAction(Guid shopId, [FromBody] BulkProductRequest body, CancellationToken ct)
+    {
+        var results = await Sender.Send(new BulkProductActionCommand(shopId, body.ProductIds ?? [], body.Action), ct);
+        return OkData(results, $"Đã xử lý {results.Count(r => r.Ok)}/{results.Count} sản phẩm.");
+    }
+
+    [HttpPost("shops/{shopId:guid}/products/{productId:guid}/copy")]
+    [ProducesResponseType<ApiResponse<Guid>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CopyProduct(Guid shopId, Guid productId, CancellationToken ct) =>
+        OkData(await Sender.Send(new CopyProductCommand(shopId, productId), ct), "Đã tạo bản sao (bản nháp, tồn kho 0).");
+
+    public record LowStockRequest(int? Units);
+
+    [HttpPut("shops/{shopId:guid}/low-stock-threshold")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> LowStockThreshold(Guid shopId, [FromBody] LowStockRequest body, CancellationToken ct)
+    {
+        await Sender.Send(new SetLowStockThresholdCommand(shopId, body.Units), ct);
+        return OkData<object?>(null, "Đã lưu ngưỡng sắp hết hàng.");
     }
 
     [HttpGet("category-suggestions")]

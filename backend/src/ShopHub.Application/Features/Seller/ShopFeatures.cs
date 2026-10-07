@@ -51,7 +51,8 @@ public record MyShopDto(
     string? LockReason,
     DateTimeOffset CreatedAt,
     string Description,
-    string? CoverUrl);
+    string? CoverUrl,
+    int? LowStockThreshold = null);
 
 internal static class ShopRules
 {
@@ -205,7 +206,7 @@ public sealed class ListMyShopsHandler(IApplicationDbContext db, SellerAccess ac
                           select new { s, st }).AsNoTracking().ToListAsync(ct);
         return rows.Select(r => new MyShopDto(r.s.Id, r.s.Name, r.s.Slug, r.s.Type, r.s.Status, r.st.Role,
             r.st.Role == ShopStaffRole.Owner ? ShopPermissions.All : r.st.Permissions, r.s.LogoUrl, r.s.RejectReason,
-            r.s.LockReason, r.s.CreatedAt, r.s.Description, r.s.CoverUrl)).ToList();
+            r.s.LockReason, r.s.CreatedAt, r.s.Description, r.s.CoverUrl, r.s.LowStockThreshold)).ToList();
     }
 }
 
@@ -226,6 +227,23 @@ public sealed class UpdateShopProfileHandler(IApplicationDbContext db, SellerAcc
             Url(request.CoverAssetId, ImageSizes.Large, shop.CoverUrl));
         // Description / logo / cover only: written even if counters changed the row meanwhile
         await db.SaveOwnChangesAsync(ct);
+        return Unit.Value;
+    }
+}
+
+public record SetLowStockThresholdCommand(Guid ShopId, int? Units) : IRequest<Unit>;
+
+public sealed class SetLowStockThresholdHandler(IApplicationDbContext db, SellerAccess access) : IRequestHandler<SetLowStockThresholdCommand, Unit>
+{
+    public async Task<Unit> Handle(SetLowStockThresholdCommand request, CancellationToken ct)
+    {
+        await access.RequireAsync(request.ShopId, ShopPermissions.SettingsManage, ct);
+        await db.RetryOnStaleAsync(async () =>
+        {
+            var shop = await db.Shops.FirstAsync(s => s.Id == request.ShopId, ct);
+            shop.SetLowStockThreshold(request.Units);
+            await db.SaveChangesAsync(ct);
+        });
         return Unit.Value;
     }
 }

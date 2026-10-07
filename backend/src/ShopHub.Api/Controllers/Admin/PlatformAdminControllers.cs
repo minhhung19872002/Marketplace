@@ -197,6 +197,36 @@ public sealed class PlatformAdminController : ApiControllerBase
         return OkData<object?>(null, body.PenaltyPoints is null ? "Đã đóng báo cáo, không vi phạm." : $"Đã ghi {body.PenaltyPoints} điểm phạt cho shop.");
     }
 
+    // ---------- danh mục hành chính ----------
+
+    [HttpGet("divisions")]
+    [RequirePermission(Permissions.ContentManage)]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<AdminDivisionRowDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Divisions([FromQuery] string? parent, CancellationToken ct) =>
+        OkData(await Sender.Send(new AdminDivisionsQuery(string.IsNullOrWhiteSpace(parent) ? null : parent), ct));
+
+    public record DivisionBody(string Code, string Name, string? ParentCode);
+
+    [HttpPost("divisions")]
+    [RequirePermission(Permissions.ContentManage)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddDivision([FromBody] DivisionBody body, CancellationToken ct)
+    {
+        await Sender.Send(new SaveAdminDivisionCommand(body.Code ?? "", body.Name ?? "", body.ParentCode, true), ct);
+        return OkData<object?>(null, "Đã thêm đơn vị hành chính.");
+    }
+
+    public record DivisionNameBody(string Name);
+
+    [HttpPut("divisions/{code}")]
+    [RequirePermission(Permissions.ContentManage)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RenameDivision(string code, [FromBody] DivisionNameBody body, CancellationToken ct)
+    {
+        await Sender.Send(new SaveAdminDivisionCommand(code, body.Name ?? "", null, false), ct);
+        return OkData<object?>(null, "Đã đổi tên đơn vị hành chính.");
+    }
+
     // ---------- content ----------
 
     [HttpGet("cms")]

@@ -41,7 +41,7 @@ public sealed class OrderEventHandler(ShopHubDbContext db, MessageTemplates temp
         string? buyerEvent = e.Event switch
         {
             OrderEvents.Placed => placed,
-            OrderEvents.Paid or OrderEvents.Confirmed or OrderEvents.Shipped or OrderEvents.Delivered or OrderEvents.DeliveryFailed
+            OrderEvents.Paid or OrderEvents.PaymentFailed or OrderEvents.Confirmed or OrderEvents.Shipped or OrderEvents.Delivered or OrderEvents.DeliveryFailed
                 or OrderEvents.Completed or OrderEvents.Cancelled or OrderEvents.Returned or OrderEvents.CancelRejected or OrderEvents.Refunded
                 or OrderEvents.ReturnUpdated or OrderEvents.ReturnRefunded or OrderEvents.DisputeDecided => e.Event,
             _ => null,

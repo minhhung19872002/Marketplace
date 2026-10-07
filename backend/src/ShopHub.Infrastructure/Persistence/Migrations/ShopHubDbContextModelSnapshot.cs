@@ -1678,6 +1678,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("product_id");
 
+                    b.Property<DateTimeOffset?>("SoldOutSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sold_out_seen_at");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
@@ -5359,6 +5363,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("logo_url");
+
+                    b.Property<int?>("LowStockThreshold")
+                        .HasColumnType("integer")
+                        .HasColumnName("low_stock_threshold");
 
                     b.Property<bool>("MultiWarehouse")
                         .HasColumnType("boolean")

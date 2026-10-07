@@ -110,9 +110,13 @@ public static class TemplateCatalog
     public const string Otp = "OTP";
     public const string Notification = "NOTIFICATION";
     public const string OrderPlaceholders = "code,total,shop,note,deadline";
+    public const string ProductPlaceholders = "product,reason";
 
     /// <summary>In-app notification of an order event for one side: ORDER.{EVENT}.{BUYER|SHOP} ("PLACED_COD" for a COD order placed).</summary>
     public static string OrderKey(string orderEvent, string side) => $"ORDER.{orderEvent}.{side}";
+
+    /// <summary>In-app notification to the shop about one of its products: PRODUCT.{APPROVE|REJECT|BAN|UNBAN}.SHOP.</summary>
+    public static string ProductKey(string productEvent) => $"PRODUCT.{productEvent}.SHOP";
 
     public static readonly IReadOnlyList<TemplateDefinition> All =
     [
@@ -130,6 +134,16 @@ public static class TemplateCatalog
             "Vui lòng thanh toán đơn {{code}} ({{total}}){{deadline}}, quá hạn đơn sẽ tự huỷ.", OrderPlaceholders),
         new(OrderKey("PAID", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — thanh toán thành công", "Thanh toán thành công",
             "Đã nhận thanh toán {{total}} cho đơn {{code}}.", OrderPlaceholders),
+        new(OrderKey("PAYMENT_FAILED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — thanh toán không thành công",
+            "Thanh toán không thành công", "Thanh toán cho đơn {{code}} chưa thành công ({{note}}). Bạn có thể thanh toán lại{{deadline}}.", OrderPlaceholders),
+        new(ProductKey("APPROVE"), TemplateChannel.InApp, "Thông báo sản phẩm: Shop — sản phẩm được duyệt", "Sản phẩm đã được duyệt",
+            "\"{{product}}\" đã được duyệt và đang bán.", ProductPlaceholders),
+        new(ProductKey("REJECT"), TemplateChannel.InApp, "Thông báo sản phẩm: Shop — sản phẩm cần sửa", "Sản phẩm cần chỉnh sửa",
+            "\"{{product}}\" cần chỉnh sửa trước khi duyệt: {{reason}}", ProductPlaceholders),
+        new(ProductKey("BAN"), TemplateChannel.InApp, "Thông báo sản phẩm: Shop — sản phẩm bị khoá", "Sản phẩm bị khoá",
+            "\"{{product}}\" bị khoá do vi phạm: {{reason}}", ProductPlaceholders),
+        new(ProductKey("UNBAN"), TemplateChannel.InApp, "Thông báo sản phẩm: Shop — sản phẩm được mở khoá", "Sản phẩm đã được mở khoá",
+            "\"{{product}}\" đã được mở khoá (đang ẩn, bạn có thể hiện lại).", ProductPlaceholders),
         new(OrderKey("CONFIRMED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — shop xác nhận đơn", "Shop đã xác nhận đơn hàng",
             "{{shop}} đang chuẩn bị đơn {{code}}. Mã vận đơn: {{note}}.", OrderPlaceholders),
         new(OrderKey("SHIPPED", "BUYER"), TemplateChannel.InApp, "Thông báo đơn hàng: Người mua — đang giao", "Đơn hàng đang được giao",

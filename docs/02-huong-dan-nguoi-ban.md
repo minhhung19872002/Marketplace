@@ -18,6 +18,9 @@ ngày, điểm phạt hiện tại.
 
 ![Bảng điều khiển](images/02-bang-dieu-khien.jpg)
 
+Bảng điều khiển còn có *Trả hàng chờ xử lý*, *Đã xử lý hôm nay*, lượt xem / người xem / tỉ lệ chuyển đổi theo ngày, 7 và 30 ngày,
+và *Thông báo của sàn*. Ngưỡng *Sắp hết hàng* đặt riêng ở *Thiết lập shop* (để trống = mức chung của sàn).
+
 ## 3. Sản phẩm
 
 Danh sách theo tab (Đang bán, Hết hàng, Chờ duyệt, Vi phạm, Đã ẩn, Nháp); sửa nhanh giá / tồn ngay trên bảng; ẩn / hiện / xoá;
@@ -41,6 +44,9 @@ phẩm đã duyệt có thể phải duyệt lại.
   ghi vào lịch sử như khi sửa trên màn hình.
 
 ![Excel hàng loạt](images/02-excel-hang-loat.jpg)
+
+Danh sách sản phẩm lọc được theo tồn kho và giá; tick nhiều sản phẩm để *Ẩn / Hiện / Gửi duyệt / Xoá* một lần (tối đa 100, sản phẩm nào
+không làm được thì báo riêng); *Sao chép* tạo bản nháp giống hệt nhưng tồn kho 0.
 
 ## 4. Đơn hàng
 
@@ -68,6 +74,8 @@ thì *Xác nhận đã nhận hàng*. Đơn đang có yêu cầu trả hàng t�
 
 ![Mã giảm giá](images/02-ma-giam-gia.jpg)
 ![Kênh Marketing](images/02-marketing.jpg)
+
+Mỗi mã giảm giá của shop hiện *lượt lưu*, số đơn đã dùng và *doanh số mang lại*.
 
 ## 6. Chăm sóc khách hàng
 

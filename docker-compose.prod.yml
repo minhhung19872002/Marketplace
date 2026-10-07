@@ -73,6 +73,7 @@ services:
       SH_RATE_LIMIT_AUTH: ""
       SH_RATE_LIMIT_OTP: ""
       SH_RATE_LIMIT_GLOBAL: ""
+      SH_RATE_LIMIT_SEARCH: ""
     deploy:
       resources:
         limits: { cpus: "2.0", memory: 1536m }

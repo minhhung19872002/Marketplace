@@ -56,7 +56,11 @@ public record VoucherDto(
     VoucherChannel Channel,
     bool IsActive,
     string State,
-    bool XtraOnly);
+    bool XtraOnly,
+    VoucherStatsDto? Stats = null);
+
+/// <summary>Hiệu quả mã (III.5): saved into wallets, uses not given back, orders it was used on and their sales.</summary>
+public record VoucherStatsDto(int Claims, int Uses, int Orders, long Sales);
 
 public sealed class VoucherInputValidator : AbstractValidator<VoucherInput>
 {
@@ -178,7 +182,22 @@ public sealed class ListShopVouchersHandler(IApplicationDbContext db, SellerAcce
         var now = clock.UtcNow;
         var page = await db.Vouchers.AsNoTracking().Where(v => v.Owner == VoucherOwner.Shop && v.ShopId == request.ShopId)
             .OrderByDescending(v => v.EndAt).ThenBy(v => v.Id).ToPagedResultAsync(request, ct);
-        return new PagedResult<VoucherDto>(page.Items.Select(v => VoucherMapping.ToDto(v, null, now)).ToList(), page.TotalCount, page.Page, page.PageSize);
+        var ids = page.Items.Select(v => v.Id).ToList();
+        var claims = await db.VoucherClaims.AsNoTracking().Where(c => ids.Contains(c.VoucherId)).GroupBy(c => c.VoucherId)
+            .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        var uses = await db.VoucherUsages.AsNoTracking().Where(u => ids.Contains(u.VoucherId) && u.RevertedAt == null).GroupBy(u => u.VoucherId)
+            .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        // Sales brought in: the shop's goods value (after its own discounts) on orders that went ahead with the code
+        var sales = await db.Orders.AsNoTracking()
+            .Where(o => o.ShopVoucherId != null && ids.Contains(o.ShopVoucherId.Value) && o.Status != Domain.Sales.OrderStatus.Cancelled
+                        && o.Status != Domain.Sales.OrderStatus.Returned && o.Status != Domain.Sales.OrderStatus.PendingPayment)
+            .GroupBy(o => o.ShopVoucherId!.Value).Select(g => new { g.Key, Orders = g.Count(), Sales = g.Sum(o => o.Subtotal - o.ShopDiscount) })
+            .ToDictionaryAsync(x => x.Key, ct);
+        return new PagedResult<VoucherDto>(page.Items.Select(v => VoucherMapping.ToDto(v, null, now) with
+        {
+            Stats = new VoucherStatsDto(claims.GetValueOrDefault(v.Id), uses.GetValueOrDefault(v.Id), sales.GetValueOrDefault(v.Id)?.Orders ?? 0,
+                sales.GetValueOrDefault(v.Id)?.Sales ?? 0),
+        }).ToList(), page.TotalCount, page.Page, page.PageSize);
     }
 }
 

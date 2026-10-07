@@ -95,6 +95,14 @@ const VouchersPage = ({ shopId }: { shopId: string }) => {
           { title: 'Đơn tối thiểu', dataIndex: 'minOrder', render: (m: number) => formatPrice(m) },
           { title: 'Thời gian', render: (_, v) => `${formatDateTime(v.startAt)} – ${formatDateTime(v.endAt)}` },
           { title: 'Đã dùng', render: (_, v) => `${v.usedCount}${v.totalQuota ? ` / ${v.totalQuota}` : ''}` },
+          {
+            title: 'Hiệu quả',
+            render: (_, v) => v.stats && (
+              <span data-testid="voucher-stats">
+                {v.stats.claims} lượt lưu · {v.stats.orders} đơn<br />{formatPrice(v.stats.sales)} doanh số
+              </span>
+            ),
+          },
           { title: 'Trạng thái', dataIndex: 'state', render: (s: string) => <Tag color={stateColor[s] ?? 'default'}>{s}</Tag> },
           {
             title: '',

@@ -29,6 +29,7 @@ export interface MyShop {
   createdAt: string
   description: string
   coverUrl: string | null
+  lowStockThreshold: number | null
 }
 
 export interface CategoryNode {
@@ -190,6 +191,7 @@ export const sellerApi = {
 
   myShops: () => apiRequest<MyShop[]>('/seller/shops'),
   registerShop: (body: RegisterShopInput) => apiCommand<string>('/seller/shops', { method: 'POST', body }),
+  setLowStock: (shopId: string, units: number | null) => apiCommand(`${shop(shopId)}/low-stock-threshold`, { method: 'PUT', body: { units } }),
   updateShopProfile: (shopId: string, body: { description: string; logoAssetId: string | null; coverAssetId: string | null }) =>
     apiCommand(`${shop(shopId)}/profile`, { method: 'PUT', body }),
   setVacation: (shopId: string, until: string | null) => apiCommand(`${shop(shopId)}/vacation`, { method: 'PUT', body: { until } }),
@@ -200,8 +202,16 @@ export const sellerApi = {
   suggestCategories: (name: string) => apiRequest<{ id: string; path: string[] }[]>(`/seller/category-suggestions?name=${encodeURIComponent(name)}`),
   divisions: (parent?: string) => apiRequest<AdminDivision[]>(parent ? `/admin-divisions?parent=${parent}` : '/admin-divisions', { auth: false }),
 
-  products: (shopId: string, p: { tab: ProductTab; q: string; page: number; pageSize: number }) =>
-    apiRequest<PagedResult<ProductRow>>(`${shop(shopId)}/products?tab=${p.tab}&q=${encodeURIComponent(p.q)}&page=${p.page}&pageSize=${p.pageSize}`),
+  products: (shopId: string, p: { tab: ProductTab; q: string; page: number; pageSize: number; minStock?: number | null; maxStock?: number | null;
+    minPrice?: number | null; maxPrice?: number | null }) => {
+    const qs = new URLSearchParams({ tab: p.tab, q: p.q, page: String(p.page), pageSize: String(p.pageSize) })
+    for (const k of ['minStock', 'maxStock', 'minPrice', 'maxPrice'] as const) if (p[k] != null) qs.set(k, String(p[k]))
+    return apiRequest<PagedResult<ProductRow>>(`${shop(shopId)}/products?${qs}`)
+  },
+  bulkProducts: (shopId: string, productIds: string[], action: 'Submit' | 'Hide' | 'Show' | 'Delete') =>
+    apiCommand<{ productId: string; ok: boolean; status: string | null; error: string | null }[]>(`${shop(shopId)}/products/bulk-actions`,
+      { method: 'POST', body: { productIds, action } }),
+  copyProduct: (shopId: string, id: string) => apiCommand<string>(`${shop(shopId)}/products/${id}/copy`, { method: 'POST' }),
   product: (shopId: string, id: string) => apiRequest<ProductDetail>(`${shop(shopId)}/products/${id}`),
   createProduct: (shopId: string, body: ProductInput) => apiCommand<string>(`${shop(shopId)}/products`, { method: 'POST', body }),
   updateProduct: (shopId: string, id: string, input: ProductInput, version: number) =>

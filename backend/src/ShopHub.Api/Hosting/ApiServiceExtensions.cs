@@ -25,6 +25,7 @@ public static class ApiServiceExtensions
     public const string UploadRateLimit = "upload";
     public const string CheckoutRateLimit = "checkout";
     public const string ChatRateLimit = "chat";
+    public const string SearchRateLimit = "search";
 
     public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration config)
     {
@@ -127,6 +128,7 @@ public static class ApiServiceExtensions
     private static int OtpPermitsPerMinute = 10;
     private static int CheckoutPermitsPerMinute = 30;
     private static int GlobalPermitsPerMinute = 600;
+    private static int SearchPermitsPerMinute = 120;
 
     private static void AddRateLimiting(IServiceCollection services, IConfiguration config)
     {
@@ -134,6 +136,7 @@ public static class ApiServiceExtensions
         if (int.TryParse(config["SH_RATE_LIMIT_OTP"], out var otp) && otp > 0) OtpPermitsPerMinute = otp;
         if (int.TryParse(config["SH_RATE_LIMIT_CHECKOUT"], out var checkout) && checkout > 0) CheckoutPermitsPerMinute = checkout;
         if (int.TryParse(config["SH_RATE_LIMIT_GLOBAL"], out var global) && global > 0) GlobalPermitsPerMinute = global;
+        if (int.TryParse(config["SH_RATE_LIMIT_SEARCH"], out var search) && search > 0) SearchPermitsPerMinute = search;
 
         services.AddRateLimiter(o =>
         {
@@ -165,6 +168,11 @@ public static class ApiServiceExtensions
             o.AddPolicy(CheckoutRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
                 ctx.User.FindFirst("sub")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = CheckoutPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
+
+            // Search (6.1): per IP — each query costs the engine, a scraper should not take it down for everyone
+            o.AddPolicy(SearchRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = SearchPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
 
             // Coarse per-IP ceiling; tighter named policies (login, OTP, checkout…) are added per feature
             o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>

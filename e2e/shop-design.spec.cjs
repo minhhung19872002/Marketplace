@@ -221,4 +221,23 @@ test.describe('Thiết lập & trang trí shop', () => {
     await expect(page.getByTestId('order-parcel')).toHaveCount(2);
     await expect(page.getByTestId('tracking-no')).toHaveCount(2);
   });
+  test('Sản phẩm: ẩn hàng loạt, sao chép thành bản nháp; bảng điều khiển có lượt xem và thông báo của sàn', async ({ browser, request }) => {
+    const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
+    const shop = await shopWithProduct(request, admin);
+    const seller = await sellerLogin(browser, shop.seller);
+    await expect(seller.getByTestId('traffic').first()).toContainText('lượt xem');
+    await expect(seller.getByTestId('announcements')).toBeVisible();
+    await expect(seller.getByTestId('todo-returns')).toBeVisible();
+
+    await seller.getByRole('menuitem', { name: 'Sản phẩm', exact: true }).click();
+    const row = seller.getByRole('row', { name: new RegExp(shop.name) });
+    await row.getByRole('checkbox').check();
+    await seller.getByTestId('bulk-hide').click();
+    await expect(seller.getByText('Đã xử lý 1/1 sản phẩm.')).toBeVisible();
+    await expect(row).toContainText('Đã ẩn');
+
+    await row.getByTestId('copy-product').click();
+    await expect(seller.getByText('Đã tạo bản sao (bản nháp, tồn kho 0).')).toBeVisible();
+    await expect(seller).toHaveURL(/\/seller\/san-pham\/[0-9a-f-]{36}$/);
+  });
 });

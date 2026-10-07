@@ -145,10 +145,30 @@ const ProductsPage = ({ shopId }: { shopId: string }) => {
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
+  // Lọc theo tồn kho và giá (III.3); chọn nhiều để ẩn / hiện / xoá / gửi duyệt một lần
+  const [range, setRange] = useState<{ minStock: number | null; maxStock: number | null; minPrice: number | null; maxPrice: number | null }>(
+    { minStock: null, maxStock: null, minPrice: null, maxPrice: null })
+  const [selected, setSelected] = useState<string[]>([])
 
   const products = useQuery({
-    queryKey: ['products', shopId, tab, q, page, pageSize],
-    queryFn: () => sellerApi.products(shopId, { tab, q, page, pageSize }),
+    queryKey: ['products', shopId, tab, q, page, pageSize, range],
+    queryFn: () => sellerApi.products(shopId, { tab, q, page, pageSize, ...range }),
+  })
+  const bulk = useMutation({
+    mutationFn: (op: 'Submit' | 'Hide' | 'Show' | 'Delete') => sellerApi.bulkProducts(shopId, selected, op),
+    onSuccess: (r) => {
+      const failed = r.data.filter((x) => !x.ok)
+      if (failed.length) void message.warning(`${r.message} Chưa làm được: ${failed.map((f) => f.error).filter(Boolean).slice(0, 3).join('; ')}`)
+      else void message.success(r.message)
+      setSelected([])
+      void queryClient.invalidateQueries({ queryKey: ['products', shopId] })
+    },
+    onError: (e) => void message.error(errorText(e)),
+  })
+  const copy = useMutation({
+    mutationFn: (id: string) => sellerApi.copyProduct(shopId, id),
+    onSuccess: (r) => { void message.success(r.message); navigate(`/san-pham/${r.data}`) },
+    onError: (e) => void message.error(errorText(e)),
   })
   const action = useMutation({
     mutationFn: (v: { id: string; op: 'submit' | 'hide' | 'show' | 'delete' }) => sellerApi.productAction(shopId, v.id, v.op),
@@ -163,9 +183,31 @@ const ProductsPage = ({ shopId }: { shopId: string }) => {
         <Button type="primary" onClick={() => navigate('/san-pham/moi')} data-testid="add-product">+ Thêm sản phẩm</Button>
       </Space>
       <Tabs activeKey={tab} onChange={(k) => { setTab(k as ProductTab); setPage(1) }} items={TABS.map((t) => ({ key: t.key, label: t.label }))} />
-      <Input.Search placeholder="Tên sản phẩm hoặc mã SKU" allowClear style={{ maxWidth: 360 }} onSearch={(v) => { setQ(v); setPage(1) }} />
+      <Space wrap>
+        <Input.Search placeholder="Tên sản phẩm hoặc mã SKU" allowClear style={{ width: 300 }} onSearch={(v) => { setQ(v); setPage(1) }} />
+        <InputNumber<number> min={0} placeholder="Tồn từ" value={range.minStock} onChange={(v) => { setRange({ ...range, minStock: v }); setPage(1) }}
+          aria-label="Tồn kho từ" />
+        <InputNumber<number> min={0} placeholder="Tồn đến" value={range.maxStock} onChange={(v) => { setRange({ ...range, maxStock: v }); setPage(1) }}
+          aria-label="Tồn kho đến" />
+        <InputNumber<number> min={0} placeholder="Giá từ" value={range.minPrice} onChange={(v) => { setRange({ ...range, minPrice: v }); setPage(1) }}
+          aria-label="Giá từ" style={{ width: 130 }} />
+        <InputNumber<number> min={0} placeholder="Giá đến" value={range.maxPrice} onChange={(v) => { setRange({ ...range, maxPrice: v }); setPage(1) }}
+          aria-label="Giá đến" style={{ width: 130 }} />
+      </Space>
+      {selected.length > 0 && (
+        <Space data-testid="bulk-bar">
+          <Typography.Text>Đã chọn {selected.length} sản phẩm</Typography.Text>
+          <Button size="small" loading={bulk.isPending} onClick={() => bulk.mutate('Hide')} data-testid="bulk-hide">Ẩn</Button>
+          <Button size="small" loading={bulk.isPending} onClick={() => bulk.mutate('Show')}>Hiện</Button>
+          <Button size="small" loading={bulk.isPending} onClick={() => bulk.mutate('Submit')}>Gửi duyệt</Button>
+          <Popconfirm title={`Xoá ${selected.length} sản phẩm?`} okText="Xoá" cancelText="Huỷ" onConfirm={() => bulk.mutate('Delete')}>
+            <Button size="small" danger loading={bulk.isPending}>Xoá</Button>
+          </Popconfirm>
+        </Space>
+      )}
       <Table<ProductRow>
         rowKey="id"
+        rowSelection={{ selectedRowKeys: selected, onChange: (keys) => setSelected(keys as string[]), preserveSelectedRowKeys: true }}
         loading={products.isPending}
         dataSource={products.data?.items}
         locale={{ emptyText: products.isError ? 'Không tải được danh sách.' : 'Chưa có sản phẩm.' }}
@@ -202,6 +244,7 @@ const ProductsPage = ({ shopId }: { shopId: string }) => {
             render: (_, r) => (
               <Space wrap>
                 {r.status !== 'Banned' && <Button size="small" onClick={() => navigate(`/san-pham/${r.id}`)}>Sửa</Button>}
+                <Button size="small" loading={copy.isPending && copy.variables === r.id} onClick={() => copy.mutate(r.id)} data-testid="copy-product">Sao chép</Button>
                 {r.status === 'Draft' && <Button size="small" type="primary" onClick={() => action.mutate({ id: r.id, op: 'submit' })}>Gửi duyệt</Button>}
                 {r.status === 'Active' && <Button size="small" onClick={() => action.mutate({ id: r.id, op: 'hide' })}>Ẩn</Button>}
                 {r.status === 'Hidden' && <Button size="small" onClick={() => action.mutate({ id: r.id, op: 'show' })}>Hiện</Button>}

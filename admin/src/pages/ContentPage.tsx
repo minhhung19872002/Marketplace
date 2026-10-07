@@ -94,12 +94,71 @@ const TemplatesTab = () => {
   )
 }
 
+type DivisionRow = { code: string; name: string; level: 'Province' | 'District' | 'Ward'; parentCode: string | null; childCount: number; addressCount: number }
+
+/** Danh mục hành chính (VI.8): browse the tree, add a unit (e.g. after a merger), rename one — codes stay, nothing is deleted. */
+const DivisionsTab = () => {
+  const { message } = App.useApp()
+  const queryClient = useQueryClient()
+  const [path, setPath] = useState<DivisionRow[]>([])
+  const parent = path[path.length - 1]
+  const [editing, setEditing] = useState<DivisionRow | 'new' | null>(null)
+  const [form] = Form.useForm<{ code: string; name: string }>()
+  const list = useQuery({ queryKey: ['divisions', parent?.code ?? ''], queryFn: () => platformApi.divisions(parent?.code) })
+  const save = useMutation({
+    mutationFn: (v: { code: string; name: string }) =>
+      editing === 'new' ? platformApi.addDivision({ code: v.code.trim(), name: v.name.trim(), parentCode: parent?.code ?? null })
+        : platformApi.renameDivision((editing as DivisionRow).code, v.name.trim()),
+    onSuccess: (r) => { message.success(r.message); setEditing(null); void queryClient.invalidateQueries({ queryKey: ['divisions'] }) },
+    onError: (e) => message.error(errorText(e, 'Không lưu được.')),
+  })
+  return (
+    <>
+      <Space style={{ marginBottom: 12 }} wrap>
+        <Button size="small" onClick={() => setPath([])} disabled={path.length === 0}>Toàn quốc</Button>
+        {path.map((d, i) => <Button key={d.code} size="small" onClick={() => setPath(path.slice(0, i + 1))}>{d.name}</Button>)}
+        {parent?.level !== 'Ward' && (
+          <Button type="primary" size="small" onClick={() => { setEditing('new'); form.setFieldsValue({ code: '', name: '' }) }} data-testid="division-add">
+            Thêm {parent ? (parent.level === 'Province' ? 'quận / huyện' : 'phường / xã') : 'tỉnh / thành phố'}
+          </Button>
+        )}
+      </Space>
+      <Table<DivisionRow>
+        rowKey="code"
+        size="small"
+        loading={list.isPending}
+        dataSource={list.data ?? []}
+        pagination={{ pageSize: 50 }}
+        columns={[
+          { title: 'Mã', dataIndex: 'code', width: 100 },
+          { title: 'Tên', dataIndex: 'name', render: (n: string, d) => d.level === 'Ward' ? n : <a onClick={() => setPath([...path, d])}>{n}</a> },
+          { title: 'Cấp dưới', dataIndex: 'childCount', width: 100 },
+          { title: 'Địa chỉ đã lưu', dataIndex: 'addressCount', width: 130 },
+          { title: '', key: 'x', width: 90, render: (_, d) => <Button size="small" onClick={() => { setEditing(d); form.setFieldsValue({ code: d.code, name: d.name }) }}>Đổi tên</Button> },
+        ]}
+      />
+      <Modal open={editing !== null} title={editing === 'new' ? 'Thêm đơn vị hành chính' : 'Đổi tên đơn vị'} okText="Lưu" cancelText="Huỷ"
+        confirmLoading={save.isPending} onOk={() => form.submit()} onCancel={() => setEditing(null)} destroyOnClose>
+        <Form form={form} layout="vertical" onFinish={(v) => save.mutate(v)}>
+          <Form.Item name="code" label="Mã (Tổng cục Thống kê)" rules={[{ required: true, pattern: /^\d{2,10}$/, message: 'Mã gồm 2–10 chữ số.' }]}>
+            <Input disabled={editing !== 'new'} />
+          </Form.Item>
+          <Form.Item name="name" label="Tên" rules={[{ required: true, whitespace: true, max: 100, message: 'Nhập tên (tối đa 100 ký tự).' }]}>
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
+  )
+}
+
 /** VI.8 Nội dung: static pages, help center, message templates. */
 const ContentPage = () => (
   <Card title="Nội dung & mẫu tin">
     <Tabs items={[
       { key: 'pages', label: 'Trang tĩnh & trợ giúp', children: <PagesTab /> },
       { key: 'templates', label: 'Mẫu thư / SMS', children: <TemplatesTab /> },
+      { key: 'divisions', label: 'Danh mục hành chính', children: <DivisionsTab /> },
     ]} />
   </Card>
 )

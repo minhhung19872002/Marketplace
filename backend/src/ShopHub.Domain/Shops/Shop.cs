@@ -46,6 +46,15 @@ public class Shop : AuditableEntity
     public bool MultiWarehouse { get; private set; }
 
     public void SetMultiWarehouse(bool on) => MultiWarehouse = on;
+
+    // "Sắp hết hàng" from this many units (III.3); null = the platform's SHOP.LOW_STOCK_THRESHOLD
+    public int? LowStockThreshold { get; private set; }
+
+    public void SetLowStockThreshold(int? units)
+    {
+        if (units is < 0 or > 100_000) throw new BusinessRuleException("Ngưỡng sắp hết hàng từ 0 đến 100.000.");
+        LowStockThreshold = units;
+    }
     // Service programmes the shop joined (spec 3.9 phí dịch vụ): null = not taking part
     public DateTimeOffset? FreeshipXtraSince { get; private set; }
     public DateTimeOffset? VoucherXtraSince { get; private set; }

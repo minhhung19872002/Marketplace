@@ -5,7 +5,7 @@
 
 .product-detail-main {
   display: grid;
-  grid-template-columns: 40% 60%;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 24px;
   background: #fff;
   border-radius: 4px;
@@ -32,7 +32,7 @@
 
 .product-detail-thumbs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-top: 10px;
 }
@@ -563,7 +563,7 @@
 
 @media (max-width: 768px) {
   .product-detail-main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .pd-shop-stats {
     gap: 12px 20px;

@@ -1,5 +1,7 @@
 .shop-vouchers {
   margin: 12px 0;
+  /* a flex / grid child must be allowed to shrink, or the scrolling list widens the page (375 px) */
+  min-width: 0;
 }
 
 .shop-vouchers-title {

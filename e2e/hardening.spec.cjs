@@ -1,7 +1,7 @@
 // Phase 13 — spec section 9, scenarios 12 and 13. Needs the stack (and an admin for 12):
 //   SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=... SH_E2E_ADMIN_PASSWORD=... npx playwright test hardening.spec.cjs
 const { test, expect } = require('@playwright/test');
-const { BASE, addAddressViaApi, apiAs, apiLogin, findProduct, loginInBrowser, registerViaApi, shopWithProduct, withoutTiers } = require('./helpers.cjs');
+const { BASE, addAddressViaApi, api, apiAs, apiLogin, findProduct, loginInBrowser, registerViaApi, shopWithProduct, withoutTiers } = require('./helpers.cjs');
 
 const ADMIN_USER = process.env.SH_E2E_ADMIN_USER;
 const ADMIN_PASSWORD = process.env.SH_E2E_ADMIN_PASSWORD;
@@ -46,11 +46,23 @@ test.describe('Giao diện ở 375 px và 1366 × 768', () => {
   test('Mọi trang người mua ở 375 px không cuộn ngang', async ({ browser, request }) => {
     const product = await findProduct(request, withoutTiers);
     const shopSlug = product.shop.slug;
+    // A shop with several running vouchers: the scrolling voucher strip must not widen the product page (L148)
+    let withVouchers = null;
+    for (const card of (await api(request, '/search/products?inStock=true&sort=BestSelling&pageSize=60')).items) {
+      const detail = await api(request, `/products/${card.id}`);
+      if ((await api(request, `/vouchers?shopId=${detail.shop.id}`)).length >= 2) { withVouchers = detail; break; }
+    }
+    expect(withVouchers, 'dữ liệu mẫu có shop chạy từ 2 voucher').not.toBeNull();
     const buyer = await registerViaApi(request, 'Người Mua Điện Thoại');
     await addAddressViaApi(request, buyer);
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
     const page = await context.newPage();
-    const pages = ['/', `/san-pham/${product.id}`, '/tim-kiem?q=ao', `/shop/${shopSlug}`, '/gio-hang', '/tra-cuu-van-don', '/tro-giup',
+    // Real photos are large: answer every image with 1000 x 1000 so the dev stack (whose sample images may not load)
+    // lays out like CI does (L148)
+    await page.route(/\.(png|jpe?g|webp|svg)(\?|$)|\/s3\/|dummyjson/, (route) => route.request().resourceType() === 'image'
+      ? route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><rect width="1000" height="1000" fill="#ccc"/></svg>' })
+      : route.continue());
+    const pages = ['/', `/san-pham/${product.id}`, `/san-pham/${withVouchers.id}`, '/tim-kiem?q=ao', `/shop/${shopSlug}`, '/gio-hang', '/tra-cuu-van-don', '/tro-giup',
       '/trang/dieu-khoan-su-dung', '/dang-nhap', '/dang-ky', '/quen-mat-khau'];
     const signedIn = ['/thanh-toan', '/tai-khoan/don-mua', '/tai-khoan/ho-so', '/tai-khoan/dia-chi', '/tai-khoan/vi', '/tai-khoan/xu',
       '/tai-khoan/voucher', '/tai-khoan/thong-bao', '/thong-bao', '/yeu-thich', '/chat'];

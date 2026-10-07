@@ -318,9 +318,19 @@ public class FoundationTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Readiness_reports_each_dependency()
+    public async Task Readiness_tells_the_public_only_the_overall_status_and_each_dependency_only_inside_the_network()
     {
-        var response = await factory.CreateClient().GetAsync("/health/ready");
+        var client = factory.CreateClient();
+        var open = await client.GetAsync("/health/ready");
+        open.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await open.Content.ReadAsStringAsync()).Should().Be("Healthy", "ngoài mạng nội bộ chỉ thấy trạng thái tổng, không thấy tên máy / lỗi");
+
+        // Through the gateway (forwarded) the detailed report does not exist
+        var forwarded = new HttpRequestMessage(HttpMethod.Get, "/health/ready/details");
+        forwarded.Headers.Add("X-Forwarded-For", "203.0.113.7");
+        (await client.SendAsync(forwarded)).StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var response = await client.GetAsync("/health/ready/details");
         var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("entries");
 
         json.GetProperty("postgres").GetProperty("status").GetString().Should().Be("Healthy");

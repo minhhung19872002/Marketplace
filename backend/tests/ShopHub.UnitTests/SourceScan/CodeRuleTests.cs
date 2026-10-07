@@ -146,13 +146,14 @@ public class MigrationRegistrationTests
 
 public class NginxConfigParityTests
 {
+    private const string Include = "include /etc/nginx/snippets/security-headers.inc;";
+
+    private static readonly string[] Headers =
+        ["X-Content-Type-Options", "Strict-Transport-Security", "X-Frame-Options", "Content-Security-Policy", "Referrer-Policy"];
+
     private static readonly string[] Required =
     [
-        "X-Content-Type-Options",
-        "Strict-Transport-Security",
-        "X-Frame-Options",
-        "Content-Security-Policy",
-        "Referrer-Policy",
+        Include,
         "limit_req_status 429",
         "resolver ",
         "default_type application/json",
@@ -170,6 +171,66 @@ public class NginxConfigParityTests
         var text = File.ReadAllText(Path.Combine(RepoFiles.RepoRoot, relativePath));
 
         Required.Where(r => !text.Contains(r, StringComparison.Ordinal)).Should().BeEmpty($"{relativePath} thiếu cấu hình chung");
+    }
+
+    [Fact]
+    public void The_shared_security_header_file_carries_every_header()
+    {
+        var text = File.ReadAllText(Path.Combine(RepoFiles.RepoRoot, "deploy", "nginx", "security-headers.inc"));
+        Headers.Where(h => !text.Contains($"add_header {h} ", StringComparison.Ordinal)).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// nginx does not inherit add_header into a block that has its own (L076): every location (and the server) that
+    /// sets any add_header must include the shared file, and no config writes a security header by hand.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Configs))]
+    public void Every_block_with_its_own_add_header_includes_the_security_headers(string relativePath)
+    {
+        var text = string.Join('\n', File.ReadAllText(Path.Combine(RepoFiles.RepoRoot, relativePath)).Replace("\r\n", "\n").Split('\n')
+            .Select(l => l.Split('#')[0]));
+        var offenders = new List<string>();
+        foreach (var (header, body) in Blocks(text).Where(b => b.Header.StartsWith("location", StringComparison.Ordinal) || b.Header.StartsWith("server", StringComparison.Ordinal)))
+        {
+            var own = Direct(body);
+            if (own.Contains("add_header", StringComparison.Ordinal) && !own.Contains(Include, StringComparison.Ordinal)) offenders.Add(header);
+            if (Headers.Any(h => own.Contains($"add_header {h}", StringComparison.Ordinal))) offenders.Add($"{header}: viết tay tiêu đề bảo mật");
+        }
+        offenders.Should().BeEmpty($"{relativePath}: khối có add_header riêng phải include security-headers.inc");
+    }
+
+    /// <summary>(header, body) of every { } block, nested ones included.</summary>
+    private static IEnumerable<(string Header, string Body)> Blocks(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (text[i] != '{') continue;
+            var start = text.LastIndexOfAny([';', '}', '{'], Math.Max(0, i - 1)) + 1;
+            var header = text[start..i].Trim();
+            var depth = 0;
+            var j = i;
+            for (; j < text.Length; j++)
+            {
+                if (text[j] == '{') depth++;
+                else if (text[j] == '}' && --depth == 0) break;
+            }
+            yield return (header, text[(i + 1)..j]);
+        }
+    }
+
+    /// <summary>A block's own directives (nested blocks cut out).</summary>
+    private static string Direct(string body)
+    {
+        var sb = new System.Text.StringBuilder();
+        var depth = 0;
+        foreach (var c in body)
+        {
+            if (c == '{') depth++;
+            if (depth == 0) sb.Append(c);
+            if (c == '}') depth--;
+        }
+        return sb.ToString();
     }
 
     /// <summary>The production HTTPS gateway serves the same routes as the dev gateway: everything from the first location on is identical.</summary>

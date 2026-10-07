@@ -83,6 +83,7 @@ Lần chạy gần nhất: **2026-10-07**, 69 kịch bản, 69 đạt (trên d�
 | KB59 | Địa chỉ tại trang thanh toán | Người mua chưa có địa chỉ → *Thêm địa chỉ mới* (`storefront-extras.spec.cjs`) | Địa chỉ mới hiện, nút đặt hàng bật | Như mong đợi | ✔ |
 | KB60 | ZaloPay | Đặt đơn ZaloPay (thẻ ATM) → callback ký key2 hai lần → huỷ đơn (`ProviderTests`) | Đơn đã trả một lần (lần hai `return_code` 2), huỷ → gọi `/v2/refund`, đơn *Đã hoàn tiền* | Như mong đợi | ✔ |
 | KB61 | Trả góp | Đơn ₫150.000 chọn ZaloPay → Trả góp; đơn ₫3.500.000 chọn lại (`ProviderTests`) | Đơn nhỏ: mờ, lý do "Trả góp áp dụng cho đơn từ ₫3.000.000"; VNPay / MoMo không có trả góp; đơn lớn: ZaloPay nhận mã trả góp của hợp đồng, thanh toán lại giữ hình thức | Như mong đợi | ✔ |
+| KB62 | Việc nền | Admin → Việc nền → *Mở bảng Hangfire* (`reports.spec.cjs`) | Danh sách lịch chạy hiện; tab mới mở bảng Hangfire, mã dùng một lần không còn trên URL | Như mong đợi | ✔ |
 
 ## D. Kiểm bằng công cụ khác / tay
 

@@ -256,3 +256,18 @@ public sealed class AddShopBankAccountHandler(IApplicationDbContext db, SellerAc
         return account.Id;
     }
 }
+
+/// <summary>
+/// OTP before a shop adds a bank account or withdraws (III.7): only staff holding FINANCE.WITHDRAW may ask for it —
+/// checked explicitly, not through the side effect of a read that needs FINANCE.VIEW (L080).
+/// </summary>
+public record SendShopFinanceOtpCommand(Guid ShopId) : IRequest<OtpIssued>;
+
+public sealed class SendShopFinanceOtpHandler(SellerAccess access, ISender sender) : IRequestHandler<SendShopFinanceOtpCommand, OtpIssued>
+{
+    public async Task<OtpIssued> Handle(SendShopFinanceOtpCommand request, CancellationToken ct)
+    {
+        await access.RequireAsync(request.ShopId, ShopPermissions.FinanceWithdraw, ct);
+        return await sender.Send(new SendFinanceOtpCommand(), ct);
+    }
+}

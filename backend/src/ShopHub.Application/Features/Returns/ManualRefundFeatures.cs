@@ -36,7 +36,7 @@ public sealed class AdminManualRefundValidator : AbstractValidator<AdminManualRe
 /// through the order event. "Shop chịu" lowers the shop's earnings before they are released (the release of that part
 /// is held by the refund itself); once the order is released only "sàn chịu" is possible.
 /// </summary>
-public sealed class AdminManualRefundHandler(IApplicationDbContext db, OrderLocks locks, ReturnRefunder refunder, IClock clock)
+public sealed class AdminManualRefundHandler(IApplicationDbContext db, IObjectStorage storage, OrderLocks locks, ReturnRefunder refunder, IClock clock)
     : IRequestHandler<AdminManualRefundCommand, ReturnDto>
 {
     public async Task<ReturnDto> Handle(AdminManualRefundCommand request, CancellationToken ct)
@@ -79,6 +79,6 @@ public sealed class AdminManualRefundHandler(IApplicationDbContext db, OrderLock
         // Xu come back only with a full refund of the units; a partial amount is money only
         await refunder.RefundAsync(r, request.Amount, request.Amount == money ? coins : 0, ReturnParty.Admin, $"Sàn hoàn tiền thủ công: {request.Reason.Trim()}", ct);
         await tx.CommitAsync(ct);
-        return await ReturnViews.BuildAsync(db, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == r.Id, ct), ct);
+        return await ReturnViews.BuildAsync(db, storage, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == r.Id, ct), ct);
     }
 }

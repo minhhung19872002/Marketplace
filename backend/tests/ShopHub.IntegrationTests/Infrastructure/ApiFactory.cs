@@ -113,6 +113,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // Every test request shares one (unknown) client IP: the per-IP ceiling would trip across the whole suite
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_GLOBAL", "1000000");
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_OTP", "100000");
+        // Per phone / e-mail: low enough for RateLimitTests to reach, higher than any other test's sign-ins for one account
+        Environment.SetEnvironmentVariable("SH_RATE_LIMIT_IDENTIFIER", "30");
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_SEARCH", "100000");
         // Tests read what they just wrote: no output cache
         Environment.SetEnvironmentVariable("SH_OUTPUT_CACHE_SECONDS", "0");

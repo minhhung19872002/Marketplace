@@ -15,7 +15,8 @@ public class EndpointAuthorisationTests
     private static IEnumerable<(Type Controller, MethodInfo Action)> Endpoints() =>
         typeof(RequirePermissionAttribute).Assembly.GetTypes()
             .Where(t => typeof(ControllerBase).IsAssignableFrom(t) && !t.IsAbstract)
-            .SelectMany(t => t.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
+            // Inherited actions too (L080): an endpoint on a base controller must choose its way in like any other
+            .SelectMany(t => t.GetMethods(BindingFlags.Instance | BindingFlags.Public)
                 .Where(m => m.GetCustomAttributes<Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute>().Any())
                 .Select(m => (t, m)));
 

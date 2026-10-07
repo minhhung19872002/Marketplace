@@ -31,6 +31,8 @@ public static class ApiServiceExtensions
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
+        services.AddDataProtection();
+        services.AddSingleton<Security.JobDashboardAccess>();
 
         // Anonymous catalogue reads are cached in Redis (shared by every API instance, spec 6.3); signed-in requests,
         // non-200 answers and responses setting cookies never are. SH_OUTPUT_CACHE_SECONDS=0 turns it off (tests, dev).
@@ -134,6 +136,7 @@ public static class ApiServiceExtensions
     {
         if (int.TryParse(config["SH_RATE_LIMIT_AUTH"], out var auth) && auth > 0) AuthPermitsPerMinute = auth;
         if (int.TryParse(config["SH_RATE_LIMIT_OTP"], out var otp) && otp > 0) OtpPermitsPerMinute = otp;
+        if (int.TryParse(config["SH_RATE_LIMIT_IDENTIFIER"], out var perId) && perId > 0) Security.IdentifierRateLimitAttribute.PermitsPerMinute = perId;
         if (int.TryParse(config["SH_RATE_LIMIT_CHECKOUT"], out var checkout) && checkout > 0) CheckoutPermitsPerMinute = checkout;
         if (int.TryParse(config["SH_RATE_LIMIT_GLOBAL"], out var global) && global > 0) GlobalPermitsPerMinute = global;
         if (int.TryParse(config["SH_RATE_LIMIT_SEARCH"], out var search) && search > 0) SearchPermitsPerMinute = search;
@@ -226,11 +229,4 @@ public static class ApiServiceExtensions
             if (File.Exists(xml)) o.IncludeXmlComments(xml);
         });
     }
-}
-
-// Hangfire dashboard is only for platform admins holding SYS.JOB.VIEW
-public sealed class JobDashboardAuthorizationFilter : IDashboardAuthorizationFilter
-{
-    public bool Authorize(DashboardContext context) =>
-        PermissionClaims.Has(context.GetHttpContext().User, Permissions.JobDashboardView);
 }

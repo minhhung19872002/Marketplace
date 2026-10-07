@@ -69,6 +69,7 @@ public static class DependencyInjection
         // Media & catalog
         services.AddSingleton<MinioObjectStorage>();
         services.AddSingleton<IObjectStorage>(sp => sp.GetRequiredService<MinioObjectStorage>());
+        services.AddScoped<EvidenceRelocation>();
         services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
         services.AddSingleton<IVideoInspector, Mp4VideoInspector>();
         services.AddSingleton<Application.Abstractions.IHtmlSanitizer, HtmlSanitizerAdapter>();

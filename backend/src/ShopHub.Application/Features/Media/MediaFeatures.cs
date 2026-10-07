@@ -98,7 +98,8 @@ public sealed class UploadMediaHandler(
             var bucket = request.Purpose switch
             {
                 MediaPurpose.Kyc => Buckets.Kyc,
-                MediaPurpose.Review or MediaPurpose.Evidence => Buckets.Reviews,
+                MediaPurpose.Review => Buckets.Reviews,
+                MediaPurpose.Evidence => Buckets.Returns,
                 MediaPurpose.Chat => Buckets.Chat,
                 _ => Buckets.Products,
             };
@@ -129,7 +130,14 @@ public sealed class UploadMediaHandler(
             if (duration > maxSeconds * 1000) throw Invalid($"Video tối đa {maxSeconds} giây.");
 
             var key = $"{baseKey}.mp4";
-            var videoBucket = request.Purpose is MediaPurpose.Product or MediaPurpose.Shop ? Buckets.Products : Buckets.Reviews;
+            var videoBucket = request.Purpose switch
+            {
+                MediaPurpose.Product or MediaPurpose.Shop => Buckets.Products,
+                MediaPurpose.Evidence => Buckets.Returns,
+                _ => Buckets.Reviews,
+            };
+            // Phone videos carry the GPS position of where they were filmed (L075): never stored with it
+            data = videos.StripMetadata(data);
             await storage.PutAsync(videoBucket, key, data, "video/mp4", ct);
             asset = new MediaAsset(ownerId, MediaKind.Video, purpose, videoBucket, key, "video/mp4", data.LongLength, null, null, duration, now);
         }
@@ -152,7 +160,7 @@ public sealed class UploadMediaHandler(
 
         db.MediaAssets.Add(asset);
         await db.SaveChangesAsync(ct);
-        return MediaUrls.ToDto(asset, storage);
+        return await MediaUrls.ToDtoAsync(asset, storage, ct);
     }
 
     private static ValidationException Invalid(string message) => new([new ValidationFailure("file", message)]);
@@ -160,6 +168,23 @@ public sealed class UploadMediaHandler(
 
 public static class MediaUrls
 {
+    public static readonly TimeSpan SignedLifetime = TimeSpan.FromMinutes(30);
+
+    /// <summary>The asset's links: public ones as they are, private buckets (chat, return evidence) signed for a short time; KYC never.</summary>
+    public static async Task<MediaAssetDto> ToDtoAsync(MediaAsset a, IObjectStorage storage, CancellationToken ct)
+    {
+        if (a.Bucket == Buckets.Kyc || !Buckets.IsPrivate(a.Bucket)) return ToDto(a, storage);
+        return a.Kind == MediaKind.Image
+            ? new(a.Id, a.Kind, await storage.SignedUrlAsync(a.Bucket, ImageSizes.Key(a.ObjectKey, ImageSizes.Large), SignedLifetime, ct),
+                await storage.SignedUrlAsync(a.Bucket, ImageSizes.Key(a.ObjectKey, ImageSizes.Small), SignedLifetime, ct), a.Width, a.Height, null)
+            : new(a.Id, a.Kind, await storage.SignedUrlAsync(a.Bucket, a.ObjectKey, SignedLifetime, ct), null, null, null, a.DurationMs);
+    }
+
+    /// <summary>Every stored object of an asset (image sizes, or the one file).</summary>
+    public static IEnumerable<string> ObjectKeys(MediaAsset a) =>
+        a.Kind == MediaKind.Image ? (a.Bucket == Buckets.Kyc ? [ImageSizes.Key(a.ObjectKey, ImageSizes.Document)] : ImageSizes.Public.Select(s => ImageSizes.Key(a.ObjectKey, s)))
+            : [a.ObjectKey];
+
     public static MediaAssetDto ToDto(MediaAsset a, IObjectStorage storage) => a.Kind switch
     {
         // Private documents never get a public URL

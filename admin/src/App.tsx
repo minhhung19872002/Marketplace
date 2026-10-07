@@ -27,6 +27,7 @@ import OrdersPage from './pages/OrdersPage'
 import ContentPage from './pages/ContentPage'
 import ProvidersPage from './pages/ProvidersPage'
 import CatalogExtrasPage from './pages/CatalogExtrasPage'
+import JobsPage from './pages/JobsPage'
 import './App.css'
 
 const { Header, Sider, Content } = Layout
@@ -52,6 +53,7 @@ const MENU = [
   { path: '/noi-dung', label: 'Nội dung & mẫu tin', permission: P.ContentManage },
   { path: '/nha-cung-cap', label: 'Vận chuyển & cổng thanh toán', permission: P.ProviderManage },
   { path: '/nhat-ky', label: 'Nhật ký thao tác', permission: P.AuditLogView },
+  { path: '/viec-nen', label: 'Việc nền', permission: P.JobDashboardView },
 ] as const
 
 const Forbidden = () => <Result status="403" title="Không có quyền" subTitle="Bạn không có quyền truy cập trang này." />
@@ -122,6 +124,7 @@ const Shell = () => {
             <Route path="/vai-tro" element={guard(P.RoleView, <RolesPage permissions={perms} />)} />
             <Route path="/tham-so" element={guard(P.SystemParameterView, <ParametersPage permissions={perms} />)} />
             <Route path="/nhat-ky" element={guard(P.AuditLogView, <AuditLogsPage />)} />
+            <Route path="/viec-nen" element={guard(P.JobDashboardView, <JobsPage permissions={perms} />)} />
             <Route path="/doi-mat-khau" element={<ChangePasswordPage forced={false} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

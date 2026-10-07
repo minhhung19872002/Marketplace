@@ -4073,11 +4073,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_vouchers");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ux_voucher_code")
-                        .HasFilter("deleted_at IS NULL");
-
                     b.HasIndex("ShopId")
                         .HasDatabaseName("ix_vouchers_shop_id");
 

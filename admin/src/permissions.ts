@@ -21,6 +21,7 @@ export const P = {
   CoinGrant: 'PROMO.COIN.GRANT',
   OrderView: 'SALES.ORDER.VIEW',
   JobRun: 'SYS.JOB.RUN',
+  JobDashboardView: 'SYS.JOB.VIEW',
   DisputeResolve: 'SALES.DISPUTE.RESOLVE',
   ReviewModerate: 'CATALOG.REVIEW.MODERATE',
   FinanceLedgerView: 'FINANCE.LEDGER.VIEW',

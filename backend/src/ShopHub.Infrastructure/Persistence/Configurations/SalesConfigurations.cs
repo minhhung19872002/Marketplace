@@ -206,7 +206,8 @@ internal sealed class VoucherConfiguration : IEntityTypeConfiguration<Voucher>
         b.Property(v => v.CategoryIds).HasColumnType("uuid[]");
         b.Property(v => v.ProductIds).HasColumnType("uuid[]");
         b.HasOne<Shop>().WithMany().HasForeignKey(v => v.ShopId).OnDelete(DeleteBehavior.Restrict);
-        b.HasIndex(v => v.Code).IsUnique().HasFilter("deleted_at IS NULL").HasDatabaseName("ux_voucher_code");
+        // ux_voucher_code is UNIQUE (upper(code)) WHERE deleted_at IS NULL (spec 4.10) — an expression index, created in
+        // migration VoucherCodeUpperIndex (EF cannot model it)
         b.HasIndex(v => new { v.Owner, v.ShopId, v.EndAt }).HasDatabaseName("ix_vouchers_owner");
     }
 }

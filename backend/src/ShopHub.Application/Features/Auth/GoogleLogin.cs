@@ -42,6 +42,12 @@ public sealed class GoogleLoginHandler(IApplicationDbContext db, IGoogleTokenVer
         var email = identity.Email.Trim().ToLowerInvariant();
 
         var linked = await db.UserIdentities.FirstOrDefaultAsync(i => i.Provider == ExternalProvider.Google && i.ProviderKey == identity.Subject, ct);
+        // A link left on a deleted account (before L074 deletions removed them) points nowhere: drop it and start afresh
+        if (linked is not null && !await db.Users.AnyAsync(u => u.Id == linked.UserId && u.Status != UserStatus.Deleted, ct))
+        {
+            db.UserIdentities.Remove(linked);
+            linked = null;
+        }
         var user = linked is not null
             ? await db.Users.FirstOrDefaultAsync(u => u.Id == linked.UserId, ct)
             : await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);

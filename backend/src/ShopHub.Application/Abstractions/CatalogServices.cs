@@ -7,6 +7,10 @@ public static class Buckets
     public const string Kyc = "sh-kyc";
     public const string Chat = "sh-chat";
     public const string Banners = "sh-banners";
+    // Return / dispute evidence (photos, videos of the buyer's home, labels…): private, signed links for the parties only
+    public const string Returns = "sh-returns";
+
+    public static bool IsPrivate(string bucket) => bucket is Kyc or Chat or Returns;
 }
 
 public interface IObjectStorage
@@ -17,8 +21,12 @@ public interface IObjectStorage
     /// <summary>URL served through the gateway for public buckets.</summary>
     string PublicUrl(string bucket, string key);
 
-    /// <summary>Short-lived signed URL for private buckets (KYC documents).</summary>
+    /// <summary>Short-lived signed URL for private buckets (KYC documents, chat photos, return evidence).</summary>
     Task<string> SignedUrlAsync(string bucket, string key, TimeSpan lifetime, CancellationToken ct);
+
+    Task CopyAsync(string fromBucket, string key, string toBucket, CancellationToken ct);
+
+    Task DeleteAsync(string bucket, string key, CancellationToken ct);
 }
 
 public record ImageVariant(int MaxSide, byte[] WebP);
@@ -36,6 +44,12 @@ public interface IVideoInspector
 {
     /// <summary>Duration of an MP4/MOV file in milliseconds, or null when the container cannot be read.</summary>
     int? GetDurationMs(byte[] data);
+
+    /// <summary>
+    /// The same video without its metadata (GPS location, device, author, dates — <c>udta</c>, <c>meta</c>, XMP <c>uuid</c>
+    /// boxes): each such box is turned into a <c>free</c> box of the same size with zeroed content, so no offset moves.
+    /// </summary>
+    byte[] StripMetadata(byte[] data);
 }
 
 public interface IHtmlSanitizer

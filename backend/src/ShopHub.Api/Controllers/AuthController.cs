@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using ShopHub.Api.Common;
+using ShopHub.Api.Security;
 using ShopHub.Api.Hosting;
 using ShopHub.Application.Features.Auth;
 using ShopHub.Application.Identity;
@@ -21,6 +22,7 @@ public sealed class AuthController : ApiControllerBase
 
     /// <summary>Send a 6-digit code (Register / Login / ResetPassword). Same answer whether or not an account exists.</summary>
     [HttpPost("otp/send")]
+    [IdentifierRateLimit("Target")]
     [AllowAnonymous]
     [EnableRateLimiting(ApiServiceExtensions.OtpRateLimit)]
     [ProducesResponseType<ApiResponse<OtpIssued>>(StatusCodes.Status200OK)]
@@ -67,6 +69,7 @@ public sealed class AuthController : ApiControllerBase
 
     /// <summary>Phone / email / username + password. Wrong credentials always get the same message.</summary>
     [HttpPost("login")]
+    [IdentifierRateLimit("Identifier")]
     [AllowAnonymous]
     [EnableRateLimiting(ApiServiceExtensions.AuthRateLimit)]
     [ProducesResponseType<ApiResponse<AuthResult>>(StatusCodes.Status200OK)]
@@ -77,6 +80,7 @@ public sealed class AuthController : ApiControllerBase
     public record LoginOtpRequest(string Phone, string Code, string? Device);
 
     [HttpPost("login-otp")]
+    [IdentifierRateLimit("Phone")]
     [AllowAnonymous]
     [EnableRateLimiting(ApiServiceExtensions.AuthRateLimit)]
     [ProducesResponseType<ApiResponse<AuthResult>>(StatusCodes.Status200OK)]
@@ -110,6 +114,7 @@ public sealed class AuthController : ApiControllerBase
     public record ForgotPasswordRequest(string Target);
 
     [HttpPost("forgot-password")]
+    [IdentifierRateLimit("Target")]
     [AllowAnonymous]
     [EnableRateLimiting(ApiServiceExtensions.OtpRateLimit)]
     [ProducesResponseType<ApiResponse<OtpIssued>>(StatusCodes.Status200OK)]

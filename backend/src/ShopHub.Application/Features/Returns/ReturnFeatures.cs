@@ -59,8 +59,14 @@ public record ReturnDto(
 
 internal static class ReturnViews
 {
-    public static async Task<ReturnDto> BuildAsync(IApplicationDbContext db, ReturnRequest r, CancellationToken ct)
+    public static async Task<ReturnDto> BuildAsync(IApplicationDbContext db, IObjectStorage storage, ReturnRequest r, CancellationToken ct)
     {
+        // Evidence in the private bucket: a link valid for a short time, only in this answer (buyer, shop or admin of the return)
+        var assetIds = r.Evidence.Where(e => e.AssetId != null).Select(e => e.AssetId!.Value).ToList();
+        var assets = await db.MediaAssets.AsNoTracking().Where(a => assetIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, ct);
+        var links = new Dictionary<Guid, string>();
+        foreach (var a in assets.Values.Where(a => Buckets.IsPrivate(a.Bucket)))
+            links[a.Id] = (await Media.MediaUrls.ToDtoAsync(a, storage, ct)).Url ?? "";
         var order = await db.Orders.AsNoTracking().Include(o => o.Items).SingleAsync(o => o.Id == r.OrderId, ct);
         var shopName = await db.Shops.Where(s => s.Id == r.ShopId).Select(s => s.Name).SingleAsync(ct);
         var tracking = await db.Shipments.AsNoTracking().Where(s => s.ReturnId == r.Id).OrderByDescending(s => s.CreatedAt).Select(s => s.TrackingNo).FirstOrDefaultAsync(ct);
@@ -72,7 +78,7 @@ internal static class ReturnViews
         }).ToList();
         return new ReturnDto(r.Id, r.Code, r.OrderId, order.Code, r.ShopId, shopName, r.Type, r.Reason, r.Description, r.Status, ReturnRequest.Label(r.Status),
             r.RequestedAmount, r.RequestedCoins, r.OfferedAmount, r.RefundAmount, r.RefundCoins, r.ShopNote, r.RespondBy, r.CreatedAt, items,
-            r.Evidence.Select(e => new ReturnEvidenceDto(e.Party, e.Type, e.Url, e.Note)).ToList(),
+            r.Evidence.Select(e => new ReturnEvidenceDto(e.Party, e.Type, e.AssetId is { } id && links.TryGetValue(id, out var link) ? link : e.Url, e.Note)).ToList(),
             r.History.OrderBy(h => h.OccurredAt).ThenBy(h => h.Id).Select(h => new ReturnHistoryDto(h.ToStatus, ReturnRequest.Label(h.ToStatus), h.By, h.Note, h.OccurredAt)).ToList(),
             tracking, dispute?.Reason, dispute?.Decision?.ToString(), dispute?.DecisionReason,
             order.PaymentMethod == PaymentMethod.Cod ? "Ví ShopHub" : "Phương thức thanh toán ban đầu");
@@ -92,9 +98,10 @@ internal static class EvidenceResolver
         var assets = await db.MediaAssets.AsNoTracking().Where(a => wanted.Contains(a.Id) && a.Purpose == "evidence" && a.OwnerUserId == ownerId)
             .ToDictionaryAsync(a => a.Id, ct);
         if (assets.Count != wanted.Count) throw new NotFoundException("Không tìm thấy ảnh/video bằng chứng (hoặc tệp không thuộc về bạn).");
-        return wanted.Select(id => assets[id]).Select(a => a.Kind == MediaKind.Video
-            ? (ReturnEvidenceType.Video, a.Id, storage.PublicUrl(a.Bucket, a.ObjectKey))
-            : (ReturnEvidenceType.Image, a.Id, storage.PublicUrl(a.Bucket, ImageSizes.Key(a.ObjectKey, ImageSizes.Large)))).ToList();
+        // Private bucket: no lasting link is stored, ReturnViews signs one for whoever may see the return
+        return wanted.Select(id => assets[id]).Select(a => (a.Kind == MediaKind.Video ? ReturnEvidenceType.Video : ReturnEvidenceType.Image, a.Id,
+            Buckets.IsPrivate(a.Bucket) ? string.Empty
+            : a.Kind == MediaKind.Video ? storage.PublicUrl(a.Bucket, a.ObjectKey) : storage.PublicUrl(a.Bucket, ImageSizes.Key(a.ObjectKey, ImageSizes.Large)))).ToList();
     }
 }
 
@@ -316,7 +323,7 @@ public sealed class CreateReturnHandler(
         outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.ReturnRequested, r.Code));
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return await ReturnViews.BuildAsync(db, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == r.Id, ct), ct);
+        return await ReturnViews.BuildAsync(db, storage, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == r.Id, ct), ct);
     }
 
     internal static string NewCode(DateTimeOffset now)
@@ -336,7 +343,7 @@ public sealed class MyReturnsValidator : AbstractValidator<MyReturnsQuery>
     public MyReturnsValidator() => this.ApplyPagingRules();
 }
 
-public sealed class MyReturnsHandler(IApplicationDbContext db, ICurrentUser currentUser) : IRequestHandler<MyReturnsQuery, PagedResult<ReturnDto>>
+public sealed class MyReturnsHandler(IApplicationDbContext db, IObjectStorage storage, ICurrentUser currentUser) : IRequestHandler<MyReturnsQuery, PagedResult<ReturnDto>>
 {
     public async Task<PagedResult<ReturnDto>> Handle(MyReturnsQuery request, CancellationToken ct)
     {
@@ -344,14 +351,14 @@ public sealed class MyReturnsHandler(IApplicationDbContext db, ICurrentUser curr
         var page = await ReturnViews.WithDetails(db).AsNoTracking().Where(r => r.BuyerId == userId)
             .OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id).ToPagedResultAsync(request, ct);
         var items = new List<ReturnDto>();
-        foreach (var r in page.Items) items.Add(await ReturnViews.BuildAsync(db, r, ct));
+        foreach (var r in page.Items) items.Add(await ReturnViews.BuildAsync(db, storage, r, ct));
         return new PagedResult<ReturnDto>(items, page.TotalCount, page.Page, page.PageSize);
     }
 }
 
 public record GetMyReturnQuery(string Code) : IRequest<ReturnDto>;
 
-public sealed class GetMyReturnHandler(IApplicationDbContext db, ICurrentUser currentUser) : IRequestHandler<GetMyReturnQuery, ReturnDto>
+public sealed class GetMyReturnHandler(IApplicationDbContext db, IObjectStorage storage, ICurrentUser currentUser) : IRequestHandler<GetMyReturnQuery, ReturnDto>
 {
     public async Task<ReturnDto> Handle(GetMyReturnQuery request, CancellationToken ct)
     {
@@ -359,7 +366,7 @@ public sealed class GetMyReturnHandler(IApplicationDbContext db, ICurrentUser cu
         var code = request.Code.Trim().ToUpperInvariant();
         var r = await ReturnViews.WithDetails(db).AsNoTracking().FirstOrDefaultAsync(x => x.Code == code && x.BuyerId == userId, ct)
                 ?? throw new NotFoundException("Không tìm thấy yêu cầu trả hàng.");
-        return await ReturnViews.BuildAsync(db, r, ct);
+        return await ReturnViews.BuildAsync(db, storage, r, ct);
     }
 }
 
@@ -372,7 +379,7 @@ public enum BuyerReturnAction
 
 public record BuyerReturnActionCommand(string Code, BuyerReturnAction Action, string? Reason) : IRequest<ReturnDto>;
 
-public sealed class BuyerReturnActionHandler(IApplicationDbContext db, ReturnRefunder refunder, IOutbox outbox, ICurrentUser currentUser, IClock clock)
+public sealed class BuyerReturnActionHandler(IApplicationDbContext db, IObjectStorage storage, ReturnRefunder refunder, IOutbox outbox, ICurrentUser currentUser, IClock clock)
     : IRequestHandler<BuyerReturnActionCommand, ReturnDto>
 {
     public async Task<ReturnDto> Handle(BuyerReturnActionCommand request, CancellationToken ct)
@@ -408,7 +415,7 @@ public sealed class BuyerReturnActionHandler(IApplicationDbContext db, ReturnRef
         }
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return await ReturnViews.BuildAsync(db, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == id, ct), ct);
+        return await ReturnViews.BuildAsync(db, storage, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == id, ct), ct);
     }
 }
 
@@ -421,7 +428,7 @@ public sealed class ShopReturnsValidator : AbstractValidator<ShopReturnsQuery>
     public ShopReturnsValidator() => this.ApplyPagingRules();
 }
 
-public sealed class ShopReturnsHandler(IApplicationDbContext db, SellerAccess access) : IRequestHandler<ShopReturnsQuery, PagedResult<ReturnDto>>
+public sealed class ShopReturnsHandler(IApplicationDbContext db, IObjectStorage storage, SellerAccess access) : IRequestHandler<ShopReturnsQuery, PagedResult<ReturnDto>>
 {
     public async Task<PagedResult<ReturnDto>> Handle(ShopReturnsQuery request, CancellationToken ct)
     {
@@ -430,7 +437,7 @@ public sealed class ShopReturnsHandler(IApplicationDbContext db, SellerAccess ac
         if (request.Status is { } status) q = q.Where(r => r.Status == status);
         var page = await q.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id).ToPagedResultAsync(request, ct);
         var items = new List<ReturnDto>();
-        foreach (var r in page.Items) items.Add(await ReturnViews.BuildAsync(db, r, ct));
+        foreach (var r in page.Items) items.Add(await ReturnViews.BuildAsync(db, storage, r, ct));
         return new PagedResult<ReturnDto>(items, page.TotalCount, page.Page, page.PageSize);
     }
 }
@@ -495,7 +502,7 @@ public sealed class ShopReturnActionHandler(
         }
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return await ReturnViews.BuildAsync(db, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == r.Id, ct), ct);
+        return await ReturnViews.BuildAsync(db, storage, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == r.Id, ct), ct);
     }
 
     private async Task ApproveAsync(ReturnRequest r, bool restock, ReturnParty by, string note, CancellationToken ct)
@@ -521,7 +528,7 @@ public sealed class DisputesValidator : AbstractValidator<DisputesQuery>
     public DisputesValidator() => this.ApplyPagingRules();
 }
 
-public sealed class DisputesHandler(IApplicationDbContext db) : IRequestHandler<DisputesQuery, PagedResult<ReturnDto>>
+public sealed class DisputesHandler(IApplicationDbContext db, IObjectStorage storage) : IRequestHandler<DisputesQuery, PagedResult<ReturnDto>>
 {
     public async Task<PagedResult<ReturnDto>> Handle(DisputesQuery request, CancellationToken ct)
     {
@@ -529,7 +536,7 @@ public sealed class DisputesHandler(IApplicationDbContext db) : IRequestHandler<
             .Where(r => db.Disputes.Any(d => d.ReturnId == r.Id && (request.Open ? d.ClosedAt == null : d.ClosedAt != null)));
         var page = await q.OrderBy(r => r.UpdatedAt).ThenBy(r => r.Id).ToPagedResultAsync(request, ct);
         var items = new List<ReturnDto>();
-        foreach (var r in page.Items) items.Add(await ReturnViews.BuildAsync(db, r, ct));
+        foreach (var r in page.Items) items.Add(await ReturnViews.BuildAsync(db, storage, r, ct));
         return new PagedResult<ReturnDto>(items, page.TotalCount, page.Page, page.PageSize);
     }
 }
@@ -549,6 +556,7 @@ public sealed class DecideDisputeValidator : AbstractValidator<DecideDisputeComm
 
 public sealed class DecideDisputeHandler(
     IApplicationDbContext db,
+    IObjectStorage storage,
     ReturnRefunder refunder,
     IEnumerable<ICarrier> carriers,
     IOutbox outbox,
@@ -581,7 +589,7 @@ public sealed class DecideDisputeHandler(
         outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(r.OrderId, OrderEvents.DisputeDecided, request.Decision.ToString()));
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return await ReturnViews.BuildAsync(db, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == r.Id, ct), ct);
+        return await ReturnViews.BuildAsync(db, storage, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == r.Id, ct), ct);
     }
 }
 

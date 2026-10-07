@@ -34,6 +34,7 @@ public static class DatabaseInitializer
 
         // Buckets first: the catalog seed uploads product images
         await sp.GetRequiredService<ShopHub.Infrastructure.Media.MinioObjectStorage>().EnsureBucketsAsync(ct);
+        await sp.GetRequiredService<ShopHub.Infrastructure.Media.EvidenceRelocation>().RunAsync(ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.CatalogSeeder>().SeedAsync(settings.SeedSampleData, ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.CommerceSeeder>().SeedAsync(settings.SeedSampleData, ct);
         await sp.GetRequiredService<ShopHub.Infrastructure.Seed.ContentSeeder>().SeedAsync(ct);

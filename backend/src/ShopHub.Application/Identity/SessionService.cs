@@ -85,6 +85,9 @@ public sealed class SessionService(
         await BroadcastAsync(userId, null, ct);
     }
 
+    public Task<bool> IsActiveAsync(Guid userId, CancellationToken ct) =>
+        db.Users.AnyAsync(u => u.Id == userId && u.Status == UserStatus.Active, ct);
+
     public async Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken ct) =>
         await (from ur in db.UserRoles
                join r in db.Roles on ur.RoleId equals r.Id

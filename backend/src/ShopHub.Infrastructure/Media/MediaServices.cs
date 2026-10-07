@@ -19,7 +19,7 @@ namespace ShopHub.Infrastructure.Media;
 public sealed class MinioObjectStorage : IObjectStorage
 {
     private static readonly string[] PublicBuckets = [Buckets.Products, Buckets.Reviews, Buckets.Banners];
-    private static readonly string[] AllBuckets = [Buckets.Products, Buckets.Reviews, Buckets.Kyc, Buckets.Chat, Buckets.Banners];
+    private static readonly string[] AllBuckets = [Buckets.Products, Buckets.Reviews, Buckets.Kyc, Buckets.Chat, Buckets.Banners, Buckets.Returns];
 
     private readonly IMinioClient _client;
     private readonly string _internalBase;
@@ -64,7 +64,14 @@ public sealed class MinioObjectStorage : IObjectStorage
         return signed.StartsWith(_internalBase, StringComparison.OrdinalIgnoreCase) ? _publicBase + signed[_internalBase.Length..] : signed;
     }
 
-    /// <summary>Create missing buckets; public ones allow anonymous GET, private ones (KYC, chat) do not.</summary>
+    public async Task CopyAsync(string fromBucket, string key, string toBucket, CancellationToken ct) =>
+        await _client.CopyObjectAsync(new CopyObjectArgs().WithBucket(toBucket).WithObject(key)
+            .WithCopyObjectSource(new CopySourceObjectArgs().WithBucket(fromBucket).WithObject(key)), ct);
+
+    public async Task DeleteAsync(string bucket, string key, CancellationToken ct) =>
+        await _client.RemoveObjectAsync(new RemoveObjectArgs().WithBucket(bucket).WithObject(key), ct);
+
+    /// <summary>Create missing buckets; public ones allow anonymous GET, private ones (KYC, chat, return evidence) do not.</summary>
     public async Task EnsureBucketsAsync(CancellationToken ct)
     {
         foreach (var bucket in AllBuckets)
@@ -160,6 +167,42 @@ public sealed class Mp4VideoInspector : IVideoInspector
         return (int)Math.Min(int.MaxValue, duration * 1000 / timescale);
     }
 
+    // Containers whose children are walked; metadata boxes inside them are blanked
+    private static readonly HashSet<string> Containers = ["moov", "trak", "mdia", "minf", "stbl", "edts", "dinf", "moof", "traf", "mvex"];
+    private static readonly HashSet<string> MetadataBoxes = ["udta", "meta", "uuid", "XMP_"];
+
+    public byte[] StripMetadata(byte[] data)
+    {
+        var copy = (byte[])data.Clone();
+        Blank(copy, 0, copy.Length, 0);
+        return copy;
+    }
+
+    private static void Blank(byte[] data, int from, int to, int depth)
+    {
+        var pos = from;
+        while (pos + 8 <= to && depth < 8)
+        {
+            long size = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(pos));
+            var name = Encoding.ASCII.GetString(data, pos + 4, 4);
+            var header = 8;
+            if (size == 1 && pos + 16 <= to)
+            {
+                size = (long)BinaryPrimitives.ReadUInt64BigEndian(data.AsSpan(pos + 8));
+                header = 16;
+            }
+            else if (size == 0) size = to - pos;
+            if (size < header || pos + size > to) return;
+            if (MetadataBoxes.Contains(name))
+            {
+                "free"u8.CopyTo(data.AsSpan(pos + 4, 4));
+                data.AsSpan(pos + header, (int)size - header).Clear();
+            }
+            else if (Containers.Contains(name)) Blank(data, pos + header, (int)(pos + size), depth + 1);
+            pos += (int)size;
+        }
+    }
+
     // Returns the payload range (after the box header) of the first child box of the given type
     private static (int Start, int End)? FindBox(byte[] data, int from, int to, string type)
     {
@@ -186,13 +229,19 @@ public sealed class Mp4VideoInspector : IVideoInspector
     }
 }
 
-/// <summary>Allow-list HTML sanitiser for product descriptions and CMS pages (no scripts, handlers, iframes, styles).</summary>
+/// <summary>
+/// Allow-list HTML sanitiser for product descriptions and CMS pages (no scripts, handlers, iframes, styles). Images only
+/// from the platform's own media (L080): an outside &lt;img&gt; would track every reader (and could be served over plain
+/// http on an https page); links may still point to https / http pages.
+/// </summary>
 public sealed class HtmlSanitizerAdapter : Application.Abstractions.IHtmlSanitizer
 {
     private readonly HtmlSanitizer _sanitizer;
 
-    public HtmlSanitizerAdapter()
+    public HtmlSanitizerAdapter(ShopHubSettings settings)
     {
+        var media = settings.MediaPublicUrl.TrimEnd('/') + "/";
+        var mediaPath = Uri.TryCreate(media, UriKind.Absolute, out var m) ? m.AbsolutePath : media;
         _sanitizer = new HtmlSanitizer();
         _sanitizer.AllowedTags.Clear();
         foreach (var tag in new[] { "p", "br", "b", "strong", "i", "em", "u", "ul", "ol", "li", "h2", "h3", "h4", "blockquote", "img", "a", "table", "thead", "tbody", "tr", "th", "td", "span" })
@@ -204,6 +253,14 @@ public sealed class HtmlSanitizerAdapter : Application.Abstractions.IHtmlSanitiz
         _sanitizer.AllowedSchemes.Add("https");
         _sanitizer.AllowedSchemes.Add("http");
         _sanitizer.AllowedCssProperties.Clear();
+        _sanitizer.FilterUrl += (_, e) =>
+        {
+            if (!string.Equals(e.Tag.TagName, "img", StringComparison.OrdinalIgnoreCase)) return;
+            var url = e.SanitizedUrl ?? e.OriginalUrl;
+            var own = url.StartsWith(media, StringComparison.OrdinalIgnoreCase)
+                      || (url.StartsWith('/') && !url.StartsWith("//", StringComparison.Ordinal) && url.StartsWith(mediaPath, StringComparison.OrdinalIgnoreCase));
+            if (!own) e.SanitizedUrl = null;
+        };
     }
 
     public string Sanitize(string html) => _sanitizer.Sanitize(html).Trim();

@@ -72,6 +72,7 @@ services:
       # Empty = the code defaults (20 / 10 / 600 per minute and IP)
       SH_RATE_LIMIT_AUTH: ""
       SH_RATE_LIMIT_OTP: ""
+      SH_RATE_LIMIT_IDENTIFIER: ""
       SH_RATE_LIMIT_GLOBAL: ""
       SH_RATE_LIMIT_SEARCH: ""
     deploy:
@@ -106,6 +107,7 @@ services:
       SH_GATEWAY_BURST: "60"
     volumes: !override
       - ./deploy/nginx/gateway-https.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/nginx/security-headers.inc:/etc/nginx/snippets/security-headers.inc:ro
       - ./deploy/certs:/etc/nginx/certs:ro
       - certbot-www:/var/www/certbot:ro
     ports: !override

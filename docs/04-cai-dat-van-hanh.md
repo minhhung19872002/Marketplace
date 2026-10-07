@@ -34,7 +34,8 @@ Lỡ mất mật khẩu quản trị: dùng "Quên mật khẩu" với `admin@sh
 ## Biến môi trường
 
 Xem chú thích trong `.env.example`. Riêng cho môi trường production: `SH_SEED_SAMPLE=false`, `SH_RATE_LIMIT_AUTH` /
-`SH_RATE_LIMIT_OTP` để mặc định (bỏ dòng), `ASPNETCORE_ENVIRONMENT=Production` (tắt Swagger và hộp SMS giả lập).
+`SH_RATE_LIMIT_OTP` / `SH_RATE_LIMIT_IDENTIFIER` (theo từng SĐT / email, mặc định 10 lần/phút) để mặc định (bỏ dòng),
+`ASPNETCORE_ENVIRONMENT=Production` (tắt Swagger và hộp SMS giả lập).
 
 Gateway: `SH_GATEWAY_RATE` / `SH_GATEWAY_BURST` (mặc định 30r/s, burst 60 — giữ nguyên ở production). Chạy bộ e2e trên
 stack (mọi trình duyệt cùng một IP): `SH_GATEWAY_RATE=100r/s SH_GATEWAY_BURST=200 docker compose up -d nginx`.
@@ -132,10 +133,10 @@ CSDL). Đã diễn tập trên CSDL dev: 489 đơn, 1.096 sản phẩm, tổng s
 
 | Gì | Ở đâu |
 |---|---|
-| Sống / sẵn sàng | `GET /health` (tiến trình), `GET /health/ready` (PostgreSQL, Redis, MinIO, Meilisearch) — gắn vào uptime monitor bên ngoài |
+| Sống / sẵn sàng | `GET /health` (tiến trình), `GET /health/ready` (chỉ `Healthy` / `Unhealthy`) — gắn vào uptime monitor bên ngoài. Chi tiết từng phụ thuộc: `docker compose exec api curl -s localhost:8080/health/ready/details` (không mở qua gateway) |
 | Trạng thái container | `docker compose -f docker-compose.yml -f docker-compose.prod.yml ps` (healthcheck từng dịch vụ) |
 | Lỗi ứng dụng | bảng `sys.logs` (mức Warning trở lên), tệp `/app/logs` (volume `apilogs`); OpenTelemetry tuỳ chọn |
-| Việc nền | Hangfire (`/api/admin/jobs`, quyền `SYS.JOB.VIEW`): việc lỗi, lần chạy cuối |
+| Việc nền | Admin → **Việc nền** (lịch, lần tới, lần gần nhất, lỗi, "Chạy ngay") và nút **Mở bảng Hangfire** (mã dùng một lần → cookie httpOnly trên `/api/admin/jobs`), quyền `SYS.JOB.VIEW` |
 | Hàng đợi outbox | câu SQL ở mục Chẩn đoán — tin chưa xử lý tăng dần là dấu hiệu Meilisearch / SMTP hỏng |
 | Sao lưu | tệp `.dump` mới nhất trong `./backups/db` không quá 24 giờ |
 
@@ -175,3 +176,14 @@ chỉ mục `ix_products_best_selling`, output cache Redis cho các GET công kh
 | SMS giả lập | `GET /api/dev/sms?to=09…` (chỉ Development) |
 | Realtime không nhận tin | DevTools → Network → WS `/hubs/realtime` (101); `redis-cli PUBSUB CHANNELS 'shophub:signalr*'` |
 | Cổng / hãng thật không phản hồi | log `VNPay … call failed` / `GHN call … failed`; `SELECT provider, result, count(*) FROM sales.payment_webhook_events GROUP BY 1, 2;` |
+
+## Tiêu đề bảo mật và tệp riêng tư (Phase 14)
+
+- Bộ tiêu đề bảo mật (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy) nằm ở **một** tệp
+  `deploy/nginx/security-headers.inc`, gắn vào gateway (dev và prod) tại `/etc/nginx/snippets/` và chép vào ảnh của ba
+  frontend. Khối `location` nào có `add_header` riêng phải `include` lại tệp này (Nginx không kế thừa) —
+  `NginxConfigParityTests` kiểm từng khối.
+- `/s3/…`: liên kết ký có hạn (tệp KYC, ảnh chat, bằng chứng trả hàng ở bucket riêng `sh-returns`) trả
+  `Cache-Control: private, no-store`; tệp công khai `public, max-age=604800`.
+- Bằng chứng trả hàng tải lên trước Phase 14 được `EvidenceRelocation` chuyển sang `sh-returns` lúc API khởi động (bản
+  công khai bị xoá). Video tải lên được gỡ siêu dữ liệu (vị trí GPS, thiết bị) trước khi lưu.

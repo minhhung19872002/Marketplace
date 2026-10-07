@@ -78,4 +78,60 @@ public class GoogleLoginTests(ApiFactory factory)
         (await SignInAsync("khong-phai-jwt", true)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         (await factory.WithDbAsync(db => db.Users.AnyAsync(u => u.Email == email))).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Deleting_an_account_removes_its_google_link_bank_accounts_and_devices_so_google_sign_in_works_again_and_again()
+    {
+        var user = await factory.CreateUserAsync();
+        var sub = Guid.NewGuid().ToString("N");
+        var email = $"x{sub[..10]}@gmail.test";
+        await factory.WithDbAsync(db => db.Users.Where(u => u.Id == user.Id).ExecuteUpdateAsync(u => u.SetProperty(x => x.Email, email)));
+        (await SignInAsync(FakeGoogle.IdToken(sub, email))).StatusCode.Should().Be(HttpStatusCode.OK, "liên kết theo email đã xác minh");
+        await factory.WithDbAsync(async db =>
+        {
+            db.BankAccounts.Add(new Domain.Finance.BankAccount(user.Id, "TCB", "ma-hoa-so-tai-khoan", "6789", "NGUYEN VAN XOA", DateTimeOffset.UtcNow));
+            db.DeviceTokens.Add(new Domain.Engage.DeviceToken(user.Id, "android", $"fcm-{sub}", DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+            return 0;
+        });
+
+        (await user.Client.PostAsJsonAsync("/api/account/delete", new { password = ApiFactory.DefaultPassword })).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await factory.WithDbAsync(db => db.UserIdentities.CountAsync(i => i.UserId == user.Id))).Should().Be(0);
+        (await factory.WithDbAsync(db => db.DeviceTokens.CountAsync(d => d.UserId == user.Id))).Should().Be(0);
+        var bank = await factory.WithDbAsync(db => db.BankAccounts.IgnoreQueryFilters().AsNoTracking().SingleAsync(b => b.UserId == user.Id));
+        bank.AccountNoEncrypted.Should().BeEmpty();
+        bank.AccountName.Should().NotContain("NGUYEN");
+        bank.DeletedAt.Should().NotBeNull();
+
+        // The same Google account later: a fresh ShopHub account, and the second sign-in finds it (no e-mail collision)
+        var first = await SignInAsync(FakeGoogle.IdToken(sub, email), acceptTerms: true);
+        first.StatusCode.Should().Be(HttpStatusCode.OK, await first.Content.ReadAsStringAsync());
+        var fresh = Guid.Parse((await first.ReadEnvelopeAsync()).Data.GetProperty("user").Str("id"));
+        fresh.Should().NotBe(user.Id);
+        var second = await SignInAsync(FakeGoogle.IdToken(sub, email));
+        second.StatusCode.Should().Be(HttpStatusCode.OK, await second.Content.ReadAsStringAsync());
+        Guid.Parse((await second.ReadEnvelopeAsync()).Data.GetProperty("user").Str("id")).Should().Be(fresh);
+    }
+
+    [Fact]
+    public async Task A_google_link_left_on_a_deleted_account_is_dropped_at_the_next_sign_in()
+    {
+        // Data written before the fix: the account was anonymised but its Google link stayed
+        var user = await factory.CreateUserAsync();
+        var sub = Guid.NewGuid().ToString("N");
+        var email = $"y{sub[..10]}@gmail.test";
+        await factory.WithDbAsync(async db =>
+        {
+            db.UserIdentities.Add(new UserIdentity(user.Id, ExternalProvider.Google, sub, email, DateTimeOffset.UtcNow));
+            var u = await db.Users.SingleAsync(x => x.Id == user.Id);
+            u.Anonymise(DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        var first = await SignInAsync(FakeGoogle.IdToken(sub, email), acceptTerms: true);
+        first.StatusCode.Should().Be(HttpStatusCode.OK, await first.Content.ReadAsStringAsync());
+        var fresh = Guid.Parse((await first.ReadEnvelopeAsync()).Data.GetProperty("user").Str("id"));
+        (await SignInAsync(FakeGoogle.IdToken(sub, email))).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await factory.WithDbAsync(db => db.UserIdentities.Where(i => i.ProviderKey == sub).Select(i => i.UserId).SingleAsync())).Should().Be(fresh);
+    }
 }

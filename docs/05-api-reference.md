@@ -39,7 +39,8 @@ trị nằm trong claim `perm` theo dạng `MODULE.ENTITY.ACTION`; `*` là quả
 | Phương thức | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
 | GET | `/health` | công khai | Tiến trình còn sống (`Healthy`) |
-| GET | `/health/ready` | công khai | Trạng thái từng phụ thuộc: postgres, redis, minio, meilisearch (503 nếu có cái lỗi) |
+| GET | `/health/ready` | công khai | Chỉ trạng thái tổng `Healthy` / `Unhealthy` (200 / 503) |
+| GET | `/health/ready/details` | **chỉ mạng nội bộ** (không qua gateway) | Trạng thái từng phụ thuộc: postgres, redis, minio, meilisearch (503 nếu có cái lỗi) |
 | GET | `/api/site/info` | công khai | Tên sàn, hotline, thư hỗ trợ, pháp nhân, địa chỉ, MST, giấy phép — lấy từ tham số hệ thống |
 
 ## Quản trị — tham số hệ thống
@@ -54,7 +55,9 @@ trị nằm trong claim `perm` theo dạng `MODULE.ENTITY.ACTION`; `*` là quả
 | Phương thức | Đường dẫn | Quyền | Mô tả |
 |---|---|---|---|
 | GET | `/api/admin/audit-logs` | `SYS.AUDIT.VIEW` | Lọc `userId`, `action` (`CREATE`/`UPDATE`/`DELETE`), `entity`, `entityId`, `from`, `to` (ISO 8601); `from > to` → 400. Mới nhất trước |
-| GET | `/api/admin/jobs` | `SYS.JOB.VIEW` | Hangfire Dashboard (việc nền) |
+| GET | `/api/admin/jobs` | `SYS.JOB.VIEW` (token, hoặc cookie `sh_jobs` có được từ mã dùng một lần) | Hangfire Dashboard (việc nền) |
+| POST | `/api/admin/jobs/ticket` | `SYS.JOB.VIEW` | `{ url, expiresInSeconds: 60 }` — mở `url` trong trình duyệt: mã dùng một lần đổi lấy cookie httpOnly `Path=/api/admin/jobs` (30 phút) |
+| GET | `/api/admin/job-runs` | `SYS.JOB.VIEW` | Danh sách việc định kỳ: `id, cron, timeZone, nextExecution, lastExecution, lastState, lastError, runnable` |
 
 ## Xác thực (`/api/auth`, công khai, có giới hạn tốc độ)
 
@@ -394,8 +397,9 @@ Thanh toán bằng ví: `POST /api/checkout` thêm `walletPin` khi `paymentMetho
 | GET | `/withdrawals?status=` | `FINANCE.WITHDRAWAL.APPROVE` | Lệnh rút (shop và ví) |
 | POST | `/withdrawals/{id}/approve` · `/reject` | `FINANCE.WITHDRAWAL.APPROVE` | Duyệt & chuyển · `{ reason }` — tiền về lại số dư |
 | GET | `/ledger` · `/ledger/entries?accountType=&ownerId=&refType=&refId=` | `FINANCE.LEDGER.VIEW` | Số dư tài khoản sàn, tổng số dư shop / ví, kết quả kiểm sổ · bút toán |
-| GET | `/statements/{gateway\|carrier}?from=&to=` | `FINANCE.RECONCILE` | Sao kê của nhà cung cấp (CSV) |
-| POST | `/reconcile/{gateway\|carrier}` | `FINANCE.RECONCILE` | multipart `from`, `to`, `file` (CSV ≤ 5 MB) → `{ statementLines, matched, issues[], statementTotal, systemTotal }` |
+| GET | `/reconcile/sources` | `FINANCE.RECONCILE` | Cổng (`VnPay`, `MoMo`, `ZaloPay`, `Simulated`) và hãng vận chuyển chọn được; `simulated` = tự sinh được sao kê |
+| GET | `/statements/{gateway\|carrier}?from=&to=&carrier=` | `FINANCE.RECONCILE` | Sao kê của nhà cung cấp **giả lập** (CSV); `carrier` bắt buộc với `carrier` — chỉ vận đơn của hãng ấy |
+| POST | `/reconcile/{gateway\|carrier}` | `FINANCE.RECONCILE` | multipart `from`, `to`, **`source`** (cổng hoặc mã hãng, bắt buộc), `file` (CSV ≤ 5 MB) → `{ statementLines, matched, issues[], statementTotal, systemTotal, statementFees }`; `issue` thêm `DuplicateInStatement`. Tệp của VNPay / MoMo / ZaloPay đọc theo tên cột (00 #158) |
 
 Việc nền chạy ngay được: `finance.settlement` (giải ngân), `finance.ledger-check` (kiểm sổ).
 
@@ -509,6 +513,7 @@ Ngày là ngày Việt Nam `YYYY-MM-DD`, tính cả hai đầu (mặc định 30
 | GET · POST | `/api/admin/shops/{id}/penalties` · POST `/api/admin/shop-penalties/{id}/revoke` | `SHOP.SHOP.VIEW` / `SHOP.SHOP.PENALTY` | Điểm phạt: `{ points, reason, expiresInDays? }` · `{ reason }` |
 | GET | `/api/admin/orders?q=&status=` · `/api/admin/orders/{code}` | `SALES.ORDER.VIEW` | Tra đơn (mã đơn, mã vận đơn, SĐT / tên người mua, tên shop) · lịch sử, thanh toán, hoàn tiền, vận đơn |
 | POST | `/api/admin/orders/{code}/cancel` · `/api/admin/refunds/{id}/resolve` | `SALES.ORDER.INTERVENE` | `{ reason }` · `{ toWallet, reason }` (lệnh hoàn lỗi) |
+| POST | `/api/admin/orders/{code}/manual-refund` | `SALES.ORDER.INTERVENE` | Hoàn tiền thủ công (đơn đã giao / hoàn thành): `{ lines: [{ orderItemId, quantity }], amount, platformBorne, reason }` → `ReturnDto`; 409 khi vượt phần đã trả, dòng đang có yêu cầu trả hàng, hoặc đơn đã giải ngân mà chọn "shop chịu" (00 #156) |
 | GET · PUT | `/api/admin/brands` · `/api/admin/brands/{id}` | `CATALOG.BRAND.MANAGE` | Danh sách / sửa thương hiệu |
 | PUT | `/api/admin/categories/{id}/move` | `CATALOG.CATEGORY.MANAGE` | `{ parentId, sortOrder }` — kéo thả, tối đa 3 cấp |
 | POST | `/api/admin/products/bulk-ban` | `CATALOG.PRODUCT.BAN` | `{ productIds (≤ 100), reason }` |

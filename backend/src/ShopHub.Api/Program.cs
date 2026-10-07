@@ -74,17 +74,28 @@ app.UseMiddleware<PasswordChangeGateMiddleware>();
 app.UseAuthorization();
 app.UseOutputCache();
 
-// Liveness: process is up. Readiness: DB, Redis, MinIO, Meilisearch reachable.
+// Liveness: process is up. Readiness: DB, Redis, MinIO, Meilisearch reachable — publicly only the overall word
+// (Healthy / Unhealthy, 200 / 503); the per-dependency report (error messages, hosts) only inside the private network:
+// the gateway never routes /health/ready/details (L077)
 app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = c => c.Tags.Contains(ShopHub.Infrastructure.DependencyInjection.ReadyTag),
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
 }).AllowAnonymous();
-
-app.MapHangfireDashboard("/api/admin/jobs", new DashboardOptions
+app.MapGet("/health/ready/details", async (HttpContext http, Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService health) =>
 {
-    Authorization = [new JobDashboardAuthorizationFilter()],
+    if (!ShopHub.Api.Security.NetworkScope.IsInternal(http)) return Results.NotFound();
+    var report = await health.CheckHealthAsync(c => c.Tags.Contains(ShopHub.Infrastructure.DependencyInjection.ReadyTag), http.RequestAborted);
+    http.Response.StatusCode = report.Status == Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy ? 503 : 200;
+    await UIResponseWriter.WriteHealthCheckUIResponse(http, report);
+    return Results.Empty;
+}).AllowAnonymous().ExcludeFromDescription();
+
+// Browser access to the dashboard: ?ticket= (one use) → httpOnly cookie on /api/admin/jobs (L078)
+app.UseMiddleware<ShopHub.Api.Security.JobDashboardTicketMiddleware>();
+app.MapHangfireDashboard(ShopHub.Api.Security.JobDashboardAccess.Path, new DashboardOptions
+{
+    AsyncAuthorization = [new ShopHub.Api.Security.JobDashboardAuthorizationFilter()],
     DashboardTitle = "ShopHub — Việc nền",
 }).AllowAnonymous();
 

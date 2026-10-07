@@ -20,7 +20,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 11 | Cổng thật | **Xong** (chưa chạy với sandbox thật — cần tài khoản thử, xem cuối bảng) | Xem bảng Phase 11 dưới đây |
 | 12 | Quản trị & báo cáo | **Xong** | Xem bảng Phase 12 dưới đây |
 | 13 | Hoàn thiện | **Xong** (cổng / hãng thật chờ tài khoản sandbox) | Xem bảng Phase 13 dưới đây |
-| 14 | Vá sau đợt rà soát độc lập (`PROMPT-PHASE-14-RA-SOAT.md`) | **Đang làm** — nhóm A xong; B–F đang làm; G chờ tài khoản | Xem bảng Phase 14 cuối tệp |
+| 14 | Vá sau đợt rà soát độc lập (`PROMPT-PHASE-14-RA-SOAT.md`) | **Đang làm** — nhóm A, B xong; C–F đang làm; G chờ tài khoản | Xem bảng Phase 14 cuối tệp |
 
 ## Phase 0 — Chuyển đổi repo
 
@@ -45,7 +45,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | Tiền là số nguyên, chia theo dư lớn nhất (3.1) | `Domain/Common/Money.cs` | `MoneyTests` (5.000 lượt ngẫu nhiên, tổng không lệch 1 đồng) |
 | Xử lý ngoại lệ tập trung, định dạng API thống nhất (8) | `GlobalExceptionHandler`, `StatusCodeEnvelope`, `ModelStateResponse` — `{ success, data, message, errors }`, 400/404/409 tiếng Việt | `Unknown_route_is_a_json_404`, `Malformed_json_never_leaks_framework_english`, `Unknown_parameter_is_404_and_stale_version_is_409` |
 | Serilog → tệp + PostgreSQL | `Program.cs`, `LogTableColumns`, bảng `sys.logs` | bảng có sau migration |
-| Health check | `/health` (sống), `/health/ready` (postgres, redis, minio, meilisearch) | `Readiness_reports_each_dependency`; qua gateway `http://localhost:18000/health/ready` |
+| Health check | `/health` (sống), `/health/ready` (trạng thái tổng), `/health/ready/details` (postgres, redis, minio, meilisearch — chỉ nội bộ) | `Readiness_tells_the_public_only_the_overall_status_and_each_dependency_only_inside_the_network`; qua gateway `http://localhost:18000/health/ready` |
 | Audit interceptor | `AuditSaveChangesInterceptor` → `iam.audit_logs` (cũ/mới, che trường nhạy cảm), API tra cứu `GET /api/admin/audit-logs` | `Updating_a_parameter_writes_audit_and_outbox_in_the_same_transaction`, `Audit_log_search_rejects_inverted_range_and_pages_stably` |
 | Tham số hệ thống | `sys.system_parameters`, `ParameterCatalog` (gieo theo từng khoá), `GET/PUT /api/admin/system-parameters`, `GET /api/site/info` | `Seeder_inserts_every_catalog_parameter_once`, `Site_info_is_public_and_comes_from_parameters` |
 | Outbox | `sys.outbox_messages`, `EfOutbox` (cùng transaction), `OutboxDispatcher` (SKIP LOCKED), `OutboxCleanupJob` | `Outbox_dispatch_publishes_to_redis_and_marks_processed`, `Outbox_message_without_handler_is_retried_then_parked`, `Parallel_dispatchers_never_deliver_the_same_message_twice` (đỏ khi bỏ SKIP LOCKED: 150 lần gửi thay vì 30) |
@@ -313,13 +313,13 @@ Mỗi mục là một lỗi trong `08-so-loi.md` (L063…), kèm phép thử đ�
 | A9 | Bộ đếm chưa đọc của chat đếm lại từ tin nhắn | **Xong** | 08 L071, `ConversationState` | `Unread_counters_are_counted_from_the_messages_when_both_sides_write_and_read_at_the_same_time` |
 | A10 | Thông báo hàng loạt: ràng buộc 1 tin/ngày & 1 tin/chiến dịch ở CSDL, phân khúc đúng hạng & tài khoản hoạt động, nhắc voucher tách hạn mức, tắt khuyến mãi trong app | **Xong** | 08 L072, 00 #155, `PromoNotifications`, `ux_notifications_promo_day` | `Two_broadcasts_sent_at_the_same_moment_reach_a_person_once_and_never_whoever_turned_promotions_off`, `A_voucher_about_to_expire_is_reminded_even_after_todays_promotion_and_promotions_can_be_turned_off_in_the_app`, `Member_segments_are_exact_tiers_of_active_accounts` |
 | A11 | Phễu chuyển đổi theo một nhóm; biểu đồ trong PDF | **Xong** | 08 L073, `AdminReports.FunnelAsync`, `ReportDocuments.Chart` | `The_funnel_follows_one_cohort_so_no_step_is_larger_than_the_one_before_and_the_pdf_draws_its_chart` |
-| B1 | Xoá tài khoản (liên kết Google, tài khoản ngân hàng ví, thiết bị) trong một giao dịch; tải dữ liệu của tôi | **Chưa** | — | — |
-| B2 | Gỡ siêu dữ liệu video, bằng chứng trả hàng ở bucket riêng tư, cache tệp riêng tư | **Chưa** | — | — |
-| B3 | Tiêu đề bảo mật ở mọi `location` có `add_header` | **Chưa** | — | — |
-| B4 | `/health/ready` công khai chỉ trả trạng thái tổng | **Chưa** | — | — |
-| B5 | Bảng điều khiển Hangfire mở được bằng trình duyệt; màn "Việc nền" | **Chưa** | — | — |
-| B6 | Giới hạn tốc độ theo SĐT/email | **Chưa** | — | — |
-| B7 | Quyền nhỏ (OTP tài khoản ngân hàng, `DeclaredOnly`, `img src`, `upper(code)`, U+0000 trong form) | **Chưa** | — | — |
+| B1 | Xoá tài khoản (liên kết Google, tài khoản ngân hàng ví, thiết bị) trong một giao dịch; tải dữ liệu của tôi | **Xong** | 08 L074, `DeleteMyAccountHandler` (một giao dịch), `GoogleLoginHandler`, migration `DeletedAccountLeftovers` | `Deleting_an_account_removes_its_google_link_bank_accounts_and_devices_so_google_sign_in_works_again_and_again`, `A_google_link_left_on_a_deleted_account_is_dropped_at_the_next_sign_in` |
+| B2 | Gỡ siêu dữ liệu video, bằng chứng trả hàng ở bucket riêng tư, cache tệp riêng tư | **Xong** | 08 L075, `Mp4VideoInspector.StripMetadata`, bucket `sh-returns`, `EvidenceRelocation`, `map $sh_s3_cache` | `EvidencePrivacyTests` (4) |
+| B3 | Tiêu đề bảo mật ở mọi `location` có `add_header` | **Xong** | 08 L076, `deploy/nginx/security-headers.inc` | `Every_block_with_its_own_add_header_includes_the_security_headers`, `The_shared_security_header_file_carries_every_header` |
+| B4 | `/health/ready` công khai chỉ trả trạng thái tổng | **Xong** | 08 L077, `/health/ready` + `/health/ready/details`, `NetworkScope` | `Readiness_tells_the_public_only_the_overall_status_and_each_dependency_only_inside_the_network` |
+| B5 | Bảng điều khiển Hangfire mở được bằng trình duyệt; màn "Việc nền" | **Xong** | 08 L078, `JobDashboardAccess`, `POST /api/admin/jobs/ticket`, `GET /api/admin/job-runs`, admin → Việc nền | `JobDashboardTests` (2) |
+| B6 | Giới hạn tốc độ theo SĐT/email | **Xong** | 08 L079, `[IdentifierRateLimit]`, `SH_RATE_LIMIT_IDENTIFIER`, khoá `otp:{đích}` | `IdentifierRateLimitTests` (2) |
+| B7 | Quyền nhỏ (OTP tài khoản ngân hàng, `DeclaredOnly`, `img src`, `upper(code)`, U+0000 trong form) | **Xong** | 08 L080, `SendShopFinanceOtpCommand`, `EndpointAuthorisationTests` không `DeclaredOnly`, `HtmlSanitizerAdapter.FilterUrl`, migration `VoucherCodeUpperIndex`, `NullCharacterMiddleware` (form) | `SmallHardeningTests` (4) |
 | C1 | CI GitHub Actions | **Chưa** | — | — |
 | C2 | Cron theo giờ Việt Nam | **Chưa** | — | — |
 | C3 | Sao lưu trong Hangfire + màn quản trị | **Chưa** | — | — |

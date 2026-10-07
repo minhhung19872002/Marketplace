@@ -40,6 +40,9 @@ public class MediaAsset : Entity
     public string Purpose { get; private set; } = string.Empty;
     public string Bucket { get; private set; } = string.Empty;
 
+    /// <summary>The objects were moved to another bucket (same keys).</summary>
+    public void MoveTo(string bucket) => Bucket = bucket;
+
     // Images: base key; the stored objects are {key}_1200.webp, {key}_600.webp, {key}_200.webp
     public string ObjectKey { get; private set; } = string.Empty;
     public string ContentType { get; private set; } = string.Empty;

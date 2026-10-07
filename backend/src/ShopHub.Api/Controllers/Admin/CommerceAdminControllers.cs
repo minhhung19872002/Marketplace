@@ -1,4 +1,5 @@
 using Hangfire;
+using Hangfire.Storage;
 using Microsoft.AspNetCore.Mvc;
 using ShopHub.Api.Common;
 using ShopHub.Api.Security;
@@ -49,10 +50,31 @@ public sealed class CoinsAdminController : ApiControllerBase
         OkData(await Sender.Send(new GrantCoinsCommand(userId, body.Delta, body.Reason), ct), "Đã cập nhật ShopHub Xu.");
 }
 
+public record JobRowDto(string Id, string Cron, string? TimeZone, DateTime? NextExecution, DateTime? LastExecution, string? LastState, string? LastError,
+    bool Runnable);
+
 // Not under /api/admin/jobs: that prefix belongs to the Hangfire dashboard
 [Route("api/admin/job-runs")]
-public sealed class JobsAdminController(IRecurringJobManager jobs) : ApiControllerBase
+public sealed class JobsAdminController(IRecurringJobManager jobs, JobStorage storage) : ApiControllerBase
 {
+    /// <summary>"Việc nền": every recurring job with its schedule, next run (from Hangfire), last run and the last failure.</summary>
+    [HttpGet]
+    [RequirePermission(Permissions.JobDashboardView)]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<JobRowDto>>>(StatusCodes.Status200OK)]
+    public IActionResult List()
+    {
+        using var connection = storage.GetConnection();
+        var monitoring = storage.GetMonitoringApi();
+        var rows = connection.GetRecurringJobs().OrderBy(j => j.Id, StringComparer.Ordinal).Select(j =>
+        {
+            var error = j.Error;
+            if (error is null && j.LastJobState == "Failed" && j.LastJobId is { } last)
+                error = monitoring.JobDetails(last)?.History.FirstOrDefault(h => h.StateName == "Failed")?.Reason;
+            return new JobRowDto(j.Id, j.Cron, j.TimeZoneId, j.NextExecution, j.LastExecution, j.LastJobState, error, JobIds.Runnable.Contains(j.Id));
+        }).ToList();
+        return OkData<IReadOnlyList<JobRowDto>>(rows);
+    }
+
     /// <summary>Run a recurring job now (outbox, counters, unpaid-order expiry) instead of waiting for its schedule.</summary>
     [HttpPost("{id}")]
     [RequirePermission(Permissions.JobRun)]
@@ -62,5 +84,21 @@ public sealed class JobsAdminController(IRecurringJobManager jobs) : ApiControll
         if (!JobIds.Runnable.Contains(id)) throw new NotFoundException("Không tìm thấy việc nền.");
         jobs.Trigger(id);
         return OkData<object?>(null, "Đã đưa việc nền vào hàng đợi.");
+    }
+}
+
+/// <summary>A one-use ticket (60 s) for opening the Hangfire dashboard in the browser: GET /api/admin/jobs?ticket=… (L078).</summary>
+[Route("api/admin/jobs")]
+public sealed class JobDashboardTicketController(Security.JobDashboardAccess access, Application.Abstractions.ICurrentUser currentUser) : ApiControllerBase
+{
+    public record TicketDto(string Url, int ExpiresInSeconds);
+
+    [HttpPost("ticket")]
+    [RequirePermission(Permissions.JobDashboardView)]
+    [ProducesResponseType<ApiResponse<TicketDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Ticket()
+    {
+        var ticket = await access.IssueTicketAsync(currentUser.UserId!.Value);
+        return OkData(new TicketDto($"{Security.JobDashboardAccess.Path}?ticket={ticket}", 60));
     }
 }

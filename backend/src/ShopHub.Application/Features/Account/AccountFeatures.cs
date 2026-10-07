@@ -315,13 +315,21 @@ public sealed class DeleteMyAccountHandler(
                 throw new ConflictException(reason, "ACCOUNT_DELETE_BLOCKED");
 
         var now = clock.UtcNow;
+        // Everything personal goes together or not at all (L074): profile, addresses, shop staff seats, Google / Facebook
+        // links (else the next Google sign-in collides with the anonymised account), wallet bank accounts, push devices
+        await using var tx = await db.BeginTransactionAsync(ct);
         user.Anonymise(now);
         await db.Addresses.Where(a => a.UserId == userId && a.DeletedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.DeletedAt, now), ct);
         // No longer staff of anybody's shop (owners are refused by ShopOwnerDeletionGuard)
         await db.ShopStaff.Where(s => s.UserId == userId && s.DeletedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.DeletedAt, now), ct);
+        await db.UserIdentities.Where(i => i.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.DeviceTokens.Where(d => d.UserId == userId).ExecuteDeleteAsync(ct);
+        foreach (var bank in await db.BankAccounts.IgnoreQueryFilters().Where(b => b.UserId == userId).ToListAsync(ct)) bank.Anonymise(now);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        // After the commit, so the session cache is dropped only once the account is really gone (a deleted account is refused anyway)
         await sessions.RevokeAllAsync(userId, RevokeReasons.AccountDeleted, keepFamilyId: null, ct);
         return Unit.Value;
     }

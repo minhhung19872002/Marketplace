@@ -137,4 +137,12 @@ public class BankAccount : Entity
     public DateTimeOffset? DeletedAt { get; private set; }
 
     public void Remove(DateTimeOffset now) => DeletedAt = now;
+
+    /// <summary>Account deleted (Nghị định 13/2023): the number and holder name go; the last 4 digits stay for past withdrawals.</summary>
+    public void Anonymise(DateTimeOffset now)
+    {
+        AccountNoEncrypted = string.Empty;
+        AccountName = "Người dùng đã xoá";
+        DeletedAt ??= now;
+    }
 }

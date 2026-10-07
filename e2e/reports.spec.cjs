@@ -84,4 +84,20 @@ test.describe('Quản trị & báo cáo', () => {
     await expect(page.getByTestId('cms-page')).toContainText('Quy chế hoạt động sàn');
     await expect(page.getByTestId('footer-legal')).toContainText('Mã số doanh nghiệp');
   });
+
+  test('Việc nền: danh sách lịch chạy và mở bảng Hangfire bằng mã dùng một lần', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/admin/`);
+    await page.getByLabel('Tên đăng nhập').fill(ADMIN_USER);
+    await page.getByLabel('Mật khẩu').fill(ADMIN_PASSWORD);
+    await page.getByTestId('login-submit').click();
+    await page.getByRole('menuitem', { name: 'Việc nền', exact: true }).click();
+    await expect(page.getByRole('cell', { name: 'finance.ledger-check' })).toBeVisible();
+    const [dashboard] = await Promise.all([context.waitForEvent('page'), page.getByTestId('open-hangfire').click()]);
+    await dashboard.waitForLoadState();
+    await expect(dashboard).toHaveTitle(/ShopHub — Việc nền/);
+    expect(new URL(dashboard.url()).search, 'mã không nằm lại trên thanh địa chỉ').toBe('');
+    await context.close();
+  });
 });

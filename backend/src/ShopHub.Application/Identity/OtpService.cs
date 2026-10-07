@@ -24,6 +24,23 @@ public sealed class OtpService(
 {
     public async Task<OtpIssued> IssueAsync(string target, OtpPurpose purpose, bool deliver, CancellationToken ct)
     {
+        // One target at a time: two requests at the same moment cannot both pass the cooldown and send two codes (L079)
+        var issued = db.InTransaction
+            ? await LockThenIssueAsync(target, purpose, deliver, ct)
+            : await db.InLockedTransactionAsync($"otp:{target}", () => IssueLockedAsync(target, purpose, deliver, ct), ct);
+        // After the commit, so the dispatcher finds the message
+        if (deliver) outboxSignal.Kick();
+        return issued;
+    }
+
+    private async Task<OtpIssued> LockThenIssueAsync(string target, OtpPurpose purpose, bool deliver, CancellationToken ct)
+    {
+        await db.LockAsync($"otp:{target}", ct);
+        return await IssueLockedAsync(target, purpose, deliver, ct);
+    }
+
+    private async Task<OtpIssued> IssueLockedAsync(string target, OtpPurpose purpose, bool deliver, CancellationToken ct)
+    {
         var now = clock.UtcNow;
         var ttl = (int)await parameters.GetIntAsync(ParameterKeys.AuthOtpTtlSeconds, ct);
         var resend = (int)await parameters.GetIntAsync(ParameterKeys.AuthOtpResendSeconds, ct);
@@ -51,7 +68,6 @@ public sealed class OtpService(
         if (deliver) await EnqueueDeliveryAsync(target, purpose, code, ttl, ct);
 
         await db.SaveChangesAsync(ct);
-        if (deliver) outboxSignal.Kick();
         return new OtpIssued(ttl, resend);
     }
 

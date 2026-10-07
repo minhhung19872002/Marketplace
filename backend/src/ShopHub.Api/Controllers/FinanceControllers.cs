@@ -131,11 +131,8 @@ public sealed class SellerFinanceController : ApiControllerBase
 
     [HttpPost("otp")]
     [ProducesResponseType<ApiResponse<OtpIssued>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Otp(Guid shopId, CancellationToken ct)
-    {
-        await Sender.Send(new ShopFinanceSummaryQuery(shopId), ct);
-        return OkData(await Sender.Send(new SendFinanceOtpCommand(), ct), "Đã gửi mã xác thực tới số điện thoại của bạn.");
-    }
+    public async Task<IActionResult> Otp(Guid shopId, CancellationToken ct) =>
+        OkData(await Sender.Send(new SendShopFinanceOtpCommand(shopId), ct), "Đã gửi mã xác thực tới số điện thoại của bạn.");
 
     public record BankBody(string BankCode, string AccountNo, string AccountName, string OtpCode, bool MakeDefault);
 

@@ -32,7 +32,9 @@ export interface Voucher extends Omit<VoucherInput, 'type' | 'audience'> {
 const base = (shopId: string) => `/seller/shops/${shopId}/vouchers`
 
 export const voucherApi = {
-  list: (shopId: string) => apiRequest<{ items: Voucher[]; totalCount: number }>(`${base(shopId)}?pageSize=100`),
+  list: (shopId: string, page: number, pageSize: number) =>
+    apiRequest<{ items: Voucher[]; totalCount: number }>(`${base(shopId)}?page=${page}&pageSize=${pageSize}`),
   create: (shopId: string, body: VoucherInput) => apiCommand<Voucher>(base(shopId), { method: 'POST', body }),
+  update: (shopId: string, id: string, body: VoucherInput) => apiCommand<Voucher>(`${base(shopId)}/${id}`, { method: 'PUT', body }),
   stop: (shopId: string, id: string) => apiCommand<Voucher>(`${base(shopId)}/${id}/stop`, { method: 'POST' }),
 }

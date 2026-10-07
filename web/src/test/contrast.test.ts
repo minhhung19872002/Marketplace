@@ -46,6 +46,10 @@ describe('contrast', () => {
     }
   });
 
+  it('notice text on the soft brand background (vacation banner, E5)', () => {
+    expect(contrast(token('sh-primary-dark'), token('sh-primary-soft'))).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('the keyboard focus ring stands out from white (non-text 3:1)', () => {
     expect(contrast(token('sh-focus'), white)).toBeGreaterThanOrEqual(3);
   });

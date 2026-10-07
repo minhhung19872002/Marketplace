@@ -28,6 +28,7 @@ import ContentPage from './pages/ContentPage'
 import ProvidersPage from './pages/ProvidersPage'
 import CatalogExtrasPage from './pages/CatalogExtrasPage'
 import JobsPage from './pages/JobsPage'
+import HotKeywordsPage from './pages/HotKeywordsPage'
 import './App.css'
 
 const { Header, Sider, Content } = Layout
@@ -43,6 +44,7 @@ const MENU = [
   { path: '/nganh-hang', label: 'Ngành hàng', permission: P.CategoryManage },
   { path: '/voucher', label: 'Voucher của sàn', permission: P.VoucherManage },
   { path: '/marketing', label: 'Marketing', permission: P.MarketingManage },
+  { path: '/tu-khoa-hot', label: 'Từ khoá hot', permission: P.HotKeywordManage },
   { path: '/khieu-nai', label: 'Khiếu nại trả hàng', permission: P.DisputeResolve },
   { path: '/bao-cao-danh-gia', label: 'Báo cáo đánh giá', permission: P.ReviewModerate },
   { path: '/bao-cao-chat', label: 'Chat bị báo cáo', permission: P.ChatReview },
@@ -116,6 +118,7 @@ const Shell = () => {
             <Route path="/nganh-hang" element={guard(P.CategoryManage, <CategoriesPage />)} />
             <Route path="/voucher" element={guard(P.VoucherManage, <VouchersPage />)} />
             <Route path="/marketing" element={guard(P.MarketingManage, <MarketingPage />)} />
+            <Route path="/tu-khoa-hot" element={guard(P.HotKeywordManage, <HotKeywordsPage />)} />
             <Route path="/khieu-nai" element={guard(P.DisputeResolve, <DisputesPage />)} />
             <Route path="/bao-cao-danh-gia" element={guard(P.ReviewModerate, <ReviewReportsPage />)} />
             <Route path="/bao-cao-chat" element={guard(P.ChatReview, <ChatReportsPage />)} />

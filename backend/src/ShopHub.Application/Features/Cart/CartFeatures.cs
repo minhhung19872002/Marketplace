@@ -27,6 +27,8 @@ public record CartLineDto(
     bool IsSelected,
     bool CanBuy,
     string? Problem,
+    // When the line was put in the cart — the header's "Sản phẩm mới thêm" across every shop (E2)
+    DateTimeOffset AddedAt,
     // "Flash Sale" / "Giảm giá" when a price programme gives the price above (add-on deals and combos show at checkout)
     string? PriceLabel = null);
 
@@ -119,7 +121,7 @@ public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook pric
             var label = price?.Kind switch { null => null, Domain.Promo.PriceProgramKind.Discount => "Giảm giá", _ => "Flash Sale" };
             result.Add(new LineView(item, r.Shop, new CartLineDto(item.SkuId, r.Id, r.Name, r.OptionImage ?? r.Image,
                 variant.Length == 0 ? null : variant, unit, Math.Max(r.Sku.OriginalPrice, r.Sku.Price),
-                item.PriceAtAdd != r.Sku.Price ? item.PriceAtAdd : null, item.Quantity, available, item.IsSelected, problem is null, problem, label)));
+                item.PriceAtAdd != r.Sku.Price ? item.PriceAtAdd : null, item.Quantity, available, item.IsSelected, problem is null, problem, item.AddedAt, label)));
         }
         return result;
     }

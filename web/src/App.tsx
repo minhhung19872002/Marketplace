@@ -33,6 +33,9 @@ const ReturnsPage = lazy(() => import('./pages/account/AftercarePages').then((m)
 const ReturnDetailPage = lazy(() => import('./pages/account/AftercarePages').then((m) => ({ default: m.ReturnDetailPage })))
 const WalletPage = lazy(() => import('./pages/account/WalletPage'))
 const CampaignPage = lazy(() => import('./pages/CampaignPage'))
+const FlashSalePage = lazy(() => import('./pages/FlashSalePage'))
+const AppDownloadPage = lazy(() => import('./pages/AppDownloadPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 const Wishlist = lazy(() => import('./pages/Wishlist'))
 const Notifications = lazy(() => import('./pages/Notifications'))
 const ShopPage = lazy(() => import('./pages/ShopPage'))
@@ -86,6 +89,8 @@ function App() {
                     <Route path="/tra-cuu-van-don/:trackingNo" element={<TrackingPage />} />
                     <Route path="/shop/:slug" element={<ShopPage />} />
                     <Route path="/su-kien/:slug" element={<CampaignPage />} />
+                    <Route path="/flash-sale" element={<FlashSalePage />} />
+                    <Route path="/tai-ung-dung" element={<AppDownloadPage />} />
                     <Route path="/quen-mat-khau" element={<ForgotPassword />} />
                     <Route path="/tai-khoan" element={<AccountLayout />}>
                       <Route index element={<Navigate to="ho-so" replace />} />
@@ -107,6 +112,7 @@ function App() {
                       <Route path="quyen-rieng-tu" element={<PrivacyPage />} />
                       <Route path="thong-bao" element={<NotificationSettingsPage />} />
                     </Route>
+                    <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                 </Suspense>
               </main>

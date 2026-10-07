@@ -10,10 +10,13 @@ namespace ShopHub.Application.Common;
 /// In-app alert to every active platform admin holding a permission (or full rights), so a failed check or job is
 /// seen by someone who can act on it — not only written to the log. One alert per <paramref name="dedupeKey"/> per admin.
 /// </summary>
-public sealed class AdminAlerts(IApplicationDbContext db, IClock clock)
+public sealed class AdminAlerts(IApplicationDbContext db, Features.Admin.MessageTemplates templates, IClock clock)
 {
-    public async Task<int> RaiseAsync(string permission, string title, string body, string? link, string dedupeKey, CancellationToken ct)
+    /// <summary>The alert's text is the in-app template <paramref name="templateKey"/> filled with <paramref name="values"/> (F7).</summary>
+    public async Task<int> RaiseAsync(string permission, string templateKey, IReadOnlyDictionary<string, string> values, string? link, string dedupeKey,
+        CancellationToken ct)
     {
+        var (title, body) = await templates.NoticeAsync(templateKey, values, ct);
         var holders = await (from ur in db.UserRoles
                              join r in db.Roles on ur.RoleId equals r.Id
                              join u in db.Users on ur.UserId equals u.Id

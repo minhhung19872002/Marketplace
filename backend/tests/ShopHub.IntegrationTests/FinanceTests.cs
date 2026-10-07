@@ -723,4 +723,44 @@ public class FinanceTests(ApiFactory factory)
         var plain = await factory.CreateUserAsync();
         (await plain.Client.GetAsync("/api/admin/finance/ledger")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task A_shop_changes_its_default_bank_with_an_otp_and_removes_an_account_that_is_not_default_or_in_use()
+    {
+        var store = await StoreAsync();
+        var url = $"/api/seller/shops/{store.Shop.ShopId}/finance/bank-accounts";
+        var first = await AddShopBankAsync(store, "0123456789");
+        var second = await AddShopBankAsync(store, "9876543210");
+        async Task<Dictionary<Guid, bool>> Defaults() => await factory.WithDbAsync(db =>
+            db.ShopBankAccounts.Where(b => b.ShopId == store.Shop.ShopId).ToDictionaryAsync(b => b.Id, b => b.IsDefault));
+        (await Defaults()).Should().Equal(new Dictionary<Guid, bool> { [first] = false, [second] = true });
+
+        // Making an account the default moves where the money goes → needs the finance OTP
+        (await store.Staff.Client.PostAsJsonAsync($"{url}/{first}/default", new { otpCode = "000000" })).StatusCode.Should().NotBe(HttpStatusCode.OK, "sai mã xác thực");
+        (await Defaults())[first].Should().BeFalse();
+        var code = await OtpAsync(store.Staff, $"/api/seller/shops/{store.Shop.ShopId}/finance/otp");
+        var made = await store.Staff.Client.PostAsJsonAsync($"{url}/{first}/default", new { otpCode = code });
+        made.StatusCode.Should().Be(HttpStatusCode.OK, await made.Content.ReadAsStringAsync());
+        (await Defaults()).Should().Equal(new Dictionary<Guid, bool> { [first] = true, [second] = false });
+
+        // The default cannot be removed (change the default first); one with a withdrawal still on its way cannot either
+        var removeDefault = await store.Staff.Client.DeleteAsync($"{url}/{first}");
+        removeDefault.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        await factory.WithDbAsync(async db =>
+        {
+            db.Withdrawals.Add(new Domain.Finance.Withdrawal(Domain.Finance.LedgerOwnerType.Shop, store.Shop.ShopId, second, "VCB", "3210", "NGUYEN VAN THU",
+                50_000, store.Staff.Id, DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        (await store.Staff.Client.DeleteAsync($"{url}/{second}")).StatusCode.Should().Be(HttpStatusCode.Conflict, "đang có lệnh rút về tài khoản này");
+        await factory.WithDbAsync(db => db.Withdrawals.Where(w => w.BankAccountId == second).ExecuteDeleteAsync());
+        var removed = await store.Staff.Client.DeleteAsync($"{url}/{second}");
+        removed.StatusCode.Should().Be(HttpStatusCode.OK, await removed.Content.ReadAsStringAsync());
+        (await Defaults()).Keys.Should().Equal(first);
+
+        // Another shop's account → 404
+        var other = await StoreAsync();
+        (await other.Staff.Client.DeleteAsync($"/api/seller/shops/{other.Shop.ShopId}/finance/bank-accounts/{first}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 }

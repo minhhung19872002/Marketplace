@@ -136,6 +136,26 @@ public sealed class SellerFinanceController : ApiControllerBase
 
     public record BankBody(string BankCode, string AccountNo, string AccountName, string OtpCode, bool MakeDefault);
 
+    public record OtpBody(string OtpCode);
+
+    /// <summary>Đặt làm mặc định — payouts go there; needs the finance OTP.</summary>
+    [HttpPost("bank-accounts/{bankAccountId:guid}/default")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetDefaultBank(Guid shopId, Guid bankAccountId, [FromBody] OtpBody body, CancellationToken ct)
+    {
+        await Sender.Send(new SetDefaultShopBankAccountCommand(shopId, bankAccountId, body.OtpCode), ct);
+        return OkData<object?>(null, "Đã đặt làm tài khoản nhận tiền mặc định.");
+    }
+
+    /// <summary>Xoá a bank account that is not the default and has no withdrawal on its way.</summary>
+    [HttpDelete("bank-accounts/{bankAccountId:guid}")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoveBank(Guid shopId, Guid bankAccountId, CancellationToken ct)
+    {
+        await Sender.Send(new RemoveShopBankAccountCommand(shopId, bankAccountId), ct);
+        return OkData<object?>(null, "Đã xoá tài khoản ngân hàng.");
+    }
+
     [HttpPost("bank-accounts")]
     [ProducesResponseType<ApiResponse<Guid>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> AddBank(Guid shopId, [FromBody] BankBody body, CancellationToken ct) =>

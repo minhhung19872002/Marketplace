@@ -42,6 +42,9 @@ trị nằm trong claim `perm` theo dạng `MODULE.ENTITY.ACTION`; `*` là quả
 | GET | `/health/ready` | công khai | Chỉ trạng thái tổng `Healthy` / `Unhealthy` (200 / 503) |
 | GET | `/health/ready/details` | **chỉ mạng nội bộ** (không qua gateway) | Trạng thái từng phụ thuộc: postgres, redis, minio, meilisearch (503 nếu có cái lỗi) |
 | GET | `/api/site/info` | công khai | Tên sàn, hotline, thư hỗ trợ, pháp nhân, địa chỉ, MST, giấy phép — lấy từ tham số hệ thống |
+| GET | `/api/site` · `/api/site/info` | công khai | Cùng một câu trả lời: tên sàn, hotline, pháp nhân… + `social[{ name, url }]` (chỉ mạng có liên kết https trong `SITE.SOCIAL_*`) + `zaloOaId` (null = không có nút chia sẻ Zalo) |
+| GET | `/api/site/banks` | công khai | Danh mục ngân hàng nhận tiền `[{ code, name }]` — mọi lệnh nhận `bankCode` kiểm theo danh mục này |
+| GET | `/api/site/carriers` | công khai | Đơn vị vận chuyển đang hoạt động `[{ code, name, description, supportsCod }]` (form đăng ký bán hàng) |
 
 ## Quản trị — tham số hệ thống
 
@@ -388,6 +391,8 @@ Thanh toán bằng ví: `POST /api/checkout` thêm `walletPin` khi `paymentMetho
 | GET | `/fee-invoice?from=&to=` | **Hoá đơn phí sàn** (PDF) |
 | GET · POST | `/withdrawals` | Lịch sử · `{ bankAccountId, amount }` |
 | POST | `/otp` · `/bank-accounts` | OTP tới SĐT người thao tác · `{ bankCode, accountNo, accountName, otpCode, makeDefault }` |
+| POST | `/bank-accounts/{id}/default` | Đặt làm tài khoản nhận tiền mặc định `{ otpCode }` |
+| DELETE | `/bank-accounts/{id}` | Xoá (không phải tài khoản mặc định, không có lệnh rút chưa xong → nếu có: 409) |
 
 **Quản trị** (`/api/admin/finance`)
 
@@ -424,12 +429,14 @@ Giỏ hàng trả thêm `priceLabel`; báo giá thêm `comboDiscount`, mỗi dò
 |---|---|---|
 | GET | `/skus?q=` | Phân loại đang bán của shop (để chọn vào chương trình) |
 | GET · POST | `/promotions` | `{ type: Discount\|Combo\|AddOn\|Gift, name, startAt, endAt, productIds[], skus[{ skuId, price }], minQuantity, discountBp, discountAmount, maxAddOnQuantity, minSpend, giftSkuId, giftQuantity }`; trùng chương trình giá → 409 |
+| PUT | `/promotions/{id}` | Sửa (cùng thân như tạo, không đổi loại) — chỉ khi chưa bắt đầu; đã chạy / đã dừng → 409 |
 | POST | `/promotions/{id}/stop` | Dừng (giải phóng SKU khỏi chương trình giá) |
 | GET · POST | `/flash-sales` | Flash Sale của shop: `{ startAt, endAt, items[{ skuId, flashPrice, quota, perUserLimit }] }` |
+| PUT | `/flash-sales/{id}` | Sửa khung giờ và danh sách phân loại — chỉ khi chưa bắt đầu; đã chạy → 409 |
 | GET | `/platform-slots` | Khung của sàn còn nhận đăng ký (tiêu chí) |
 | POST | `/platform-slots/{slotId}/items` | Đăng ký (kiểm tiêu chí), chờ duyệt |
 
-**Quản trị** (`/api/admin/marketing`, quyền `PROMO.MARKETING.MANAGE`)
+**Quản trị** (`/api/admin/marketing`, quyền `PROMO.MARKETING.MANAGE`; riêng `GET · PUT /hot-keywords` `{ keywords[] }` (≤ 10) cần `PROMO.HOT_KEYWORD.MANAGE`)
 
 | Phương thức | Đường dẫn | Mô tả |
 |---|---|---|
@@ -539,7 +546,10 @@ Ngày là ngày Việt Nam `YYYY-MM-DD`, tính cả hai đầu (mặc định 30
 
 | Phương thức | Đường dẫn | Quyền shop | Mô tả |
 |---|---|---|---|
-| GET · POST | `/api/seller/shops/{shopId}/staff-accounts` | `STAFF.MANAGE` | Danh sách (SĐT / email che bớt, quyền, quyền mặc định theo vai trò) · thêm `{ login, role: Manager\|CustomerService\|Warehouse, permissions? }` |
+| GET · POST | `/api/seller/shops/{shopId}/staff-accounts` | `STAFF.MANAGE` | Danh sách nhân viên + `invitations` đang chờ (SĐT / email che bớt, quyền, quyền mặc định theo vai trò) · **mời** `{ login, role: Manager\|CustomerService\|Warehouse, permissions? }` → mã lời mời |
+| DELETE | `/api/seller/shops/{shopId}/staff-invitations/{id}` | `STAFF.MANAGE` | Thu hồi lời mời đang chờ |
+| GET | `/api/seller/staff-invitations` | đăng nhập | Lời mời đang chờ của chính mình (tên shop, vai trò, quyền, hạn) |
+| POST | `/api/seller/staff-invitations/{id}/accept` · `/decline` | chính người được mời | Đồng ý (→ mã nhân viên) / từ chối; quá hạn → 409, của người khác / đã thu hồi → 404 |
 | PUT · DELETE | `/api/seller/shops/{shopId}/staff-accounts/{staffId}` | `STAFF.MANAGE` | Đổi vai trò / quyền `{ role, permissions? }` · gỡ khỏi shop |
 | GET · POST | `/api/seller/shops/{shopId}/shop-categories` | `PRODUCT.VIEW` / `PRODUCT.MANAGE` | Danh mục của shop (kèm số sản phẩm) · thêm `{ name, sortOrder, isVisible }` |
 | PUT · DELETE | `/api/seller/shops/{shopId}/shop-categories/{id}` | `PRODUCT.MANAGE` | Sửa · xoá |

@@ -1,0 +1,50 @@
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.confirm-dialog {
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+  background: var(--sh-surface);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.confirm-message {
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirm-cancel,
+.confirm-ok {
+  padding: 8px 18px;
+  border-radius: 2px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.confirm-cancel {
+  border: 1px solid var(--border);
+  background: var(--sh-surface);
+  color: inherit;
+}
+
+.confirm-ok {
+  border: 0;
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
+}

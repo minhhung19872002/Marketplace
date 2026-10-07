@@ -112,10 +112,38 @@ public sealed class SellerController : ApiControllerBase
 
     public record StaffRequest(string Login, ShopStaffRole Role, IReadOnlyList<string>? Permissions);
 
+    /// <summary>Mời nhân viên: returns the invitation id; the account joins only after accepting (<c>staff-invitations/{id}/accept</c>).</summary>
     [HttpPost("shops/{shopId:guid}/staff-accounts")]
     [ProducesResponseType<ApiResponse<Guid>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> AddStaff(Guid shopId, [FromBody] StaffRequest body, CancellationToken ct) =>
-        OkData(await Sender.Send(new AddShopStaffCommand(shopId, body.Login, body.Role, body.Permissions), ct), "Đã thêm nhân viên.");
+        OkData(await Sender.Send(new AddShopStaffCommand(shopId, body.Login, body.Role, body.Permissions), ct),
+            "Đã gửi lời mời. Nhân viên vào shop sau khi đồng ý.");
+
+    [HttpDelete("shops/{shopId:guid}/staff-invitations/{invitationId:guid}")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RevokeInvitation(Guid shopId, Guid invitationId, CancellationToken ct)
+    {
+        await Sender.Send(new RevokeStaffInvitationCommand(shopId, invitationId), ct);
+        return OkData<object?>(null, "Đã thu hồi lời mời.");
+    }
+
+    /// <summary>Invitations waiting for the signed-in user (to work as staff of a shop).</summary>
+    [HttpGet("staff-invitations")]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<MyStaffInvitationDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> MyInvitations(CancellationToken ct) => OkData(await Sender.Send(new MyStaffInvitationsQuery(), ct));
+
+    [HttpPost("staff-invitations/{invitationId:guid}/accept")]
+    [ProducesResponseType<ApiResponse<Guid>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> AcceptInvitation(Guid invitationId, CancellationToken ct) =>
+        OkData((await Sender.Send(new AnswerStaffInvitationCommand(invitationId, true), ct))!.Value, "Bạn đã tham gia shop.");
+
+    [HttpPost("staff-invitations/{invitationId:guid}/decline")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeclineInvitation(Guid invitationId, CancellationToken ct)
+    {
+        await Sender.Send(new AnswerStaffInvitationCommand(invitationId, false), ct);
+        return OkData<object?>(null, "Đã từ chối lời mời.");
+    }
 
     public record StaffChangeRequest(ShopStaffRole Role, IReadOnlyList<string>? Permissions);
 
@@ -304,6 +332,17 @@ public sealed class SellerController : ApiControllerBase
     {
         var results = await Sender.Send(new BulkProductActionCommand(shopId, body.ProductIds ?? [], body.Action), ct);
         return OkData(results, $"Đã xử lý {results.Count(r => r.Ok)}/{results.Count} sản phẩm.");
+    }
+
+    public record BulkCopyRequest(IReadOnlyList<Guid> ProductIds);
+
+    /// <summary>Sao chép nhiều sản phẩm một lần (tối đa 20): mỗi bản sao là bản nháp, tồn kho 0; kết quả từng sản phẩm.</summary>
+    [HttpPost("shops/{shopId:guid}/products/bulk-copy")]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<BulkCopyResultDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkCopyProducts(Guid shopId, [FromBody] BulkCopyRequest body, CancellationToken ct)
+    {
+        var results = await Sender.Send(new BulkCopyProductsCommand(shopId, body.ProductIds ?? []), ct);
+        return OkData(results, $"Đã tạo {results.Count(r => r.Ok)}/{results.Count} bản sao (bản nháp, tồn kho 0).");
     }
 
     [HttpPost("shops/{shopId:guid}/products/{productId:guid}/copy")]

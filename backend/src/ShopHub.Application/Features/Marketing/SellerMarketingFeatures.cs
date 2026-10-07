@@ -101,13 +101,60 @@ public sealed class CreatePromotionHandler(IApplicationDbContext db, SellerAcces
     {
         var staff = await access.RequireAsync(request.ShopId, ShopPermissions.MarketingManage, ct);
         var input = request.Input;
-        var now = clock.UtcNow;
-        var promo = new Promotion(request.ShopId, input.Type, input.Name, input.StartAt, input.EndAt, staff.UserId, now);
+        var promo = new Promotion(request.ShopId, input.Type, input.Name, input.StartAt, input.EndAt, staff.UserId, clock.UtcNow);
+        await PromotionContent.FillAsync(db, promo, input, ct);
+        db.Promotions.Add(promo);
+        await db.SaveChangesAsync(ct);
+        return promo.Id;
+    }
+}
 
+public record UpdatePromotionCommand(Guid ShopId, Guid PromotionId, PromotionInput Input) : IRequest<Unit>;
+
+public sealed class UpdatePromotionValidator : AbstractValidator<UpdatePromotionCommand>
+{
+    public UpdatePromotionValidator() =>
+        RuleFor(x => new CreatePromotionCommand(x.ShopId, x.Input)).SetValidator(new CreatePromotionValidator()).OverridePropertyName("input");
+}
+
+/// <summary>
+/// "Sửa" a programme that has not started (D6, L097): name, window and content are replaced; its old price programmes
+/// are retired first so the exclusion constraint judges only the new ones.
+/// </summary>
+public sealed class UpdatePromotionHandler(IApplicationDbContext db, SellerAccess access, IClock clock) : IRequestHandler<UpdatePromotionCommand, Unit>
+{
+    public async Task<Unit> Handle(UpdatePromotionCommand request, CancellationToken ct)
+    {
+        await access.RequireAsync(request.ShopId, ShopPermissions.MarketingManage, ct);
+        var now = clock.UtcNow;
+        await using var tx = await db.BeginTransactionAsync(ct);
+        var promo = await db.Promotions.Include(p => p.Products).Include(p => p.Skus)
+                        .FirstOrDefaultAsync(p => p.Id == request.PromotionId && p.ShopId == request.ShopId, ct)
+                    ?? throw new NotFoundException("Không tìm thấy chương trình.");
+        if (!promo.CanEdit(now))
+            throw new ConflictException("Chương trình đã bắt đầu hoặc đã dừng nên không sửa được — hãy dừng rồi tạo chương trình mới.", "PROMOTION_STARTED");
+        if (request.Input.Type != promo.Type) throw new BusinessRuleException("Không đổi được loại chương trình.");
+        foreach (var program in await db.PricePrograms.Where(p => p.Kind == PriceProgramKind.Discount && p.RefId == promo.Id && p.IsActive).ToListAsync(ct))
+            program.Deactivate();
+        promo.Reschedule(request.Input.Name, request.Input.StartAt, request.Input.EndAt, now);
+        await db.SaveChangesAsync(ct);
+        await PromotionContent.FillAsync(db, promo, request.Input, ct);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return Unit.Value;
+    }
+}
+
+internal static class PromotionContent
+{
+    /// <summary>Products, SKU prices, the type's settings and (for a discount) the price programmes of <paramref name="promo"/>.</summary>
+    public static async Task FillAsync(IApplicationDbContext db, Promotion promo, PromotionInput input, CancellationToken ct)
+    {
+        var shopId = promo.ShopId;
         var productIds = (input.ProductIds ?? []).Distinct().ToList();
         if (productIds.Count > 0)
         {
-            var mine = await db.Products.Where(p => productIds.Contains(p.Id) && p.ShopId == request.ShopId).Select(p => p.Id).ToListAsync(ct);
+            var mine = await db.Products.Where(p => productIds.Contains(p.Id) && p.ShopId == shopId).Select(p => p.Id).ToListAsync(ct);
             if (mine.Count != productIds.Count) throw new NotFoundException("Có sản phẩm không thuộc shop của bạn.");
             foreach (var id in productIds) promo.Products.Add(new PromotionProduct(promo.Id, id));
         }
@@ -116,7 +163,7 @@ public sealed class CreatePromotionHandler(IApplicationDbContext db, SellerAcces
         var skus = await MarketingViews.SkusAsync(db, skuInputs.Select(s => s.SkuId).Concat(input.GiftSkuId is { } gid ? [gid] : []).ToList(), ct);
         foreach (var s in skuInputs)
         {
-            if (!skus.TryGetValue(s.SkuId, out var sku) || sku.ShopId != request.ShopId) throw new NotFoundException("Có phân loại không thuộc shop của bạn.");
+            if (!skus.TryGetValue(s.SkuId, out var sku) || sku.ShopId != shopId) throw new NotFoundException("Có phân loại không thuộc shop của bạn.");
             if (s.Price >= sku.Price)
                 throw new BusinessRuleException($"Giá ưu đãi của \"{sku.Name}{(sku.Variant is null ? "" : $" - {sku.Variant}")}\" phải thấp hơn giá bán {Money.Vnd(sku.Price)}.");
             promo.Skus.Add(new PromotionSku(promo.Id, s.SkuId, s.Price, null));
@@ -133,18 +180,15 @@ public sealed class CreatePromotionHandler(IApplicationDbContext db, SellerAcces
                 promo.ConfigureAddOn(input.MaxAddOnQuantity);
                 break;
             case PromotionType.Gift:
-                if (input.GiftSkuId is not { } giftSku || !skus.TryGetValue(giftSku, out var gift) || gift.ShopId != request.ShopId)
+                if (input.GiftSkuId is not { } giftSku || !skus.TryGetValue(giftSku, out var gift) || gift.ShopId != shopId)
                     throw new NotFoundException("Không tìm thấy quà tặng trong shop của bạn.");
                 promo.ConfigureGift(input.MinSpend, giftSku, input.GiftQuantity);
                 break;
         }
 
-        db.Promotions.Add(promo);
         if (input.Type == PromotionType.Discount)
             foreach (var s in promo.Skus)
-                db.PricePrograms.Add(new PriceProgram(s.SkuId, request.ShopId, PriceProgramKind.Discount, promo.Id, s.Price, promo.StartAt, promo.EndAt));
-        await db.SaveChangesAsync(ct);
-        return promo.Id;
+                db.PricePrograms.Add(new PriceProgram(s.SkuId, shopId, PriceProgramKind.Discount, promo.Id, s.Price, promo.StartAt, promo.EndAt));
     }
 }
 
@@ -243,6 +287,56 @@ public sealed class CreateShopFlashSaleHandler(IApplicationDbContext db, SellerA
         await db.SaveChangesAsync(ct);
         foreach (var item in items) await quota.ReloadAsync(item.Id, ct);
         return slot.Id;
+    }
+}
+
+public record UpdateShopFlashSaleCommand(Guid ShopId, Guid SlotId, DateTimeOffset StartAt, DateTimeOffset EndAt, IReadOnlyList<FlashItemInput> Items) : IRequest<Unit>;
+
+public sealed class UpdateShopFlashSaleValidator : AbstractValidator<UpdateShopFlashSaleCommand>
+{
+    public UpdateShopFlashSaleValidator() =>
+        RuleFor(x => x.Items).NotEmpty().WithMessage("Vui lòng chọn ít nhất một phân loại.").Must(i => i is null || i.Count <= 50)
+            .WithMessage("Tối đa 50 phân loại mỗi khung.");
+}
+
+/// <summary>
+/// "Sửa" the shop's own Flash Sale before it starts (D6, L097): window and items are replaced. Nothing has been sold
+/// yet, so the old items and their price programmes are simply retired.
+/// </summary>
+public sealed class UpdateShopFlashSaleHandler(IApplicationDbContext db, SellerAccess access, FlashSaleQuota quota, IClock clock)
+    : IRequestHandler<UpdateShopFlashSaleCommand, Unit>
+{
+    public async Task<Unit> Handle(UpdateShopFlashSaleCommand request, CancellationToken ct)
+    {
+        await access.RequireAsync(request.ShopId, ShopPermissions.MarketingManage, ct);
+        var now = clock.UtcNow;
+        List<FlashSaleItem> items;
+        await using (var tx = await db.BeginTransactionAsync(ct))
+        {
+            var slot = await db.FlashSaleSlots.FirstOrDefaultAsync(s => s.Id == request.SlotId && s.Owner == FlashSaleOwner.Shop && s.ShopId == request.ShopId, ct)
+                       ?? throw new NotFoundException("Không tìm thấy Flash Sale.");
+            if (!slot.CanEdit(now))
+                throw new ConflictException("Flash Sale đã bắt đầu hoặc đã huỷ nên không sửa được.", "FLASH_SALE_STARTED");
+            var old = await db.FlashSaleItems.Where(i => i.SlotId == slot.Id).ToListAsync(ct);
+            var oldIds = old.Select(i => i.Id).ToList();
+            foreach (var program in await db.PricePrograms.Where(p => p.Kind == PriceProgramKind.ShopFlash && oldIds.Contains(p.RefId) && p.IsActive).ToListAsync(ct))
+                program.Deactivate();
+            db.FlashSaleItems.RemoveRange(old);
+            slot.Reschedule(request.StartAt, request.EndAt, now);
+            await db.SaveChangesAsync(ct);
+
+            items = await FlashRegistration.BuildAsync(db, slot, request.ShopId, request.Items, enforceCriteria: false, now, ct);
+            foreach (var item in items)
+            {
+                item.Approve(now);
+                db.FlashSaleItems.Add(item);
+                FlashViews.GoLive(db, slot, item);
+            }
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        foreach (var item in items) await quota.ReloadAsync(item.Id, ct);
+        return Unit.Value;
     }
 }
 

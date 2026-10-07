@@ -62,7 +62,10 @@ export interface LedgerLine {
   postedAt: string
 }
 
-export const BANKS = ['VCB', 'TCB', 'BIDV', 'VTB', 'ACB', 'MB', 'TPB', 'VPB']
+export interface Bank {
+  code: string
+  name: string
+}
 
 const base = (shopId: string) => `/seller/shops/${shopId}/finance`
 
@@ -80,6 +83,11 @@ export const financeApi = {
   otp: (shopId: string) => apiCommand<{ resendAfterSeconds: number }>(`${base(shopId)}/otp`, { method: 'POST' }),
   addBank: (shopId: string, body: { bankCode: string; accountNo: string; accountName: string; otpCode: string; makeDefault: boolean }) =>
     apiCommand<string>(`${base(shopId)}/bank-accounts`, { method: 'POST', body }),
+  setDefaultBank: (shopId: string, id: string, otpCode: string) =>
+    apiCommand(`${base(shopId)}/bank-accounts/${id}/default`, { method: 'POST', body: { otpCode } }),
+  removeBank: (shopId: string, id: string) => apiCommand(`${base(shopId)}/bank-accounts/${id}`, { method: 'DELETE' }),
+  // The server's bank catalogue (D6) — the only list of banks
+  banks: () => apiRequest<Bank[]>('/site/banks', { auth: false }),
   report: (shopId: string, from: string, to: string, format: 'Xlsx' | 'Pdf') => download(`${base(shopId)}/report?${range(from, to)}&format=${format}`),
   feeInvoice: (shopId: string, from: string, to: string) => download(`${base(shopId)}/fee-invoice?${range(from, to)}`),
 }

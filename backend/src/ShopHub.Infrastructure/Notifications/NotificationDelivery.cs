@@ -68,7 +68,16 @@ public sealed class NotificationDeliveryHandler(
             await email.SendAsync(address, subject, html, ct);
         }
         if (Wants(NotificationChannel.Sms) && user.Phone is { } phone)
-            await sms.SendAsync(phone, $"ShopHub: {n.Title}. {n.Body}", ct);
+        {
+            // Editable SMS frame (VI.8) with the platform name from SITE.PLATFORM_NAME, never a name written in code (F7)
+            var (_, text) = await templates.RenderAsync(Application.Features.Admin.TemplateCatalog.Notification, Domain.SystemConfig.TemplateChannel.Sms,
+                new Dictionary<string, string>
+                {
+                    ["platform"] = await parameters.GetStringAsync(Application.SystemConfig.ParameterKeys.SitePlatformName, ct),
+                    ["title"] = n.Title, ["body"] = n.Body,
+                }, ct);
+            await sms.SendAsync(phone, text, ct);
+        }
         if (Wants(NotificationChannel.Push))
         {
             var tokens = await db.DeviceTokens.AsNoTracking().Where(d => d.UserId == n.UserId).Select(d => d.Token).ToListAsync(ct);

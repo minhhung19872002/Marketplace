@@ -12,7 +12,7 @@ import './FlashSaleBlock.css';
  * Flash Sale of the platform: the running slot (or the next one) with a countdown on the server's clock and a real
  * "Đã bán" bar from the units sold (spec II.1, 3.10).
  */
-export const FlashSaleBoard = ({ board, compact = false }: { board: FlashBoard; compact?: boolean }) => {
+export const FlashSaleBoard = ({ board, compact = false, full = false }: { board: FlashBoard; compact?: boolean; full?: boolean }) => {
   const queryClient = useQueryClient();
   const [skew] = useState(() => clockSkew(board.serverTime, Date.now()));
   if (!board.slot || board.items.length === 0) return null;
@@ -29,9 +29,10 @@ export const FlashSaleBoard = ({ board, compact = false }: { board: FlashBoard; 
         {!compact && board.upcoming.length > 0 && (
           <span className="flash-sale-next">Khung sau: {board.upcoming.map((s) => formatClock(s.startAt)).join(' · ')}</span>
         )}
+        {!full && <Link to="/flash-sale" className="flash-sale-all" data-testid="flash-sale-all">Xem tất cả ›</Link>}
       </div>
       <div className="flash-sale-items">
-        {board.items.slice(0, compact ? 6 : 12).map((i) => (
+        {(full ? board.items : board.items.slice(0, compact ? 6 : 12)).map((i) => (
           <Link key={i.itemId} to={`/san-pham/${i.productId}`} className="flash-item" data-testid="flash-item">
             <span className="flash-item-image">
               <img src={imageOrPlaceholder(i.imageUrl)} alt={i.name} loading="lazy" onError={handleImgError} />

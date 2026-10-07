@@ -5,7 +5,8 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using ShopHub.Application.Features.SystemConfig;
+using ShopHub.Application.Abstractions;
+using ShopHub.Application.Features.Admin;
 using ShopHub.Application.Security;
 using ShopHub.Application.SystemConfig;
 using ShopHub.Domain.Iam;
@@ -64,6 +65,40 @@ public class FoundationTests(ApiFactory factory)
         var body = await response.ReadEnvelopeAsync<SiteInfoDto>();
         body.Success.Should().BeTrue();
         body.Data!.PlatformName.Should().Be("ShopHub");
+    }
+
+    [Fact]
+    public async Task Social_links_in_the_footer_are_the_https_ones_set_in_parameters_and_both_site_routes_agree()
+    {
+        var keys = new[] { ParameterKeys.SiteSocialFacebook, ParameterKeys.SiteSocialYoutube, ParameterKeys.SiteSocialTiktok, ParameterKeys.SiteZaloOaId };
+        var old = await factory.WithDbAsync(db => db.SystemParameters.Where(p => keys.Contains(p.Key)).ToDictionaryAsync(p => p.Key, p => p.Value));
+        async Task Set(string key, string value)
+        {
+            await factory.WithDbAsync(db => db.SystemParameters.Where(p => p.Key == key).ExecuteUpdateAsync(u => u.SetProperty(p => p.Value, value)));
+            factory.Services.GetRequiredService<ISystemParameters>().Invalidate(key);
+        }
+        try
+        {
+            await Set(ParameterKeys.SiteSocialFacebook, "https://www.facebook.com/shophub.vn");
+            await Set(ParameterKeys.SiteSocialYoutube, "");
+            // Not https → never rendered as a link
+            await Set(ParameterKeys.SiteSocialTiktok, "javascript:alert(1)");
+            await Set(ParameterKeys.SiteZaloOaId, "");
+            (await (await factory.CreateClient().GetAsync("/api/site")).ReadEnvelopeAsync()).Data.GetProperty("zaloOaId").ValueKind
+                .Should().Be(JsonValueKind.Null, "chưa có mã OA thì không có nút chia sẻ Zalo");
+            await Set(ParameterKeys.SiteZaloOaId, "4318485735551577347");
+            (await (await factory.CreateClient().GetAsync("/api/site")).ReadEnvelopeAsync()).Data.Str("zaloOaId").Should().Be("4318485735551577347");
+            foreach (var url in new[] { "/api/site", "/api/site/info" })
+            {
+                var data = (await (await factory.CreateClient().GetAsync(url)).ReadEnvelopeAsync()).Data;
+                data.GetProperty("social").EnumerateArray().Select(x => (x.Str("name"), x.Str("url")))
+                    .Should().Equal([("Facebook", "https://www.facebook.com/shophub.vn")], url);
+            }
+        }
+        finally
+        {
+            foreach (var (key, value) in old) await Set(key, value);
+        }
     }
 
     [Fact]

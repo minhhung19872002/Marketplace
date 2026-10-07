@@ -157,3 +157,42 @@ public sealed class SaveCampaignHandler(IApplicationDbContext db, IClock clock) 
         return campaign.Id;
     }
 }
+
+// ---------- Từ khoá hot thủ công (VI.6, F8) ----------
+
+public record HotKeywordsQuery : IRequest<IReadOnlyList<string>>;
+
+public sealed class HotKeywordsHandler(ISystemParameters parameters) : IRequestHandler<HotKeywordsQuery, IReadOnlyList<string>>
+{
+    public async Task<IReadOnlyList<string>> Handle(HotKeywordsQuery request, CancellationToken ct) =>
+        System.Text.Json.JsonSerializer.Deserialize<List<string>>(await parameters.GetStringAsync(ParameterKeys.SearchHotKeywords, ct)) ?? [];
+}
+
+public record SetHotKeywordsCommand(IReadOnlyList<string> Keywords) : IRequest<IReadOnlyList<string>>;
+
+public sealed class SetHotKeywordsValidator : AbstractValidator<SetHotKeywordsCommand>
+{
+    public const int Max = 10;
+
+    public SetHotKeywordsValidator()
+    {
+        RuleFor(x => x.Keywords).NotNull().WithMessage("Thiếu danh sách từ khoá.")
+            .Must(k => k is null || k.Count <= Max).WithMessage($"Tối đa {Max} từ khoá.");
+        RuleForEach(x => x.Keywords).Must(k => !string.IsNullOrWhiteSpace(k) && k.Trim().Length <= 50)
+            .WithMessage("Mỗi từ khoá từ 1 đến 50 ký tự.");
+    }
+}
+
+/// <summary>
+/// The curated "từ khoá hot" (shown while real search traffic is thin). Written through the parameter command, so the
+/// change is audited and every instance reloads it — but the marketing role needs no right over other parameters.
+/// </summary>
+public sealed class SetHotKeywordsHandler(ISender sender) : IRequestHandler<SetHotKeywordsCommand, IReadOnlyList<string>>
+{
+    public async Task<IReadOnlyList<string>> Handle(SetHotKeywordsCommand request, CancellationToken ct)
+    {
+        var keywords = request.Keywords.Select(k => k.Trim()).DistinctBy(k => k.ToLowerInvariant()).ToList();
+        await sender.Send(new SystemConfig.UpdateSystemParameterCommand(ParameterKeys.SearchHotKeywords, System.Text.Json.JsonSerializer.Serialize(keywords), null), ct);
+        return keywords;
+    }
+}

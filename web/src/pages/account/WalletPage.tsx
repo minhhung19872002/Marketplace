@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BANKS, walletApi } from '../../api/wallet';
+import { walletApi } from '../../api/wallet';
 import { ApiError } from '../../api/http';
 import { formatPrice } from '../../lib/money';
 import { formatDateTime } from '../../lib/datetime';
 import { goTo } from '../../lib/navigation';
+import { ConfirmButton } from '../../components/ConfirmDialog';
 
 type Panel = 'topup' | 'pin' | 'bank' | 'withdraw' | null;
 
@@ -55,7 +56,13 @@ const WalletPage = () => {
   const gateways = useQuery({ queryKey: ['topup-gateways'], queryFn: walletApi.topupGateways, enabled: panel === 'topup', staleTime: 600_000 });
   const [pin, setPin] = useState('');
   const [otp, setOtp] = useState('');
-  const [bank, setBank] = useState({ bankCode: BANKS[0].code, accountNo: '', accountName: '' });
+  const banks = useQuery({ queryKey: ['banks'], queryFn: walletApi.banks, staleTime: 3_600_000 });
+  const bankName = (code: string) => banks.data?.find((b) => b.code === code)?.name ?? code;
+  const [bank, setBank] = useState({ bankCode: '', accountNo: '', accountName: '' });
+  // First bank of the catalogue preselected once it arrives
+  useEffect(() => {
+    if (!bank.bankCode && banks.data?.length) setBank((b) => ({ ...b, bankCode: banks.data[0].code }));
+  }, [banks.data, bank.bankCode]);
   const [bankId, setBankId] = useState('');
   const { data } = useQuery({ queryKey: ['wallet', page], queryFn: () => walletApi.get(page), placeholderData: keepPreviousData, staleTime: 0 });
 
@@ -165,7 +172,7 @@ const WalletPage = () => {
         <div className="account-form wallet-panel">
           <label className="account-label" htmlFor="bank-code">Ngân hàng</label>
           <select id="bank-code" className="account-input" value={bank.bankCode} onChange={(e) => setBank({ ...bank, bankCode: e.target.value })}>
-            {BANKS.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
+            {(banks.data ?? []).map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
           </select>
           <label className="account-label" htmlFor="bank-no">Số tài khoản</label>
           <input id="bank-no" className="account-input" inputMode="numeric" value={bank.accountNo}
@@ -203,8 +210,9 @@ const WalletPage = () => {
           <ul className="wallet-banks">
             {data.bankAccounts.map((b) => (
               <li key={b.id}>
-                {b.bankCode} ***{b.accountNoLast4} · {b.accountName}
-                <button className="account-btn-outline" onClick={() => run(async () => (await walletApi.removeBank(b.id)).message)}>Xoá</button>
+                {bankName(b.bankCode)} ***{b.accountNoLast4} · {b.accountName}
+                <ConfirmButton className="account-btn-outline" message={`Xoá tài khoản ${bankName(b.bankCode)} ***${b.accountNoLast4}?`} confirmLabel="Xoá"
+                  onConfirm={() => run(async () => (await walletApi.removeBank(b.id)).message)} testId="wallet-bank-remove">Xoá</ConfirmButton>
               </li>
             ))}
           </ul>

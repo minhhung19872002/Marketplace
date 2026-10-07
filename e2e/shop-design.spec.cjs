@@ -23,7 +23,7 @@ async function sellerLogin(browser, account) {
 test.describe('Thiết lập & trang trí shop', () => {
   test.skip(!ADMIN_USER || !ADMIN_PASSWORD, 'Cần SH_E2E_ADMIN_USER / SH_E2E_ADMIN_PASSWORD');
 
-  test('Tài khoản phụ: chủ shop thêm CSKH → nhân viên chỉ thấy mục được cấp quyền; gỡ là mất quyền ngay', async ({ browser, request }) => {
+  test('Tài khoản phụ: chủ shop mời CSKH → nhân viên đồng ý mới vào shop, chỉ thấy mục được cấp quyền; gỡ là mất quyền ngay', async ({ browser, request }) => {
     const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
     const shop = await shopWithProduct(request, admin);
     const staff = await registerViaApi(request, 'Nhân Viên CSKH');
@@ -35,11 +35,25 @@ test.describe('Thiết lập & trang trí shop', () => {
     await owner.getByTestId('staff-role').click();
     await owner.locator('.ant-select-item-option', { hasText: 'Chăm sóc khách hàng' }).click();
     await owner.getByRole('button', { name: 'Lưu' }).click();
-    await expect(owner.getByText('Đã thêm nhân viên.')).toBeVisible();
-    await expect(owner.getByRole('row', { name: /Nhân Viên CSKH/ })).toContainText('Chăm sóc khách hàng');
+    await expect(owner.getByText('Đã gửi lời mời. Nhân viên vào shop sau khi đồng ý.')).toBeVisible();
+    await expect(owner.getByTestId('staff-invitations').getByRole('row', { name: /Nhân Viên CSKH/ })).toContainText('Chăm sóc khách hàng');
 
-    // The staff member signs in with their own account: chat / reviews / orders, no finance, settings, staff
-    const cs = await sellerLogin(browser, staff);
+    // Not a member until they say yes: the staff member signs in, opens the invitation and accepts it
+    const cs = await (await browser.newContext()).newPage();
+    await cs.goto(`${BASE}/seller/`);
+    await cs.getByLabel('Tên đăng nhập').fill(staff.phone);
+    await cs.getByLabel('Mật khẩu').fill(staff.password);
+    await cs.getByTestId('login-submit').click();
+    await cs.getByTestId('invitations-link').click();
+    await expect(cs.getByTestId('invitation')).toContainText('Chăm sóc khách hàng');
+    await cs.getByTestId('invitation-accept').click();
+    await expect(cs.getByText('Bạn đã tham gia shop.')).toBeVisible();
+    // The owner's list now has the member (and no waiting invitation)
+    await owner.reload();
+    await expect(owner.getByRole('row', { name: /Nhân Viên CSKH/ }).getByTestId('staff-remove')).toBeVisible();
+    await expect(owner.getByTestId('staff-invitations')).toHaveCount(0);
+
+    // Inside the shop: chat / reviews / orders, no finance, settings, staff
     const menu = cs.getByRole('menu');
     await expect(menu.getByRole('menuitem', { name: 'Chat' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Đánh giá' })).toBeVisible();

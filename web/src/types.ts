@@ -134,6 +134,9 @@ export interface ShopSummary {
   vacationUntil: string | null;
   // Latest sign-in of the shop's staff or chat answer ("Online … trước")
   lastActiveAt: string | null;
+  // Shop rating over its reviews (recomputed on the server)
+  ratingAvg: number;
+  ratingCount: number;
 }
 
 export interface ShippingDestination {

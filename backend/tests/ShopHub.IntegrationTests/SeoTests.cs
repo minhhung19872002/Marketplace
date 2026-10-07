@@ -60,6 +60,8 @@ public class SeoTests(ApiFactory factory)
         var missing = await client.GetAsync($"/api/seo/render?path=/san-pham/{Guid.NewGuid()}");
         missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await missing.Content.ReadAsStringAsync()).Should().Contain("noindex");
+        // F5: any path the buyer site does not have answers a real 404 to crawlers
+        (await client.GetAsync("/api/seo/render?path=/khong-co-trang-nay")).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]

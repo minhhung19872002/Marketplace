@@ -164,6 +164,15 @@ export interface RegisterShopInput {
   personal: { legalName: string; idCardNumber: string; frontAssetId: string; backAssetId: string } | null
   business: { legalName: string; taxCode: string; licenseAssetId: string } | null
   bank: { bankCode: string; accountNo: string; accountName: string }
+  // Đơn vị vận chuyển the shop ships with (III.1)
+  carrierCodes: string[]
+}
+
+export interface CarrierOption {
+  code: string
+  name: string
+  description: string | null
+  supportsCod: boolean
 }
 
 export interface AdminDivision {
@@ -189,13 +198,37 @@ export async function uploadMedia(purpose: MediaPurpose, file: File): Promise<Me
   return body.data
 }
 
+export interface ProductListFilter {
+  tab: ProductTab
+  q: string
+  page: number
+  pageSize: number
+  categoryId?: string | null
+  minStock?: number | null
+  maxStock?: number | null
+  minPrice?: number | null
+  maxPrice?: number | null
+}
+
+/** Query string of the seller product list: every filter that is set, none of the empty ones. */
+export const productListQuery = (p: ProductListFilter): URLSearchParams => {
+  const qs = new URLSearchParams({ tab: p.tab, q: p.q, page: String(p.page), pageSize: String(p.pageSize) })
+  for (const k of ['categoryId', 'minStock', 'maxStock', 'minPrice', 'maxPrice'] as const) if (p[k] != null) qs.set(k, String(p[k]))
+  return qs
+}
+
 export const sellerApi = {
   login: (identifier: string, password: string) =>
     apiRequest<AuthResult>('/auth/login', { method: 'POST', body: { identifier, password }, auth: false }),
   logout: () => apiCommand('/auth/logout', { method: 'POST', body: {}, auth: false }),
 
   myShops: () => apiRequest<MyShop[]>('/seller/shops'),
+  carriers: () => apiRequest<CarrierOption[]>('/site/carriers', { auth: false }),
+  banks: () => apiRequest<{ code: string; name: string }[]>('/site/banks', { auth: false }),
   registerShop: (body: RegisterShopInput) => apiCommand<string>('/seller/shops', { method: 'POST', body }),
+  // Rejected shop: send the identity papers again (D3)
+  resubmitShop: (shopId: string, body: Pick<RegisterShopInput, 'personal' | 'business'>) =>
+    apiCommand(`/seller/shops/${shopId}/resubmit`, { method: 'POST', body }),
   setLowStock: (shopId: string, units: number | null) => apiCommand(`${shop(shopId)}/low-stock-threshold`, { method: 'PUT', body: { units } }),
   updateShopProfile: (shopId: string, body: { description: string; logoAssetId: string | null; coverAssetId: string | null }) =>
     apiCommand(`${shop(shopId)}/profile`, { method: 'PUT', body }),
@@ -207,15 +240,13 @@ export const sellerApi = {
   suggestCategories: (name: string) => apiRequest<{ id: string; path: string[] }[]>(`/seller/category-suggestions?name=${encodeURIComponent(name)}`),
   divisions: (parent?: string) => apiRequest<AdminDivision[]>(parent ? `/admin-divisions?parent=${parent}` : '/admin-divisions', { auth: false }),
 
-  products: (shopId: string, p: { tab: ProductTab; q: string; page: number; pageSize: number; minStock?: number | null; maxStock?: number | null;
-    minPrice?: number | null; maxPrice?: number | null }) => {
-    const qs = new URLSearchParams({ tab: p.tab, q: p.q, page: String(p.page), pageSize: String(p.pageSize) })
-    for (const k of ['minStock', 'maxStock', 'minPrice', 'maxPrice'] as const) if (p[k] != null) qs.set(k, String(p[k]))
-    return apiRequest<PagedResult<ProductRow>>(`${shop(shopId)}/products?${qs}`)
-  },
+  products: (shopId: string, p: ProductListFilter) => apiRequest<PagedResult<ProductRow>>(`${shop(shopId)}/products?${productListQuery(p)}`),
   bulkProducts: (shopId: string, productIds: string[], action: 'Submit' | 'Hide' | 'Show' | 'Delete') =>
     apiCommand<{ productId: string; ok: boolean; status: string | null; error: string | null }[]>(`${shop(shopId)}/products/bulk-actions`,
       { method: 'POST', body: { productIds, action } }),
+  bulkCopyProducts: (shopId: string, productIds: string[]) =>
+    apiCommand<{ productId: string; ok: boolean; newProductId: string | null; error: string | null }[]>(`${shop(shopId)}/products/bulk-copy`,
+      { method: 'POST', body: { productIds } }),
   copyProduct: (shopId: string, id: string) => apiCommand<string>(`${shop(shopId)}/products/${id}/copy`, { method: 'POST' }),
   product: (shopId: string, id: string) => apiRequest<ProductDetail>(`${shop(shopId)}/products/${id}`),
   createProduct: (shopId: string, body: ProductInput) => apiCommand<string>(`${shop(shopId)}/products`, { method: 'POST', body }),
@@ -228,5 +259,6 @@ export const sellerApi = {
     apiCommand<Sku>(`${shop(shopId)}/skus/${skuId}`, { method: 'PUT', body }),
   adjustStock: (shopId: string, skuId: string, delta: number, note: string) =>
     apiCommand<number>(`${shop(shopId)}/skus/${skuId}/stock-adjustments`, { method: 'POST', body: { delta, note } }),
-  movements: (shopId: string, skuId: string) => apiRequest<PagedResult<Movement>>(`${shop(shopId)}/skus/${skuId}/movements?pageSize=50`),
+  movements: (shopId: string, skuId: string, page: number, pageSize: number) =>
+    apiRequest<PagedResult<Movement>>(`${shop(shopId)}/skus/${skuId}/movements?page=${page}&pageSize=${pageSize}`),
 }

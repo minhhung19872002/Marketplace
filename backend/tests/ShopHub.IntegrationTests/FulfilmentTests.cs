@@ -481,4 +481,24 @@ public class FulfilmentTests(ApiFactory factory)
         sheet.RowsUsed().Count().Should().Be(3);
         sheet.Column(1).CellsUsed().Select(c => c.GetString()).Should().Contain([a.Code, b.Code]);
     }
+
+    [Fact]
+    public async Task The_excel_export_carries_every_filter_of_the_order_list()
+    {
+        var store = await factory.CreateStoreAsync(products: [new("Hộp Bút Gỗ", "Đèn Bàn", 120_000, 20, "Việt Nam")]);
+        var a = await PlaceAsync(quantity: 1, store: store);
+        var b = await PlaceAsync(quantity: 2, store: store);
+        var filter = new { tab = "All", q = a.Code, carrier = (string?)null, paymentMethod = "Cod" };
+        var list = (await (await a.Seller.GetAsync($"/api/seller/shops/{store.ShopId}/orders?q={a.Code}&paymentMethod=Cod")).ReadEnvelopeAsync()).Data;
+        list.GetProperty("totalCount").GetInt32().Should().Be(1);
+
+        var started = await a.Seller.PostAsJsonAsync($"/api/seller/shops/{store.ShopId}/orders/export-tasks", filter);
+        var taskId = (await started.ReadEnvelopeAsync()).Data.Str("id");
+        using (var scope = factory.Services.CreateScope())
+            (await scope.ServiceProvider.GetRequiredService<Application.Features.Seller.BulkTaskRunner>().RunAsync(Guid.Parse(taskId), CancellationToken.None))
+                .Should().BeTrue();
+        var excel = await a.Seller.GetAsync($"/api/seller/shops/{store.ShopId}/tasks/{taskId}/file");
+        using var book = new XLWorkbook(new MemoryStream(await excel.Content.ReadAsByteArrayAsync()));
+        book.Worksheet(1).Column(1).CellsUsed().Skip(1).Select(c => c.GetString()).Should().Equal([a.Code], "tệp xuất = đúng các đơn đang lọc trên màn hình, không có {0}", b.Code);
+    }
 }

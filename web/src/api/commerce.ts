@@ -18,6 +18,8 @@ export interface CartLine {
   isSelected: boolean;
   canBuy: boolean;
   problem: string | null;
+  // When it was put in the cart (header preview: newest across shops)
+  addedAt: string;
   // "Flash Sale" / "Giảm giá" when a price programme gives the price
   priceLabel: string | null;
 }

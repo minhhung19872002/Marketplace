@@ -51,18 +51,14 @@ export interface Topup {
   status: 'Pending' | 'Succeeded' | 'Failed' | 'Expired';
 }
 
-export const BANKS = [
-  { code: 'VCB', name: 'Vietcombank' },
-  { code: 'TCB', name: 'Techcombank' },
-  { code: 'BIDV', name: 'BIDV' },
-  { code: 'VTB', name: 'VietinBank' },
-  { code: 'ACB', name: 'ACB' },
-  { code: 'MB', name: 'MB Bank' },
-  { code: 'TPB', name: 'TPBank' },
-  { code: 'VPB', name: 'VPBank' },
-];
+export interface Bank {
+  code: string;
+  name: string;
+}
 
 export const walletApi = {
+  // The server's bank catalogue (D6) — the only list of banks money can be paid out to
+  banks: () => apiRequest<Bank[]>('/site/banks', { auth: false }),
   get: (page: number) => apiRequest<WalletInfo>(`/wallet?page=${page}&pageSize=20`),
   otp: () => apiCommand<{ expiresInSeconds: number; resendAfterSeconds: number }>('/wallet/otp', { method: 'POST' }),
   setPin: (otpCode: string, pin: string) => apiCommand('/wallet/pin', { method: 'POST', body: { otpCode, pin } }),

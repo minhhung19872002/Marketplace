@@ -230,7 +230,8 @@ public sealed class AddShopBankAccountValidator : AbstractValidator<AddShopBankA
 {
     public AddShopBankAccountValidator()
     {
-        RuleFor(x => x.BankCode).NotEmpty().WithMessage("Vui lòng chọn ngân hàng.").MaximumLength(20).WithMessage("Mã ngân hàng không hợp lệ.");
+        RuleFor(x => x.BankCode).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Vui lòng chọn ngân hàng.")
+            .Must(BankCatalogue.IsKnown).WithMessage(BankCatalogue.UnknownMessage);
         RuleFor(x => x.AccountNo).NotNull().WithMessage("Vui lòng nhập số tài khoản.").Matches(@"^\d{6,20}$").WithMessage("Số tài khoản gồm 6–20 chữ số.");
         RuleFor(x => x.AccountName).NotEmpty().WithMessage("Vui lòng nhập tên chủ tài khoản.").MaximumLength(100).WithMessage("Tên tối đa 100 ký tự.");
         RuleFor(x => x.OtpCode).NotNull().WithMessage("Vui lòng nhập mã xác thực.").Matches(@"^\d{6}$").WithMessage("Mã xác thực gồm 6 chữ số.");
@@ -254,6 +255,65 @@ public sealed class AddShopBankAccountHandler(IApplicationDbContext db, SellerAc
         db.ShopBankAccounts.Add(account);
         await db.SaveChangesAsync(ct);
         return account.Id;
+    }
+}
+
+public record SetDefaultShopBankAccountCommand(Guid ShopId, Guid BankAccountId, string OtpCode) : IRequest<Unit>;
+
+public sealed class SetDefaultShopBankAccountValidator : AbstractValidator<SetDefaultShopBankAccountCommand>
+{
+    public SetDefaultShopBankAccountValidator() =>
+        RuleFor(x => x.OtpCode).NotNull().WithMessage("Vui lòng nhập mã xác thực.").Matches(@"^\d{6}$").WithMessage("Mã xác thực gồm 6 chữ số.");
+}
+
+/// <summary>
+/// "Đặt làm mặc định" (D6, L099): payouts go to the default account, so changing it needs the finance OTP like adding one.
+/// The old default is cleared and saved first — the partial unique index allows one default per shop at any moment.
+/// </summary>
+public sealed class SetDefaultShopBankAccountHandler(IApplicationDbContext db, SellerAccess access, OtpService otp)
+    : IRequestHandler<SetDefaultShopBankAccountCommand, Unit>
+{
+    public async Task<Unit> Handle(SetDefaultShopBankAccountCommand request, CancellationToken ct)
+    {
+        var staff = await access.RequireAsync(request.ShopId, ShopPermissions.FinanceWithdraw, ct);
+        var account = await db.ShopBankAccounts.FirstOrDefaultAsync(b => b.Id == request.BankAccountId && b.ShopId == request.ShopId, ct)
+                      ?? throw new NotFoundException("Không tìm thấy tài khoản ngân hàng.");
+        await FinanceOtp.VerifyAsync(db, otp, staff.UserId, request.OtpCode, ct);
+        if (account.IsDefault) return Unit.Value;
+        await using var tx = await db.BeginTransactionAsync(ct);
+        await db.LockAsync($"shop:banks:{request.ShopId}", ct);
+        foreach (var other in await db.ShopBankAccounts.Where(b => b.ShopId == request.ShopId && b.IsDefault).ToListAsync(ct)) other.ClearDefault();
+        await db.SaveChangesAsync(ct);
+        account.MakeDefault();
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return Unit.Value;
+    }
+}
+
+public record RemoveShopBankAccountCommand(Guid ShopId, Guid BankAccountId) : IRequest<Unit>;
+
+/// <summary>
+/// Xoá a bank account (D6, L099): never the default (money would silently go elsewhere — make another one default first)
+/// and never one a withdrawal is still on its way to. Soft delete: past withdrawals keep their bank snapshot.
+/// </summary>
+public sealed class RemoveShopBankAccountHandler(IApplicationDbContext db, SellerAccess access) : IRequestHandler<RemoveShopBankAccountCommand, Unit>
+{
+    public async Task<Unit> Handle(RemoveShopBankAccountCommand request, CancellationToken ct)
+    {
+        await access.RequireAsync(request.ShopId, ShopPermissions.FinanceWithdraw, ct);
+        await using var tx = await db.BeginTransactionAsync(ct);
+        await db.LockAsync($"shop:banks:{request.ShopId}", ct);
+        var account = await db.ShopBankAccounts.FirstOrDefaultAsync(b => b.Id == request.BankAccountId && b.ShopId == request.ShopId, ct)
+                      ?? throw new NotFoundException("Không tìm thấy tài khoản ngân hàng.");
+        if (account.IsDefault)
+            throw new ConflictException("Không xoá được tài khoản mặc định. Hãy đặt tài khoản khác làm mặc định trước.", "BANK_IS_DEFAULT");
+        if (await db.Withdrawals.AnyAsync(w => w.BankAccountId == account.Id && (w.Status == WithdrawalStatus.Pending || w.Status == WithdrawalStatus.Processing), ct))
+            throw new ConflictException("Tài khoản đang có lệnh rút tiền chưa hoàn tất, chưa xoá được.", "BANK_IN_USE");
+        db.ShopBankAccounts.Remove(account);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return Unit.Value;
     }
 }
 

@@ -1,0 +1,52 @@
+.flash-page {
+  padding: 16px 0 32px;
+}
+
+.flash-page-title {
+  color: var(--sh-primary);
+  font-size: 24px;
+  margin: 0 0 12px;
+}
+
+.flash-page-slots {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.flash-page-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background: var(--sh-surface);
+  border-radius: 2px;
+  cursor: pointer;
+  font: inherit;
+  color: #333;
+}
+
+.flash-page-slot strong {
+  font-size: 18px;
+}
+
+.flash-page-slot span {
+  font-size: 12px;
+}
+
+.flash-page-slot.active {
+  background: var(--sh-primary);
+  border-color: var(--sh-primary);
+  color: var(--sh-on-primary);
+}
+
+.flash-page-empty {
+  background: var(--sh-surface);
+  padding: 32px 16px;
+  margin-top: 16px;
+  text-align: center;
+  color: #555;
+}

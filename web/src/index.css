@@ -46,7 +46,7 @@ html,
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Roboto', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  font-family: 'Be Vietnam Pro', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
   font-size: 14px;
   line-height: 1.4;
 }

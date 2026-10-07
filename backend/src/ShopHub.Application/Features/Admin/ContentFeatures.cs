@@ -110,6 +110,24 @@ public static class TemplateCatalog
     public const string Otp = "OTP";
     public const string Notification = "NOTIFICATION";
     public const string OrderPlaceholders = "code,total,shop,note,deadline";
+
+    // In-app notices outside orders / products (F7) — every title and body a notification shows is one of these templates
+    public const string WithdrawalDone = "WALLET.WITHDRAWAL_DONE";
+    public const string WithdrawalRejected = "WALLET.WITHDRAWAL_REJECTED";
+    public const string SettlementReleased = "WALLET.SETTLEMENT_RELEASED";
+    public const string ReminderAutoComplete = "REMINDER.AUTO_COMPLETE";
+    public const string ReminderVoucherExpiring = "REMINDER.VOUCHER_EXPIRING";
+    public const string ReminderWishlistSale = "REMINDER.WISHLIST_SALE";
+    public const string ReminderWishlistRestock = "REMINDER.WISHLIST_RESTOCK";
+    public const string ChatToShop = "CHAT.TO_SHOP";
+    public const string ChatToBuyer = "CHAT.TO_BUYER";
+    public const string StaffInvitation = "STAFF.INVITATION";
+    public const string AdminLedgerMismatch = "ADMIN.LEDGER_MISMATCH";
+    public const string AdminBackupFailed = "ADMIN.BACKUP_FAILED";
+    public const string ShopEventPlaceholders = "platform,shop,reason";
+
+    /// <summary>SMS (or plain mail) to a shop owner about the shop itself: SHOP.{SUBMITTED|APPROVE|REJECT|LOCK|UNLOCK|PENALTY}.</summary>
+    public static string ShopEventKey(string shopEvent) => $"SHOP.{shopEvent}";
     public const string ProductPlaceholders = "product,reason";
 
     /// <summary>In-app notification of an order event for one side: ORDER.{EVENT}.{BUYER|SHOP} ("PLACED_COD" for a COD order placed).</summary>
@@ -121,10 +139,45 @@ public static class TemplateCatalog
     public static readonly IReadOnlyList<TemplateDefinition> All =
     [
         new(Otp, TemplateChannel.Sms, "Mã OTP qua SMS", null,
-            "ShopHub: Ma {{code}} de {{action}}. Hieu luc {{minutes}} phut. KHONG chia se ma nay cho bat ky ai.", "code,action,minutes"),
-        new(Otp, TemplateChannel.Email, "Mã OTP qua email", "Mã xác thực ShopHub: {{code}}",
+            "{{platform}}: Ma {{code}} de {{action}}. Hieu luc {{minutes}} phut. KHONG chia se ma nay cho bat ky ai.", "platform,code,action,minutes"),
+        new(Otp, TemplateChannel.Email, "Mã OTP qua email", "Mã xác thực {{platform}}: {{code}}",
             "<p>Mã xác thực để {{action}} của bạn là <strong>{{code}}</strong>.</p><p>Mã có hiệu lực trong {{minutes}} phút. Không chia sẻ mã này cho bất kỳ ai.</p>",
-            "code,action,minutes"),
+            "platform,code,action,minutes"),
+        new(Notification, TemplateChannel.Sms, "Tin SMS thông báo (đơn hàng, ví…)", null, "{{platform}}: {{title}}. {{body}}", "platform,title,body"),
+        new(WithdrawalDone, TemplateChannel.InApp, "Ví & rút tiền: rút tiền thành công", "Rút tiền thành công",
+            "{{amount}} đã được chuyển về {{bank}} ***{{account}}.", "amount,bank,account"),
+        new(WithdrawalRejected, TemplateChannel.InApp, "Ví & rút tiền: rút tiền không thành công", "Rút tiền không thành công",
+            "Yêu cầu rút {{amount}} bị từ chối: {{reason}}. Tiền đã được hoàn lại số dư.", "amount,reason"),
+        new(SettlementReleased, TemplateChannel.InApp, "Giải ngân: shop được giải ngân", "Đã giải ngân",
+            "{{orders}} đơn hàng đã được giải ngân, cộng {{amount}} vào số dư khả dụng (kỳ {{period}}).", "orders,amount,period"),
+        new(ReminderAutoComplete, TemplateChannel.InApp, "Nhắc việc: đơn sắp tự hoàn thành", "Đơn hàng sắp tự hoàn thành",
+            "Đơn {{code}} sẽ tự hoàn thành trong 24 giờ. Nếu có vấn đề, hãy yêu cầu trả hàng trước thời điểm này.", "code"),
+        new(ReminderVoucherExpiring, TemplateChannel.InApp, "Nhắc việc: voucher sắp hết hạn", "Voucher sắp hết hạn",
+            "Mã {{code}} trong ví của bạn sẽ hết hạn trong 24 giờ.", "code"),
+        new(ReminderWishlistSale, TemplateChannel.InApp, "Nhắc việc: sản phẩm yêu thích giảm giá", "Sản phẩm yêu thích đang giảm giá",
+            "\"{{product}}\" bạn đã thích đang có giá ưu đãi.", "product"),
+        new(ReminderWishlistRestock, TemplateChannel.InApp, "Nhắc việc: sản phẩm yêu thích có hàng lại", "Sản phẩm yêu thích đã có hàng lại",
+            "\"{{product}}\" bạn đã thích đã có hàng trở lại.", "product"),
+        new(ChatToShop, TemplateChannel.InApp, "Chat: tin nhắn mới tới shop", "Tin nhắn mới từ {{sender}}", "{{message}}", "sender,message"),
+        new(ChatToBuyer, TemplateChannel.InApp, "Chat: shop trả lời người mua", "{{shop}} đã trả lời bạn", "{{message}}", "shop,message"),
+        new(StaffInvitation, TemplateChannel.InApp, "Tài khoản phụ: lời mời làm nhân viên", "Lời mời làm nhân viên shop",
+            "Shop \"{{shop}}\" mời bạn làm {{role}}. Mở Kênh Người Bán để đồng ý hoặc từ chối trước {{deadline}}.", "shop,role,deadline"),
+        new(AdminLedgerMismatch, TemplateChannel.InApp, "Cảnh báo quản trị: sổ cái chênh lệch", "Kiểm tra sổ cái phát hiện chênh lệch",
+            "{{mismatches}} tài khoản có số dư chép sẵn lệch tổng bút toán (đã tính lại {{repaired}}); {{unbalanced}} giao dịch không cân; "
+            + "tổng nợ {{debits}}, tổng có {{credits}}.", "mismatches,repaired,unbalanced,debits,credits"),
+        new(ShopEventKey("SUBMITTED"), TemplateChannel.Sms, "Hồ sơ shop: đã gửi", null,
+            "{{platform}}: Ho so shop \"{{shop}}\" da duoc gui, san se duyet trong 1-2 ngay lam viec.", ShopEventPlaceholders),
+        new(ShopEventKey("APPROVE"), TemplateChannel.Sms, "Hồ sơ shop: được duyệt", null,
+            "{{platform}}: Shop \"{{shop}}\" da duoc duyet. Ban co the dang ban ngay tai Kenh Nguoi Ban.", ShopEventPlaceholders),
+        new(ShopEventKey("REJECT"), TemplateChannel.Sms, "Hồ sơ shop: bị từ chối", null,
+            "{{platform}}: Ho so shop \"{{shop}}\" chua duoc duyet. Ly do: {{reason}}", ShopEventPlaceholders),
+        new(ShopEventKey("LOCK"), TemplateChannel.Sms, "Shop: bị khoá", null,
+            "{{platform}}: Shop \"{{shop}}\" tam thoi bi khoa. Ly do: {{reason}}", ShopEventPlaceholders),
+        new(ShopEventKey("UNLOCK"), TemplateChannel.Sms, "Shop: được mở khoá", null,
+            "{{platform}}: Shop \"{{shop}}\" da duoc mo khoa.", ShopEventPlaceholders),
+        new(ShopEventKey("PENALTY"), TemplateChannel.Sms, "Shop: bị ghi điểm phạt", null,
+            "{{platform}}: Shop \"{{shop}}\" bi ghi diem phat. Ly do: {{reason}}. Xem tai Kenh Nguoi Ban > Hieu qua hoat dong.", ShopEventPlaceholders),
+        new(AdminBackupFailed, TemplateChannel.InApp, "Cảnh báo quản trị: sao lưu thất bại", "Sao lưu CSDL thất bại", "Bản {{file}}: {{error}}", "file,error"),
         new(Notification, TemplateChannel.Email, "Thư thông báo (đơn hàng, ví, khuyến mãi…)", "{{title}}",
             "<p>{{body}}</p><p><a href=\"{{link}}\">Xem chi tiết trên ShopHub</a></p><p style=\"color:#888;font-size:12px\">Bạn nhận thư này vì đã bật thông báo qua email. Tắt tại {{settings}}.</p>",
             "title,body,link,settings"),
@@ -198,6 +251,13 @@ public sealed class MessageTemplates(IApplicationDbContext db)
         if (row is not null) return row.Render(values);
         var def = TemplateCatalog.All.Single(t => t.Key == key && t.Channel == channel);
         return new MessageTemplate(def.Key, def.Channel, def.Name, def.Subject, def.Body, def.Placeholders, DateTimeOffset.UtcNow).Render(values);
+    }
+
+    /// <summary>Title + body of an in-app notification from its template (F7: no notification text is written in code).</summary>
+    public async Task<(string Title, string Body)> NoticeAsync(string key, IReadOnlyDictionary<string, string> values, CancellationToken ct)
+    {
+        var (subject, body) = await RenderAsync(key, TemplateChannel.InApp, values, ct);
+        return (subject ?? string.Empty, body);
     }
 }
 
@@ -392,18 +452,40 @@ public sealed class SetGatewayEnabledHandler(ISender sender, ISystemParameters p
 // II.12 site identity for the footer (legal entity from parameters, never hard-coded)
 // =====================================================================================================================
 
-public record SiteInfoDto(string PlatformName, string Hotline, string SupportEmail, string LegalName, string LegalAddress, string TaxCode, string BusinessLicense);
+public record SocialLinkDto(string Name, string Url);
+
+public record SiteInfoDto(string PlatformName, string Hotline, string SupportEmail, string LegalName, string LegalAddress, string TaxCode, string BusinessLicense,
+    IReadOnlyList<SocialLinkDto> Social, string? ZaloOaId);
 
 public record SiteInfoQuery : IRequest<SiteInfoDto>;
 
+/// <summary>Platform identity, legal entity and social links for header / footer — every value from SITE.* parameters.</summary>
 public sealed class SiteInfoHandler(ISystemParameters parameters) : IRequestHandler<SiteInfoQuery, SiteInfoDto>
 {
-    public async Task<SiteInfoDto> Handle(SiteInfoQuery request, CancellationToken ct) => new(
-        await parameters.GetStringAsync(ParameterKeys.SitePlatformName, ct),
-        await parameters.GetStringAsync(ParameterKeys.SiteHotline, ct),
-        await parameters.GetStringAsync(ParameterKeys.SiteSupportEmail, ct),
-        await parameters.GetStringAsync(ParameterKeys.SiteLegalName, ct),
-        await parameters.GetStringAsync(ParameterKeys.SiteLegalAddress, ct),
-        await parameters.GetStringAsync(ParameterKeys.SiteTaxCode, ct),
-        await parameters.GetStringAsync(ParameterKeys.SiteBusinessLicense, ct));
+    private static readonly (string Name, string Key)[] Networks =
+    [
+        ("Facebook", ParameterKeys.SiteSocialFacebook), ("Instagram", ParameterKeys.SiteSocialInstagram), ("LinkedIn", ParameterKeys.SiteSocialLinkedin),
+        ("TikTok", ParameterKeys.SiteSocialTiktok), ("YouTube", ParameterKeys.SiteSocialYoutube),
+    ];
+
+    public async Task<SiteInfoDto> Handle(SiteInfoQuery request, CancellationToken ct)
+    {
+        var social = new List<SocialLinkDto>();
+        foreach (var (name, key) in Networks)
+        {
+            // Only a real https address becomes a link (an empty value hides the icon)
+            var url = (await parameters.GetStringAsync(key, ct)).Trim();
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps) social.Add(new SocialLinkDto(name, uri.ToString()));
+        }
+        return new SiteInfoDto(
+            await parameters.GetStringAsync(ParameterKeys.SitePlatformName, ct),
+            await parameters.GetStringAsync(ParameterKeys.SiteHotline, ct),
+            await parameters.GetStringAsync(ParameterKeys.SiteSupportEmail, ct),
+            await parameters.GetStringAsync(ParameterKeys.SiteLegalName, ct),
+            await parameters.GetStringAsync(ParameterKeys.SiteLegalAddress, ct),
+            await parameters.GetStringAsync(ParameterKeys.SiteTaxCode, ct),
+            await parameters.GetStringAsync(ParameterKeys.SiteBusinessLicense, ct),
+            social,
+            (await parameters.GetStringAsync(ParameterKeys.SiteZaloOaId, ct)).Trim() is { Length: > 0 } oa ? oa : null);
+    }
 }

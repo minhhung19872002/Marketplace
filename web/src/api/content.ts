@@ -13,6 +13,10 @@ export interface SiteInfo {
   legalAddress: string;
   taxCode: string;
   businessLicense: string;
+  // Only networks whose https link is set (SITE.SOCIAL_*)
+  social: { name: string; url: string }[];
+  // Zalo Official Account id (SITE.ZALO_OA_ID); null = no Zalo share button
+  zaloOaId: string | null;
 }
 
 export type ProductReportReason = 'Counterfeit' | 'Prohibited' | 'WrongInfo' | 'Offensive' | 'IntellectualProperty' | 'Other';

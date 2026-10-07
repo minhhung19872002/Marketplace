@@ -103,11 +103,12 @@ public sealed class ProductDealsHandler(IApplicationDbContext db, PriceBook pric
 
 // ---------- shop page: programmes running now (II.5) ----------
 
-public record ShopOfferDto(Guid Id, PromotionType Type, string Name, string Text, DateTimeOffset EndAt, int ProductCount);
+// Type: Discount / Combo / AddOn / Gift (programmes) or FlashSale (the shop's own running flash sale)
+public record ShopOfferDto(Guid Id, string Type, string Name, string Text, DateTimeOffset EndAt, int ProductCount);
 
 public record ShopOffersQuery(Guid ShopId) : IRequest<IReadOnlyList<ShopOfferDto>>;
 
-/// <summary>"Chương trình đang chạy" on the shop page: the shop's discounts, combos, add-on deals and gifts running now.</summary>
+/// <summary>"Chương trình đang chạy" on the shop page: the shop's discounts, combos, add-on deals, gifts and own Flash Sale running now.</summary>
 public sealed class ShopOffersHandler(IApplicationDbContext db, IClock clock) : IRequestHandler<ShopOffersQuery, IReadOnlyList<ShopOfferDto>>
 {
     public async Task<IReadOnlyList<ShopOfferDto>> Handle(ShopOffersQuery request, CancellationToken ct)
@@ -116,9 +117,23 @@ public sealed class ShopOffersHandler(IApplicationDbContext db, IClock clock) : 
         var rows = await db.Promotions.AsNoTracking().Include(p => p.Products)
             .Where(p => p.ShopId == request.ShopId && p.Status == PromotionStatus.Active && p.StartAt <= now && p.EndAt > now)
             .OrderBy(p => p.EndAt).ThenBy(p => p.Id).Take(10).ToListAsync(ct);
-        return rows.Select(p => new ShopOfferDto(p.Id, p.Type, p.Name,
+        var offers = rows.Select(p => new ShopOfferDto(p.Id, p.Type.ToString(), p.Name,
             p.Type == PromotionType.Discount ? $"Giảm giá đến hết {VietnamTime.ToLocal(p.EndAt):dd/MM}" : ProductDealsHandler.OfferText(p),
             p.EndAt, p.Products.Select(x => x.ProductId).Distinct().Count())).ToList();
+        // E5: the shop's own flash sale running now, with the products it has on offer
+        var flash = await db.FlashSaleSlots.AsNoTracking()
+            .Where(s => s.Owner == FlashSaleOwner.Shop && s.ShopId == request.ShopId && s.Status == FlashSlotStatus.Open && s.StartAt <= now && s.EndAt > now)
+            .OrderBy(s => s.EndAt).ThenBy(s => s.Id)
+            .Select(s => new
+            {
+                s.Id, s.EndAt,
+                Products = db.FlashSaleItems.Where(i => i.SlotId == s.Id && i.Status == FlashItemStatus.Approved).Select(i => i.ProductId).Distinct().Count(),
+            })
+            .FirstOrDefaultAsync(ct);
+        if (flash is { Products: > 0 })
+            offers.Insert(0, new ShopOfferDto(flash.Id, "FlashSale", "Flash Sale của shop", $"Flash Sale của shop đến {VietnamTime.ToLocal(flash.EndAt):HH:mm}",
+                flash.EndAt, flash.Products));
+        return offers;
     }
 }
 

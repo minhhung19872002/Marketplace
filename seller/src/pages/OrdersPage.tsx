@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { App, Button, Card, Descriptions, Drawer, Image, Input, Modal, Radio, Select, Space, Table, Tabs, Tag, Timeline, Typography } from 'antd'
+import { App, Button, Card, DatePicker, Descriptions, Drawer, Image, Input, Modal, Radio, Select, Space, Table, Tabs, Tag, Timeline, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { ordersApi, type PrepareResult, type ShopOrderRow, type ShopOrderTab } from '../api/orders'
+import type { Dayjs } from 'dayjs'
+import { ordersApi, type OrderFilter, type OrderPaymentMethod, type PrepareResult, type ShopOrderRow, type ShopOrderTab } from '../api/orders'
+import { logisticsApi } from '../api/logistics'
 import { ApiError } from '../api/http'
 import { formatPrice } from '../lib/money'
-import { formatDateTime } from '../lib/datetime'
+import { formatDateTime, vnDayBoundsIso } from '../lib/datetime'
 
 const TABS: { key: ShopOrderTab; label: string }[] = [
   { key: 'All', label: 'Tất cả' },
@@ -17,6 +19,15 @@ const TABS: { key: ShopOrderTab; label: string }[] = [
   { key: 'Cancelled', label: 'Đã huỷ' },
   { key: 'Failed', label: 'Giao thất bại / hoàn' },
   { key: 'Unpaid', label: 'Chờ thanh toán' },
+]
+
+const PAYMENT_OPTIONS: { value: OrderPaymentMethod; label: string }[] = [
+  { value: 'Cod', label: 'Thanh toán khi nhận hàng (COD)' },
+  { value: 'Wallet', label: 'Ví ShopHub' },
+  { value: 'VnPay', label: 'VNPay' },
+  { value: 'MoMo', label: 'MoMo' },
+  { value: 'ZaloPay', label: 'ZaloPay' },
+  { value: 'Simulated', label: 'Cổng thanh toán giả lập' },
 ]
 
 const statusColor: Record<string, string> = {
@@ -137,8 +148,20 @@ const OrdersPage = ({ shopId }: { shopId: string }) => {
   const [slot, setSlot] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState<ShopOrderRow | null>(null)
   const [cancelReason, setCancelReason] = useState('Hết hàng')
+  // Ngày đặt (Vietnam calendar days), đơn vị vận chuyển, phương thức thanh toán (III.4, D6)
+  const [days, setDays] = useState<[Dayjs, Dayjs] | null>(null)
+  const [carrier, setCarrier] = useState<string | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<OrderPaymentMethod | null>(null)
+  const [labelSize, setLabelSize] = useState<'A6' | 'A5'>('A6')
+  const filter: OrderFilter = {
+    tab, q, carrier, paymentMethod,
+    from: days ? vnDayBoundsIso(days[0].format('YYYY-MM-DD')).from : null,
+    // The API compares "≤ to": the last millisecond of the last Vietnam day
+    to: days ? vnDayBoundsIso(undefined, days[1].format('YYYY-MM-DD')).to : null,
+  }
 
-  const list = useQuery({ queryKey: ['shop-orders', shopId, tab, q, page], queryFn: () => ordersApi.list(shopId, { tab, q, page, pageSize: 20 }) })
+  const list = useQuery({ queryKey: ['shop-orders', shopId, filter, page], queryFn: () => ordersApi.list(shopId, filter, page, 20) })
+  const logistics = useQuery({ queryKey: ['logistics', shopId], queryFn: () => logisticsApi.get(shopId), staleTime: 300_000 })
   const slots = useQuery({ queryKey: ['pickup-slots'], queryFn: ordersApi.pickupSlots })
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['shop-orders', shopId] })
@@ -165,7 +188,7 @@ const OrdersPage = ({ shopId }: { shopId: string }) => {
   })
   const print = async (kind: 'labels' | 'picking', ids: string[]) => {
     try {
-      const blob = kind === 'labels' ? await ordersApi.labels(shopId, ids) : await ordersApi.pickingList(shopId, ids)
+      const blob = kind === 'labels' ? await ordersApi.labels(shopId, ids, labelSize) : await ordersApi.pickingList(shopId, ids)
       openBlob(blob, kind === 'labels' ? 'phieu-giao-hang.pdf' : 'phieu-soan-hang.pdf')
       if (kind === 'labels') refresh()
     } catch (e) {
@@ -176,7 +199,7 @@ const OrdersPage = ({ shopId }: { shopId: string }) => {
   const exportExcel = async () => {
     setExporting(true)
     try {
-      const started = await ordersApi.startExport(shopId, tab)
+      const started = await ordersApi.startExport(shopId, filter)
       message.info(started.message)
       // Follow the background task (a second per check, up to two minutes)
       for (let i = 0; i < 120; i++) {
@@ -204,10 +227,22 @@ const OrdersPage = ({ shopId }: { shopId: string }) => {
       <Space style={{ marginBottom: 12 }} wrap>
         <Input.Search placeholder="Mã đơn, mã vận đơn, tên người mua, tên sản phẩm" allowClear style={{ width: 360 }} defaultValue={q}
           onSearch={(v) => { setQ(v); setPage(1) }} data-testid="order-search" />
+        <DatePicker.RangePicker format="DD/MM/YYYY" value={days} onChange={(v) => { setDays(v && v[0] && v[1] ? [v[0], v[1]] : null); setPage(1) }}
+          placeholder={['Đặt từ ngày', 'đến ngày']} aria-label="Ngày đặt" />
+        <Select allowClear placeholder="Đơn vị vận chuyển" style={{ width: 200 }} value={carrier} onChange={(v) => { setCarrier(v ?? null); setPage(1) }}
+          options={(logistics.data?.channels ?? []).map((c) => ({ value: c.carrierCode, label: c.name }))} data-testid="order-carrier-filter" />
+        <Select allowClear placeholder="Phương thức thanh toán" style={{ width: 240 }} value={paymentMethod}
+          onChange={(v) => { setPaymentMethod(v ?? null); setPage(1) }} options={PAYMENT_OPTIONS} data-testid="order-payment-filter" />
+      </Space>
+      <Space style={{ marginBottom: 12 }} wrap>
         <Button type="primary" disabled={selected.length === 0} onClick={() => setPreparing(selected)} data-testid="bulk-prepare">
           Chuẩn bị hàng ({selected.length})
         </Button>
-        <Button disabled={selected.length === 0} onClick={() => print('labels', selected)} data-testid="bulk-labels">In phiếu giao</Button>
+        <Space.Compact>
+          <Select value={labelSize} onChange={setLabelSize} style={{ width: 80 }} aria-label="Khổ phiếu giao" data-testid="label-size"
+            options={[{ value: 'A6', label: 'A6' }, { value: 'A5', label: 'A5' }]} />
+          <Button disabled={selected.length === 0} onClick={() => print('labels', selected)} data-testid="bulk-labels">In phiếu giao</Button>
+        </Space.Compact>
         <Button disabled={selected.length === 0} onClick={() => print('picking', selected)} data-testid="bulk-picking">In phiếu soạn hàng</Button>
       </Space>
       <Table<ShopOrderRow>
@@ -271,7 +306,7 @@ const OrdersPage = ({ shopId }: { shopId: string }) => {
                     }
                   }}>Phiếu GHTK</Button>
                 )}
-                {selectable(r) && <Button size="small" danger onClick={() => setCancelling(r)}>Huỷ</Button>}
+                {selectable(r) && <Button size="small" danger onClick={() => setCancelling(r)} data-confirm="dialog">Huỷ</Button>}
               </Space>
             ),
           },

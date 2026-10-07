@@ -36,7 +36,10 @@ public record ShopSummaryDto(
     bool OnVacation,
     DateTimeOffset? VacationUntil,
     // "Online … trước": the latest sign-in of the shop's staff or chat answer from the shop
-    DateTimeOffset? LastActiveAt = null);
+    DateTimeOffset? LastActiveAt,
+    // Đánh giá shop (II.4, E4): the recomputed average and count over the shop's reviews
+    double RatingAvg,
+    int RatingCount);
 
 public record ProductPageDto(
     Guid Id,
@@ -92,7 +95,8 @@ internal static class Breadcrumbs
                               select (DateTimeOffset?)m.CreatedAt).MaxAsync(ct);
         var lastActive = new[] { signedIn, answered }.Where(x => x is not null).Max();
         return new ShopSummaryDto(s.Id, s.Name, s.Slug, s.LogoUrl, s.Type == ShopType.Mall, s.IsPreferred, s.FollowerCount, s.ProductCount,
-            s.ApprovedAt ?? s.CreatedAt, ProductCards.ShortProvince(province), s.Status == ShopStatus.Vacation, s.VacationUntil, lastActive);
+            s.ApprovedAt ?? s.CreatedAt, ProductCards.ShortProvince(province), s.Status == ShopStatus.Vacation, s.VacationUntil, lastActive,
+            s.RatingAvg, s.RatingCount);
     }
 }
 

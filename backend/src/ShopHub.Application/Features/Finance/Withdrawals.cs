@@ -34,6 +34,7 @@ public sealed class WithdrawalService(
     IBankPayout bank,
     IDataEncryptor encryptor,
     ISystemParameters parameters,
+    Admin.MessageTemplates templates,
     IClock clock,
     ILogger<WithdrawalService> logger)
 {
@@ -119,7 +120,7 @@ public sealed class WithdrawalService(
             }
             else
                 await ReverseAsync(w, adminId, $"Ngân hàng không nhận lệnh chuyển: {result.Error}", now, ct);
-            Notify(w, now);
+            await NotifyAsync(w, now, ct);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
@@ -134,7 +135,7 @@ public sealed class WithdrawalService(
         var w = await db.Withdrawals.FirstOrDefaultAsync(x => x.Id == withdrawalId, ct) ?? throw new NotFoundException("Không tìm thấy yêu cầu rút tiền.");
         if (w.Status != WithdrawalStatus.Pending) throw new ConflictException("Chỉ từ chối được yêu cầu đang chờ duyệt.", "WITHDRAWAL_DONE");
         await ReverseAsync(w, adminId, reason, now, ct);
-        Notify(w, now);
+        await NotifyAsync(w, now, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
@@ -153,11 +154,14 @@ public sealed class WithdrawalService(
         ? await db.ShopBankAccounts.Where(b => b.Id == w.BankAccountId).Select(b => b.AccountNoEncrypted).FirstOrDefaultAsync(ct)
         : await db.BankAccounts.Where(b => b.Id == w.BankAccountId).Select(b => b.AccountNoEncrypted).FirstOrDefaultAsync(ct);
 
-    private void Notify(Withdrawal w, DateTimeOffset now)
+    private async Task NotifyAsync(Withdrawal w, DateTimeOffset now, CancellationToken ct)
     {
-        var (title, body) = w.Status == WithdrawalStatus.Done
-            ? ("Rút tiền thành công", $"₫{w.Amount:N0} đã được chuyển về {w.BankCode} ***{w.AccountLast4}.")
-            : ("Rút tiền không thành công", $"Yêu cầu rút ₫{w.Amount:N0} bị từ chối: {w.RejectReason}. Tiền đã được hoàn lại số dư.");
+        var bank = Common.BankCatalogue.All.FirstOrDefault(b => b.Code == w.BankCode)?.Name ?? w.BankCode;
+        var (title, body) = await templates.NoticeAsync(w.Status == WithdrawalStatus.Done ? Admin.TemplateCatalog.WithdrawalDone : Admin.TemplateCatalog.WithdrawalRejected,
+            new Dictionary<string, string>
+            {
+                ["amount"] = Domain.Common.Money.Vnd(w.Amount).ToString(), ["bank"] = bank, ["account"] = w.AccountLast4, ["reason"] = w.RejectReason ?? string.Empty,
+            }, ct);
         var userId = w.RequestedBy;
         db.Notifications.Add(new Notification(userId, NotificationCategory.Wallet, title, body,
             w.OwnerType == LedgerOwnerType.Shop ? "/seller/tai-chinh" : "/tai-khoan/vi", LedgerRefs.Withdrawal, w.Id, now, $"withdrawal:{w.Id}:{w.Status}"));

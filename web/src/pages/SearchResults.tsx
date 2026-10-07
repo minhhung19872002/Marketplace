@@ -7,7 +7,9 @@ import ProductGrid from '../components/ProductGrid';
 import { formatCount } from '../lib/money';
 import type { CategoryPage, FacetValue, ProductSort, SearchParams } from '../types';
 import { handleImgError } from '../lib/image';
+import { BannerLink } from '../components/Banner';
 import './SearchResults.css';
+import { usePageTitle } from '../lib/pageTitle';
 
 const SORTS: { key: ProductSort; label: string }[] = [
   { key: 'Relevance', label: 'Liên Quan' },
@@ -92,6 +94,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
     setMaxDraft(sp.get('maxPrice') ?? '');
   }, [sp]);
 
+  usePageTitle(params.q?.trim() ? `Kết quả tìm kiếm "${params.q.trim()}"` : 'Tìm kiếm');
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ['search', params],
     queryFn: () => storefrontApi.search(params),
@@ -303,7 +306,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
           {category && (category.banners?.length ?? 0) > 0 && (
             <div className="category-banners" data-testid="category-banners">
               {category.banners!.map((b) => (
-                <a key={b.id} href={b.link} className="category-banner"><img src={b.imageUrl} alt={b.title} onError={handleImgError} /></a>
+                <BannerLink key={b.id} to={b.link} className="category-banner"><img src={b.imageUrl} alt={b.title} onError={handleImgError} /></BannerLink>
               ))}
             </div>
           )}
@@ -411,6 +414,7 @@ export const SearchResults = () => <SearchView />;
 export const CategoryResults = () => {
   const { slug = '' } = useParams();
   const { data, error } = useQuery({ queryKey: ['category', slug], queryFn: () => storefrontApi.categoryBySlug(slug) });
+  usePageTitle(data?.category.name ?? (error ? 'Không tìm thấy danh mục' : null));
   if (error)
     return (
       <div className="container search-empty">

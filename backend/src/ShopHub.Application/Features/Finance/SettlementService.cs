@@ -21,6 +21,7 @@ public sealed class SettlementService(
     IApplicationDbContext db,
     OrderLedger orders,
     ISystemParameters parameters,
+    Admin.MessageTemplates templates,
     IClock clock,
     ILogger<SettlementService> logger)
 {
@@ -94,9 +95,13 @@ public sealed class SettlementService(
 
         // Tell the owner (in-app, Ví / tài chính)
         var owner = await db.Shops.Where(s => s.Id == shopId).Select(s => s.OwnerId).SingleAsync(ct);
-        db.Notifications.Add(new Notification(owner, NotificationCategory.Wallet, "Đã giải ngân",
-            $"{settlement.Items.Count} đơn hàng đã được giải ngân, cộng ₫{settlement.Net:N0} vào số dư khả dụng (kỳ {settlement.Code}).",
-            "/seller/tai-chinh", "settlement", settlement.Id, now, $"settlement:{settlement.Id}"));
+        var (title, body) = await templates.NoticeAsync(Admin.TemplateCatalog.SettlementReleased, new Dictionary<string, string>
+        {
+            ["orders"] = settlement.Items.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["amount"] = Domain.Common.Money.Vnd(settlement.Net).ToString(), ["period"] = settlement.Code,
+        }, ct);
+        db.Notifications.Add(new Notification(owner, NotificationCategory.Wallet, title, body, "/seller/tai-chinh", "settlement", settlement.Id, now,
+            $"settlement:{settlement.Id}"));
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return (settlement.Items.Count, settlement.Net);
@@ -141,11 +146,13 @@ public sealed class LedgerCheckService(IApplicationDbContext db, AdminAlerts ale
         if (found.Mismatches.Count > 0 || found.UnbalancedTransactions > 0 || found.TotalDebits != found.TotalCredits)
         {
             var day = VietnamTime.ToLocal(clock.UtcNow).ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
-            var body = $"{found.Mismatches.Count} tài khoản có số dư chép sẵn lệch tổng bút toán (đã tính lại {repaired}); "
-                       + $"{found.UnbalancedTransactions} giao dịch không cân; tổng nợ {Domain.Common.Money.Vnd(found.TotalDebits)}, "
-                       + $"tổng có {Domain.Common.Money.Vnd(found.TotalCredits)}.";
-            await alerts.RaiseAsync(Security.Permissions.FinanceLedgerView, "Kiểm tra sổ cái phát hiện chênh lệch", body, "/admin/tai-chinh",
-                $"ledger-check:{day}", ct);
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            await alerts.RaiseAsync(Security.Permissions.FinanceLedgerView, Admin.TemplateCatalog.AdminLedgerMismatch, new Dictionary<string, string>
+            {
+                ["mismatches"] = found.Mismatches.Count.ToString(inv), ["repaired"] = repaired.ToString(inv),
+                ["unbalanced"] = found.UnbalancedTransactions.ToString(inv), ["debits"] = Domain.Common.Money.Vnd(found.TotalDebits).ToString(),
+                ["credits"] = Domain.Common.Money.Vnd(found.TotalCredits).ToString(),
+            }, "/admin/tai-chinh", $"ledger-check:{day}", ct);
             await db.SaveChangesAsync(ct);
         }
         return found with { Repaired = repaired };

@@ -26,12 +26,13 @@ const UploadBox = ({ purpose, label, accept = 'image/*', value, onChange, testId
   const [busy, setBusy] = useState(false)
   const [localPreview, setLocalPreview] = useState<string | null>(null)
 
+  // The test id sits on a wrapper: Upload does not put it on an element that contains its file input
   return (
+    <div data-testid={testId}>
     <Upload
       accept={accept}
       listType="picture-card"
       showUploadList={false}
-      data-testid={testId}
       beforeUpload={async (file) => {
         setBusy(true)
         try {
@@ -53,6 +54,7 @@ const UploadBox = ({ purpose, label, accept = 'image/*', value, onChange, testId
         <div className="upload-empty">{busy ? 'Đang tải…' : `+ ${label}`}</div>
       )}
     </Upload>
+    </div>
   )
 }
 

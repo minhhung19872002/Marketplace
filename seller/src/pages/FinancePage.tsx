@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { App, Button, Card, Checkbox, Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select, Space, Statistic, Table, Tabs, Tag, Typography } from 'antd'
+import { App, Button, Card, Checkbox, Col, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Statistic, Table, Tabs, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
-import { BANKS, financeApi, type Earning, type LedgerLine, type Withdrawal } from '../api/finance'
+import { financeApi, type BankAccount, type Earning, type LedgerLine, type Withdrawal } from '../api/finance'
 import { ApiError } from '../api/http'
 import { formatPrice } from '../lib/money'
-import { formatDateTime } from '../lib/datetime'
+import { addDaysIso, formatDateTime, vnDayBoundsIso, vnTodayIso } from '../lib/datetime'
 
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : fallback)
 
@@ -44,11 +44,26 @@ const FinancePage = ({ shopId }: { shopId: string }) => {
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [bankOpen, setBankOpen] = useState(false)
   const [otpWait, setOtpWait] = useState(false)
-  const [period, setPeriod] = useState<[Dayjs, Dayjs]>([dayjs().startOf('month'), dayjs()])
+  // The account being made the default (needs the finance OTP)
+  const [defaulting, setDefaulting] = useState<BankAccount | null>(null)
+  const [defaultOtp, setDefaultOtp] = useState('')
+  const [period, setPeriod] = useState<[Dayjs, Dayjs]>(() => [dayjs(`${vnTodayIso().slice(0, 8)}01`), dayjs(vnTodayIso())])
   const [withdrawForm] = Form.useForm<{ bankAccountId: string; amount: number }>()
   const [bankForm] = Form.useForm<{ bankCode: string; accountNo: string; accountName: string; otpCode: string; makeDefault: boolean }>()
 
   const summary = useQuery({ queryKey: ['finance', shopId, 'summary'], queryFn: () => financeApi.summary(shopId) })
+  const banks = useQuery({ queryKey: ['banks'], queryFn: financeApi.banks, staleTime: 3_600_000 })
+  const bankName = (code: string) => banks.data?.find((b) => b.code === code)?.name ?? code
+  const sendOtp = async () => {
+    try {
+      const r = await financeApi.otp(shopId)
+      message.success(r.message)
+      setOtpWait(true)
+      setTimeout(() => setOtpWait(false), r.data.resendAfterSeconds * 1000)
+    } catch (e) {
+      message.error(errorText(e, 'Không gửi được mã.'))
+    }
+  }
   const list = useQuery({
     queryKey: ['finance', shopId, tab, page],
     queryFn: async (): Promise<{ items: unknown[]; totalCount: number; pageSize: number }> =>
@@ -82,9 +97,22 @@ const FinancePage = ({ shopId }: { shopId: string }) => {
     },
     onError: (e) => message.error(errorText(e, 'Không thêm được tài khoản.')),
   })
+  const makeDefault = useMutation({
+    mutationFn: () => financeApi.setDefaultBank(shopId, defaulting!.id, defaultOtp),
+    onSuccess: (r) => { message.success(r.message); setDefaulting(null); setDefaultOtp(''); refresh() },
+    onError: (e) => message.error(errorText(e, 'Không đổi được tài khoản mặc định.')),
+  })
+  const removeBank = useMutation({
+    mutationFn: (id: string) => financeApi.removeBank(shopId, id),
+    onSuccess: (r) => { message.success(r.message); refresh() },
+    onError: (e) => message.error(errorText(e, 'Không xoá được tài khoản.')),
+  })
 
   const s = summary.data
-  const [from, to] = [period[0].startOf('day').toISOString(), period[1].add(1, 'day').startOf('day').toISOString()]
+  // The picked days are Vietnam calendar days (D5, L092): [00:00 VN of the first, 00:00 VN of the day after the last)
+  const [fromDay, toDay] = [period[0].format('YYYY-MM-DD'), period[1].format('YYYY-MM-DD')]
+  const from = vnDayBoundsIso(fromDay).from ?? ''
+  const to = vnDayBoundsIso(addDaysIso(toDay, 1)).from ?? ''
   const stamp = `${period[0].format('YYYYMMDD')}-${period[1].format('YYYYMMDD')}`
   const report = async (kind: 'Xlsx' | 'Pdf' | 'Invoice') => {
     try {
@@ -113,6 +141,27 @@ const FinancePage = ({ shopId }: { shopId: string }) => {
         </Col>
       </Row>
 
+      <Card title="Tài khoản ngân hàng nhận tiền" size="small">
+        <Table<BankAccount> rowKey="id" size="small" pagination={false} dataSource={s?.bankAccounts ?? []} locale={{ emptyText: 'Chưa có tài khoản ngân hàng.' }}
+          data-testid="bank-accounts"
+          columns={[
+            { title: 'Ngân hàng', render: (_, b) => bankName(b.bankCode) },
+            { title: 'Số tài khoản', render: (_, b) => `***${b.accountNoLast4}` },
+            { title: 'Chủ tài khoản', dataIndex: 'accountName' },
+            { title: '', render: (_, b) => b.isDefault && <Tag color="green">Mặc định</Tag> },
+            {
+              title: '', render: (_, b) => !b.isDefault && (
+                <Space>
+                  <Button size="small" onClick={() => setDefaulting(b)} data-testid="bank-make-default">Đặt mặc định</Button>
+                  <Popconfirm title="Xoá tài khoản này?" okText="Xoá" cancelText="Huỷ" onConfirm={() => removeBank.mutate(b.id)}>
+                    <Button size="small" danger data-testid="bank-remove">Xoá</Button>
+                  </Popconfirm>
+                </Space>
+              ),
+            },
+          ]} />
+      </Card>
+
       <Card>
         <Tabs activeKey={tab} onChange={(k) => { setTab(k); setPage(1) }} items={[
           { key: 'pending', label: 'Chờ giải ngân' },
@@ -134,7 +183,7 @@ const FinancePage = ({ shopId }: { shopId: string }) => {
             columns={[
               { title: 'Ngày', dataIndex: 'createdAt', render: formatDateTime },
               { title: 'Số tiền', dataIndex: 'amount', render: formatPrice },
-              { title: 'Tài khoản', render: (_, w) => `${w.bankCode} ***${w.accountLast4}` },
+              { title: 'Tài khoản', render: (_, w) => `${bankName(w.bankCode)} ***${w.accountLast4}` },
               { title: 'Trạng thái', render: (_, w) => <Tag color={w.status === 'Done' ? 'green' : w.status === 'Rejected' ? 'red' : 'gold'} data-testid="withdrawal-status">{w.statusLabel}</Tag> },
               { title: 'Ghi chú', render: (_, w) => w.rejectReason ?? w.bankRef ?? '' },
             ]} />
@@ -159,7 +208,7 @@ const FinancePage = ({ shopId }: { shopId: string }) => {
         <Form form={withdrawForm} layout="vertical" onFinish={(v) => withdraw.mutate(v)}
           initialValues={{ bankAccountId: s?.bankAccounts.find((b) => b.isDefault && b.verified)?.id ?? s?.bankAccounts.find((b) => b.verified)?.id }}>
           <Form.Item name="bankAccountId" label="Tài khoản nhận" rules={[{ required: true, message: 'Chọn tài khoản.' }]}>
-            <Select options={(s?.bankAccounts ?? []).filter((b) => b.verified).map((b) => ({ value: b.id, label: `${b.bankCode} ***${b.accountNoLast4} · ${b.accountName}` }))} />
+            <Select options={(s?.bankAccounts ?? []).filter((b) => b.verified).map((b) => ({ value: b.id, label: `${bankName(b.bankCode)} ***${b.accountNoLast4} · ${b.accountName}` }))} />
           </Form.Item>
           <Form.Item name="amount" label={`Số tiền (khả dụng ${formatPrice(s?.available ?? 0)})`}
             rules={[{ required: true, message: 'Nhập số tiền.' }]}>
@@ -171,27 +220,33 @@ const FinancePage = ({ shopId }: { shopId: string }) => {
 
       <Modal title="Thêm tài khoản ngân hàng" open={bankOpen} onCancel={() => setBankOpen(false)} onOk={() => bankForm.submit()} okText="Thêm"
         confirmLoading={addBank.isPending} destroyOnClose>
-        <Form form={bankForm} layout="vertical" onFinish={(v) => addBank.mutate({ ...v, makeDefault: !!v.makeDefault })} initialValues={{ bankCode: BANKS[0] }}>
-          <Form.Item name="bankCode" label="Ngân hàng"><Select options={BANKS.map((b) => ({ value: b, label: b }))} /></Form.Item>
+        <Form form={bankForm} layout="vertical" onFinish={(v) => addBank.mutate({ ...v, makeDefault: !!v.makeDefault })}>
+          <Form.Item name="bankCode" label="Ngân hàng" rules={[{ required: true, message: 'Chọn ngân hàng.' }]}>
+            <Select options={(banks.data ?? []).map((b) => ({ value: b.code, label: b.name }))} showSearch optionFilterProp="label" />
+          </Form.Item>
           <Form.Item name="accountNo" label="Số tài khoản" rules={[{ required: true, pattern: /^\d{6,20}$/, message: '6–20 chữ số.' }]}><Input /></Form.Item>
           <Form.Item name="accountName" label="Tên chủ tài khoản" rules={[{ required: true, message: 'Nhập tên chủ tài khoản.' }]}><Input /></Form.Item>
           <Form.Item label="Mã xác thực gửi tới số điện thoại của bạn" required>
             <Space.Compact style={{ width: '100%' }}>
               <Form.Item name="otpCode" noStyle rules={[{ required: true, pattern: /^\d{6}$/, message: 'Mã gồm 6 chữ số.' }]}><Input maxLength={6} /></Form.Item>
-              <Button disabled={otpWait} onClick={async () => {
-                try {
-                  const r = await financeApi.otp(shopId)
-                  message.success(r.message)
-                  setOtpWait(true)
-                  setTimeout(() => setOtpWait(false), r.data.resendAfterSeconds * 1000)
-                } catch (e) {
-                  message.error(errorText(e, 'Không gửi được mã.'))
-                }
-              }}>Gửi mã</Button>
+              <Button disabled={otpWait} onClick={() => void sendOtp()}>Gửi mã</Button>
             </Space.Compact>
           </Form.Item>
           <Form.Item name="makeDefault" valuePropName="checked"><Checkbox>Đặt làm tài khoản mặc định</Checkbox></Form.Item>
         </Form>
+      </Modal>
+
+      <Modal title="Đổi tài khoản nhận tiền mặc định" open={!!defaulting} onCancel={() => { setDefaulting(null); setDefaultOtp('') }} okText="Xác nhận"
+        onOk={() => makeDefault.mutate()} okButtonProps={{ disabled: !/^\d{6}$/.test(defaultOtp) }} confirmLoading={makeDefault.isPending} destroyOnClose>
+        {defaulting && (
+          <Typography.Paragraph>
+            Tiền rút sẽ về {bankName(defaulting.bankCode)} ***{defaulting.accountNoLast4} · {defaulting.accountName}. Nhập mã xác thực gửi tới số điện thoại của bạn.
+          </Typography.Paragraph>
+        )}
+        <Space.Compact style={{ width: '100%' }}>
+          <Input maxLength={6} value={defaultOtp} onChange={(e) => setDefaultOtp(e.target.value.replace(/\D/g, ''))} aria-label="Mã xác thực" />
+          <Button disabled={otpWait} onClick={() => void sendOtp()}>Gửi mã</Button>
+        </Space.Compact>
       </Modal>
     </Space>
   )

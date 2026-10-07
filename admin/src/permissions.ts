@@ -29,6 +29,7 @@ export const P = {
   FinanceWithdrawalApprove: 'FINANCE.WITHDRAWAL.APPROVE',
   FinanceReconcile: 'FINANCE.RECONCILE',
   MarketingManage: 'PROMO.MARKETING.MANAGE',
+  HotKeywordManage: 'PROMO.HOT_KEYWORD.MANAGE',
   UserResetPassword: 'IAM.USER.RESET_PASSWORD',
   ShopPenalty: 'SHOP.SHOP.PENALTY',
   OrderIntervene: 'SALES.ORDER.INTERVENE',

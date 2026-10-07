@@ -248,7 +248,8 @@ public sealed class AddBankAccountValidator : AbstractValidator<AddBankAccountCo
 {
     public AddBankAccountValidator()
     {
-        RuleFor(x => x.BankCode).NotEmpty().WithMessage("Vui lòng chọn ngân hàng.").MaximumLength(20).WithMessage("Mã ngân hàng không hợp lệ.");
+        RuleFor(x => x.BankCode).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Vui lòng chọn ngân hàng.")
+            .Must(BankCatalogue.IsKnown).WithMessage(BankCatalogue.UnknownMessage);
         RuleFor(x => x.AccountNo).NotNull().WithMessage("Vui lòng nhập số tài khoản.").Matches(@"^\d{6,20}$").WithMessage("Số tài khoản gồm 6–20 chữ số.");
         RuleFor(x => x.AccountName).NotEmpty().WithMessage("Vui lòng nhập tên chủ tài khoản.").MaximumLength(100).WithMessage("Tên tối đa 100 ký tự.");
         RuleFor(x => x.OtpCode).NotNull().WithMessage("Vui lòng nhập mã xác thực.").Matches(@"^\d{6}$").WithMessage("Mã xác thực gồm 6 chữ số.");

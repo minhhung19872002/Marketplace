@@ -85,7 +85,7 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
         extra={intervene && d && (
           <Space>
             {['PendingConfirmation', 'ReadyToShip'].includes(d.order.status) && (
-              <Button danger onClick={() => setCancelReason('')} data-testid="admin-cancel-order">Huỷ đơn (can thiệp)</Button>
+              <Button danger onClick={() => setCancelReason('')} data-testid="admin-cancel-order" data-confirm="dialog">Huỷ đơn (can thiệp)</Button>
             )}
             {['Delivered', 'Completed'].includes(d.order.status) && d.lines.some((l) => l.refundable > 0) && (
               <Button onClick={() => setManual({ units: {}, amount: 0, platformBorne: false, reason: '' })} data-testid="admin-manual-refund">

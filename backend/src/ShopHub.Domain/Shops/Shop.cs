@@ -330,6 +330,62 @@ public class ShopStaff : AuditableEntity
     }
 }
 
+public enum StaffInvitationStatus
+{
+    Pending,   // waiting for the invitee
+    Accepted,
+    Declined,
+    Revoked,   // withdrawn by the shop
+}
+
+/// <summary>
+/// Lời mời làm tài khoản phụ (III.9, D6): nobody becomes staff of a shop without saying yes. The invitee accepts before
+/// <see cref="ExpiresAt"/>; only then a <see cref="ShopStaff"/> row is made with the role and grants of the invitation.
+/// </summary>
+public class ShopStaffInvitation : Entity
+{
+    private ShopStaffInvitation() { }
+
+    public ShopStaffInvitation(Guid shopId, Guid userId, ShopStaffRole role, IReadOnlyCollection<string> permissions, Guid invitedBy,
+        DateTimeOffset expiresAt, DateTimeOffset now)
+    {
+        if (role == ShopStaffRole.Owner) throw new BusinessRuleException("Mỗi shop chỉ có một chủ shop.");
+        ShopId = shopId;
+        UserId = userId;
+        Role = role;
+        Permissions = permissions.Distinct().ToList();
+        InvitedBy = invitedBy;
+        ExpiresAt = expiresAt;
+        CreatedAt = now;
+        Status = StaffInvitationStatus.Pending;
+    }
+
+    public Guid ShopId { get; private set; }
+    public Guid UserId { get; private set; }
+    public ShopStaffRole Role { get; private set; }
+    public List<string> Permissions { get; private set; } = [];
+    public Guid InvitedBy { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset ExpiresAt { get; private set; }
+    public StaffInvitationStatus Status { get; private set; }
+    public DateTimeOffset? DecidedAt { get; private set; }
+
+    public bool IsOpen(DateTimeOffset now) => Status == StaffInvitationStatus.Pending && now < ExpiresAt;
+
+    public void Accept(DateTimeOffset now) => Decide(StaffInvitationStatus.Accepted, now);
+
+    public void Decline(DateTimeOffset now) => Decide(StaffInvitationStatus.Declined, now);
+
+    public void Revoke(DateTimeOffset now) => Decide(StaffInvitationStatus.Revoked, now);
+
+    private void Decide(StaffInvitationStatus to, DateTimeOffset now)
+    {
+        if (Status != StaffInvitationStatus.Pending) throw new InvalidOperationException("The invitation was already answered.");
+        Status = to;
+        DecidedAt = now;
+    }
+}
+
 public class ShopBankAccount : AuditableEntity
 {
     private ShopBankAccount() { }
@@ -355,6 +411,8 @@ public class ShopBankAccount : AuditableEntity
     public void MarkVerified(DateTimeOffset now) => VerifiedAt = now;
 
     public void ClearDefault() => IsDefault = false;
+
+    public void MakeDefault() => IsDefault = true;
 }
 
 /// <summary>Penalty point given to a shop (late fulfilment, seller cancellation…); the shop's total is recomputed from these rows.</summary>

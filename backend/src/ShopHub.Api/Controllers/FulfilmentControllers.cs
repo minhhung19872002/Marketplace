@@ -67,13 +67,14 @@ public sealed class SellerOrdersController : ApiControllerBase
     public async Task<IActionResult> PickingList(Guid shopId, [FromQuery] Guid[] ids, CancellationToken ct) =>
         File(await Sender.Send(new PickingListQuery(shopId, ids), ct), Pdf, $"phieu-soan-hang-{DateTime.UtcNow:yyyyMMddHHmm}.pdf");
 
-    public record OrdersExportRequest(ShopOrderTab Tab = ShopOrderTab.All, DateTimeOffset? From = null, DateTimeOffset? To = null);
+    public record OrdersExportRequest(ShopOrderTab Tab = ShopOrderTab.All, DateTimeOffset? From = null, DateTimeOffset? To = null, string? Q = null,
+        string? Carrier = null, Domain.Sales.PaymentMethod? PaymentMethod = null);
 
     /// <summary>Xuất Excel đơn hàng (6.4): queued as a background task; follow it at bulk/tasks/{id}, then download the file.</summary>
     [HttpPost("shops/{shopId:guid}/orders/export-tasks")]
     [ProducesResponseType<ApiResponse<BackgroundTaskDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Export(Guid shopId, [FromBody] OrdersExportRequest body, CancellationToken ct) =>
-        OkData(await Sender.Send(new StartOrdersExportCommand(shopId, body.Tab, body.From, body.To), ct), "Đang xuất tệp, bạn sẽ tải được khi xong.");
+        OkData(await Sender.Send(new StartOrdersExportCommand(shopId, body.Tab, body.From, body.To, body.Q, body.Carrier, body.PaymentMethod), ct), "Đang xuất tệp, bạn sẽ tải được khi xong.");
 
     [HttpGet("shops/{shopId:guid}/tasks/{taskId:guid}/file")]
     [Produces(Xlsx, "application/json")]

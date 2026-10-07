@@ -11,7 +11,7 @@ export interface ShopOrderRow {
   createdAt: string
   status: OrderStatus
   statusLabel: string
-  paymentMethod: 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo' | 'ZaloPay'
+  paymentMethod: OrderPaymentMethod
   paymentStatus: 'Unpaid' | 'Paid' | 'Refunded'
   buyerName: string
   itemCount: number
@@ -73,7 +73,8 @@ export interface Dashboard {
   cancelRequests: number
   deliveryProblems: number
   bannedProducts: number
-  lowStockSkus: number
+  // Products in the "Sắp hết hàng" tab (one SKU at or under the threshold is enough)
+  lowStockProducts: number
   penaltyPoints: number
   today: SalesFigure
   last7Days: SalesFigure
@@ -94,6 +95,31 @@ const query = (p: Record<string, string | number | undefined | null>) => {
   return qs.toString()
 }
 
+export type OrderPaymentMethod = 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo' | 'ZaloPay'
+
+/** The order list's filters — the list and "Xuất Excel" send the same ones (D6). */
+export interface OrderFilter {
+  tab: ShopOrderTab
+  q?: string | null
+  from?: string | null
+  to?: string | null
+  carrier?: string | null
+  paymentMethod?: OrderPaymentMethod | null
+}
+
+const setFilters = (f: OrderFilter): Record<string, string> => {
+  const out: Record<string, string> = { tab: f.tab }
+  for (const k of ['q', 'from', 'to', 'carrier', 'paymentMethod'] as const) {
+    const v = f[k]
+    if (v !== undefined && v !== null && v !== '') out[k] = v
+  }
+  return out
+}
+
+export const orderListQuery = (f: OrderFilter, page: number, pageSize: number): string => query({ ...setFilters(f), page, pageSize })
+
+export const orderExportBody = (f: OrderFilter): Record<string, string> => setFilters(f)
+
 /** Files (PDF / Excel) come back raw, not in the JSON envelope. */
 export async function download(path: string, retried = false): Promise<Blob> {
   const token = useAuthStore.getState().accessToken
@@ -108,8 +134,8 @@ export async function download(path: string, retried = false): Promise<Blob> {
 
 export const ordersApi = {
   dashboard: (shopId: string) => apiRequest<Dashboard>(`${base(shopId)}/dashboard`),
-  list: (shopId: string, p: { tab: ShopOrderTab; q?: string; from?: string; to?: string; page: number; pageSize: number }) =>
-    apiRequest<{ items: ShopOrderRow[]; totalCount: number }>(`${base(shopId)}/orders?${query(p)}`),
+  list: (shopId: string, f: OrderFilter, page: number, pageSize: number) =>
+    apiRequest<{ items: ShopOrderRow[]; totalCount: number }>(`${base(shopId)}/orders?${orderListQuery(f, page, pageSize)}`),
   get: (shopId: string, id: string) => apiRequest<ShopOrderDetail>(`${base(shopId)}/orders/${id}`),
   pickupSlots: () => apiRequest<string[]>('/seller/pickup-slots'),
   prepare: (shopId: string, orderIds: string[], pickupMethod: 'Pickup' | 'DropOff', pickupSlot: string | null) =>
@@ -125,8 +151,8 @@ export const ordersApi = {
     download(`${base(shopId)}/orders/${id}/carrier-label${packageNo ? `?package=${packageNo}` : ''}`),
   pickingList: (shopId: string, ids: string[]) => download(`${base(shopId)}/orders/picking-list?${ids.map((i) => `ids=${i}`).join('&')}`),
   // Xuất Excel runs in the background (6.4): start, follow the task, then download its file
-  startExport: (shopId: string, tab: ShopOrderTab) =>
-    apiCommand<{ id: string; status: string; message: string | null }>(`${base(shopId)}/orders/export-tasks`, { method: 'POST', body: { tab } }),
+  startExport: (shopId: string, f: OrderFilter) =>
+    apiCommand<{ id: string; status: string; message: string | null }>(`${base(shopId)}/orders/export-tasks`, { method: 'POST', body: orderExportBody(f) }),
   exportTask: (shopId: string, taskId: string) =>
     apiRequest<{ id: string; status: string; message: string | null }>(`${base(shopId)}/bulk/tasks/${taskId}`),
   exportFile: (shopId: string, taskId: string) => download(`${base(shopId)}/tasks/${taskId}/file`),

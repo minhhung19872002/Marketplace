@@ -42,6 +42,7 @@ public interface IApplicationDbContext
     DbSet<ShopKyc> ShopKycs { get; }
     DbSet<ShopWarehouse> ShopWarehouses { get; }
     DbSet<ShopStaff> ShopStaff { get; }
+    DbSet<ShopStaffInvitation> ShopStaffInvitations { get; }
     DbSet<ShopCategory> ShopCategories { get; }
     DbSet<ShopCategoryProduct> ShopCategoryProducts { get; }
     DbSet<ShopDecoration> ShopDecorations { get; }

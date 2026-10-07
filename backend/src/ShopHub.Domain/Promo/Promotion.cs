@@ -27,15 +27,9 @@ public class Promotion : Entity
 
     public Promotion(Guid shopId, PromotionType type, string name, DateTimeOffset startAt, DateTimeOffset endAt, Guid createdBy, DateTimeOffset now)
     {
-        if (string.IsNullOrWhiteSpace(name)) throw new BusinessRuleException("Vui lòng nhập tên chương trình.");
-        if (endAt <= startAt) throw new BusinessRuleException("Thời gian kết thúc phải sau thời gian bắt đầu.");
-        if (endAt - startAt > TimeSpan.FromDays(180)) throw new BusinessRuleException("Mỗi chương trình kéo dài tối đa 180 ngày.");
-        if (endAt <= now) throw new BusinessRuleException("Thời gian kết thúc đã qua.");
         ShopId = shopId;
         Type = type;
-        Name = name.Trim();
-        StartAt = startAt.ToUniversalTime();
-        EndAt = endAt.ToUniversalTime();
+        Schedule(name, startAt, endAt, now);
         CreatedBy = createdBy;
         CreatedAt = now;
         Status = PromotionStatus.Active;
@@ -70,6 +64,30 @@ public class Promotion : Entity
     public List<PromotionSku> Skus { get; private set; } = [];
 
     public bool IsRunning(DateTimeOffset at) => Status == PromotionStatus.Active && StartAt <= at && at < EndAt;
+
+    /// <summary>Editable only before it starts and while not stopped (D6) — once buyers may have seen it, it is stopped and replaced.</summary>
+    public bool CanEdit(DateTimeOffset now) => Status == PromotionStatus.Active && now < StartAt;
+
+    /// <summary>New name and time window of a programme that has not started; its content is rebuilt by the caller.</summary>
+    public void Reschedule(string name, DateTimeOffset startAt, DateTimeOffset endAt, DateTimeOffset now)
+    {
+        if (!CanEdit(now)) throw new InvalidOperationException("Only a programme that has not started can be edited.");
+        Schedule(name, startAt, endAt, now);
+        Products.Clear();
+        Skus.Clear();
+        (MinQuantity, DiscountBp, DiscountAmount, MaxAddOnQuantity, MinSpend, GiftSkuId, GiftQuantity) = (0, 0, 0, 0, 0, null, 0);
+    }
+
+    private void Schedule(string name, DateTimeOffset startAt, DateTimeOffset endAt, DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new BusinessRuleException("Vui lòng nhập tên chương trình.");
+        if (endAt <= startAt) throw new BusinessRuleException("Thời gian kết thúc phải sau thời gian bắt đầu.");
+        if (endAt - startAt > TimeSpan.FromDays(180)) throw new BusinessRuleException("Mỗi chương trình kéo dài tối đa 180 ngày.");
+        if (endAt <= now) throw new BusinessRuleException("Thời gian kết thúc đã qua.");
+        Name = name.Trim();
+        StartAt = startAt.ToUniversalTime();
+        EndAt = endAt.ToUniversalTime();
+    }
 
     public void ConfigureCombo(int minQuantity, int discountBp, long discountAmount)
     {
@@ -217,8 +235,7 @@ public class FlashSaleSlot : Entity
     public FlashSaleSlot(FlashSaleOwner owner, Guid? shopId, DateTimeOffset startAt, DateTimeOffset endAt, int minDiscountBp, double minRating,
         IReadOnlyList<Guid> categoryIds, DateTimeOffset now)
     {
-        if (endAt <= startAt) throw new BusinessRuleException("Khung giờ kết thúc phải sau khi bắt đầu.");
-        if (endAt - startAt > TimeSpan.FromHours(24)) throw new BusinessRuleException("Một khung Flash Sale dài tối đa 24 giờ.");
+        CheckWindow(startAt, endAt);
         if ((owner == FlashSaleOwner.Shop) != shopId.HasValue) throw new InvalidOperationException("Shop slots need a shop, platform slots none.");
         if (minDiscountBp is < 0 or > 9_000) throw new BusinessRuleException("Mức giảm tối thiểu không hợp lệ.");
         if (minRating is < 0 or > 5) throw new BusinessRuleException("Điểm đánh giá tối thiểu từ 0 đến 5.");
@@ -247,6 +264,24 @@ public class FlashSaleSlot : Entity
     public bool IsRunning(DateTimeOffset at) => Status == FlashSlotStatus.Open && StartAt <= at && at < EndAt;
 
     public void Cancel() => Status = FlashSlotStatus.Cancelled;
+
+    /// <summary>A shop's own slot can be edited until it starts (D6).</summary>
+    public bool CanEdit(DateTimeOffset now) => Owner == FlashSaleOwner.Shop && Status == FlashSlotStatus.Open && now < StartAt;
+
+    public void Reschedule(DateTimeOffset startAt, DateTimeOffset endAt, DateTimeOffset now)
+    {
+        if (!CanEdit(now)) throw new InvalidOperationException("Only a shop slot that has not started can be edited.");
+        CheckWindow(startAt, endAt);
+        if (endAt <= now) throw new BusinessRuleException("Thời gian kết thúc đã qua.");
+        StartAt = startAt.ToUniversalTime();
+        EndAt = endAt.ToUniversalTime();
+    }
+
+    private static void CheckWindow(DateTimeOffset startAt, DateTimeOffset endAt)
+    {
+        if (endAt <= startAt) throw new BusinessRuleException("Khung giờ kết thúc phải sau khi bắt đầu.");
+        if (endAt - startAt > TimeSpan.FromHours(24)) throw new BusinessRuleException("Một khung Flash Sale dài tối đa 24 giờ.");
+    }
 }
 
 public enum FlashItemStatus

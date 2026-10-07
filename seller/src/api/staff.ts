@@ -14,8 +14,32 @@ export interface ShopStaff {
   createdAt: string
 }
 
+export interface StaffInvitation {
+  id: string
+  fullName: string
+  phoneMasked: string | null
+  emailMasked: string | null
+  role: StaffRole
+  permissions: string[]
+  createdAt: string
+  expiresAt: string
+}
+
+/** An invitation waiting for the signed-in user. */
+export interface MyInvitation {
+  id: string
+  shopId: string
+  shopName: string
+  shopLogoUrl: string | null
+  role: StaffRole
+  permissions: string[]
+  expiresAt: string
+}
+
 export interface StaffBoard {
   staff: ShopStaff[]
+  // Sent, not answered yet
+  invitations: StaffInvitation[]
   allPermissions: string[]
   roleDefaults: Record<Exclude<StaffRole, 'Owner'>, string[]>
   maxStaff: number
@@ -52,4 +76,8 @@ export const staffApi = {
   update: (shopId: string, staffId: string, body: { role: StaffRole; permissions: string[] }) =>
     apiCommand(`${base(shopId)}/${staffId}`, { method: 'PUT', body }),
   remove: (shopId: string, staffId: string) => apiCommand(`${base(shopId)}/${staffId}`, { method: 'DELETE' }),
+  revokeInvitation: (shopId: string, id: string) => apiCommand(`/seller/shops/${shopId}/staff-invitations/${id}`, { method: 'DELETE' }),
+  myInvitations: () => apiRequest<MyInvitation[]>('/seller/staff-invitations'),
+  accept: (id: string) => apiCommand<string>(`/seller/staff-invitations/${id}/accept`, { method: 'POST' }),
+  decline: (id: string) => apiCommand(`/seller/staff-invitations/${id}/decline`, { method: 'POST' }),
 }

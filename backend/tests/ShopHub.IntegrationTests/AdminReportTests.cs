@@ -346,7 +346,7 @@ public class AdminReportTests(ApiFactory factory)
         (await factory.WithDbAsync(db => db.SimulatedSms.Where(s => s.To == phone).Select(s => s.Content).FirstAsync())).Should().StartWith("ShopHub ma xac thuc ");
         (await content.PutAsJsonAsync($"/api/admin/message-templates/{otpSms.Str("id")}", new
         {
-            body = "ShopHub: Ma {{code}} de {{action}}. Hieu luc {{minutes}} phut. KHONG chia se ma nay cho bat ky ai.",
+            body = "{{platform}}: Ma {{code}} de {{action}}. Hieu luc {{minutes}} phut. KHONG chia se ma nay cho bat ky ai.",
         })).EnsureSuccessStatusCode();
 
         // Reset password: the old one stops working, the one-time one works and must be changed

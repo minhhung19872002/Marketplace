@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { App as AntApp, Button, Drawer, Image, Input, InputNumber, Popconfirm, Space, Table, Tabs, Tag, Typography } from 'antd'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { App as AntApp, Button, Cascader, Drawer, Image, Input, InputNumber, Popconfirm, Space, Table, Tabs, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { sellerApi, type ProductRow, type ProductStatus, type ProductTab, type Sku } from '../api/seller'
+import { sellerApi, type CategoryNode, type ProductRow, type ProductStatus, type ProductTab, type Sku } from '../api/seller'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
 import { formatPrice, formatRange } from '../lib/money'
@@ -63,9 +63,10 @@ const SkuEditor = ({ shopId, productId }: { shopId: string; productId: string })
     onSuccess: (r) => { void message.success(r.message); setDelta(null); setNote(''); refresh(); void movements.refetch() },
     onError: (e) => void message.error(errorText(e)),
   })
+  const [movementPage, setMovementPage] = useState(1)
   const movements = useQuery({
-    queryKey: ['movements', stockSku?.id],
-    queryFn: () => sellerApi.movements(shopId, stockSku!.id),
+    queryKey: ['movements', stockSku?.id, movementPage],
+    queryFn: () => sellerApi.movements(shopId, stockSku!.id, movementPage, MOVEMENT_PAGE_SIZE),
     enabled: !!stockSku,
   })
 
@@ -106,7 +107,7 @@ const SkuEditor = ({ shopId, productId }: { shopId: string; productId: string })
           },
           { title: 'Đang giữ', dataIndex: 'reserved' },
           { title: 'Khả dụng', dataIndex: 'available' },
-          { title: '', render: (_, s) => <Button size="small" onClick={() => setStockSku(s)}>Nhập / xuất kho</Button> },
+          { title: '', render: (_, s) => <Button size="small" onClick={() => { setStockSku(s); setMovementPage(1) }}>Nhập / xuất kho</Button> },
         ]}
       />
       <Drawer title={stockSku ? `Tồn kho: ${label(stockSku)}` : ''} open={!!stockSku} onClose={() => setStockSku(null)} width={520}>
@@ -122,7 +123,7 @@ const SkuEditor = ({ shopId, productId }: { shopId: string; productId: string })
             rowKey="id"
             loading={movements.isPending}
             dataSource={movements.data?.items}
-            pagination={false}
+            pagination={{ current: movementPage, pageSize: MOVEMENT_PAGE_SIZE, total: movements.data?.totalCount, onChange: setMovementPage, size: 'small' }}
             columns={[
               { title: 'Thời điểm', dataIndex: 'occurredAt', render: (v: string) => formatDateTime(v) },
               { title: 'Lý do', dataIndex: 'reason', render: (v: string) => REASON[v] ?? v },
@@ -137,11 +138,21 @@ const SkuEditor = ({ shopId, productId }: { shopId: string; productId: string })
   )
 }
 
+const MOVEMENT_PAGE_SIZE = 20
+
+interface CategoryOption { value: string; label: string; children?: CategoryOption[] }
+
+const toOptions = (nodes: CategoryNode[]): CategoryOption[] =>
+  nodes.map((n) => ({ value: n.id, label: n.name, children: n.children.length > 0 ? toOptions(n.children) : undefined }))
+
 const ProductsPage = ({ shopId }: { shopId: string }) => {
   const navigate = useNavigate()
   const { message } = AntApp.useApp()
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<ProductTab>('All')
+  // The tab lives in the URL (?tab=…), so the dashboard's links open the right one (D1)
+  const [params, setParams] = useSearchParams()
+  const tab: ProductTab = TABS.find((t) => t.key === params.get('tab'))?.key ?? 'All'
+  const setTab = (next: ProductTab) => setParams((p) => { const n = new URLSearchParams(p); if (next === 'All') n.delete('tab'); else n.set('tab', next); return n })
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -149,13 +160,27 @@ const ProductsPage = ({ shopId }: { shopId: string }) => {
   const [range, setRange] = useState<{ minStock: number | null; maxStock: number | null; minPrice: number | null; maxPrice: number | null }>(
     { minStock: null, maxStock: null, minPrice: null, maxPrice: null })
   const [selected, setSelected] = useState<string[]>([])
+  // Leaf category (products sit on leaves only)
+  const [categoryId, setCategoryId] = useState<string | null>(null)
+  const categories = useQuery({ queryKey: ['categories'], queryFn: sellerApi.categories, staleTime: 600_000 })
 
   const products = useQuery({
-    queryKey: ['products', shopId, tab, q, page, pageSize, range],
-    queryFn: () => sellerApi.products(shopId, { tab, q, page, pageSize, ...range }),
+    queryKey: ['products', shopId, tab, q, page, pageSize, range, categoryId],
+    queryFn: () => sellerApi.products(shopId, { tab, q, page, pageSize, categoryId, ...range }),
   })
   const bulk = useMutation({
     mutationFn: (op: 'Submit' | 'Hide' | 'Show' | 'Delete') => sellerApi.bulkProducts(shopId, selected, op),
+    onSuccess: (r) => {
+      const failed = r.data.filter((x) => !x.ok)
+      if (failed.length) void message.warning(`${r.message} Chưa làm được: ${failed.map((f) => f.error).filter(Boolean).slice(0, 3).join('; ')}`)
+      else void message.success(r.message)
+      setSelected([])
+      void queryClient.invalidateQueries({ queryKey: ['products', shopId] })
+    },
+    onError: (e) => void message.error(errorText(e)),
+  })
+  const bulkCopy = useMutation({
+    mutationFn: () => sellerApi.bulkCopyProducts(shopId, selected),
     onSuccess: (r) => {
       const failed = r.data.filter((x) => !x.ok)
       if (failed.length) void message.warning(`${r.message} Chưa làm được: ${failed.map((f) => f.error).filter(Boolean).slice(0, 3).join('; ')}`)
@@ -185,6 +210,9 @@ const ProductsPage = ({ shopId }: { shopId: string }) => {
       <Tabs activeKey={tab} onChange={(k) => { setTab(k as ProductTab); setPage(1) }} items={TABS.map((t) => ({ key: t.key, label: t.label }))} />
       <Space wrap>
         <Input.Search placeholder="Tên sản phẩm hoặc mã SKU" allowClear style={{ width: 300 }} onSearch={(v) => { setQ(v); setPage(1) }} />
+        <Cascader<CategoryOption> options={toOptions(categories.data ?? [])} placeholder="Danh mục" style={{ width: 240 }} showSearch
+          onChange={(v) => { setCategoryId(v && v.length > 0 ? String(v[v.length - 1]) : null); setPage(1) }} aria-label="Lọc theo danh mục"
+          data-testid="product-category-filter" />
         <InputNumber<number> min={0} placeholder="Tồn từ" value={range.minStock} onChange={(v) => { setRange({ ...range, minStock: v }); setPage(1) }}
           aria-label="Tồn kho từ" />
         <InputNumber<number> min={0} placeholder="Tồn đến" value={range.maxStock} onChange={(v) => { setRange({ ...range, maxStock: v }); setPage(1) }}
@@ -200,6 +228,8 @@ const ProductsPage = ({ shopId }: { shopId: string }) => {
           <Button size="small" loading={bulk.isPending} onClick={() => bulk.mutate('Hide')} data-testid="bulk-hide">Ẩn</Button>
           <Button size="small" loading={bulk.isPending} onClick={() => bulk.mutate('Show')}>Hiện</Button>
           <Button size="small" loading={bulk.isPending} onClick={() => bulk.mutate('Submit')}>Gửi duyệt</Button>
+          <Button size="small" loading={bulkCopy.isPending} disabled={selected.length > 20} title={selected.length > 20 ? 'Mỗi lần sao chép tối đa 20 sản phẩm' : undefined}
+            onClick={() => bulkCopy.mutate()} data-testid="bulk-copy">Sao chép</Button>
           <Popconfirm title={`Xoá ${selected.length} sản phẩm?`} okText="Xoá" cancelText="Huỷ" onConfirm={() => bulk.mutate('Delete')}>
             <Button size="small" danger loading={bulk.isPending}>Xoá</Button>
           </Popconfirm>

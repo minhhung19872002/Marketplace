@@ -41,6 +41,8 @@ export interface Address {
   street: string;
   type: AddressType;
   isDefault: boolean;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface AddressInput {
@@ -52,6 +54,9 @@ export interface AddressInput {
   street: string;
   type: AddressType;
   isDefault: boolean;
+  // Ghim bản đồ (optional, E7)
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface AdminDivision {

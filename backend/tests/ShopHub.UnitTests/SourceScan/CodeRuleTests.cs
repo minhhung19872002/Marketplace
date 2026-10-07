@@ -384,3 +384,49 @@ public class SeedDateTests
         offenders.Should().BeEmpty("mọi mốc thời gian của dữ liệu gieo tính từ ngày nạp (đặc tả mục 7)");
     }
 }
+
+/// <summary>
+/// L093: with <c>LangVersion=latest</c> a newer SDK (the CI runner ships .NET 10) compiles C# 14, whose first-class spans
+/// bind <c>array.Contains(x)</c> inside EF queries to <c>MemoryExtensions.Contains(ReadOnlySpan)</c> — EF Core 8 cannot
+/// evaluate that and every such query answers 500. The language is pinned to what the .NET 8 SDK of the API image speaks.
+/// </summary>
+public class LanguageVersionTests
+{
+    [Fact]
+    public void The_csharp_language_version_is_pinned_to_the_one_the_net8_sdk_compiles()
+    {
+        var props = File.ReadAllText(Path.Combine(RepoFiles.BackendRoot, "Directory.Build.props"));
+        Regex.Match(props, @"<LangVersion>([^<]+)</LangVersion>").Groups[1].Value.Should().Be("12",
+            "C# 14 (SDK .NET 10) đổi cách gọi Contains trong truy vấn EF Core 8 — phải ghim phiên bản ngôn ngữ");
+    }
+}
+
+/// <summary>
+/// F7 (VI.8): what a notification says is an editable message template — no fixed Vietnamese title / body handed to a
+/// <c>new Notification(...)</c> (the one row type every channel is delivered from), a promotion notice or an admin alert,
+/// and no "ShopHub: " glued onto SMS.
+/// </summary>
+public class NotificationTextTests
+{
+    private static readonly Regex VietnameseLiteral = new(@"\$?""[^""\n]*[À-ỹĐđ][^""\n]*""");
+
+    [Fact]
+    public void Notifications_take_their_title_and_body_from_message_templates()
+    {
+        var offenders = RepoFiles.AllSourceFiles()
+            .SelectMany(f => Regex.Matches(RepoFiles.WithoutComments(File.ReadAllText(f)),
+                    @"(?:new Notification|new PromoNotice|\.RaiseAsync)\((?<args>[^;]*?)\);", RegexOptions.Singleline)
+                .Where(m => VietnameseLiteral.IsMatch(m.Groups["args"].Value))
+                .Select(m => $"{RepoFiles.Relative(f)}: {m.Value[..Math.Min(90, m.Value.Length)]}"))
+            .ToList();
+        offenders.Should().BeEmpty("nội dung thông báo lấy từ bảng mẫu (Nội dung & mẫu tin), không viết cứng trong mã");
+    }
+
+    [Fact]
+    public void Sms_never_hard_codes_the_platform_name()
+    {
+        var offenders = RepoFiles.AllSourceFiles().Where(f => RepoFiles.WithoutComments(File.ReadAllText(f)).Contains("\"ShopHub: ", StringComparison.Ordinal))
+            .Select(RepoFiles.Relative).ToList();
+        offenders.Should().BeEmpty("tin SMS dùng tên sàn từ tham số SITE.PLATFORM_NAME");
+    }
+}

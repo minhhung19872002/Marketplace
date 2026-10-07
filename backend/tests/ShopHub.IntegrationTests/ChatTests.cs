@@ -282,4 +282,45 @@ public class ChatTests(ApiFactory factory)
         (await factory.WithDbAsync(db => db.Notifications.CountAsync(n => n.UserId == order.BuyerId && n.DedupeKey == $"auto-complete:{order.Id}"))).Should().Be(1);
         _ = buyer;
     }
+
+    [Fact]
+    public async Task The_chat_notification_says_what_the_admin_wrote_in_its_message_template()
+    {
+        const string key = Application.Features.Admin.TemplateCatalog.ChatToShop;
+        var channel = Domain.SystemConfig.TemplateChannel.InApp;
+        var original = await factory.WithDbAsync(db => db.MessageTemplates.AsNoTracking().FirstOrDefaultAsync(t => t.Key == key && t.Channel == channel));
+        await factory.WithDbAsync(async db =>
+        {
+            if (original is null)
+                db.MessageTemplates.Add(new Domain.SystemConfig.MessageTemplate(key, channel, "Chat", "Khách {{sender}} vừa nhắn", "Nội dung: {{message}}",
+                    "sender,message", DateTimeOffset.UtcNow));
+            else
+                await db.MessageTemplates.Where(t => t.Id == original.Id)
+                    .ExecuteUpdateAsync(u => u.SetProperty(t => t.Subject, "Khách {{sender}} vừa nhắn").SetProperty(t => t.Body, "Nội dung: {{message}}"));
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        try
+        {
+            var store = await StoreAsync();
+            var buyer = await factory.CreateUserAsync();
+            var c = await SendAsync(buyer.Client, "/api/chat/conversations", new { shopId = store.Shop.ShopId });
+            await SendAsync(buyer.Client, $"/api/chat/conversations/{c.Str("id")}/messages", new { type = "Text", text = "Còn hàng không shop?" });
+            var notice = await factory.WithDbAsync(db => db.Notifications.AsNoTracking().SingleAsync(n => n.UserId == store.Staff.Id && n.RefType == "conversation"));
+            var name = await factory.WithDbAsync(db => db.Users.Where(u => u.Id == buyer.Id).Select(u => u.FullName).SingleAsync());
+            notice.Title.Should().Be($"Khách {name} vừa nhắn");
+            notice.Body.Should().Be("Nội dung: Còn hàng không shop?");
+        }
+        finally
+        {
+            await factory.WithDbAsync(async db =>
+            {
+                if (original is null) await db.MessageTemplates.Where(t => t.Key == key && t.Channel == channel).ExecuteDeleteAsync();
+                else
+                    await db.MessageTemplates.Where(t => t.Id == original.Id)
+                        .ExecuteUpdateAsync(u => u.SetProperty(t => t.Subject, original.Subject).SetProperty(t => t.Body, original.Body));
+                return 0;
+            });
+        }
+    }
 }

@@ -96,8 +96,9 @@ const PrivacyPage = () => {
               Tôi hiểu việc xoá tài khoản là vĩnh viễn
             </label>
             <div className="account-actions">
-              <button type="button" className="account-btn-outline" onClick={() => setConfirming(false)}>Huỷ</button>
-              <button type="submit" className="account-btn-primary" disabled={!password || !understood || busy} data-testid="privacy-delete-confirm">
+              <button type="button" className="account-btn-outline" onClick={() => setConfirming(false)} data-confirm="local">Huỷ</button>
+              <button type="submit" className="account-btn-primary" disabled={!password || !understood || busy} data-testid="privacy-delete-confirm"
+                data-confirm="dialog">
                 Xoá vĩnh viễn
               </button>
             </div>

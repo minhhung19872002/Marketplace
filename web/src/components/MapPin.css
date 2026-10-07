@@ -1,0 +1,11 @@
+.map-pin {
+  width: 100%;
+  height: 280px;
+  border: 1px solid var(--border);
+}
+
+.map-pin-marker {
+  stroke: var(--sh-primary);
+  fill: var(--sh-primary);
+  fill-opacity: 0.5;
+}

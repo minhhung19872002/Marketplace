@@ -110,7 +110,7 @@ public class SellerToolsTests(ApiFactory factory)
         (await seller.PutAsJsonAsync($"/api/seller/shops/{store.ShopId}/low-stock-threshold", new { units = 60 })).EnsureSuccessStatusCode();
         var d = (await (await seller.GetAsync($"/api/seller/shops/{store.ShopId}/dashboard")).ReadEnvelopeAsync()).Data;
         d.GetProperty("lowStockThreshold").GetInt32().Should().Be(60);
-        d.GetProperty("lowStockSkus").GetInt32().Should().Be(1, "48 khả dụng ≤ ngưỡng 60 của shop");
+        d.GetProperty("lowStockProducts").GetInt32().Should().Be(1, "48 khả dụng ≤ ngưỡng 60 của shop");
         var today = d.GetProperty("today");
         today.GetProperty("views").GetInt32().Should().Be(1);
         today.GetProperty("visitors").GetInt32().Should().Be(1);
@@ -201,5 +201,72 @@ public class SellerToolsTests(ApiFactory factory)
         var seller = await SellerAsync(store);
         (await seller.PutAsJsonAsync($"/api/seller/shops/{store.ShopId}/skus/{store.Skus["Thùng Kích Thước"]}", new { price = 110_000 })).EnsureSuccessStatusCode();
         (await factory.WithDbAsync(db => db.Skus.AsNoTracking().SingleAsync(s => s.Id == store.Skus["Thùng Kích Thước"]))).LengthMm.Should().Be(600);
+    }
+
+    [Fact]
+    public async Task The_low_stock_number_on_the_dashboard_and_the_low_stock_tab_count_the_same_products()
+    {
+        var store = await factory.CreateStoreAsync("79", products: [new("Áo Hai Màu", "Đèn Bàn", 120_000, 100, "Việt Nam"), new("Áo Đủ Hàng", "Đèn Bàn", 120_000, 100, "Việt Nam")]);
+        // "Áo Hai Màu": red has plenty, blue has 2 left — one variant running out is what the shop must see
+        await factory.WithDbAsync(async db =>
+        {
+            var p = await db.Products.Include(x => x.Skus).Include(x => x.Tiers).ThenInclude(t => t.Options).SingleAsync(x => x.Id == store.Products["Áo Hai Màu"]);
+            p.SetVariants([new Domain.Catalog.TierSpec("Màu", [new("Đỏ", null), new("Xanh", null)])],
+                [new Domain.Catalog.SkuSpec("Đỏ", null, null, 120_000, 130_000, 100, null, true), new Domain.Catalog.SkuSpec("Xanh", null, null, 120_000, 130_000, 2, null, true)]);
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        await factory.WithDbAsync(db => db.Products.Where(x => x.Id == store.Products["Áo Hai Màu"]).ExecuteUpdateAsync(u => u.SetProperty(x => x.Status, Domain.Catalog.ProductStatus.Active)));
+        var seller = await SellerAsync(store);
+        (await seller.PutAsJsonAsync($"/api/seller/shops/{store.ShopId}/low-stock-threshold", new { units = 5 })).EnsureSuccessStatusCode();
+
+        var dashboard = (await (await seller.GetAsync($"/api/seller/shops/{store.ShopId}/dashboard")).ReadEnvelopeAsync()).Data;
+        var tab = (await (await seller.GetAsync($"/api/seller/shops/{store.ShopId}/products?tab=LowStock")).ReadEnvelopeAsync()).Data;
+        tab.GetProperty("items").EnumerateArray().Select(i => i.Str("id")).Should().Equal(store.Products["Áo Hai Màu"].ToString());
+        dashboard.GetProperty("lowStockProducts").GetInt32().Should().Be(tab.GetProperty("totalCount").GetInt32(), "số trên bảng điều khiển = số dòng của tab");
+    }
+
+    [Fact]
+    public async Task Platform_announcements_on_the_dashboard_are_only_what_the_platform_sent_about_this_shop()
+    {
+        var store = await factory.CreateStoreAsync("79", products: [new("Ly Thông Báo", "Đèn Bàn", 50_000, 10, "Việt Nam")]);
+        var other = await factory.CreateStoreAsync("79", products: [new("Ly Shop Khác", "Đèn Bàn", 50_000, 10, "Việt Nam")]);
+        var staff = await factory.CreateUserAsync();
+        await factory.WithDbAsync(async db =>
+        {
+            db.ShopStaff.Add(new Domain.Shops.ShopStaff(store.ShopId, staff.Id, Domain.Shops.ShopStaffRole.Manager, Application.Security.ShopPermissions.All));
+            db.ShopStaff.Add(new Domain.Shops.ShopStaff(other.ShopId, staff.Id, Domain.Shops.ShopStaffRole.Manager, Application.Security.ShopPermissions.All));
+            var now = DateTimeOffset.UtcNow;
+            db.Notifications.Add(new Domain.Engage.Notification(staff.Id, Domain.Engage.NotificationCategory.Promotion, "Sàn: siêu sale 10.10", "Đăng ký ngay", "/", "broadcast", Guid.NewGuid(), now));
+            db.Notifications.Add(new Domain.Engage.Notification(staff.Id, Domain.Engage.NotificationCategory.Activity, "Sản phẩm bị khoá", "Ly Thông Báo", null, "product", store.Products["Ly Thông Báo"], now));
+            db.Notifications.Add(new Domain.Engage.Notification(staff.Id, Domain.Engage.NotificationCategory.Activity, "Sản phẩm shop khác bị khoá", "Ly Shop Khác", null, "product", other.Products["Ly Shop Khác"], now));
+            db.Notifications.Add(new Domain.Engage.Notification(staff.Id, Domain.Engage.NotificationCategory.Activity, "Tin nhắn mới từ khách", "Shop ơi", null, "conversation", Guid.NewGuid(), now));
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        var titles = (await (await staff.Client.GetAsync($"/api/seller/shops/{store.ShopId}/dashboard")).ReadEnvelopeAsync()).Data
+            .GetProperty("announcements").EnumerateArray().Select(a => a.Str("title")).ToList();
+        titles.Should().BeEquivalentTo(["Sàn: siêu sale 10.10", "Sản phẩm bị khoá"], "chỉ tin sàn phát và quyết định về sản phẩm của chính shop này");
+    }
+
+    [Fact]
+    public async Task Many_products_are_copied_in_one_go_each_as_a_stockless_draft_with_a_cap()
+    {
+        var store = await factory.CreateStoreAsync("80", products: [new("Ly Sứ", "Đèn Bàn", 40_000, 9, "Việt Nam"), new("Ly Thuỷ Tinh", "Đèn Bàn", 60_000, 7, "Việt Nam")]);
+        var seller = await SellerAsync(store);
+        var url = $"/api/seller/shops/{store.ShopId}/products";
+        var ids = store.Products.Values.ToList();
+
+        var copy = await seller.PostAsJsonAsync($"{url}/bulk-copy", new { productIds = ids.Append(Guid.NewGuid()) });
+        copy.StatusCode.Should().Be(HttpStatusCode.OK);
+        var rows = (await copy.ReadEnvelopeAsync()).Data.EnumerateArray().ToList();
+        rows.Count(r => r.GetProperty("ok").GetBoolean()).Should().Be(2, "sản phẩm lạ báo lỗi riêng, không chặn hai sản phẩm kia");
+        var copies = rows.Where(r => r.GetProperty("ok").GetBoolean()).Select(r => Guid.Parse(r.Str("newProductId")!)).ToList();
+        var made = await factory.WithDbAsync(db => db.Products.Include(p => p.Skus).Where(p => copies.Contains(p.Id)).ToListAsync());
+        made.Should().HaveCount(2).And.OnlyContain(p => p.Status == ProductStatus.Draft && p.ShopId == store.ShopId && p.Skus.All(s => s.Stock == 0));
+        made.Select(p => p.Name[..p.Name.LastIndexOf(' ')]).Should().BeEquivalentTo(["Bản sao - Ly Sứ", "Bản sao - Ly Thuỷ Tinh"]);
+
+        (await seller.PostAsJsonAsync($"{url}/bulk-copy", new { productIds = Enumerable.Range(0, 21).Select(_ => Guid.NewGuid()) }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest, "sao chép hàng loạt có trần 20");
     }
 }

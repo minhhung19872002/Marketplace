@@ -35,6 +35,18 @@ public static class ShopChannels
     public static bool AllowsCod(IReadOnlyDictionary<string, Choice> choices, string code) => !choices.TryGetValue(code, out var c) || c.Cod;
 }
 
+public record CarrierOptionDto(string Code, string Name, string? Description, bool SupportsCod);
+
+/// <summary>Active carriers, for the registration form (III.1) — before the seller has a shop.</summary>
+public record ActiveCarriersQuery : IRequest<IReadOnlyList<CarrierOptionDto>>;
+
+public sealed class ActiveCarriersHandler(IApplicationDbContext db) : IRequestHandler<ActiveCarriersQuery, IReadOnlyList<CarrierOptionDto>>
+{
+    public async Task<IReadOnlyList<CarrierOptionDto>> Handle(ActiveCarriersQuery request, CancellationToken ct) =>
+        await db.Carriers.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.SortOrder).ThenBy(c => c.Code)
+            .Select(c => new CarrierOptionDto(c.Code, c.Name, c.Description, c.SupportsCod)).ToListAsync(ct);
+}
+
 public record ShopLogisticsQuery(Guid ShopId) : IRequest<ShopLogisticsDto>;
 
 public sealed class ShopLogisticsHandler(IApplicationDbContext db, SellerAccess access) : IRequestHandler<ShopLogisticsQuery, ShopLogisticsDto>

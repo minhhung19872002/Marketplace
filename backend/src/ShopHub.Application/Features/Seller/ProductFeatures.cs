@@ -405,8 +405,7 @@ public sealed class ListSellerProductsHandler(IApplicationDbContext db, SellerAc
             SellerProductTab.Violation => products.Where(p => p.Status == ProductStatus.Banned),
             SellerProductTab.Hidden => products.Where(p => p.Status == ProductStatus.Hidden),
             SellerProductTab.Draft => products.Where(p => p.Status == ProductStatus.Draft),
-            SellerProductTab.LowStock => products.Where(p => p.Status == ProductStatus.Active
-                && p.Skus.Where(s => s.IsActive).Sum(s => s.Stock - s.Reserved) <= lowStock),
+            SellerProductTab.LowStock => LowStock.Of(products, lowStock),
             _ => products,
         };
         if (request.CategoryId is { } categoryId) products = products.Where(p => p.CategoryId == categoryId);
@@ -508,6 +507,41 @@ public sealed class BulkProductActionHandler(IApplicationDbContext db, ISender s
             {
                 db.ClearTracking();
                 results.Add(new BulkProductResultDto(id, false, null, ex.Message));
+            }
+        }
+        return results;
+    }
+}
+
+public record BulkCopyResultDto(Guid ProductId, bool Ok, Guid? NewProductId, string? Error);
+
+public record BulkCopyProductsCommand(Guid ShopId, IReadOnlyList<Guid> ProductIds) : IRequest<IReadOnlyList<BulkCopyResultDto>>;
+
+public sealed class BulkCopyProductsValidator : AbstractValidator<BulkCopyProductsCommand>
+{
+    // A copy carries media, variants and attributes — a lower cap than hide/show
+    public const int Max = 20;
+
+    public BulkCopyProductsValidator() =>
+        RuleFor(x => x.ProductIds).NotEmpty().WithMessage("Chọn ít nhất một sản phẩm.").Must(i => i.Count <= Max).WithMessage($"Mỗi lần sao chép tối đa {Max} sản phẩm.");
+}
+
+/// <summary>"Sao chép hàng loạt" (III.3, D6): one <see cref="CopyProductCommand"/> per product, each answering for itself.</summary>
+public sealed class BulkCopyProductsHandler(IApplicationDbContext db, ISender sender) : IRequestHandler<BulkCopyProductsCommand, IReadOnlyList<BulkCopyResultDto>>
+{
+    public async Task<IReadOnlyList<BulkCopyResultDto>> Handle(BulkCopyProductsCommand request, CancellationToken ct)
+    {
+        var results = new List<BulkCopyResultDto>();
+        foreach (var id in request.ProductIds.Distinct())
+        {
+            try
+            {
+                results.Add(new BulkCopyResultDto(id, true, await sender.Send(new CopyProductCommand(request.ShopId, id), ct), null));
+            }
+            catch (Exception ex) when (ex is ConflictException or NotFoundException or Domain.Common.BusinessRuleException)
+            {
+                db.ClearTracking();
+                results.Add(new BulkCopyResultDto(id, false, null, ex.Message));
             }
         }
         return results;

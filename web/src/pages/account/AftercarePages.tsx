@@ -17,6 +17,7 @@ import { formatCount, formatPrice } from '../../lib/money';
 import { formatDateTime } from '../../lib/datetime';
 import { ContactShopButton } from '../../components/chat/Chat';
 import { handleImgError, imageOrPlaceholder } from '../../lib/image';
+import { ConfirmButton } from '../../components/ConfirmDialog';
 
 /** Pick photos / a short video; each file is uploaded right away and kept as an asset id. */
 const MediaPicker = ({ purpose, value, onChange, max, testId }: {
@@ -299,7 +300,10 @@ export const ReturnDetailPage = () => {
       {message && <div className="account-message" role="status">{message}</div>}
       <div className="order-actions">
         {canDispute && !disputing && <button className="account-btn" onClick={() => setDisputing(true)} data-testid="open-dispute">Khiếu nại lên ShopHub</button>}
-        {canCancel && <button className="account-btn-outline" onClick={() => act('cancel')} data-testid="cancel-return">Huỷ yêu cầu</button>}
+        {canCancel && (
+          <ConfirmButton className="account-btn-outline" message="Huỷ yêu cầu trả hàng / hoàn tiền này?" confirmLabel="Huỷ yêu cầu" onConfirm={() => act('cancel')}
+            testId="cancel-return">Huỷ yêu cầu</ConfirmButton>
+        )}
         {disputing && (
           <div className="order-cancel-box">
             <textarea rows={3} value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} placeholder="Vì sao bạn không đồng ý với shop?" data-testid="dispute-reason" />

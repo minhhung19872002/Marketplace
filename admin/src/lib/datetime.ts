@@ -59,3 +59,6 @@ export const addDaysIso = (day: string, n: number): string => new Date(Date.pars
 
 /** "YYYY-MM-DD" → "06/10/2026". */
 export const formatIsoDay = (day: string): string => `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
+
+/** A wall-clock "YYYY-MM-DDTHH:mm" read as Vietnam time (what a picker shows), as an ISO instant. */
+export const vnWallTimeIso = (wall: string): string => new Date(`${wall}:00+07:00`).toISOString();

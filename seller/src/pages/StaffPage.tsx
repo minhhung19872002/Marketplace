@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { App, Button, Card, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../api/http'
-import { PERMISSION_LABELS, ROLE_LABELS, staffApi, type ShopStaff, type StaffRole } from '../api/staff'
+import { formatDateTime } from '../lib/datetime'
+import { PERMISSION_LABELS, ROLE_LABELS, staffApi, type ShopStaff, type StaffInvitation, type StaffRole } from '../api/staff'
 import { formatDate } from '../lib/datetime'
 
 type Draft = { id?: string; login: string; role: Exclude<StaffRole, 'Owner'>; permissions: string[] }
@@ -28,6 +29,7 @@ const StaffPage = ({ shopId }: { shopId: string }) => {
     onError: fail,
   })
   const remove = useMutation({ mutationFn: (id: string) => staffApi.remove(shopId, id), onSuccess: done, onError: fail })
+  const revoke = useMutation({ mutationFn: (id: string) => staffApi.revokeInvitation(shopId, id), onSuccess: done, onError: fail })
 
   if (board.isError) {
     return <Card title="Tài khoản phụ"><Typography.Text type="danger">{board.error instanceof ApiError ? board.error.message : 'Không tải được.'}</Typography.Text></Card>
@@ -41,12 +43,13 @@ const StaffPage = ({ shopId }: { shopId: string }) => {
       extra={
         <Button type="primary" data-testid="staff-add" disabled={!data || data.staff.length >= data.maxStaff}
           onClick={() => setDraft({ login: '', role: 'CustomerService', permissions: defaults('CustomerService') })}>
-          Thêm nhân viên
+          Mời nhân viên
         </Button>
       }
     >
       <Typography.Paragraph type="secondary">
-        Nhân viên đăng nhập Kênh Người Bán bằng tài khoản ShopHub của chính họ và chỉ thấy các mục được cấp quyền. Gỡ nhân viên có hiệu lực ngay.
+        Nhân viên đăng nhập Kênh Người Bán bằng tài khoản ShopHub của chính họ và chỉ thấy các mục được cấp quyền. Người được mời vào shop sau khi
+        đồng ý lời mời. Gỡ nhân viên có hiệu lực ngay.
         {data && ` Tối đa ${data.maxStaff} tài khoản.`}
       </Typography.Paragraph>
       <Table<ShopStaff>
@@ -79,9 +82,34 @@ const StaffPage = ({ shopId }: { shopId: string }) => {
         ]}
       />
 
+      {(data?.invitations.length ?? 0) > 0 && (
+        <>
+          <Typography.Title level={5} style={{ marginTop: 24 }}>Lời mời đang chờ trả lời</Typography.Title>
+          <Table<StaffInvitation>
+            rowKey="id"
+            size="small"
+            dataSource={data?.invitations ?? []}
+            pagination={false}
+            data-testid="staff-invitations"
+            columns={[
+              { title: 'Người được mời', render: (_, i) => <Space direction="vertical" size={0}><Typography.Text strong>{i.fullName}</Typography.Text><Typography.Text type="secondary">{i.phoneMasked ?? i.emailMasked}</Typography.Text></Space> },
+              { title: 'Vai trò', render: (_, i) => <Tag>{ROLE_LABELS[i.role]}</Tag> },
+              { title: 'Hết hạn', render: (_, i) => formatDateTime(i.expiresAt) },
+              {
+                title: '', render: (_, i) => (
+                  <Popconfirm title="Thu hồi lời mời này?" okText="Thu hồi" cancelText="Không" onConfirm={() => revoke.mutate(i.id)}>
+                    <Button size="small" danger>Thu hồi</Button>
+                  </Popconfirm>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
+
       <Modal
         open={draft !== null}
-        title={draft?.id ? `Sửa quyền — ${draft.login}` : 'Thêm nhân viên'}
+        title={draft?.id ? `Sửa quyền — ${draft.login}` : 'Mời nhân viên'}
         okText="Lưu"
         cancelText="Huỷ"
         confirmLoading={save.isPending}

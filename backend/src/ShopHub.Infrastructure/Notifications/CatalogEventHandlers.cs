@@ -6,10 +6,15 @@ using ShopHub.Infrastructure.Persistence;
 
 namespace ShopHub.Infrastructure.Notifications;
 
-/// <summary>Tells the shop owner how their application went (SMS when they have a phone, email otherwise).</summary>
-public sealed class ShopEventHandler(ShopHubDbContext db, ISmsSender sms, IEmailSender email) : IOutboxHandler
+/// <summary>
+/// Tells the shop owner how their application went (SMS when they have a phone, email otherwise), worded by the editable
+/// SHOP.* templates with the platform name from SITE.PLATFORM_NAME (F7).
+/// </summary>
+public sealed class ShopEventHandler(ShopHubDbContext db, ISmsSender sms, IEmailSender email, Application.Features.Admin.MessageTemplates templates,
+    Application.Abstractions.ISystemParameters parameters) : IOutboxHandler
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly string[] Events = ["SUBMITTED", "APPROVE", "REJECT", "LOCK", "UNLOCK", "PENALTY"];
 
     public string Type => OutboxTypes.ShopEvent;
 
@@ -22,18 +27,15 @@ public sealed class ShopEventHandler(ShopHubDbContext db, ISmsSender sms, IEmail
                             select new { s.Name, u.Phone, u.Email }).FirstOrDefaultAsync(ct);
         if (target is null) return;
 
-        var text = e.Event switch
-        {
-            "SUBMITTED" => $"ShopHub: Ho so shop \"{target.Name}\" da duoc gui, san se duyet trong 1-2 ngay lam viec.",
-            "APPROVE" => $"ShopHub: Shop \"{target.Name}\" da duoc duyet. Ban co the dang ban ngay tai Kenh Nguoi Ban.",
-            "REJECT" => $"ShopHub: Ho so shop \"{target.Name}\" chua duoc duyet. Ly do: {e.Reason}",
-            "LOCK" => $"ShopHub: Shop \"{target.Name}\" tam thoi bi khoa. Ly do: {e.Reason}",
-            "UNLOCK" => $"ShopHub: Shop \"{target.Name}\" da duoc mo khoa.",
-            "PENALTY" => $"ShopHub: Shop \"{target.Name}\" bi ghi diem phat. Ly do: {e.Reason}. Xem tai Kenh Nguoi Ban > Hieu qua hoat dong.",
-            _ => null,
-        };
-        if (text is null) return;
-        await NotifyAsync(target.Phone, target.Email, $"Thông báo shop {target.Name}", text, ct);
+        if (!Events.Contains(e.Event)) return;
+        var platform = await parameters.GetStringAsync(ParameterKeys.SitePlatformName, ct);
+        // SMS go without tones (like the OTP)
+        var (_, text) = await templates.RenderAsync(Application.Features.Admin.TemplateCatalog.ShopEventKey(e.Event), Domain.SystemConfig.TemplateChannel.Sms,
+            new Dictionary<string, string>
+            {
+                ["platform"] = Application.Common.Slug.Fold(platform), ["shop"] = target.Name, ["reason"] = e.Reason ?? string.Empty,
+            }, ct);
+        await NotifyAsync(target.Phone, target.Email, $"{platform} — {target.Name}", text, ct);
     }
 
     internal async Task NotifyAsync(string? phone, string? emailAddress, string subject, string text, CancellationToken ct)

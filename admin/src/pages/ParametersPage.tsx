@@ -48,6 +48,8 @@ const ParametersPage = ({ permissions }: { permissions: string[] }) => {
         loading={params.isPending}
         dataSource={params.data}
         pagination={false}
+        // Wide values (JSON, cron + next run) scroll inside the table, never the whole page at 1366 px
+        scroll={{ x: 'max-content' }}
         columns={[
           { title: 'Tham số', render: (_, p) => <><div>{p.name}</div><Typography.Text type="secondary" code>{p.key}</Typography.Text></> },
           {

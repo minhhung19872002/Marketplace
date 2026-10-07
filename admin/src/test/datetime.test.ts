@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, secondsToNextSlot } from '../lib/datetime';
+import { formatDate, formatDateTime, secondsToNextSlot, vnWallTimeIso } from '../lib/datetime';
 import { findLines, sourceFiles } from './scan';
 
 const ALLOWED = ['lib/datetime.ts', 'lib/money.ts'];
@@ -9,7 +9,7 @@ describe('datetime', () => {
     const files = sourceFiles(['.ts', '.tsx']).filter((f) => !ALLOWED.some((a) => f.replace(/\\/g, '/').endsWith(a)));
     const offenders = findLines(
       files,
-      /toLocale(Date|Time)?String\(|Intl\.DateTimeFormat|\.get(Hours|Minutes|Seconds|Date|Day|Month|FullYear)\(|\.set(Hours|Minutes|Date)\(/,
+      /toLocale(Date|Time)?String\(|Intl\.DateTimeFormat|\.get(Hours|Minutes|Seconds|Date|Day|Month|FullYear)\(|\.set(Hours|Minutes|Date)\(|\.(startOf|endOf)\(/,
     );
     expect(offenders).toEqual([]);
   });
@@ -25,5 +25,8 @@ describe('datetime', () => {
     expect(secondsToNextSlot(Date.parse('2026-10-06T06:59:30Z'), 2)).toBe(30);
     // Exactly on a boundary → a full slot remains
     expect(secondsToNextSlot(Date.parse('2026-10-06T07:00:00Z'), 2)).toBe(7200);
+  });
+  it('reads a picked wall-clock time as Vietnam time', () => {
+    expect(vnWallTimeIso('2026-10-08T00:00')).toBe('2026-10-07T17:00:00.000Z');
   });
 });

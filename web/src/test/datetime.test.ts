@@ -9,7 +9,7 @@ describe('datetime', () => {
     const files = sourceFiles(['.ts', '.tsx']).filter((f) => !ALLOWED.some((a) => f.replace(/\\/g, '/').endsWith(a)));
     const offenders = findLines(
       files,
-      /toLocale(Date|Time)?String\(|Intl\.DateTimeFormat|\.get(Hours|Minutes|Seconds|Date|Day|Month|FullYear)\(|\.set(Hours|Minutes|Date)\(/,
+      /toLocale(Date|Time)?String\(|Intl\.DateTimeFormat|\.get(Hours|Minutes|Seconds|Date|Day|Month|FullYear)\(|\.set(Hours|Minutes|Date)\(|\.(startOf|endOf)\(/,
     );
     expect(offenders).toEqual([]);
   });

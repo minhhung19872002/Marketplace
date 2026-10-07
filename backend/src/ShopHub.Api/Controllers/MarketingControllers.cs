@@ -76,6 +76,15 @@ public sealed class SellerMarketingController : ApiControllerBase
     public async Task<IActionResult> CreatePromotion(Guid shopId, [FromBody] PromotionInput input, CancellationToken ct) =>
         OkData(await Sender.Send(new CreatePromotionCommand(shopId, input), ct), "Đã tạo chương trình.");
 
+    /// <summary>Sửa a programme that has not started yet (same type); a running one answers 409.</summary>
+    [HttpPut("promotions/{promotionId:guid}")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdatePromotion(Guid shopId, Guid promotionId, [FromBody] PromotionInput input, CancellationToken ct)
+    {
+        await Sender.Send(new UpdatePromotionCommand(shopId, promotionId, input), ct);
+        return OkData<object?>(null, "Đã lưu chương trình.");
+    }
+
     [HttpPost("promotions/{promotionId:guid}/stop")]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> StopPromotion(Guid shopId, Guid promotionId, CancellationToken ct)
@@ -95,6 +104,15 @@ public sealed class SellerMarketingController : ApiControllerBase
     [ProducesResponseType<ApiResponse<Guid>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> CreateFlashSale(Guid shopId, [FromBody] ShopFlashBody body, CancellationToken ct) =>
         OkData(await Sender.Send(new CreateShopFlashSaleCommand(shopId, body.StartAt, body.EndAt, body.Items ?? []), ct), "Đã tạo Flash Sale của shop.");
+
+    /// <summary>Sửa the shop's own Flash Sale before it starts; a running one answers 409.</summary>
+    [HttpPut("flash-sales/{slotId:guid}")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateFlashSale(Guid shopId, Guid slotId, [FromBody] ShopFlashBody body, CancellationToken ct)
+    {
+        await Sender.Send(new UpdateShopFlashSaleCommand(shopId, slotId, body.StartAt, body.EndAt, body.Items ?? []), ct);
+        return OkData<object?>(null, "Đã lưu Flash Sale của shop.");
+    }
 
     [HttpGet("platform-slots")]
     [ProducesResponseType<ApiResponse<IReadOnlyList<FlashSlotDto>>>(StatusCodes.Status200OK)]
@@ -136,6 +154,20 @@ public sealed class SellerMarketingController : ApiControllerBase
 [Route("api/admin/marketing")]
 public sealed class MarketingAdminController : ApiControllerBase
 {
+    /// <summary>Từ khoá hot thủ công — topped up under the search box while real search traffic is thin.</summary>
+    [HttpGet("hot-keywords")]
+    [RequirePermission(Permissions.HotKeywordManage)]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<string>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> HotKeywords(CancellationToken ct) => OkData(await Sender.Send(new HotKeywordsQuery(), ct));
+
+    public record HotKeywordsBody(IReadOnlyList<string> Keywords);
+
+    [HttpPut("hot-keywords")]
+    [RequirePermission(Permissions.HotKeywordManage)]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<string>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetHotKeywords([FromBody] HotKeywordsBody body, CancellationToken ct) =>
+        OkData(await Sender.Send(new SetHotKeywordsCommand(body.Keywords ?? []), ct), "Đã lưu từ khoá hot.");
+
     [HttpGet("flash-slots")]
     [RequirePermission(Permissions.MarketingManage)]
     [ProducesResponseType<ApiResponse<IReadOnlyList<FlashSlotDto>>>(StatusCodes.Status200OK)]

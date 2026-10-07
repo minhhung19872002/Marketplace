@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import dayjs, { type Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import { marketingApi, xtraApi, type CampaignRegistration, type OpenCampaign, type FlashItemInput, type FlashSlot, type PickSku, type Promotion, type PromotionType, type XtraProgram } from '../api/marketing'
 import { ApiError } from '../api/http'
 import ProductPicker from '../components/ProductPicker'
 import { formatPercentBp, formatPrice } from '../lib/money'
 import { formatDateTime } from '../lib/datetime'
+import { sellerApi } from '../api/seller'
+import { categoryNames, flashCriteriaText } from './flashCriteria'
+import { flashFormValues, flashInput, promotionFormValues, promotionInput, type FlashForm, type PromotionForm } from './promotionForm'
 
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : fallback)
 
@@ -26,55 +29,58 @@ const useSkus = (shopId: string) => {
   return { skus: skus.data ?? [], search: setQ }
 }
 
-interface PromotionForm {
-  type: PromotionType
-  name: string
-  period: [Dayjs, Dayjs]
-  productIds?: string[]
-  skus?: { skuId: string; price: number }[]
-  minQuantity?: number
-  discountPercent?: number
-  maxAddOnQuantity?: number
-  minSpend?: number
-  giftSkuId?: string
-  giftQuantity?: number
-}
+type Option = { value: string; label: string }
+
+/** Search results plus the options already chosen (an opened programme's SKUs may not be in the current search). */
+const withKnown = (options: Option[], known: Option[]): Option[] => [...known.filter((k) => !options.some((o) => o.value === k.value)), ...options]
+
+const NOT_STARTED = 'Sắp diễn ra'
 
 const PromotionsTab = ({ shopId }: { shopId: string }) => {
   const { message } = App.useApp()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
+  // The programme being edited (only before it starts); null = a new one
+  const [editing, setEditing] = useState<Promotion | null>(null)
   const [form] = Form.useForm<PromotionForm>()
   const { skus, search } = useSkus(shopId)
   const list = useQuery({ queryKey: ['promotions', shopId], queryFn: () => marketingApi.promotions(shopId) })
-  const products = [...new Map(skus.map((s) => [s.productId, s.productName])).entries()].map(([value, label]) => ({ value, label }))
+  const knownProducts: Option[] = editing ? editing.productIds.map((id, i) => ({ value: id, label: editing.productNames[i] ?? id })) : []
+  const products = withKnown([...new Map(skus.map((s) => [s.productId, s.productName])).entries()].map(([value, label]) => ({ value, label })), knownProducts)
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['promotions', shopId] })
 
+  const openForm = (p: Promotion | null) => {
+    setEditing(p)
+    form.resetFields()
+    if (p) form.setFieldsValue(promotionFormValues(p))
+    setOpen(true)
+  }
+  const close = () => { setOpen(false); setEditing(null) }
+
   const create = useMutation({
-    mutationFn: (v: PromotionForm) => marketingApi.createPromotion(shopId, {
-      type: v.type, name: v.name.trim(), startAt: v.period[0].toISOString(), endAt: v.period[1].toISOString(),
-      productIds: v.productIds ?? [], skus: (v.skus ?? []).filter((s) => s?.skuId),
-      minQuantity: v.minQuantity ?? 0, discountBp: Math.round((v.discountPercent ?? 0) * 100), discountAmount: 0,
-      maxAddOnQuantity: v.maxAddOnQuantity ?? 0, minSpend: v.minSpend ?? 0, giftSkuId: v.giftSkuId ?? null, giftQuantity: v.giftQuantity ?? 0,
-    }),
+    mutationFn: (v: PromotionForm): Promise<{ message: string }> => (editing ? marketingApi.updatePromotion(shopId, editing.id, promotionInput(v)) : marketingApi.createPromotion(shopId, promotionInput(v))),
     onSuccess: (r) => {
       message.success(r.message)
-      setOpen(false)
+      close()
       form.resetFields()
       refresh()
     },
-    onError: (e) => message.error(errorText(e, 'Không tạo được chương trình.')),
+    onError: (e) => message.error(errorText(e, editing ? 'Không lưu được chương trình.' : 'Không tạo được chương trình.')),
   })
   const stop = useMutation({
     mutationFn: (id: string) => marketingApi.stopPromotion(shopId, id),
     onSuccess: (r) => { message.success(r.message); refresh() },
     onError: (e) => message.error(errorText(e, 'Không dừng được.')),
   })
-  const skuOptions = skus.map((s) => ({ value: s.skuId, label: skuLabel(s) }))
+  const knownSkus: Option[] = editing
+    ? [...editing.skus.map((s) => ({ value: s.skuId, label: `${s.productName}${s.variant ? ` - ${s.variant}` : ''}` })),
+      ...(editing.giftSkuId ? [{ value: editing.giftSkuId, label: editing.giftName ?? editing.giftSkuId }] : [])]
+    : []
+  const skuOptions = withKnown(skus.map((s) => ({ value: s.skuId, label: skuLabel(s) })), knownSkus)
 
   return (
     <>
-      <Button type="primary" onClick={() => setOpen(true)} style={{ marginBottom: 12 }} data-testid="promotion-new">Tạo chương trình</Button>
+      <Button type="primary" onClick={() => openForm(null)} style={{ marginBottom: 12 }} data-testid="promotion-new">Tạo chương trình</Button>
       <Table<Promotion> rowKey="id" loading={list.isLoading} dataSource={list.data ?? []} pagination={{ pageSize: 20 }}
         columns={[
           { title: 'Loại', dataIndex: 'typeLabel' },
@@ -87,15 +93,24 @@ const PromotionsTab = ({ shopId }: { shopId: string }) => {
                   : `Đơn từ ${formatPrice(p.minSpend)} tặng ${p.giftQuantity} × ${p.giftName}`,
           },
           { title: 'Trạng thái', dataIndex: 'state', render: (s: string) => <Tag color={s === 'Đang diễn ra' ? 'green' : s === 'Sắp diễn ra' ? 'blue' : 'default'}>{s}</Tag> },
-          { title: '', render: (_, p) => p.status === 'Active' && p.state !== 'Đã kết thúc' && <Button size="small" danger onClick={() => stop.mutate(p.id)}>Dừng</Button> },
+          {
+            title: '', render: (_, p) => p.status === 'Active' && p.state !== 'Đã kết thúc' && (
+              <Space>
+                {p.state === NOT_STARTED && <Button size="small" onClick={() => openForm(p)} data-testid="promotion-edit">Sửa</Button>}
+                <Button size="small" danger onClick={() => stop.mutate(p.id)}>Dừng</Button>
+              </Space>
+            ),
+          },
         ]} />
-      <Modal title="Tạo chương trình" open={open} onCancel={() => setOpen(false)} onOk={() => form.submit()} okText="Lưu" confirmLoading={create.isPending}
-        width={720} destroyOnClose>
+      <Modal title={editing ? `Sửa: ${editing.name}` : 'Tạo chương trình'} open={open} onCancel={close} onOk={() => form.submit()} okText="Lưu"
+        confirmLoading={create.isPending} width={720} forceRender>
         <Form<PromotionForm> form={form} layout="vertical" onFinish={(v) => create.mutate(v)}
           initialValues={{ type: 'Discount', period: [dayjs(), dayjs().add(7, 'day')], skus: [{}], minQuantity: 3, discountPercent: 10, maxAddOnQuantity: 1, giftQuantity: 1 }}>
-          <Form.Item name="type" label="Loại chương trình"><Radio.Group options={TYPES} /></Form.Item>
+          <Form.Item name="type" label="Loại chương trình" extra={editing ? 'Không đổi được loại của chương trình đã tạo.' : undefined}>
+            <Radio.Group options={TYPES} disabled={!!editing} />
+          </Form.Item>
           <Form.Item name="name" label="Tên chương trình" rules={[{ required: true, message: 'Nhập tên.' }]}><Input maxLength={150} /></Form.Item>
-          <Form.Item name="period" label="Thời gian" rules={[{ required: true, message: 'Chọn thời gian.' }]}>
+          <Form.Item name="period" label="Thời gian (giờ Việt Nam)" rules={[{ required: true, message: 'Chọn thời gian.' }]}>
             <DatePicker.RangePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item noStyle shouldUpdate={(a, b) => a.type !== b.type}>
@@ -120,7 +135,7 @@ const PromotionsTab = ({ shopId }: { shopId: string }) => {
                               <Form.Item name={[f.name, 'price']} rules={[{ required: true, message: 'Nhập giá.' }]}>
                                 <InputNumber min={1000} step={1000} placeholder={type === 'AddOn' ? 'Giá mua kèm' : 'Giá giảm'} style={{ width: 150 }} />
                               </Form.Item>
-                              <Button onClick={() => remove(f.name)}>Xoá</Button>
+                              <Button onClick={() => remove(f.name)} data-confirm="local">Xoá</Button>
                             </Space>
                           ))}
                           <Button onClick={() => add({})}>+ Thêm phân loại</Button>
@@ -154,7 +169,7 @@ const PromotionsTab = ({ shopId }: { shopId: string }) => {
   )
 }
 
-const ItemsEditor = ({ shopId }: { shopId: string }) => {
+const ItemsEditor = ({ shopId, known = [] }: { shopId: string; known?: Option[] }) => {
   const { skus, search } = useSkus(shopId)
   return (
     <Form.List name="items">
@@ -163,13 +178,13 @@ const ItemsEditor = ({ shopId }: { shopId: string }) => {
           {fields.map((f) => (
             <Space key={f.key} align="baseline" wrap>
               <Form.Item name={[f.name, 'skuId']} rules={[{ required: true, message: 'Chọn phân loại.' }]}>
-                <Select style={{ width: 360 }} options={skus.map((s) => ({ value: s.skuId, label: skuLabel(s) }))} showSearch filterOption={false}
+                <Select style={{ width: 360 }} options={withKnown(skus.map((s) => ({ value: s.skuId, label: skuLabel(s) })), known)} showSearch filterOption={false}
                   onSearch={search} placeholder="Phân loại" />
               </Form.Item>
               <Form.Item name={[f.name, 'flashPrice']} rules={[{ required: true, message: 'Giá.' }]}><InputNumber min={1000} step={1000} placeholder="Giá Flash Sale" /></Form.Item>
               <Form.Item name={[f.name, 'quota']} rules={[{ required: true, message: 'Suất.' }]}><InputNumber min={1} placeholder="Số suất" /></Form.Item>
               <Form.Item name={[f.name, 'perUserLimit']} initialValue={1}><InputNumber min={1} max={100} placeholder="Mỗi người" /></Form.Item>
-              <Button onClick={() => remove(f.name)}>Xoá</Button>
+              <Button onClick={() => remove(f.name)} data-confirm="local">Xoá</Button>
             </Space>
           ))}
           <Button onClick={() => add({ perUserLimit: 1 })}>+ Thêm phân loại</Button>
@@ -183,18 +198,28 @@ const FlashTab = ({ shopId }: { shopId: string }) => {
   const { message } = App.useApp()
   const queryClient = useQueryClient()
   const [own, setOwn] = useState(false)
+  // The shop's own slot being edited (before it starts); null = a new one
+  const [editingSlot, setEditingSlot] = useState<FlashSlot | null>(null)
   const [registerSlot, setRegisterSlot] = useState<FlashSlot | null>(null)
-  const [ownForm] = Form.useForm<{ period: [Dayjs, Dayjs]; items: FlashItemInput[] }>()
+  const [ownForm] = Form.useForm<FlashForm>()
   const [regForm] = Form.useForm<{ items: FlashItemInput[] }>()
   const mine = useQuery({ queryKey: ['flash-mine', shopId], queryFn: () => marketingApi.flashSales(shopId) })
   const open = useQuery({ queryKey: ['flash-open', shopId], queryFn: () => marketingApi.platformSlots(shopId) })
+  const categories = useQuery({ queryKey: ['categories'], queryFn: sellerApi.categories, staleTime: 600_000 })
+  const names = categoryNames(categories.data ?? [])
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['flash-mine', shopId] })
 
+  const openOwn = (s: FlashSlot | null) => {
+    setEditingSlot(s)
+    ownForm.resetFields()
+    if (s) ownForm.setFieldsValue(flashFormValues(s))
+    setOwn(true)
+  }
+  const closeOwn = () => { setOwn(false); setEditingSlot(null) }
   const createOwn = useMutation({
-    mutationFn: (v: { period: [Dayjs, Dayjs]; items: FlashItemInput[] }) =>
-      marketingApi.createFlashSale(shopId, { startAt: v.period[0].toISOString(), endAt: v.period[1].toISOString(), items: v.items ?? [] }),
-    onSuccess: (r) => { message.success(r.message); setOwn(false); ownForm.resetFields(); refresh() },
-    onError: (e) => message.error(errorText(e, 'Không tạo được Flash Sale.')),
+    mutationFn: (v: FlashForm): Promise<{ message: string }> => (editingSlot ? marketingApi.updateFlashSale(shopId, editingSlot.id, flashInput(v)) : marketingApi.createFlashSale(shopId, flashInput(v))),
+    onSuccess: (r) => { message.success(r.message); closeOwn(); ownForm.resetFields(); refresh() },
+    onError: (e) => message.error(errorText(e, editingSlot ? 'Không lưu được Flash Sale.' : 'Không tạo được Flash Sale.')),
   })
   const register = useMutation({
     mutationFn: (v: { items: FlashItemInput[] }) => marketingApi.register(shopId, registerSlot!.id, v.items ?? []),
@@ -205,13 +230,13 @@ const FlashTab = ({ shopId }: { shopId: string }) => {
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
       <Space>
-        <Button type="primary" onClick={() => setOwn(true)} data-testid="flash-own-new">Tạo Flash Sale của shop</Button>
+        <Button type="primary" onClick={() => openOwn(null)} data-testid="flash-own-new">Tạo Flash Sale của shop</Button>
       </Space>
       <Typography.Title level={5}>Khung Flash Sale của sàn đang mở đăng ký</Typography.Title>
       <Table<FlashSlot> rowKey="id" size="small" dataSource={open.data ?? []} pagination={false} locale={{ emptyText: 'Chưa có khung nào đang mở' }}
         columns={[
           { title: 'Khung giờ', render: (_, s) => `${formatDateTime(s.startAt)} – ${formatDateTime(s.endAt)}` },
-          { title: 'Tiêu chí', render: (_, s) => `Giảm ≥ ${s.minDiscountBp / 100}% · đánh giá ≥ ${s.minRating}★` },
+          { title: 'Tiêu chí', render: (_, s) => <span data-testid="flash-criteria">{flashCriteriaText(s, names)}</span> },
           { title: '', render: (_, s) => <Button size="small" onClick={() => setRegisterSlot(s)}>Đăng ký sản phẩm</Button> },
         ]} />
       <Typography.Title level={5}>Flash Sale của tôi & đăng ký</Typography.Title>
@@ -231,20 +256,26 @@ const FlashTab = ({ shopId }: { shopId: string }) => {
           { title: 'Khung giờ', render: (_, s) => `${formatDateTime(s.startAt)} – ${formatDateTime(s.endAt)}` },
           { title: 'Sản phẩm', render: (_, s) => s.items.length },
           { title: 'Trạng thái', dataIndex: 'state' },
+          {
+            title: '', render: (_, s) => s.owner === 'Shop' && s.state === NOT_STARTED && (
+              <Button size="small" onClick={() => openOwn(s)} data-testid="flash-own-edit">Sửa</Button>
+            ),
+          },
         ]} />
 
-      <Modal title="Flash Sale của shop" open={own} onCancel={() => setOwn(false)} onOk={() => ownForm.submit()} okText="Tạo" width={860}
-        confirmLoading={createOwn.isPending} destroyOnClose>
+      <Modal title={editingSlot ? 'Sửa Flash Sale của shop' : 'Flash Sale của shop'} open={own} onCancel={closeOwn} onOk={() => ownForm.submit()}
+        okText={editingSlot ? 'Lưu' : 'Tạo'} width={860} confirmLoading={createOwn.isPending} forceRender>
         <Form form={ownForm} layout="vertical" onFinish={(v) => createOwn.mutate(v)} initialValues={{ period: [dayjs(), dayjs().add(2, 'hour')], items: [{ perUserLimit: 1 }] }}>
-          <Form.Item name="period" label="Khung giờ" rules={[{ required: true, message: 'Chọn khung giờ.' }]}>
+          <Form.Item name="period" label="Khung giờ (giờ Việt Nam)" rules={[{ required: true, message: 'Chọn khung giờ.' }]}>
             <DatePicker.RangePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
           </Form.Item>
-          <ItemsEditor shopId={shopId} />
+          <ItemsEditor shopId={shopId}
+            known={(editingSlot?.items ?? []).map((i) => ({ value: i.skuId, label: `${i.productName}${i.variant ? ` - ${i.variant}` : ''}` }))} />
         </Form>
       </Modal>
       <Modal title="Đăng ký Flash Sale của sàn" open={!!registerSlot} onCancel={() => setRegisterSlot(null)} onOk={() => regForm.submit()} okText="Gửi đăng ký"
         width={860} confirmLoading={register.isPending} destroyOnClose>
-        {registerSlot && <Typography.Paragraph>Khung {formatDateTime(registerSlot.startAt)} — giảm tối thiểu {registerSlot.minDiscountBp / 100}%, đánh giá từ {registerSlot.minRating}★.</Typography.Paragraph>}
+        {registerSlot && <Typography.Paragraph>Khung {formatDateTime(registerSlot.startAt)} — {flashCriteriaText(registerSlot, names)}.</Typography.Paragraph>}
         <Form form={regForm} layout="vertical" onFinish={(v) => register.mutate(v)} initialValues={{ items: [{ perUserLimit: 1 }] }}>
           <ItemsEditor shopId={shopId} />
         </Form>

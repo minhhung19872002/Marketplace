@@ -10,6 +10,7 @@ import { formatCount, formatPrice } from '../../lib/money';
 import { formatDate, formatDateTime } from '../../lib/datetime';
 import { ContactShopButton } from '../../components/chat/Chat';
 import { handleImgError, imageOrPlaceholder } from '../../lib/image';
+import { usePageTitle } from '../../lib/pageTitle';
 
 const ORDER_TABS: { key: OrderTab; label: string }[] = [
   { key: 'All', label: 'Tất cả' },
@@ -23,6 +24,7 @@ const ORDER_TABS: { key: OrderTab; label: string }[] = [
 
 /** /tai-khoan/don-mua */
 export const OrdersPage = () => {
+  usePageTitle('Đơn mua');
   const [tab, setTab] = useState<OrderTab>('All');
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
@@ -135,7 +137,7 @@ const OrderActions = ({ order }: { order: OrderDetail }) => {
       )}
       {a.review && <Link to={`/tai-khoan/don-mua/${order.code}/danh-gia`} className="account-btn" data-testid="review-order">Đánh giá</Link>}
       {a.return && <Link to={`/tai-khoan/don-mua/${order.code}/tra-hang`} className="account-btn-outline" data-testid="return-order">Trả hàng/Hoàn tiền</Link>}
-      {a.cancel && <button className="account-btn-outline" onClick={() => setAsking('cancel')} data-testid="cancel-order">Huỷ đơn hàng</button>}
+      {a.cancel && <button className="account-btn-outline" onClick={() => setAsking('cancel')} data-testid="cancel-order" data-confirm="dialog">Huỷ đơn hàng</button>}
       {a.requestCancel && <button className="account-btn-outline" onClick={() => setAsking('request')} data-testid="request-cancel">Yêu cầu huỷ</button>}
       {a.buyAgain && (
         <button className="account-btn-outline" disabled={busy} data-testid="buy-again"
@@ -172,6 +174,7 @@ const OrderActions = ({ order }: { order: OrderDetail }) => {
 export const OrderDetailPage = () => {
   const { code = '' } = useParams();
   const { data, error } = useQuery({ queryKey: ['order', code], queryFn: () => ordersApi.get(code), retry: false, staleTime: 0 });
+  usePageTitle(`Đơn hàng ${code}`);
   if (error) return <div className="account-card"><p>{error instanceof ApiError ? error.message : 'Không tải được đơn hàng.'}</p></div>;
   if (!data) return <div className="page-loader"><div className="loading-spinner" /></div>;
 

@@ -7,7 +7,7 @@ import { catalogApi, type CategoryNode } from '../api/catalog'
 import { ApiError } from '../api/http'
 import { P, can } from '../permissions'
 import { formatPercentBp, formatPrice } from '../lib/money'
-import { addDaysIso, formatDateTime, vnDayBoundsIso } from '../lib/datetime'
+import { addDaysIso, formatDateTime, vnDayBoundsIso, vnTodayIso, vnWallTimeIso } from '../lib/datetime'
 
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : fallback)
 
@@ -25,7 +25,7 @@ const FeeRulesTab = () => {
   const create = useMutation({
     mutationFn: (v: { categoryId?: string; feeType: FeeType; percent: number; validFrom: Dayjs; note?: string }) => financeApi.createFeeRule({
       categoryId: v.feeType === 'Payment' ? null : v.categoryId ?? null, feeType: v.feeType, rateBp: Math.round(v.percent * 100),
-      validFrom: v.validFrom.toISOString(), note: v.note?.trim() || null,
+      validFrom: vnWallTimeIso(v.validFrom.format('YYYY-MM-DDTHH:mm')), note: v.note?.trim() || null,
     }),
     onSuccess: (r) => {
       message.success(r.message)
@@ -52,7 +52,7 @@ const FeeRulesTab = () => {
           { title: 'Ghi chú', dataIndex: 'note' },
         ]} />
       <Modal title="Biểu phí mới" open={open} onCancel={() => setOpen(false)} onOk={() => form.submit()} okText="Lưu" confirmLoading={create.isPending} destroyOnClose>
-        <Form form={form} layout="vertical" onFinish={(v) => create.mutate(v)} initialValues={{ feeType: 'Fixed', validFrom: dayjs().add(1, 'day').startOf('day') }}>
+        <Form form={form} layout="vertical" onFinish={(v) => create.mutate(v)} initialValues={{ feeType: 'Fixed', validFrom: dayjs(`${addDaysIso(vnTodayIso(), 1)}T00:00`) }}>
           <Form.Item name="feeType" label="Loại phí">
             <Select options={(Object.keys(FEE_TYPE_LABEL) as FeeType[]).map((t) => ({ value: t, label: FEE_TYPE_LABEL[t] }))} />
           </Form.Item>
@@ -66,8 +66,8 @@ const FeeRulesTab = () => {
           <Form.Item name="percent" label="Tỉ lệ (%)" rules={[{ required: true, message: 'Nhập tỉ lệ.' }]}>
             <InputNumber min={0} max={50} step={0.1} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="validFrom" label="Hiệu lực từ" rules={[{ required: true, message: 'Chọn ngày.' }]}>
-            <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} disabledDate={(d) => d.isBefore(dayjs().startOf('day'))} />
+          <Form.Item name="validFrom" label="Hiệu lực từ (giờ Việt Nam)" rules={[{ required: true, message: 'Chọn ngày.' }]}>
+            <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} disabledDate={(d) => d.format('YYYY-MM-DD') < vnTodayIso()} />
           </Form.Item>
           <Form.Item name="note" label="Ghi chú"><Input maxLength={200} /></Form.Item>
         </Form>

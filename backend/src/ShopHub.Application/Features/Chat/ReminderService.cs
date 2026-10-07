@@ -15,7 +15,7 @@ namespace ShopHub.Application.Features.Chat;
 /// not at all for whoever turned promotions off; one held back is sent on a later run while still true. The voucher
 /// reminder is about the buyer's own voucher wallet: tab "Ví & xu", outside the promotion quota.
 /// </summary>
-public sealed class ReminderService(IApplicationDbContext db, IClock clock, ILogger<ReminderService> logger)
+public sealed class ReminderService(IApplicationDbContext db, Admin.MessageTemplates templates, IClock clock, ILogger<ReminderService> logger)
 {
     public async Task<int> RunAsync(CancellationToken ct)
     {
@@ -26,9 +26,8 @@ public sealed class ReminderService(IApplicationDbContext db, IClock clock, ILog
             .Where(o => o.Status == OrderStatus.Delivered && o.AutoCompleteAt != null && o.AutoCompleteAt > now && o.AutoCompleteAt <= now.AddDays(1))
             .Select(o => new { o.Id, o.BuyerId, o.Code }).Take(2_000).ToListAsync(ct);
         foreach (var o in completing)
-            created += Add(o.BuyerId, NotificationCategory.Order, "Đơn hàng sắp tự hoàn thành",
-                $"Đơn {o.Code} sẽ tự hoàn thành trong 24 giờ. Nếu có vấn đề, hãy yêu cầu trả hàng trước thời điểm này.", $"/tai-khoan/don-mua/{o.Code}",
-                "order", o.Id, $"auto-complete:{o.Id}", now);
+            created += await AddAsync(o.BuyerId, NotificationCategory.Order, Admin.TemplateCatalog.ReminderAutoComplete, new() { ["code"] = o.Code },
+                $"/tai-khoan/don-mua/{o.Code}", "order", o.Id, $"auto-complete:{o.Id}", now, ct);
 
         var expiring = await (from c in db.VoucherClaims.AsNoTracking()
                               join v in db.Vouchers.AsNoTracking() on c.VoucherId equals v.Id
@@ -36,8 +35,8 @@ public sealed class ReminderService(IApplicationDbContext db, IClock clock, ILog
                                     && !db.VoucherUserCounters.Any(u => u.VoucherId == v.Id && u.UserId == c.UserId && u.UsedCount > 0)
                               select new { c.UserId, v.Id, v.Code }).Take(5_000).ToListAsync(ct);
         foreach (var v in expiring)
-            created += Add(v.UserId, NotificationCategory.Wallet, "Voucher sắp hết hạn", $"Mã {v.Code} trong ví của bạn sẽ hết hạn trong 24 giờ.",
-                "/tai-khoan/voucher", "voucher", v.Id, $"voucher-expiring:{v.Id}", now);
+            created += await AddAsync(v.UserId, NotificationCategory.Wallet, Admin.TemplateCatalog.ReminderVoucherExpiring, new() { ["code"] = v.Code },
+                "/tai-khoan/voucher", "voucher", v.Id, $"voucher-expiring:{v.Id}", now, ct);
 
         var onSale = await (from w in db.Wishlists.AsNoTracking()
                             join s in db.Skus.AsNoTracking() on w.ProductId equals s.ProductId
@@ -45,9 +44,12 @@ public sealed class ReminderService(IApplicationDbContext db, IClock clock, ILog
                             join pr in db.Products.AsNoTracking() on w.ProductId equals pr.Id
                             where p.IsActive && p.StartAt <= now && p.StartAt > now.AddDays(-1) && p.EndAt > now
                             select new { w.UserId, w.ProductId, pr.Name, ProgramId = p.Id }).Take(5_000).ToListAsync(ct);
-        var promos = onSale.DistinctBy(x => (x.UserId, x.ProductId))
-            .Select(w => new PromoNotice(w.UserId, "Sản phẩm yêu thích đang giảm giá", $"\"{w.Name}\" bạn đã thích đang có giá ưu đãi.",
-                $"/san-pham/{w.ProductId}", "product", w.ProductId, $"wishlist-sale:{w.ProductId}:{w.ProgramId}")).ToList();
+        var promos = new List<PromoNotice>();
+        foreach (var w in onSale.DistinctBy(x => (x.UserId, x.ProductId)))
+        {
+            var (title, body) = await templates.NoticeAsync(Admin.TemplateCatalog.ReminderWishlistSale, new Dictionary<string, string> { ["product"] = w.Name }, ct);
+            promos.Add(new PromoNotice(w.UserId, title, body, $"/san-pham/{w.ProductId}", "product", w.ProductId, $"wishlist-sale:{w.ProductId}:{w.ProgramId}"));
+        }
 
         // Có hàng lại: remember wishlisted products seen sold out; once one is buyable again, tell (and forget)
         var watched = await (from w in db.Wishlists
@@ -65,8 +67,8 @@ public sealed class ReminderService(IApplicationDbContext db, IClock clock, ILog
             }
             var dedupe = $"wishlist-restock:{x.Wish.ProductId}:{x.Wish.SoldOutSeenAt!.Value.ToUnixTimeSeconds()}";
             restocked.Add((x.Wish, dedupe));
-            promos.Add(new PromoNotice(x.Wish.UserId, "Sản phẩm yêu thích đã có hàng lại", $"\"{x.Name}\" bạn đã thích đã có hàng trở lại.",
-                $"/san-pham/{x.Wish.ProductId}", "product", x.Wish.ProductId, dedupe));
+            var (title, body) = await templates.NoticeAsync(Admin.TemplateCatalog.ReminderWishlistRestock, new Dictionary<string, string> { ["product"] = x.Name }, ct);
+            promos.Add(new PromoNotice(x.Wish.UserId, title, body, $"/san-pham/{x.Wish.ProductId}", "product", x.Wish.ProductId, dedupe));
         }
 
         await db.SaveChangesAsync(ct);
@@ -88,13 +90,15 @@ public sealed class ReminderService(IApplicationDbContext db, IClock clock, ILog
 
     private readonly HashSet<(Guid, string)> _seen = [];
 
-    private int Add(Guid userId, NotificationCategory category, string title, string body, string link, string refType, Guid refId, string dedupe,
-        DateTimeOffset now)
+    /// <summary>One reminder from its template (F7), once per dedupe key.</summary>
+    private async Task<int> AddAsync(Guid userId, NotificationCategory category, string templateKey, Dictionary<string, string> values, string link,
+        string refType, Guid refId, string dedupe, DateTimeOffset now, CancellationToken ct)
     {
         // Promotions go through PromoNotifications (daily quota, opt-out); this path is for reminders only
         if (category == NotificationCategory.Promotion) throw new InvalidOperationException("Promotion notifications go through PromoNotifications.");
         if (_seen.Contains((userId, dedupe)) || db.Notifications.Any(n => n.UserId == userId && n.DedupeKey == dedupe)) return 0;
         _seen.Add((userId, dedupe));
+        var (title, body) = await templates.NoticeAsync(templateKey, values, ct);
         db.Notifications.Add(new Notification(userId, category, title, body, link, refType, refId, now, dedupe));
         return 1;
     }

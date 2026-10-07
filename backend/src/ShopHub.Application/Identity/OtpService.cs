@@ -159,10 +159,12 @@ public sealed class OtpService(
         var (subject, body) = await templates.RenderAsync(Features.Admin.TemplateCatalog.Otp, sms ? Domain.SystemConfig.TemplateChannel.Sms : Domain.SystemConfig.TemplateChannel.Email,
             new Dictionary<string, string>
             {
+                ["platform"] = sms ? Slug.Fold(await parameters.GetStringAsync(SystemConfig.ParameterKeys.SitePlatformName, ct))
+                    : System.Net.WebUtility.HtmlEncode(await parameters.GetStringAsync(SystemConfig.ParameterKeys.SitePlatformName, ct)),
                 ["code"] = code, ["minutes"] = minutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["action"] = sms ? Slug.Fold(action) : System.Net.WebUtility.HtmlEncode(action),
             }, ct);
         if (sms) outbox.Enqueue(OutboxTypes.NotifySms, new SmsPayload(target, body));
-        else outbox.Enqueue(OutboxTypes.NotifyEmail, new EmailPayload(target, subject ?? $"Mã xác thực ShopHub: {code}", body));
+        else outbox.Enqueue(OutboxTypes.NotifyEmail, new EmailPayload(target, subject ?? code, body));
     }
 }

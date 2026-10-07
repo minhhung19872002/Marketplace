@@ -93,7 +93,9 @@ public record RegisterShopCommand(
     WarehouseInput Warehouse,
     PersonalKycInput? Personal,
     BusinessKycInput? Business,
-    BankInput Bank) : IRequest<Guid>;
+    BankInput Bank,
+    // Đơn vị vận chuyển the shop ships with (III.1); null = every active carrier
+    IReadOnlyList<string>? CarrierCodes = null) : IRequest<Guid>;
 
 public sealed class RegisterShopValidator : AbstractValidator<RegisterShopCommand>
 {
@@ -124,10 +126,13 @@ public sealed class RegisterShopValidator : AbstractValidator<RegisterShopComman
                 .When(x => x.Business is not null);
             RuleFor(x => x.Business!.LegalName).NotEmpty().WithMessage("Vui lòng nhập tên doanh nghiệp.").When(x => x.Business is not null);
         });
+        RuleFor(x => x.CarrierCodes).Must(c => c is null || c.Count > 0).WithMessage("Vui lòng chọn ít nhất một đơn vị vận chuyển.")
+            .Must(c => c is null || c.Count <= 20).WithMessage("Danh sách đơn vị vận chuyển không hợp lệ.");
         RuleFor(x => x.Bank).NotNull().WithMessage("Vui lòng nhập tài khoản ngân hàng nhận tiền.");
         When(x => x.Bank is not null, () =>
         {
-            RuleFor(x => x.Bank.BankCode).NotEmpty().WithMessage("Vui lòng chọn ngân hàng.");
+            RuleFor(x => x.Bank.BankCode).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Vui lòng chọn ngân hàng.")
+                .Must(BankCatalogue.IsKnown).WithMessage(BankCatalogue.UnknownMessage);
             RuleFor(x => x.Bank.AccountNo).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Vui lòng nhập số tài khoản.")
                 .Matches(@"^\d{6,20}$").WithMessage("Số tài khoản gồm 6–20 chữ số.");
             RuleFor(x => x.Bank.AccountName).NotEmpty().WithMessage("Vui lòng nhập tên chủ tài khoản.");
@@ -144,6 +149,10 @@ public sealed class RegisterShopHandler(IApplicationDbContext db, SellerAccess a
         if (await db.Shops.AnyAsync(s => s.OwnerId == userId && s.Status == ShopStatus.PendingReview, ct))
             throw new ConflictException("Bạn đang có một hồ sơ shop chờ duyệt.", "SHOP_PENDING_EXISTS");
         await ShopRules.EnsureWarehouseAsync(db, request.Warehouse, ct);
+        var active = await db.Carriers.AsNoTracking().Where(c => c.IsActive).Select(c => c.Code).ToListAsync(ct);
+        var chosen = request.CarrierCodes?.Distinct().ToList() ?? active;
+        if (chosen.Any(c => !active.Contains(c)))
+            throw new ValidationException([new ValidationFailure("carrierCodes", "Đơn vị vận chuyển không hợp lệ hoặc đang tạm ngưng.")]);
 
         var shop = new Shop(userId, request.Name, Slug.From(request.Name), request.Type);
         shop.UpdateProfile(request.Description ?? string.Empty, null, null);
@@ -155,6 +164,9 @@ public sealed class RegisterShopHandler(IApplicationDbContext db, SellerAccess a
         warehouse.Update("Kho chính", w.ContactName, Identifiers.NormalisePhone(w.Phone)!, w.ProvinceCode, w.DistrictCode, w.WardCode,
             w.Street, isPickupDefault: true, isReturnDefault: true);
         db.ShopWarehouses.Add(warehouse);
+        // Chosen carriers on (COD as the carrier allows), the other active ones off — the shop changes them later in Thiết lập
+        foreach (var code in active)
+            db.ShopShippingChannels.Add(new ShopShippingChannel(shop.Id, code, chosen.Contains(code), codEnabled: true));
 
         var kyc = new ShopKyc(shop.Id);
         await ShopRules.ApplyKycAsync(db, encryptor, kyc, userId, request.Type, request.Personal, request.Business, ct);

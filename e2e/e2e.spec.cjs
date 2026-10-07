@@ -42,22 +42,27 @@ test.describe('ShopHub Marketplace', () => {
   test('Các section trang chủ lấy dữ liệu thật từ API', async ({ page, request }) => {
     const tree = await api(request, '/categories');
     const mall = await api(request, '/home/mall');
+    const home = await api(request, '/home/banners');
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('[data-testid="feature-shortcut"]')).toHaveCount(10);
+    // Shortcuts as the platform set them, Mã giảm giá / Freeship / Deal sốc among them (E3)
+    await expect(page.locator('[data-testid="feature-shortcut"]')).toHaveCount(home.shortcuts.length);
+    for (const label of ['Mã Giảm Giá', 'Freeship', 'Deal Sốc']) await expect(page.locator('[data-testid="feature-shortcut"]', { hasText: label })).toHaveCount(1);
     await expect(page.locator('[data-testid="category-item"]')).toHaveCount(tree.filter((c) => c.isActive).length);
     await expect(page.locator('[data-testid="mall-brand"]')).toHaveCount(mall.length);
-    await expect(page.locator('[data-testid="product-card"]')).toHaveCount(24);
+    // ShopHub Mall shows its products, not only brand logos (E3)
+    await expect(page.locator('[data-testid="mall-products"] [data-testid="product-card"]').first()).toBeVisible();
+    await expect(page.locator('.product-grid [data-testid="product-card"]')).toHaveCount(24);
     await expect(page.locator('[data-testid="category-item"]').first()).toContainText(tree[0].name);
   });
 
   test('Nút Xem Thêm tải thêm sản phẩm gợi ý', async ({ page }) => {
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="product-card"]')).toHaveCount(24);
+    await expect(page.locator('.product-grid [data-testid="product-card"]')).toHaveCount(24);
     await page.locator('[data-testid="load-more"]').click();
-    await expect(page.locator('[data-testid="product-card"]')).toHaveCount(48);
+    await expect(page.locator('.product-grid [data-testid="product-card"]')).toHaveCount(48);
   });
 
   test('Gợi ý tìm kiếm từ máy chủ khi gõ không dấu', async ({ page }) => {
@@ -286,10 +291,18 @@ test.describe('ShopHub Marketplace', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="cart-item"]')).toHaveCount(1);
 
+    // One line, two units: the icon counts lines (E2), the line shows the quantity
     await page.locator('.cart-item-qty button[aria-label="Tăng"]').click();
-    await expect(page.locator('.header-cart .header-cart-badge')).toHaveText('2');
+    await expect(page.locator('.cart-item-qty input')).toHaveValue('2');
+    await expect(page.locator('.header-cart .header-cart-badge')).toHaveText('1');
 
+    // Removing asks first (F2): "Không" keeps the line, "Đồng ý" removes it
     await page.locator('.cart-item-remove').click();
+    await page.getByTestId('confirm-no').click();
+    await expect(page.locator('[data-testid="cart-item"]')).toHaveCount(1);
+    await page.locator('.cart-item-remove').click();
+    await expect(page.getByTestId('confirm-dialog')).toContainText('khỏi giỏ hàng');
+    await page.getByTestId('confirm-yes').click();
     await expect(page.locator('[data-testid="cart-empty"]')).toBeVisible();
   });
 
@@ -426,10 +439,14 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.getByTestId('home-popup')).toHaveCount(0);
   });
 
-  test('Footer hiển thị đầy đủ', async ({ page }) => {
+  test('Footer hiển thị đầy đủ', async ({ page, request }) => {
+    const site = await api(request, '/site');
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.footer')).toBeVisible();
-    await expect(page.locator('.footer-col')).toHaveCount(4);
+    // The social column exists only when SITE.SOCIAL_* links are set, each one a real https link (E8)
+    await expect(page.locator('.footer-col')).toHaveCount(site.social.length > 0 ? 4 : 3);
+    await expect(page.locator('[data-testid="footer-social"] a')).toHaveCount(site.social.length);
+    await expect(page.locator('.footer a', { hasText: 'Flash Sale' })).toHaveAttribute('href', '/flash-sale');
   });
 });

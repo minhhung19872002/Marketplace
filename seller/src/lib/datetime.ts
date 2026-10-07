@@ -56,3 +56,9 @@ export const vnTodayIso = (nowMs: number = Date.now()): string => new Date(nowMs
 
 /** "YYYY-MM-DD" shifted by n days. */
 export const addDaysIso = (day: string, n: number): string => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/** A wall-clock "YYYY-MM-DDTHH:mm" read as Vietnam time (what a picker shows), as an ISO instant. */
+export const vnWallTimeIso = (wall: string): string => new Date(`${wall}:00+07:00`).toISOString();
+
+/** An instant as the Vietnam wall clock "YYYY-MM-DDTHH:mm" — to put a stored time back into a picker. */
+export const vnWallTime = (value: string): string => new Date(Date.parse(value) + VN_OFFSET_MS).toISOString().slice(0, 16);

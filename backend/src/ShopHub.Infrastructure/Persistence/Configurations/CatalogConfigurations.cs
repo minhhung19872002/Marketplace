@@ -283,6 +283,23 @@ internal sealed class ShopStaffConfiguration : IEntityTypeConfiguration<ShopStaf
     }
 }
 
+internal sealed class ShopStaffInvitationConfiguration : IEntityTypeConfiguration<ShopStaffInvitation>
+{
+    public void Configure(EntityTypeBuilder<ShopStaffInvitation> b)
+    {
+        b.ToTable("shop_staff_invitations", "shop");
+        b.HasKey(i => i.Id);
+        b.Property(i => i.Role).HasConversion<string>().HasMaxLength(20);
+        b.Property(i => i.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(i => i.Permissions).HasColumnType("text[]");
+        b.HasOne<Shop>().WithMany().HasForeignKey(i => i.ShopId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<User>().WithMany().HasForeignKey(i => i.UserId).OnDelete(DeleteBehavior.Cascade);
+        // One waiting invitation per person per shop
+        b.HasIndex(i => new { i.ShopId, i.UserId }).IsUnique().HasFilter("status = 'Pending'").HasDatabaseName("ux_shop_staff_invitations_pending");
+        b.HasIndex(i => new { i.UserId, i.Status }).HasDatabaseName("ix_shop_staff_invitations_user");
+    }
+}
+
 internal sealed class ShopBankAccountConfiguration : IEntityTypeConfiguration<ShopBankAccount>
 {
     public void Configure(EntityTypeBuilder<ShopBankAccount> b)

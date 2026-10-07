@@ -25,16 +25,12 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { label: 'Quy Chế Hoạt Động', to: '/trang/quy-che-hoat-dong' },
       { label: 'Chính Sách Bảo Mật', to: '/trang/chinh-sach-bao-mat' },
       { label: 'Kênh Người Bán', href: '/seller/' },
-      { label: 'Flash Sale', to: '/' },
+      { label: 'Flash Sale', to: '/flash-sale' },
     ],
   },
   {
     title: 'Thanh Toán',
     links: [{ label: 'Visa' }, { label: 'Mastercard' }, { label: 'JCB' }, { label: 'COD' }, { label: 'Ví ShopHub' }],
-  },
-  {
-    title: 'Theo Dõi Chúng Tôi',
-    links: [{ label: 'Facebook' }, { label: 'Instagram' }, { label: 'LinkedIn' }, { label: 'TikTok' }, { label: 'YouTube' }],
   },
 ];
 
@@ -57,6 +53,17 @@ const Footer = () => {
             </ul>
           </div>
         ))}
+        {/* Social links come from SITE.SOCIAL_* parameters; none set → no column (E8) */}
+        {s && s.social.length > 0 && (
+          <div className="footer-col" data-testid="footer-social">
+            <h4 className="footer-col-title">Theo Dõi Chúng Tôi</h4>
+            <ul>
+              {s.social.map((n) => (
+                <li key={n.name}><a href={n.url} target="_blank" rel="noopener noreferrer">{n.name}</a></li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       <div className="footer-bottom">
         <div className="container">

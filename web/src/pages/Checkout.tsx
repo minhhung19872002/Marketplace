@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { checkoutApi, type CheckoutRequest, type PaymentMethod, type PaymentOption, type VoucherOption } from '../api/commerce';
+import { checkoutApi, type CheckoutRequest, type PaymentMethod, type PaymentOption } from '../api/commerce';
+import VoucherPicker from '../components/VoucherPicker';
+import { useShopVouchers } from '../stores/shopVouchers';
 import { accountApi } from '../api/account';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
@@ -16,59 +18,6 @@ import './Checkout.css';
 
 const newKey = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
-const voucherLabel = (v: VoucherOption) =>
-  `${v.code} — ${v.name}${v.usable && v.discount > 0 ? ` (−${formatPrice(v.discount)})` : ''}`;
-
-/** Pick from the list (unusable ones stay visible with the reason) or type a code. */
-const VoucherPicker = ({
-  title,
-  options,
-  value,
-  onChange,
-  testId,
-}: {
-  title: string;
-  options: VoucherOption[];
-  value: string | null;
-  onChange: (code: string | null) => void;
-  testId: string;
-}) => {
-  const [typed, setTyped] = useState('');
-  return (
-    <div className="checkout-voucher" data-testid={testId}>
-      <span className="checkout-voucher-title">{title}</span>
-      <select value={value ?? ''} onChange={(e) => onChange(e.target.value || null)} aria-label={title} data-testid={`${testId}-select`}>
-        <option value="">— Không dùng —</option>
-        {options.map((v) => (
-          <option key={v.id} value={v.code} disabled={!v.usable && v.code !== value}>
-            {voucherLabel(v)}{v.problem ? ` · ${v.problem}` : ''}
-          </option>
-        ))}
-      </select>
-      <input value={typed} onChange={(e) => setTyped(e.target.value.toUpperCase())} placeholder="Nhập mã" aria-label={`Nhập mã ${title}`} data-testid={`${testId}-input`} />
-      <button
-        type="button"
-        onClick={() => {
-          if (typed.trim()) onChange(typed.trim());
-          setTyped('');
-        }}
-        data-testid={`${testId}-apply`}
-      >
-        Áp dụng
-      </button>
-      {options.filter((v) => !v.usable && v.problem).length > 0 && (
-        <ul className="checkout-voucher-unusable">
-          {options.filter((v) => !v.usable && v.problem).slice(0, 3).map((v) => (
-            <li key={v.id}>
-              <strong>{v.code}</strong>: {v.problem}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-};
-
 const Checkout = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -79,7 +28,9 @@ const Checkout = () => {
   // Thêm địa chỉ ngay tại trang (II.7): the new one is picked for this order
   const [adding, setAdding] = useState(false);
   const [carriers, setCarriers] = useState<Record<string, string>>({});
-  const [shopVouchers, setShopVouchers] = useState<Record<string, string | null>>({});
+  // Shared with the cart (E6): a shop voucher picked there is the one used here, and the other way round
+  const shopVouchers = useShopVouchers((st) => st.codes);
+  const setShopVoucher = useShopVouchers((st) => st.set);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [platformCode, setPlatformCode] = useState<string | null>(null);
   const [freeshipCode, setFreeshipCode] = useState<string | null>(null);
@@ -281,7 +232,7 @@ const Checkout = () => {
                 title="Voucher của shop"
                 options={shop.shopVoucherOptions}
                 value={shopVouchers[shop.shopId] ?? null}
-                onChange={(code) => setShopVouchers({ ...shopVouchers, [shop.shopId]: code })}
+                onChange={(code) => setShopVoucher(shop.shopId, code)}
                 testId="shop-voucher"
               />
             </div>

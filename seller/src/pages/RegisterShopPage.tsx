@@ -1,21 +1,10 @@
-import { useState } from 'react'
-import { Alert, App as AntApp, Button, Card, Form, Input, Radio, Select, Space, Typography } from 'antd'
+import { useEffect, useState } from 'react'
+import { Alert, App as AntApp, Button, Card, Checkbox, Form, Input, Radio, Select, Space, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { sellerApi, type MediaAsset, type RegisterShopInput } from '../api/seller'
 import { ApiError } from '../api/http'
 import UploadBox from '../components/UploadBox'
 import { useShopStore } from '../stores/shop'
-
-const BANKS = [
-  { value: 'VCB', label: 'Vietcombank' },
-  { value: 'TCB', label: 'Techcombank' },
-  { value: 'BIDV', label: 'BIDV' },
-  { value: 'VTB', label: 'VietinBank' },
-  { value: 'ACB', label: 'ACB' },
-  { value: 'MB', label: 'MB Bank' },
-  { value: 'TPB', label: 'TPBank' },
-  { value: 'VPB', label: 'VPBank' },
-]
 
 interface FormValues {
   name: string
@@ -33,6 +22,7 @@ interface FormValues {
   bankCode: string
   accountNo: string
   accountName: string
+  carrierCodes: string[]
 }
 
 /** "Đăng ký bán hàng" — becomes a shop in review once submitted. */
@@ -52,6 +42,12 @@ const RegisterShopPage = () => {
   const provinces = useQuery({ queryKey: ['div', ''], queryFn: () => sellerApi.divisions(), staleTime: Infinity })
   const districts = useQuery({ queryKey: ['div', province], queryFn: () => sellerApi.divisions(province), enabled: !!province, staleTime: Infinity })
   const wards = useQuery({ queryKey: ['div', district], queryFn: () => sellerApi.divisions(district), enabled: !!district, staleTime: Infinity })
+  const banks = useQuery({ queryKey: ['banks'], queryFn: sellerApi.banks, staleTime: 3_600_000 })
+  const carriers = useQuery({ queryKey: ['site-carriers'], queryFn: sellerApi.carriers, staleTime: 600_000 })
+  // Every active carrier ticked at first; the seller unticks the ones it does not use
+  useEffect(() => {
+    if (carriers.data && form.getFieldValue('carrierCodes') === undefined) form.setFieldsValue({ carrierCodes: carriers.data.map((c) => c.code) })
+  }, [carriers.data, form])
 
   const submit = useMutation({
     mutationFn: (v: FormValues) => {
@@ -63,6 +59,7 @@ const RegisterShopPage = () => {
         personal: v.type === 'Personal' ? { legalName: v.legalName, idCardNumber: v.idCardNumber, frontAssetId: front?.id ?? '', backAssetId: back?.id ?? '' } : null,
         business: v.type === 'Business' ? { legalName: v.legalName, taxCode: v.taxCode, licenseAssetId: license?.id ?? '' } : null,
         bank: { bankCode: v.bankCode, accountNo: v.accountNo, accountName: v.accountName },
+        carrierCodes: v.carrierCodes ?? [],
       }
       return sellerApi.registerShop(body)
     },
@@ -81,7 +78,7 @@ const RegisterShopPage = () => {
       <Typography.Title level={3}>Đăng ký bán hàng</Typography.Title>
       <Typography.Paragraph type="secondary">Điền thông tin shop. Sàn sẽ duyệt hồ sơ trong 1–2 ngày làm việc.</Typography.Paragraph>
       {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
-      <Form<FormValues> form={form} layout="vertical" initialValues={{ type: 'Personal', bankCode: 'VCB' }}
+      <Form<FormValues> form={form} layout="vertical" initialValues={{ type: 'Personal' }}
         onFinish={(v) => { setError(''); submit.mutate(v) }} requiredMark={false}>
         <Typography.Title level={5}>Thông tin shop</Typography.Title>
         <Form.Item label="Tên shop" name="name" rules={[{ required: true, min: 3, max: 50, message: 'Tên shop 3–50 ký tự.' }]}>
@@ -119,6 +116,13 @@ const RegisterShopPage = () => {
           <Input placeholder="Số nhà, tên đường" aria-label="Địa chỉ lấy hàng" />
         </Form.Item>
 
+        <Typography.Title level={5}>Đơn vị vận chuyển</Typography.Title>
+        <Form.Item name="carrierCodes" rules={[{ required: true, type: 'array', min: 1, message: 'Chọn ít nhất một đơn vị vận chuyển.' }]}
+          extra="Có thể bật / tắt lại trong Thiết lập shop → Vận chuyển.">
+          <Checkbox.Group data-testid="register-carriers"
+            options={(carriers.data ?? []).map((c) => ({ value: c.code, label: `${c.name}${c.supportsCod ? '' : ' (không thu hộ)'}` }))} />
+        </Form.Item>
+
         <Typography.Title level={5}>Định danh</Typography.Title>
         {type === 'Personal' ? (
           <>
@@ -141,7 +145,10 @@ const RegisterShopPage = () => {
         )}
 
         <Typography.Title level={5}>Tài khoản nhận tiền</Typography.Title>
-        <Form.Item name="bankCode"><Select options={BANKS} aria-label="Ngân hàng" /></Form.Item>
+        <Form.Item name="bankCode" rules={[{ required: true, message: 'Chọn ngân hàng.' }]}>
+          <Select options={(banks.data ?? []).map((b) => ({ value: b.code, label: b.name }))} placeholder="Ngân hàng" showSearch optionFilterProp="label"
+            aria-label="Ngân hàng" />
+        </Form.Item>
         <Form.Item name="accountNo" rules={[{ required: true, pattern: /^\d{6,20}$/, message: 'Số tài khoản 6–20 chữ số.' }]}>
           <Input placeholder="Số tài khoản" inputMode="numeric" />
         </Form.Item>

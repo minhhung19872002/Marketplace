@@ -75,7 +75,8 @@
 
 .shop-stats {
   display: flex;
-  gap: 30px;
+  flex-wrap: wrap;
+  gap: 12px 30px;
 }
 
 .shop-stats div {
@@ -308,4 +309,12 @@
   margin: 6px 0 12px;
   padding-left: 18px;
   font-size: 14px;
+}
+
+.shop-vacation {
+  background: var(--sh-primary-soft);
+  border-bottom: 2px solid var(--sh-primary);
+  color: var(--sh-primary-dark);
+  padding: 12px 16px;
+  text-align: center;
 }

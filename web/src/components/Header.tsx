@@ -9,6 +9,7 @@ import { useUnreadNotifications } from '../context/NotificationsContext';
 import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { UserAvatar } from './AvatarEditor';
+import { cartBadge, recentLines } from '../lib/cart';
 import './Header.css';
 
 // The seller centre is its own app under /seller (full page load, not a client route)
@@ -26,7 +27,9 @@ function useDebounced<T>(value: T, ms: number): T {
 
 const Header = () => {
   const navigate = useNavigate();
-  const { lines: items, totalItems, cart } = useCart();
+  const { cart } = useCart();
+  const items = recentLines(cart, 5);
+  const badge = cartBadge(cart);
   const totalPrice = cart.selectedSubtotal;
   const { user, isLoggedIn, logout } = useAuth();
   const { count: wishCount } = useWishlist();
@@ -81,12 +84,13 @@ const Header = () => {
           <nav className="header-top-links">
             <a href={SELLER_URL} className="header-top-link">Kênh Người Bán</a>
             <a href={`${SELLER_URL}dang-ky-ban-hang`} className="header-top-link">Trở thành Người bán</a>
+            <Link to="/tai-ung-dung" className="header-top-link" data-testid="app-link">Tải ứng dụng</Link>
           </nav>
           <nav className="header-top-links">
             <Link to="/thong-bao" className="header-top-link" data-testid="notifications-link">
               🔔 Thông Báo{(unread?.total ?? 0) > 0 && <span className="header-noti-badge" data-testid="notifications-badge">{unread!.total}</span>}
             </Link>
-            <span className="header-top-link">❓ Hỗ Trợ</span>
+            <Link to="/tro-giup" className="header-top-link" data-testid="help-link">❓ Hỗ Trợ</Link>
             {isLoggedIn && user ? (
               <div className="header-user" ref={userRef}>
                 <button
@@ -253,7 +257,7 @@ const Header = () => {
                 <circle cx="20" cy="21" r="1" />
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
               </svg>
-              {totalItems > 0 && <span className="header-cart-badge">{totalItems}</span>}
+              {badge > 0 && <span className="header-cart-badge" data-testid="cart-badge">{badge}</span>}
             </Link>
 
             <div className="header-cart-preview" data-testid="cart-preview">
@@ -266,7 +270,7 @@ const Header = () => {
                 <>
                   <div className="header-cart-preview-title">Sản Phẩm Mới Thêm</div>
                   <div className="header-cart-preview-list">
-                    {items.slice(0, 5).map((it) => (
+                    {items.map((it) => (
                       <Link key={it.skuId} to={`/san-pham/${it.productId}`} className="header-cart-preview-item">
                         <img src={imageOrPlaceholder(it.imageUrl)} alt={it.name} onError={handleImgError} />
                         <span className="header-cart-preview-name">{it.name}</span>
@@ -275,7 +279,7 @@ const Header = () => {
                     ))}
                   </div>
                   <div className="header-cart-preview-footer">
-                    <span>{totalItems} sản phẩm · {formatPrice(totalPrice)}</span>
+                    <span>{badge} sản phẩm · {formatPrice(totalPrice)}</span>
                     <Link to="/gio-hang" className="header-cart-preview-btn">Xem Giỏ Hàng</Link>
                   </div>
                 </>

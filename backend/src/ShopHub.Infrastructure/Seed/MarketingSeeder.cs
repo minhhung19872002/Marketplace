@@ -13,6 +13,31 @@ namespace ShopHub.Infrastructure.Seed;
 /// </summary>
 public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, ILogger<MarketingSeeder> logger)
 {
+    public static readonly (string Title, string Link)[] MainBanners =
+    [
+        ("Sinh Nhật ShopHub — hàng nghìn sản phẩm chính hãng giá tốt", "/su-kien/sieu-sale-10-10"),
+        ("ShopHub Mall — thương hiệu chính hãng, đổi trả 15 ngày", "/tim-kiem?mall=true"),
+        ("Công nghệ mới về — điện thoại, laptop, phụ kiện", "/tim-kiem?q=dien+thoai&sort=Newest"),
+    ];
+
+    public static readonly (string Title, string Link)[] SideBanners =
+    [
+        ("Mã giảm giá của sàn", "/su-kien/sieu-sale-10-10"),
+        ("Freeship mọi đơn", "/tim-kiem?freeship=true"),
+    ];
+
+    // Spec II.1: Mã giảm giá, Freeship, Deal sốc, Mall… — each one opens a real page (E3); migration HomeShortcutsDeals adds the
+    // first three to databases seeded before
+    public static readonly (string Label, string Icon, string Link)[] Shortcuts =
+    [
+        ("Mã Giảm Giá", "🎟️", "/tai-khoan/voucher"), ("Freeship", "🚚", "/tim-kiem?freeship=true"), ("Deal Sốc", "⚡", "/flash-sale"),
+        ("ShopHub Mall", "🏬", "/tim-kiem?mall=true"), ("Shop Yêu Thích", "💖", "/tim-kiem?preferred=true"),
+        ("Hàng 4 Sao", "⭐", "/tim-kiem?minRating=4"), ("Bán Chạy", "🔥", "/tim-kiem?sort=BestSelling"),
+        ("Hàng Mới Về", "🆕", "/tim-kiem?sort=Newest"), ("Giá Từ Thấp", "🏷️", "/tim-kiem?sort=PriceAsc"),
+        ("Có Sẵn Hàng", "📦", "/tim-kiem?inStock=true"), ("Công Nghệ", "💻", "/danh-muc/may-tinh-laptop"),
+        ("Sắc Đẹp", "💄", "/danh-muc/sac-dep"), ("Nhà Cửa", "🏠", "/danh-muc/nha-cua-doi-song"),
+    ];
+
     private static readonly TimeSpan Vn = TimeSpan.FromHours(7);
 
     public async Task SeedAsync(CancellationToken ct)
@@ -57,24 +82,11 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, ILogger<M
             var from = now.AddMinutes(-1);
             var to = now.AddYears(1);
             string ImageOf(int i) => products[i % products.Count].Image ?? "🛍️";
-            (string Title, string Link)[] main =
-            [
-                ("Sinh Nhật ShopHub — hàng nghìn sản phẩm chính hãng giá tốt", "/su-kien/sieu-sale-10-10"),
-                ("ShopHub Mall — thương hiệu chính hãng, đổi trả 15 ngày", "/tim-kiem?mall=true"),
-                ("Công nghệ mới về — điện thoại, laptop, phụ kiện", "/tim-kiem?q=dien+thoai&sort=Newest"),
-            ];
-            for (var i = 0; i < main.Length; i++)
-                db.Banners.Add(new Banner(BannerPosition.HomeMain, main[i].Title, ImageOf(i), main[i].Link, from, to, i, null, now));
-            db.Banners.Add(new Banner(BannerPosition.HomeSide, "Mã giảm giá của sàn", ImageOf(3), "/su-kien/sieu-sale-10-10", from, to, 0, null, now));
-            db.Banners.Add(new Banner(BannerPosition.HomeSide, "Freeship mọi đơn", ImageOf(4), "/tim-kiem?sort=BestSelling", from, to, 1, null, now));
-            (string Label, string Icon, string Link)[] shortcuts =
-            [
-                ("ShopHub Mall", "🏬", "/tim-kiem?mall=true"), ("Shop Yêu Thích", "💖", "/tim-kiem?preferred=true"),
-                ("Hàng 4 Sao", "⭐", "/tim-kiem?minRating=4"), ("Bán Chạy", "🔥", "/tim-kiem?sort=BestSelling"),
-                ("Hàng Mới Về", "🆕", "/tim-kiem?sort=Newest"), ("Giá Từ Thấp", "🏷️", "/tim-kiem?sort=PriceAsc"),
-                ("Có Sẵn Hàng", "📦", "/tim-kiem?inStock=true"), ("Công Nghệ", "💻", "/danh-muc/may-tinh-laptop"),
-                ("Sắc Đẹp", "💄", "/danh-muc/sac-dep"), ("Nhà Cửa", "🏠", "/danh-muc/nha-cua-doi-song"),
-            ];
+            for (var i = 0; i < MainBanners.Length; i++)
+                db.Banners.Add(new Banner(BannerPosition.HomeMain, MainBanners[i].Title, ImageOf(i), MainBanners[i].Link, from, to, i, null, now));
+            for (var i = 0; i < SideBanners.Length; i++)
+                db.Banners.Add(new Banner(BannerPosition.HomeSide, SideBanners[i].Title, ImageOf(3 + i), SideBanners[i].Link, from, to, i, null, now));
+            var shortcuts = Shortcuts;
             for (var i = 0; i < shortcuts.Length; i++)
                 db.Banners.Add(new Banner(BannerPosition.Shortcut, shortcuts[i].Label, shortcuts[i].Icon, shortcuts[i].Link, from, to, i, null, now));
             db.Banners.Add(new Banner(BannerPosition.Popup, "Siêu sale 10.10 — mã giảm đến ₫100.000", ImageOf(5), "/su-kien/sieu-sale-10-10", from, to, 0, null, now));

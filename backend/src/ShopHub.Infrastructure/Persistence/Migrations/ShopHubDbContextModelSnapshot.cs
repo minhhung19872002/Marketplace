@@ -6029,6 +6029,68 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("shop_staff", "shop");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopStaffInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("InvitedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invited_by");
+
+                    b.Property<List<string>>("Permissions")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("permissions");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("role");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_staff_invitations");
+
+                    b.HasIndex("ShopId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_shop_staff_invitations_pending")
+                        .HasFilter("status = 'Pending'");
+
+                    b.HasIndex("UserId", "Status")
+                        .HasDatabaseName("ix_shop_staff_invitations_user");
+
+                    b.ToTable("shop_staff_invitations", "shop");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopWarehouse", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7606,6 +7668,23 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_shop_staff_users_user_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopStaffInvitation", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_staff_invitations_shops_shop_id");
+
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_staff_invitations_users_user_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopWarehouse", b =>

@@ -52,6 +52,28 @@ public record ShopOrderDetailDto(Orders.OrderDetailDto Order, string BuyerName, 
 
 internal static class ShopOrderQueries
 {
+    /// <summary>The order list's filters, in one place for the list and the Excel export.</summary>
+    public static IQueryable<Order> Filter(IApplicationDbContext db, Guid shopId, ShopOrderTab tab, string? text, DateTimeOffset? from, DateTimeOffset? to,
+        string? carrier, PaymentMethod? paymentMethod)
+    {
+        var q = Tab(db, db.Orders.AsNoTracking().Where(o => o.ShopId == shopId), tab);
+        if (from is { } f) q = q.Where(o => o.CreatedAt >= f);
+        if (to is { } t) q = q.Where(o => o.CreatedAt <= t);
+        if (!string.IsNullOrWhiteSpace(carrier)) q = q.Where(o => o.CarrierCode == carrier);
+        if (paymentMethod is { } method) q = q.Where(o => o.PaymentMethod == method);
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            var term = text.Trim();
+            var upper = term.ToUpper();
+            var lower = term.ToLower();
+            q = q.Where(o => o.Code == upper
+                             || db.Shipments.Any(s => s.OrderId == o.Id && s.TrackingNo == upper)
+                             || db.Users.Any(u => u.Id == o.BuyerId && u.FullName.ToLower().Contains(lower))
+                             || o.Items.Any(i => i.NameSnapshot.ToLower().Contains(lower)));
+        }
+        return q;
+    }
+
     public static IQueryable<Order> Tab(IApplicationDbContext db, IQueryable<Order> q, ShopOrderTab tab) => tab switch
     {
         ShopOrderTab.Unpaid => q.Where(o => o.Status == OrderStatus.PendingPayment),
@@ -96,21 +118,7 @@ public sealed class ListShopOrdersHandler(IApplicationDbContext db, SellerAccess
     public async Task<PagedResult<ShopOrderRowDto>> Handle(ListShopOrdersQuery request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
-        var q = ShopOrderQueries.Tab(db, db.Orders.AsNoTracking().Where(o => o.ShopId == request.ShopId), request.Tab);
-        if (request.From is { } from) q = q.Where(o => o.CreatedAt >= from);
-        if (request.To is { } to) q = q.Where(o => o.CreatedAt <= to);
-        if (!string.IsNullOrWhiteSpace(request.Carrier)) q = q.Where(o => o.CarrierCode == request.Carrier);
-        if (request.PaymentMethod is { } method) q = q.Where(o => o.PaymentMethod == method);
-        if (!string.IsNullOrWhiteSpace(request.Q))
-        {
-            var term = request.Q.Trim();
-            var upper = term.ToUpper();
-            var lower = term.ToLower();
-            q = q.Where(o => o.Code == upper
-                             || db.Shipments.Any(s => s.OrderId == o.Id && s.TrackingNo == upper)
-                             || db.Users.Any(u => u.Id == o.BuyerId && u.FullName.ToLower().Contains(lower))
-                             || o.Items.Any(i => i.NameSnapshot.ToLower().Contains(lower)));
-        }
+        var q = ShopOrderQueries.Filter(db, request.ShopId, request.Tab, request.Q, request.From, request.To, request.Carrier, request.PaymentMethod);
 
         var page = await q.OrderByDescending(o => o.CreatedAt).ThenBy(o => o.Id).ToPagedResultAsync(o => new
         {
@@ -387,7 +395,10 @@ public sealed class PickingListHandler(IApplicationDbContext db, SellerAccess ac
     }
 }
 
-public record ExportShopOrdersQuery(Guid ShopId, ShopOrderTab Tab, DateTimeOffset? From, DateTimeOffset? To) : IRequest<byte[]>;
+// Same filters as the list (D6, L095): the file holds exactly the orders on screen. The later fields are optional so
+// tasks queued before them still read.
+public record ExportShopOrdersQuery(Guid ShopId, ShopOrderTab Tab, DateTimeOffset? From, DateTimeOffset? To, string? Q = null, string? Carrier = null,
+    PaymentMethod? PaymentMethod = null) : IRequest<byte[]>;
 
 public sealed class ExportShopOrdersHandler(IApplicationDbContext db, SellerAccess access, IShippingDocuments documents) : IRequestHandler<ExportShopOrdersQuery, byte[]>
 {
@@ -397,9 +408,7 @@ public sealed class ExportShopOrdersHandler(IApplicationDbContext db, SellerAcce
     public async Task<byte[]> Handle(ExportShopOrdersQuery request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
-        var q = ShopOrderQueries.Tab(db, db.Orders.AsNoTracking().Where(o => o.ShopId == request.ShopId), request.Tab);
-        if (request.From is { } from) q = q.Where(o => o.CreatedAt >= from);
-        if (request.To is { } to) q = q.Where(o => o.CreatedAt <= to);
+        var q = ShopOrderQueries.Filter(db, request.ShopId, request.Tab, request.Q, request.From, request.To, request.Carrier, request.PaymentMethod);
         if (await q.CountAsync(ct) > MaxRows) throw new ConflictException($"Tối đa {MaxRows} đơn mỗi lần xuất, vui lòng thu hẹp khoảng ngày.", "TOO_MANY");
         var rows = await q.OrderByDescending(o => o.CreatedAt).ThenBy(o => o.Id).Select(o => new
         {
@@ -516,7 +525,8 @@ public record SellerDashboardDto(
     int CancelRequests,
     int DeliveryProblems,
     int BannedProducts,
-    int LowStockSkus,
+    // Products (not SKUs) the "Sắp hết hàng" tab lists — same rule (LowStock.Of)
+    int LowStockProducts,
     int PenaltyPoints,
     SalesFigureDto Today,
     SalesFigureDto Last7Days,
@@ -559,8 +569,7 @@ public sealed class SellerDashboardHandler(IApplicationDbContext db, SellerAcces
             await orders.CountAsync(o => db.OrderCancelRequests.Any(r => r.OrderId == o.Id && r.Status == CancelRequestStatus.Pending), ct),
             await orders.CountAsync(o => o.Status == OrderStatus.DeliveryFailed || o.Status == OrderStatus.Returning, ct),
             await db.Products.CountAsync(p => p.ShopId == request.ShopId && p.Status == ProductStatus.Banned, ct),
-            await db.Skus.CountAsync(s => s.IsActive && s.Stock - s.Reserved <= low
-                                          && db.Products.Any(p => p.Id == s.ProductId && p.ShopId == request.ShopId && p.Status == ProductStatus.Active), ct),
+            await LowStock.Of(db.Products.Where(p => p.ShopId == request.ShopId), low).CountAsync(ct),
             await db.Shops.Where(s => s.Id == request.ShopId).Select(s => s.PenaltyPoints).SingleAsync(ct),
             await Sales(todayStart), await Sales(todayStart.AddDays(-6)), await Sales(todayStart.AddDays(-29)),
             await db.ReturnRequests.CountAsync(r => r.ShopId == request.ShopId
@@ -568,7 +577,11 @@ public sealed class SellerDashboardHandler(IApplicationDbContext db, SellerAcces
             await orders.CountAsync(o => o.ConfirmedAt >= todayStart, ct),
             (int)low,
             await db.Notifications.AsNoTracking()
-                .Where(n => n.UserId == currentUser.UserId && (n.RefType == "broadcast" || n.Category == Domain.Engage.NotificationCategory.Activity))
+                // Thông báo của sàn (D4, L090): what the platform sent — broadcasts, and its decisions on this shop's products;
+                // not the person's own chat messages, staff invitations or admin alerts
+                .Where(n => n.UserId == currentUser.UserId
+                            && (n.RefType == "broadcast"
+                                || (n.RefType == "product" && db.Products.IgnoreQueryFilters().Any(p => p.Id == n.RefId && p.ShopId == request.ShopId))))
                 .OrderByDescending(n => n.CreatedAt).ThenBy(n => n.Id).Take(5)
                 .Select(n => new AnnouncementDto(n.Title, n.Body, n.Link, n.CreatedAt)).ToListAsync(ct));
     }
@@ -577,6 +590,13 @@ public sealed class SellerDashboardHandler(IApplicationDbContext db, SellerAcces
 /// <summary>"Sắp hết hàng" threshold: the shop's own setting, else the platform default.</summary>
 public static class LowStock
 {
+    /// <summary>
+    /// The one rule (D2, L089) behind both the dashboard number and the "Sắp hết hàng" tab: a selling product with at least
+    /// one active SKU whose available quantity (stock − reserved) is at or under the threshold.
+    /// </summary>
+    public static IQueryable<Product> Of(IQueryable<Product> products, long threshold) =>
+        products.Where(p => p.Status == ProductStatus.Active && p.Skus.Any(s => s.IsActive && s.Stock - s.Reserved <= threshold));
+
     public static async Task<long> ThresholdAsync(IApplicationDbContext db, ISystemParameters parameters, Guid shopId, CancellationToken ct) =>
         await db.Shops.AsNoTracking().Where(s => s.Id == shopId).Select(s => s.LowStockThreshold).FirstOrDefaultAsync(ct)
         ?? await parameters.GetIntAsync(ParameterKeys.ShopLowStockThreshold, ct);

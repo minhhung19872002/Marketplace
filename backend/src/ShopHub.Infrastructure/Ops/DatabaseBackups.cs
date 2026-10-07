@@ -96,8 +96,8 @@ public sealed class BackupService(
         {
             if (File.Exists(path + ".partial")) File.Delete(path + ".partial");
             run.Failed(ex.Message, clock.UtcNow);
-            await alerts.RaiseAsync(Permissions.JobDashboardView, "Sao lưu CSDL thất bại", $"Bản {name}: {run.Error}", "/admin/viec-nen",
-                $"backup-failed:{run.Id:N}", ct);
+            await alerts.RaiseAsync(Permissions.JobDashboardView, Application.Features.Admin.TemplateCatalog.AdminBackupFailed,
+                new Dictionary<string, string> { ["file"] = name, ["error"] = run.Error ?? string.Empty }, "/admin/viec-nen", $"backup-failed:{run.Id:N}", ct);
             await db.SaveChangesAsync(ct);
             logger.LogError(ex, "Backup {File} failed", name);
         }

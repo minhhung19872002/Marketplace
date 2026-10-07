@@ -14,6 +14,7 @@ import type { ProductSort } from '../types';
 import ShopVouchers from '../components/ShopVouchers';
 import { marketingApi } from '../api/marketing';
 import './ShopPage.css';
+import { usePageTitle } from '../lib/pageTitle';
 
 const TABS: { key: ProductSort; label: string }[] = [
   { key: 'BestSelling', label: 'Phổ Biến' },
@@ -77,6 +78,7 @@ const ShopPage = () => {
     onError: (e) => setMessage(e instanceof ApiError ? e.message : 'Không thực hiện được, vui lòng thử lại.'),
   });
 
+  usePageTitle(shopQuery.data?.shop.name ?? (shopQuery.isError ? 'Không tìm thấy shop' : null));
   if (shopQuery.isLoading) return <div className="page-loader"><div className="loading-spinner" /></div>;
   if (!shopQuery.data) {
     return (
@@ -108,6 +110,13 @@ const ShopPage = () => {
 
   return (
     <div className="shop-page">
+      {/* Tạm nghỉ (II.5, E5): said loudly at the top — orders are blocked until the shop is back */}
+      {shop.onVacation && (
+        <div className="shop-vacation" role="status" data-testid="shop-vacation">
+          <strong>Shop đang tạm nghỉ{shop.vacationUntil ? ` đến ${formatDate(shop.vacationUntil)}` : ''}.</strong>
+          <span> Bạn vẫn xem được sản phẩm nhưng chưa thể đặt mua trong thời gian này.</span>
+        </div>
+      )}
       <div className="shop-banner">
         <div className="container shop-banner-inner">
           <div className="shop-avatar">
@@ -130,6 +139,10 @@ const ShopPage = () => {
             {message && <div className="shop-message" role="status">{message}</div>}
           </div>
           <div className="shop-stats">
+            <div data-testid="shop-rating">
+              <strong>{shop.ratingCount > 0 ? `${shop.ratingAvg.toFixed(1)} ★` : '—'}</strong>
+              <span>Đánh Giá ({formatSold(shop.ratingCount)})</span>
+            </div>
             <div><strong>{formatSold(shop.productCount)}</strong><span>Sản Phẩm</span></div>
             <div><strong data-testid="shop-followers">{formatSold(shop.followerCount)}</strong><span>Người Theo Dõi</span></div>
             <div><strong>{formatDate(shop.joinedAt)}</strong><span>Tham Gia</span></div>

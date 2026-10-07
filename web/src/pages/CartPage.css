@@ -431,3 +431,22 @@
   font-size: 12px;
   color: var(--sh-text-muted);
 }
+
+.cart-shop-voucher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px dashed var(--border);
+  font-size: 14px;
+}
+
+.cart-shop-voucher .checkout-voucher {
+  margin-bottom: 0;
+}
+
+.cart-shop-voucher-saving {
+  color: var(--sh-primary);
+  font-weight: 600;
+}

@@ -15,8 +15,8 @@ const DashboardPage = ({ shopId }: { shopId: string }) => {
     { label: 'Đang giao', value: data?.shipping, to: '/don-hang?tab=Shipping', testId: 'todo-shipping' },
     { label: 'Yêu cầu huỷ', value: data?.cancelRequests, to: '/don-hang?tab=CancelRequests', testId: 'todo-cancel' },
     { label: 'Giao thất bại / hoàn', value: data?.deliveryProblems, to: '/don-hang?tab=Failed', testId: 'todo-failed' },
-    { label: 'Sản phẩm bị khoá', value: data?.bannedProducts, to: '/san-pham?tab=Banned', testId: 'todo-banned' },
-    { label: `Sắp hết hàng (≤ ${data?.lowStockThreshold ?? 0})`, value: data?.lowStockSkus, to: '/san-pham?tab=LowStock', testId: 'todo-low' },
+    { label: 'Sản phẩm bị khoá', value: data?.bannedProducts, to: '/san-pham?tab=Violation', testId: 'todo-banned' },
+    { label: `Sắp hết hàng (≤ ${data?.lowStockThreshold ?? 0})`, value: data?.lowStockProducts, to: '/san-pham?tab=LowStock', testId: 'todo-low' },
     { label: 'Trả hàng chờ xử lý', value: data?.returnsPending, to: '/tra-hang', testId: 'todo-returns' },
     { label: 'Đã xử lý hôm nay', value: data?.processedToday, to: '/don-hang?tab=ToShip', testId: 'todo-processed' },
   ]

@@ -87,6 +87,8 @@ export interface CampaignRegistration {
 
 export const marketingApi = {
   slots: () => apiRequest<FlashSlot[]>('/admin/marketing/flash-slots'),
+  hotKeywords: () => apiRequest<string[]>('/admin/marketing/hot-keywords'),
+  setHotKeywords: (keywords: string[]) => apiCommand<string[]>('/admin/marketing/hot-keywords', { method: 'PUT', body: { keywords } }),
   createSlot: (body: { date: string; hour: number; minDiscountBp: number; minRating: number; categoryIds: string[] }) =>
     apiCommand<string>('/admin/marketing/flash-slots', { method: 'POST', body }),
   approve: (itemId: string) => apiCommand(`/admin/marketing/flash-items/${itemId}/approve`, { method: 'POST' }),

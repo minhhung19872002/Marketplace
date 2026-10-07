@@ -194,4 +194,43 @@ public class StorefrontExtrasTests(ApiFactory factory)
         var redWithText = await GetAsync(factory.CreateClient(), $"/api/products/{product}/reviews?variant={Uri.EscapeDataString("Đỏ, M")}&withComment=true");
         redWithText.GetProperty("reviews").GetProperty("totalCount").GetInt32().Should().Be(1);
     }
+
+    [Fact]
+    public async Task The_shop_block_of_a_product_and_the_shop_page_show_the_shops_rating()
+    {
+        var store = await factory.CreateStoreAsync("79", products: [new("Bút Điểm Shop", "Đèn Bàn", 90_000, 10, "Việt Nam")]);
+        // The figure is the recomputed copy on the shop (from its reviews); set it directly for the test
+        await factory.WithDbAsync(db => db.Shops.Where(s => s.Id == store.ShopId)
+            .ExecuteUpdateAsync(u => u.SetProperty(s => s.RatingAvg, 4.7).SetProperty(s => s.RatingCount, 128)));
+        var product = await GetAsync(factory.CreateClient(), $"/api/products/{store.Products["Bút Điểm Shop"]}");
+        var shopBlock = product.GetProperty("shop");
+        shopBlock.GetProperty("ratingAvg").GetDouble().Should().Be(4.7);
+        shopBlock.GetProperty("ratingCount").GetInt32().Should().Be(128);
+
+        var page = await GetAsync(factory.CreateClient(), $"/api/shops/{shopBlock.Str("slug")}");
+        page.GetProperty("shop").GetProperty("ratingAvg").GetDouble().Should().Be(4.7);
+        page.GetProperty("shop").GetProperty("ratingCount").GetInt32().Should().Be(128);
+    }
+
+    [Fact]
+    public async Task Running_programmes_on_the_shop_page_include_the_shops_own_flash_sale()
+    {
+        var store = await factory.CreateStoreAsync("01", products: [new("Bút Flash Shop", "Đèn Bàn", 90_000, 10, "Việt Nam")]);
+        var now = DateTimeOffset.UtcNow;
+        await factory.WithDbAsync(async db =>
+        {
+            var running = new FlashSaleSlot(FlashSaleOwner.Shop, store.ShopId, now.AddMinutes(-10), now.AddHours(2), 0, 0, [], now);
+            var later = new FlashSaleSlot(FlashSaleOwner.Shop, store.ShopId, now.AddHours(5), now.AddHours(6), 0, 0, [], now);
+            db.FlashSaleSlots.AddRange(running, later);
+            var item = new FlashSaleItem(running.Id, store.Skus["Bút Flash Shop"], store.Products["Bút Flash Shop"], store.ShopId, 60_000, 5, 1, now);
+            item.Approve(now);
+            db.FlashSaleItems.Add(item);
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        var offers = (await GetAsync(factory.CreateClient(), $"/api/shops/{store.ShopId}/offers")).EnumerateArray().ToList();
+        var flash = offers.Should().ContainSingle(o => o.Str("type") == "FlashSale", "chỉ khung đang chạy").Which;
+        flash.Str("text").Should().StartWith("Flash Sale của shop đến ");
+        flash.GetProperty("productCount").GetInt32().Should().Be(1);
+    }
 }

@@ -8,6 +8,9 @@ import { useAuthStore } from './stores/auth'
 import { useShopStore } from './stores/shop'
 import LoginPage from './pages/LoginPage'
 import RegisterShopPage from './pages/RegisterShopPage'
+import ShopStatusPage from './pages/ShopStatusPage'
+import InvitationsPage from './pages/InvitationsPage'
+import { staffApi } from './api/staff'
 import ProductsPage from './pages/ProductsPage'
 import ProductEditorPage from './pages/ProductEditorPage'
 import ShopSettingsPage from './pages/ShopSettingsPage'
@@ -60,7 +63,12 @@ const Shell = () => {
   const { currentShopId, select } = useShopStore()
   const shops = useQuery({ queryKey: ['my-shops'], queryFn: sellerApi.myShops })
   const shop = shops.data?.find((s) => s.id === currentShopId) ?? shops.data?.[0]
-  const menu = MENU.filter((m) => !m.perm || shop?.permissions.includes(m.perm))
+  // Invitations to work as staff of a shop (D6) — reachable whatever the state of the user's own shops
+  const invitations = useQuery({ queryKey: ['my-invitations'], queryFn: staffApi.myInvitations })
+  const onInvitations = location.pathname === '/loi-moi'
+  // Selling screens only for a shop that sells (active / on vacation); otherwise its status page (D3)
+  const selling = shop?.status === 'Active' || shop?.status === 'Vacation'
+  const menu = selling ? MENU.filter((m) => !m.perm || shop?.permissions.includes(m.perm)) : []
 
   // Keep the remembered shop valid (membership may have changed)
   useEffect(() => {
@@ -97,6 +105,13 @@ const Shell = () => {
                 options={shops.data.map((s) => ({ value: s.id, label: s.name }))} />
             )}
             {shop?.status === 'PendingReview' && <Tag color="gold">Chờ duyệt</Tag>}
+            {shop?.status === 'Rejected' && <Tag color="red">Bị từ chối</Tag>}
+            {shop?.status === 'Locked' && <Tag color="red">Bị khoá</Tag>}
+            {(invitations.data?.length ?? 0) > 0 && (
+              <Button size="small" type="dashed" onClick={() => navigate('/loi-moi')} data-testid="invitations-link">
+                Lời mời làm nhân viên ({invitations.data?.length})
+              </Button>
+            )}
           </Space>
           <Space>
             <Typography.Text>{user?.fullName}</Typography.Text>
@@ -104,10 +119,14 @@ const Shell = () => {
           </Space>
         </Header>
         <Content className="app-content">
-          {!shop ? (
+          {onInvitations ? (
+            <InvitationsPage />
+          ) : !shop ? (
             <Routes>
               <Route path="*" element={<RegisterShopPage />} />
             </Routes>
+          ) : !selling ? (
+            <ShopStatusPage key={shop.id} shop={shop} />
           ) : (
             <Routes>
               <Route path="/" element={<Navigate to="/tong-quan" replace />} />

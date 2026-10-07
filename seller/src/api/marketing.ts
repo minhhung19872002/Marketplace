@@ -72,6 +72,8 @@ export interface FlashSlot {
   endAt: string
   minDiscountBp: number
   minRating: number
+  // Ngành hàng của khung (danh mục ở bất kỳ cấp nào); rỗng = mọi ngành
+  categoryIds: string[]
   state: string
   items: FlashItem[]
 }
@@ -124,10 +126,14 @@ export const marketingApi = {
   skus: (shopId: string, q: string) => apiRequest<PickSku[]>(`${base(shopId)}/skus?q=${encodeURIComponent(q)}`),
   promotions: (shopId: string) => apiRequest<Promotion[]>(`${base(shopId)}/promotions`),
   createPromotion: (shopId: string, body: PromotionInput) => apiCommand<string>(`${base(shopId)}/promotions`, { method: 'POST', body }),
+  updatePromotion: (shopId: string, id: string, body: PromotionInput) =>
+    apiCommand(`${base(shopId)}/promotions/${id}`, { method: 'PUT', body }),
   stopPromotion: (shopId: string, id: string) => apiCommand(`${base(shopId)}/promotions/${id}/stop`, { method: 'POST' }),
   flashSales: (shopId: string) => apiRequest<FlashSlot[]>(`${base(shopId)}/flash-sales`),
   createFlashSale: (shopId: string, body: { startAt: string; endAt: string; items: FlashItemInput[] }) =>
     apiCommand<string>(`${base(shopId)}/flash-sales`, { method: 'POST', body }),
+  updateFlashSale: (shopId: string, id: string, body: { startAt: string; endAt: string; items: FlashItemInput[] }) =>
+    apiCommand(`${base(shopId)}/flash-sales/${id}`, { method: 'PUT', body }),
   platformSlots: (shopId: string) => apiRequest<FlashSlot[]>(`${base(shopId)}/platform-slots`),
   register: (shopId: string, slotId: string, items: FlashItemInput[]) =>
     apiCommand<number>(`${base(shopId)}/platform-slots/${slotId}/items`, { method: 'POST', body: { items } }),

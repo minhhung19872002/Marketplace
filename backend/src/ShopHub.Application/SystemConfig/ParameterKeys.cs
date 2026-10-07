@@ -33,7 +33,16 @@ public static class ParameterKeys
 
     public const string ProductReviewOnEdit = "PRODUCT.REVIEW_ON_EDIT";
     public const string ProductBannedKeywords = "PRODUCT.BANNED_KEYWORDS";
+    // Footer "Theo dõi chúng tôi" (E8): https links; empty = icon hidden
+    public const string SiteSocialFacebook = "SITE.SOCIAL_FACEBOOK";
+    public const string SiteSocialInstagram = "SITE.SOCIAL_INSTAGRAM";
+    public const string SiteSocialLinkedin = "SITE.SOCIAL_LINKEDIN";
+    public const string SiteSocialTiktok = "SITE.SOCIAL_TIKTOK";
+    public const string SiteSocialYoutube = "SITE.SOCIAL_YOUTUBE";
+    // Zalo Official Account id: the official "Chia sẻ qua Zalo" button needs one (E4); empty = button hidden
+    public const string SiteZaloOaId = "SITE.ZALO_OA_ID";
     public const string ShopLowStockThreshold = "SHOP.LOW_STOCK_THRESHOLD";
+    public const string ShopStaffInviteDays = "SHOP.STAFF_INVITE_DAYS";
     public const string ShopPenaltyRestrictPoints = "SHOP.PENALTY_RESTRICT_POINTS";
     public const string ShopPenaltyCampaignBanPoints = "SHOP.PENALTY_CAMPAIGN_BAN_POINTS";
     public const string ShopPenaltyLockPoints = "SHOP.PENALTY_LOCK_POINTS";
@@ -207,6 +216,20 @@ public static class ParameterCatalog
             "Hạn của điểm phạt tự động (ngày)", "Điểm phạt hệ thống tự ghi (giao trễ…) hết tính sau số ngày này."),
         new(ParameterKeys.ShopLowStockThreshold, "10", ParameterDataType.Int, ParameterGroups.Shop,
             "Ngưỡng sắp hết hàng", "Tồn kho khả dụng từ ngưỡng này trở xuống được cảnh báo sắp hết hàng."),
+        new(ParameterKeys.SiteSocialFacebook, "", ParameterDataType.String, ParameterGroups.Site,
+            "Trang Facebook", "Liên kết https tới trang Facebook của sàn; để trống thì ẩn biểu tượng ở chân trang."),
+        new(ParameterKeys.SiteSocialInstagram, "", ParameterDataType.String, ParameterGroups.Site,
+            "Trang Instagram", "Liên kết https tới Instagram của sàn; để trống thì ẩn biểu tượng ở chân trang."),
+        new(ParameterKeys.SiteSocialLinkedin, "", ParameterDataType.String, ParameterGroups.Site,
+            "Trang LinkedIn", "Liên kết https tới LinkedIn của sàn; để trống thì ẩn biểu tượng ở chân trang."),
+        new(ParameterKeys.SiteSocialTiktok, "", ParameterDataType.String, ParameterGroups.Site,
+            "Kênh TikTok", "Liên kết https tới TikTok của sàn; để trống thì ẩn biểu tượng ở chân trang."),
+        new(ParameterKeys.SiteSocialYoutube, "", ParameterDataType.String, ParameterGroups.Site,
+            "Kênh YouTube", "Liên kết https tới YouTube của sàn; để trống thì ẩn biểu tượng ở chân trang."),
+        new(ParameterKeys.SiteZaloOaId, "", ParameterDataType.String, ParameterGroups.Site,
+            "Mã Zalo Official Account", "Mã OA của sàn trên Zalo — nút \"Chia sẻ qua Zalo\" ở trang sản phẩm chỉ hiện khi đã nhập mã này."),
+        new(ParameterKeys.ShopStaffInviteDays, "7", ParameterDataType.Int, ParameterGroups.Shop,
+            "Hạn lời mời tài khoản phụ (ngày)", "Người được mời làm nhân viên shop phải đồng ý trong số ngày này, quá hạn thì lời mời hết hiệu lực."),
         new(ParameterKeys.MediaMaxImageMb, "5", ParameterDataType.Int, ParameterGroups.Media,
             "Dung lượng ảnh tối đa (MB)", "Ảnh tải lên lớn hơn bị từ chối (ảnh đại diện: 1 MB)."),
         new(ParameterKeys.MediaMaxVideoMb, "30", ParameterDataType.Int, ParameterGroups.Media,

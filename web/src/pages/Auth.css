@@ -322,3 +322,25 @@
   margin-top: 12px;
   font-size: 13px;
 }
+
+.auth-channel {
+  display: flex;
+  gap: 8px;
+}
+
+.auth-channel-btn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  background: var(--sh-surface);
+  border-radius: 2px;
+  cursor: pointer;
+  font: inherit;
+  color: #555;
+}
+
+.auth-channel-btn.active {
+  border-color: var(--sh-primary);
+  color: var(--sh-primary);
+  font-weight: 600;
+}

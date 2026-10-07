@@ -1,7 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { lazy, Suspense, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { accountApi, type Address, type AddressInput, type AddressType } from '../../api/account';
 import { ApiError } from '../../api/http';
+import { ConfirmButton } from '../../components/ConfirmDialog';
+
+// Leaflet only loads when someone opens the map
+const MapPin = lazy(() => import('../../components/MapPin'));
 
 const EMPTY: AddressInput = {
   receiverName: '',
@@ -12,12 +16,15 @@ const EMPTY: AddressInput = {
   street: '',
   type: 'Home',
   isDefault: false,
+  lat: null,
+  lng: null,
 };
 
 /** Add / edit one address — also used inline on the checkout page (II.7), which then picks the new address. */
 export const AddressForm = ({ initial, onDone }: { initial: Address | null; onDone: (saved?: Address) => void }) => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<AddressInput>(initial ? { ...initial } : EMPTY);
+  const [showMap, setShowMap] = useState(false);
   const set = <K extends keyof AddressInput>(key: K, value: AddressInput[K]) => setForm((f) => ({ ...f, [key]: value }));
 
   const provinces = useQuery({ queryKey: ['divisions', ''], queryFn: () => accountApi.divisions(), staleTime: Infinity });
@@ -77,6 +84,22 @@ export const AddressForm = ({ initial, onDone }: { initial: Address | null; onDo
       </select>
       <input className="account-input" placeholder="Địa chỉ cụ thể (số nhà, tên đường)" value={form.street}
         onChange={(e) => set('street', e.target.value)} aria-label="Địa chỉ cụ thể" />
+      <div className="address-pin">
+        <button type="button" className="account-btn-outline" onClick={() => setShowMap((v) => !v)} data-testid="address-pin-toggle">
+          {showMap ? 'Ẩn bản đồ' : form.lat != null ? '📍 Sửa vị trí đã ghim' : '📍 Ghim vị trí trên bản đồ (tuỳ chọn)'}
+        </button>
+        {form.lat != null && form.lng != null && (
+          <span className="address-pin-coords" data-testid="address-pin-coords">
+            Đã ghim {form.lat.toFixed(5)}, {form.lng.toFixed(5)}
+            <button type="button" className="account-btn-outline address-pin-clear" onClick={() => setForm((f) => ({ ...f, lat: null, lng: null }))}>Bỏ ghim</button>
+          </span>
+        )}
+        {showMap && (
+          <Suspense fallback={<div className="map-pin-loading">Đang tải bản đồ…</div>}>
+            <MapPin lat={form.lat} lng={form.lng} onPick={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))} />
+          </Suspense>
+        )}
+      </div>
       <div className="account-radios">
         {(['Home', 'Office'] as AddressType[]).map((t) => (
           <label key={t} className="account-radio">
@@ -139,7 +162,8 @@ const AddressesPage = () => {
               <button className="account-link" onClick={() => setEditing(a)}>Cập nhật</button>
               {!a.isDefault && (
                 <>
-                  <button className="account-link" onClick={() => remove.mutate(a.id)}>Xoá</button>
+                  <ConfirmButton className="account-link" message="Xoá địa chỉ này khỏi sổ địa chỉ?" confirmLabel="Xoá" onConfirm={() => remove.mutate(a.id)}
+                    testId="address-remove">Xoá</ConfirmButton>
                   <button className="account-btn-outline" onClick={() => setDefault.mutate(a.id)}>Thiết lập mặc định</button>
                 </>
               )}

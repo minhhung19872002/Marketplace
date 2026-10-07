@@ -1046,3 +1046,25 @@ img.header-user-avatar {
   color: var(--sh-on-primary);
   background: var(--sh-primary);
 }
+
+.address-pin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.address-pin-coords {
+  font-size: 13px;
+  color: var(--sh-text-muted);
+}
+
+.map-pin-loading {
+  padding: 16px;
+  text-align: center;
+  color: var(--sh-text-muted);
+}
+
+.address-pin-clear {
+  margin-left: 8px;
+  padding: 2px 8px;
+}

@@ -225,6 +225,7 @@ public sealed class SendMessageHandler(
     IObjectStorage storage,
     IRealtime realtime,
     ICurrentUser currentUser,
+    Admin.MessageTemplates templates,
     IClock clock) : IRequestHandler<SendMessageCommand, MessageDto>
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -279,9 +280,10 @@ public sealed class SendMessageHandler(
         {
             var dedupe = $"chat:{conversation.Id}:{hour}";
             if (await db.Notifications.AnyAsync(n => n.UserId == r && n.DedupeKey == dedupe, ct)) continue;
-            db.Notifications.Add(new Notification(r, NotificationCategory.Activity, role == ChatRole.Buyer ? $"Tin nhắn mới từ {sender}" : $"{shopName} đã trả lời bạn",
-                Preview(message), role == ChatRole.Buyer ? $"/seller/chat?c={conversation.Id}" : $"/chat?c={conversation.Id}", "conversation", conversation.Id,
-                now, dedupe));
+            var (title, text) = await templates.NoticeAsync(role == ChatRole.Buyer ? Admin.TemplateCatalog.ChatToShop : Admin.TemplateCatalog.ChatToBuyer,
+                new Dictionary<string, string> { ["sender"] = sender, ["shop"] = shopName, ["message"] = Preview(message) }, ct);
+            db.Notifications.Add(new Notification(r, NotificationCategory.Activity, title, text,
+                role == ChatRole.Buyer ? $"/seller/chat?c={conversation.Id}" : $"/chat?c={conversation.Id}", "conversation", conversation.Id, now, dedupe));
         }
         await db.SaveChangesAsync(ct);
         foreach (var post in posts) await ConversationState.AfterPostAsync(db, conversation.Id, post.Role, post.Preview, post.At, ct);

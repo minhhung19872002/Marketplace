@@ -195,7 +195,8 @@ public sealed class StartBulkTaskHandler(IApplicationDbContext db, SellerAccess 
 
 // ---------- exports in the background (6.4) ----------
 
-public record StartOrdersExportCommand(Guid ShopId, ShopOrderTab Tab, DateTimeOffset? From, DateTimeOffset? To) : IRequest<BackgroundTaskDto>;
+public record StartOrdersExportCommand(Guid ShopId, ShopOrderTab Tab, DateTimeOffset? From, DateTimeOffset? To, string? Q = null, string? Carrier = null,
+    Domain.Sales.PaymentMethod? PaymentMethod = null) : IRequest<BackgroundTaskDto>;
 
 /// <summary>Queues "Xuất Excel" of the shop's orders; the page follows the task and downloads the file when it is ready.</summary>
 public sealed class StartOrdersExportHandler(IApplicationDbContext db, SellerAccess access, IBackgroundTasks tasks, IClock clock)
@@ -205,7 +206,8 @@ public sealed class StartOrdersExportHandler(IApplicationDbContext db, SellerAcc
     {
         var staff = await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
         if (request.From is { } f && request.To is { } t && f > t) throw new BusinessRuleException("Khoảng ngày không hợp lệ: ngày bắt đầu sau ngày kết thúc.");
-        var input = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new ExportShopOrdersQuery(request.ShopId, request.Tab, request.From, request.To),
+        var input = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new ExportShopOrdersQuery(request.ShopId, request.Tab, request.From, request.To,
+            string.IsNullOrWhiteSpace(request.Q) ? null : request.Q.Trim(), request.Carrier, request.PaymentMethod),
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
         var task = new BackgroundTask(BackgroundTaskKind.OrdersExport, staff.UserId, request.ShopId,
             $"don-hang-{VietnamTime.ToLocal(clock.UtcNow):yyyyMMdd-HHmm}.xlsx", input, clock.UtcNow);

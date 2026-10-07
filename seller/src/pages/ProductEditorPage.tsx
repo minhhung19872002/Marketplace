@@ -258,7 +258,7 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
                 {m.type === 'Image' ? <img src={m.url} alt="" /> : <video src={m.url} muted />}
                 <div className="media-actions">
                   {i > 0 && <Button size="small" onClick={() => setMedia((x) => { const c = [...x]; [c[i - 1], c[i]] = [c[i], c[i - 1]]; return c })}>←</Button>}
-                  <Button size="small" danger onClick={() => setMedia((x) => x.filter((_, j) => j !== i))}>Xoá</Button>
+                  <Button size="small" danger onClick={() => setMedia((x) => x.filter((_, j) => j !== i))} data-confirm="local">Xoá</Button>
                 </div>
                 {i === 0 && m.type === 'Image' && <Tag color="orange" className="cover-tag">Ảnh bìa</Tag>}
               </div>
@@ -451,7 +451,7 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
       </Card>
 
       <Space>
-        <Button onClick={() => navigate('/san-pham')}>Huỷ</Button>
+        <Button onClick={() => navigate('/san-pham')} data-confirm="local">Huỷ</Button>
         <Button onClick={() => save(false)} loading={busy} data-testid="save-draft">Lưu</Button>
         <Button type="primary" onClick={() => save(true)} loading={busy} data-testid="save-submit">Lưu &amp; gửi duyệt</Button>
       </Space>

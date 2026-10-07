@@ -111,7 +111,7 @@ Excel; tab *Hiệu quả hoạt động*: đơn không thành công, giao trễ,
 | Trang trí shop | Các khối của tab *Dạo*: Banner (1–5 ảnh, link trong ShopHub), Sản phẩm nổi bật (≤ 12), Danh mục của shop, Video, Đoạn chữ; kéo thả hoặc ↑ ↓ để sắp xếp → *Đăng* |
 | Danh mục của shop | Tối đa 30 danh mục, mỗi danh mục ≤ 500 sản phẩm theo thứ tự bạn chọn; danh mục hiển thị và có hàng thành tab trên trang shop |
 | Kho hàng & vận chuyển | Tối đa 10 kho; một kho **lấy hàng mặc định** và một **địa chỉ nhận hàng trả**. Bật **Đa kho** (cần ≥ 2 kho) rồi chọn *Kho gửi* trong trang sửa sản phẩm: đơn có hàng ở nhiều kho được gửi thành nhiều kiện, mỗi kiện một vận đơn và một phiếu giao, phí ship tính riêng từng kiện. Bật / tắt từng **đơn vị vận chuyển** và **COD** của shop; trang sửa sản phẩm còn giới hạn được đơn vị vận chuyển cho sản phẩm ấy |
-| Tài khoản phụ | Thêm nhân viên bằng SĐT / email tài khoản ShopHub của họ, vai trò Quản lý / CSKH / Kho với quyền mặc định chỉnh được (không cấp được quyền mình không có); gỡ có hiệu lực ngay |
+| Tài khoản phụ | **Mời** nhân viên bằng SĐT / email tài khoản ShopHub của họ, vai trò Quản lý / CSKH / Kho với quyền mặc định chỉnh được (không cấp được quyền mình không có). Người được mời mở Kênh Người Bán → **Lời mời làm nhân viên** để đồng ý / từ chối (hạn 7 ngày); shop thu hồi được lời mời đang chờ. Gỡ nhân viên có hiệu lực ngay |
 
 ![Thiết lập](images/02-thiet-lap.jpg)
 ![Trang trí shop](images/02-trang-tri.jpg)

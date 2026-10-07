@@ -1,25 +1,62 @@
 import { useState } from 'react'
-import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Space, Switch, Table, Tag, Typography } from 'antd'
+import { App, Button, Card, Cascader, DatePicker, Form, Input, InputNumber, Modal, Radio, Select, Space, Switch, Table, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import dayjs, { type Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import { voucherApi, type Voucher, type VoucherInput } from '../api/vouchers'
+import { sellerApi, type CategoryNode } from '../api/seller'
 import { ApiError } from '../api/http'
 import { formatPrice } from '../lib/money'
-import { formatDateTime } from '../lib/datetime'
+import { addDaysIso, formatDateTime, vnTodayIso, vnWallTime } from '../lib/datetime'
+import { toFormValues, toVoucherInput, type VoucherFormValues as FormValues } from './voucherForm'
 
-interface FormValues {
-  code: string
-  name: string
-  type: 'Amount' | 'Percent'
-  discountValue?: number
-  percent?: number
-  maxDiscount?: number
-  minOrder: number
-  period: [Dayjs, Dayjs]
-  totalQuota?: number
-  perUserLimit: number
-  isPublic: boolean
-  followersOnly: boolean
+const PAGE_SIZE = 20
+
+interface CategoryOption { value: string; label: string; children?: CategoryOption[] }
+
+const toOptions = (nodes: CategoryNode[]): CategoryOption[] =>
+  nodes.map((n) => ({ value: n.id, label: n.name, children: n.children.length > 0 ? toOptions(n.children) : undefined }))
+
+/** Root → leaf id path of each leaf, so a chosen leaf shows in the cascader. */
+const leafPaths = (nodes: CategoryNode[], trail: string[] = [], out = new Map<string, string[]>()): Map<string, string[]> => {
+  for (const n of nodes) {
+    if (n.children.length === 0) out.set(n.id, [...trail, n.id])
+    else leafPaths(n.children, [...trail, n.id], out)
+  }
+  return out
+}
+
+/** Inline multi-select of the shop's products, searched by name; the already chosen ones keep their names. */
+const VoucherProductSelect = ({ shopId, value, onChange }: { shopId: string; value?: string[]; onChange?: (v: string[]) => void }) => {
+  const [q, setQ] = useState('')
+  const [names, setNames] = useState<Record<string, string>>({})
+  const found = useQuery({
+    queryKey: ['voucher-products', shopId, q],
+    queryFn: () => sellerApi.products(shopId, { tab: 'All', q, page: 1, pageSize: 20 }),
+  })
+  const missing = (value ?? []).filter((id) => !names[id])
+  const chosen = useQuery({
+    queryKey: ['voucher-products-chosen', shopId, missing],
+    queryFn: () => Promise.all(missing.map((id) => sellerApi.product(shopId, id))),
+    enabled: missing.length > 0,
+  })
+  const known: Record<string, string> = { ...names }
+  for (const p of found.data?.items ?? []) known[p.id] = p.name
+  for (const p of chosen.data ?? []) known[p.id] = p.name
+  return (
+    <Select
+      mode="multiple"
+      allowClear
+      showSearch
+      filterOption={false}
+      onSearch={setQ}
+      placeholder="Để trống = mọi sản phẩm của shop"
+      value={value}
+      onChange={(v: string[]) => { setNames(known); onChange?.(v) }}
+      options={Object.entries(known).map(([id, name]) => ({ value: id, label: name }))}
+      loading={found.isFetching}
+      data-testid="voucher-products"
+    />
+  )
 }
 
 const describe = (v: Voucher) =>
@@ -32,14 +69,30 @@ const VouchersPage = ({ shopId }: { shopId: string }) => {
   const { message } = App.useApp()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
+  // The voucher being edited; null = a new one
+  const [editing, setEditing] = useState<Voucher | null>(null)
+  const [page, setPage] = useState(1)
   const [form] = Form.useForm<FormValues>()
-  const list = useQuery({ queryKey: ['vouchers', shopId], queryFn: () => voucherApi.list(shopId) })
+  const list = useQuery({ queryKey: ['vouchers', shopId, page], queryFn: () => voucherApi.list(shopId, page, PAGE_SIZE) })
+  const categories = useQuery({ queryKey: ['categories'], queryFn: sellerApi.categories, staleTime: 600_000 })
+  const paths = leafPaths(categories.data ?? [])
+
+  const openForm = (v: Voucher | null) => {
+    setEditing(v)
+    form.setFieldsValue(v ? toFormValues(v) : {
+      code: '', name: '', type: 'Amount', discountValue: undefined, percent: undefined, maxDiscount: undefined, minOrder: 0, totalQuota: undefined,
+      perUserLimit: 1, isPublic: true, followersOnly: false, productIds: [], categoryIds: [],
+      period: [dayjs(vnWallTime(new Date().toISOString())), dayjs(`${addDaysIso(vnTodayIso(), 30)}T23:59`)],
+    })
+    setOpen(true)
+  }
 
   const save = useMutation({
-    mutationFn: (input: VoucherInput) => voucherApi.create(shopId, input),
+    mutationFn: (input: VoucherInput) => (editing ? voucherApi.update(shopId, editing.id, input) : voucherApi.create(shopId, input)),
     onSuccess: (r) => {
       message.success(r.message)
       setOpen(false)
+      setEditing(null)
       form.resetFields()
       void queryClient.invalidateQueries({ queryKey: ['vouchers', shopId] })
     },
@@ -58,36 +111,18 @@ const VouchersPage = ({ shopId }: { shopId: string }) => {
     onError: (e) => message.error(e instanceof ApiError ? e.message : 'Không dừng được voucher.'),
   })
 
-  const submit = (v: FormValues) =>
-    save.mutate({
-      code: v.code.trim().toUpperCase(),
-      name: v.name.trim(),
-      type: v.type,
-      discountValue: v.type === 'Amount' ? v.discountValue ?? 0 : 0,
-      discountPercentBp: v.type === 'Percent' ? Math.round((v.percent ?? 0) * 100) : 0,
-      maxDiscount: v.type === 'Percent' ? v.maxDiscount ?? null : null,
-      minOrder: v.minOrder ?? 0,
-      audience: v.followersOnly ? 'ShopFollowers' : 'Everyone',
-      categoryIds: [],
-      productIds: [],
-      startAt: v.period[0].toISOString(),
-      endAt: v.period[1].toISOString(),
-      totalQuota: v.totalQuota ?? null,
-      perUserLimit: v.perUserLimit,
-      isPublic: v.isPublic,
-      channel: 'All',
-    })
+  const submit = (v: FormValues) => save.mutate(toVoucherInput(v))
 
   return (
     <Card
       title="Mã giảm giá của shop"
-      extra={<Button type="primary" onClick={() => setOpen(true)} data-testid="voucher-new">Tạo mã giảm giá</Button>}
+      extra={<Button type="primary" onClick={() => openForm(null)} data-testid="voucher-new">Tạo mã giảm giá</Button>}
     >
       <Table<Voucher>
         rowKey="id"
         loading={list.isLoading}
         dataSource={list.data?.items ?? []}
-        pagination={false}
+        pagination={{ current: page, pageSize: PAGE_SIZE, total: list.data?.totalCount ?? 0, onChange: setPage, showSizeChanger: false }}
         columns={[
           { title: 'Mã', dataIndex: 'code', render: (c: string) => <Typography.Text strong>{c}</Typography.Text> },
           { title: 'Tên', dataIndex: 'name' },
@@ -107,21 +142,21 @@ const VouchersPage = ({ shopId }: { shopId: string }) => {
           {
             title: '',
             render: (_, v) => v.isActive && v.state !== 'Đã kết thúc' && (
-              <Button size="small" danger loading={stop.isPending} onClick={() => stop.mutate(v.id)}>Dừng</Button>
+              <Space>
+                <Button size="small" onClick={() => openForm(v)} data-testid="voucher-edit">Sửa</Button>
+                <Button size="small" danger loading={stop.isPending} onClick={() => stop.mutate(v.id)}>Dừng</Button>
+              </Space>
             ),
           },
         ]}
       />
 
-      <Modal title="Tạo mã giảm giá" open={open} onCancel={() => setOpen(false)} onOk={() => form.submit()} okText="Lưu" confirmLoading={save.isPending} destroyOnClose>
-        <Form<FormValues>
-          form={form}
-          layout="vertical"
-          onFinish={submit}
-          initialValues={{ type: 'Amount', minOrder: 0, perUserLimit: 1, isPublic: true, followersOnly: false, period: [dayjs(), dayjs().add(30, 'day')] }}
-        >
-          <Form.Item name="code" label="Mã voucher" rules={[{ required: true, message: 'Vui lòng nhập mã.' }, { pattern: /^[A-Za-z0-9]{3,20}$/, message: '3–20 chữ cái hoặc số, không dấu.' }]}>
-            <Input placeholder="VD: SHOPGIAM20K" />
+      <Modal title={editing ? `Sửa mã ${editing.code}` : 'Tạo mã giảm giá'} open={open} onCancel={() => { setOpen(false); setEditing(null) }}
+        onOk={() => form.submit()} okText="Lưu" confirmLoading={save.isPending} forceRender>
+        <Form<FormValues> form={form} layout="vertical" onFinish={submit}>
+          <Form.Item name="code" label="Mã voucher" extra={editing ? 'Mã đã tạo không đổi được.' : undefined}
+            rules={[{ required: true, message: 'Vui lòng nhập mã.' }, { pattern: /^[A-Za-z0-9]{3,20}$/, message: '3–20 chữ cái hoặc số, không dấu.' }]}>
+            <Input placeholder="VD: SHOPGIAM20K" disabled={!!editing} />
           </Form.Item>
           <Form.Item name="name" label="Tên chương trình" rules={[{ required: true, message: 'Vui lòng nhập tên.' }]}>
             <Input maxLength={100} />
@@ -148,7 +183,16 @@ const VouchersPage = ({ shopId }: { shopId: string }) => {
           <Form.Item name="minOrder" label="Giá trị đơn tối thiểu (₫)">
             <InputNumber min={0} step={1000} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="period" label="Thời gian sử dụng" rules={[{ required: true, message: 'Chọn thời gian.' }]}>
+          <Form.Item name="productIds" label="Áp dụng cho sản phẩm">
+            <VoucherProductSelect shopId={shopId} />
+          </Form.Item>
+          <Form.Item name="categoryIds" label="Áp dụng cho danh mục" extra="Để trống = mọi danh mục. Chọn cả sản phẩm và danh mục thì sản phẩm phải thoả cả hai."
+            getValueProps={(ids: string[] | undefined) => ({ value: (ids ?? []).map((id) => paths.get(id) ?? [id]) })}
+            getValueFromEvent={(v: string[][] | undefined) => (v ?? []).map((path) => path[path.length - 1])}>
+            <Cascader multiple options={toOptions(categories.data ?? [])} showCheckedStrategy={Cascader.SHOW_CHILD}
+              placeholder="Để trống = mọi danh mục" maxTagCount="responsive" data-testid="voucher-categories" />
+          </Form.Item>
+          <Form.Item name="period" label="Thời gian sử dụng (giờ Việt Nam)" rules={[{ required: true, message: 'Chọn thời gian.' }]}>
             <DatePicker.RangePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
           </Form.Item>
           <Space>

@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { storefrontApi } from '../api/storefront';
 import { ApiError } from '../api/http';
-import type { CartLine } from '../api/commerce';
+import { checkoutApi, type CartLine, type CheckoutRequest } from '../api/commerce';
 import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { productPath } from '../lib/urls';
 import ProductGrid from '../components/ProductGrid';
+import VoucherPicker from '../components/VoucherPicker';
+import { useShopVouchers } from '../stores/shopVouchers';
+import { ConfirmButton } from '../components/ConfirmDialog';
 import './CartPage.css';
 
 /** "Phân loại: …" with a picker of the product's other SKUs (change variant without leaving the cart). */
@@ -78,6 +81,25 @@ const CartPage = () => {
   const { isLoggedIn } = useAuth();
   const { cart, lines, isLoading, update, remove, select } = useCart();
   const [error, setError] = useState('');
+  // Voucher của shop theo từng khối (II.6, E6): the same choice the checkout uses; the server prices it on the ticked lines
+  const codes = useShopVouchers((st) => st.codes);
+  const setCode = useShopVouchers((st) => st.set);
+  const ticked = cart.shops.flatMap((s) => s.lines.filter((l) => l.isSelected).map((l) => `${l.skuId}:${l.quantity}`)).join(',');
+  const quoteRequest: CheckoutRequest = {
+    addressId: null,
+    shops: cart.shops.map((s) => ({ shopId: s.shopId, carrierCode: null, voucherCode: codes[s.shopId] ?? null })),
+    platformVoucherCode: null,
+    freeshipVoucherCode: null,
+    useCoins: false,
+    paymentMethod: 'Cod',
+    paymentOption: 'Default',
+  };
+  const quote = useQuery({
+    queryKey: ['cart-quote', ticked, codes],
+    queryFn: () => checkoutApi.quote(quoteRequest),
+    enabled: isLoggedIn && ticked.length > 0,
+    placeholderData: keepPreviousData,
+  });
 
   const run = async (action: () => Promise<void>) => {
     setError('');
@@ -196,10 +218,18 @@ const CartPage = () => {
                   </div>
                   <span className="cart-col-total cart-item-total">{formatPrice(item.price * item.quantity)}</span>
                   <div className="cart-col-action">
-                    <button className="cart-item-remove" onClick={() => run(() => remove([item.skuId]))}>Xóa</button>
+                    <ConfirmButton className="cart-item-remove" message={`Xoá "${item.name}" khỏi giỏ hàng?`} confirmLabel="Xoá"
+                      onConfirm={() => run(() => remove([item.skuId]))} testId="cart-item-remove">Xóa</ConfirmButton>
                   </div>
                 </div>
               ))}
+              <ShopVoucherBlock
+                loggedIn={isLoggedIn}
+                ticked={shop.lines.some((l) => l.isSelected)}
+                quoteShop={quote.data?.shops.find((q) => q.shopId === shop.shopId)}
+                code={codes[shop.shopId] ?? null}
+                onChange={(code) => setCode(shop.shopId, code)}
+              />
             </div>
           );
         })}
@@ -208,7 +238,8 @@ const CartPage = () => {
           <div className="cart-footer-left">
             <input type="checkbox" checked={allSelected} onChange={() => run(() => select(!allSelected))} aria-label="Chọn tất cả" />
             <button className="cart-select-all-btn" onClick={() => run(() => select(!allSelected))}>Chọn Tất Cả ({lines.length})</button>
-            <button className="cart-clear" onClick={() => run(() => remove(selected.map((l) => l.skuId)))} disabled={selected.length === 0}>Xóa</button>
+            <ConfirmButton className="cart-clear" message={`Xoá ${selected.length} sản phẩm đã chọn khỏi giỏ hàng?`} confirmLabel="Xoá"
+              onConfirm={() => run(() => remove(selected.map((l) => l.skuId)))} disabled={selected.length === 0} testId="cart-clear">Xóa</ConfirmButton>
           </div>
           <div className="cart-summary">
             <span className="cart-summary-label">Tổng thanh toán ({cart.selectedQuantity} sản phẩm):</span>
@@ -219,6 +250,31 @@ const CartPage = () => {
 
         <YouMayLike />
       </div>
+    </div>
+  );
+};
+
+/** One shop block's voucher (E6): pick / type a code, see what the shop takes off the ticked lines (priced by the server). */
+const ShopVoucherBlock = ({ loggedIn, ticked, quoteShop, code, onChange }: {
+  loggedIn: boolean;
+  ticked: boolean;
+  quoteShop: { shopVoucherOptions: Parameters<typeof VoucherPicker>[0]['options']; shopDiscount: number } | undefined;
+  code: string | null;
+  onChange: (code: string | null) => void;
+}) => {
+  if (!loggedIn) {
+    return (
+      <div className="cart-shop-voucher" data-testid="cart-shop-voucher">
+        <Link to="/dang-nhap" state={{ from: '/gio-hang' }}>Đăng nhập</Link> để chọn voucher của shop.
+      </div>
+    );
+  }
+  if (!ticked) return <div className="cart-shop-voucher" data-testid="cart-shop-voucher">Chọn sản phẩm của shop để dùng voucher.</div>;
+  if (!quoteShop) return null;
+  return (
+    <div className="cart-shop-voucher" data-testid="cart-shop-voucher">
+      <VoucherPicker title="Voucher của shop" options={quoteShop.shopVoucherOptions} value={code} onChange={onChange} testId="cart-voucher" />
+      {quoteShop.shopDiscount > 0 && <span className="cart-shop-voucher-saving" data-testid="cart-voucher-saving">Shop giảm {formatPrice(quoteShop.shopDiscount)}</span>}
     </div>
   );
 };

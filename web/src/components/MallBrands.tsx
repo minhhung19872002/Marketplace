@@ -2,11 +2,17 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { storefrontApi } from '../api/storefront';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import ProductCard from './ProductCard';
 import './MallBrands.css';
 
-// Official stores (Mall shops) with their newest product photo as cover
+// Official stores (Mall shops) with their newest product photo as cover, then the best-selling Mall products (II.1, E3)
 const MallBrands = () => {
   const { data: shops = [] } = useQuery({ queryKey: ['home', 'mall'], queryFn: storefrontApi.mall, staleTime: 5 * 60_000 });
+  const products = useQuery({
+    queryKey: ['home', 'mall-products'],
+    queryFn: () => storefrontApi.search({ mall: true, sort: 'BestSelling', page: 1, pageSize: 12 }),
+    staleTime: 5 * 60_000,
+  });
   if (shops.length === 0) return null;
 
   return (
@@ -25,6 +31,11 @@ const MallBrands = () => {
           </Link>
         ))}
       </div>
+      {(products.data?.items.length ?? 0) > 0 && (
+        <div className="mall-products" data-testid="mall-products">
+          {products.data!.items.map((p) => <ProductCard key={p.id} product={p} />)}
+        </div>
+      )}
     </section>
   );
 };

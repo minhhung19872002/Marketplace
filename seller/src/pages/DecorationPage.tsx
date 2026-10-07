@@ -156,7 +156,7 @@ const DecorationPage = ({ shopId, shopSlug }: { shopId: string; shopSlug: string
             <Space>
               <Button size="small" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="Lên">↑</Button>
               <Button size="small" onClick={() => move(i, i + 1)} disabled={i === blocks.length - 1} aria-label="Xuống">↓</Button>
-              <Button size="small" danger onClick={() => { setBlocks(blocks.filter((x) => x.key !== b.key)); setDirty(true) }}>Xoá</Button>
+              <Button size="small" danger onClick={() => { setBlocks(blocks.filter((x) => x.key !== b.key)); setDirty(true) }} data-confirm="local">Xoá</Button>
             </Space>
           }
         >

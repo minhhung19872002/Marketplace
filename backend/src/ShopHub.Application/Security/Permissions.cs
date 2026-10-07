@@ -39,6 +39,8 @@ public static class Permissions
     public const string FinanceWithdrawalApprove = "FINANCE.WITHDRAWAL.APPROVE";
     public const string FinanceReconcile = "FINANCE.RECONCILE";
     public const string MarketingManage = "PROMO.MARKETING.MANAGE";
+    // Từ khoá hot thủ công (VI.6, F8): its own screen, without access to every system parameter
+    public const string HotKeywordManage = "PROMO.HOT_KEYWORD.MANAGE";
     public const string UserResetPassword = "IAM.USER.RESET_PASSWORD";
     public const string ShopPenalty = "SHOP.SHOP.PENALTY";
     public const string OrderIntervene = "SALES.ORDER.INTERVENE";
@@ -85,6 +87,7 @@ public static class PermissionCatalog
         new(Permissions.FinanceWithdrawalApprove, "Tài chính", "Duyệt / từ chối rút tiền"),
         new(Permissions.FinanceReconcile, "Tài chính", "Đối soát với cổng thanh toán và đơn vị vận chuyển"),
         new(Permissions.MarketingManage, "Khuyến mãi", "Khung Flash Sale, duyệt đăng ký, banner, chiến dịch"),
+        new(Permissions.HotKeywordManage, "Từ khoá hot", "Danh sách từ khoá hot hiện dưới ô tìm kiếm khi lượt tìm thật còn ít"),
         new(Permissions.UserResetPassword, "Người dùng", "Đặt lại mật khẩu người dùng"),
         new(Permissions.ShopPenalty, "Shop", "Ghi / gỡ điểm phạt shop"),
         new(Permissions.OrderIntervene, "Đơn hàng", "Can thiệp đơn: huỷ, xử lý hoàn tiền lỗi (bắt buộc lý do)"),
@@ -120,6 +123,7 @@ public static class RoleCatalog
             [Permissions.AuditLogView, Permissions.OrderView, Permissions.FinanceLedgerView, Permissions.FinanceFeeManage,
              Permissions.FinanceWithdrawalApprove, Permissions.FinanceReconcile, Permissions.JobRun, Permissions.ReportView, Permissions.OrderIntervene]),
         new("MARKETING", "Marketing", "Voucher, Flash Sale, chiến dịch.",
-            [Permissions.SystemParameterView, Permissions.VoucherManage, Permissions.CoinGrant, Permissions.MarketingManage, Permissions.ReportView]),
+            [Permissions.SystemParameterView, Permissions.VoucherManage, Permissions.CoinGrant, Permissions.MarketingManage, Permissions.ReportView,
+             Permissions.HotKeywordManage]),
     ];
 }

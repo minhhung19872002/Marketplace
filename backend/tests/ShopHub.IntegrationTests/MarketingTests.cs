@@ -477,4 +477,113 @@ public class MarketingTests(ApiFactory factory)
             (await scope.ServiceProvider.GetRequiredService<Application.Features.Marketing.CoinExpiryService>().RunAsync(CancellationToken.None))
                 .Should().Be(0, "lần chạy sau không xử lý lại người đã xong");
     }
+
+    [Fact]
+    public async Task A_discount_not_started_yet_can_be_edited_and_its_price_programme_follows_but_a_running_one_cannot()
+    {
+        var store = await StoreAsync();
+        var (kettle, cup) = (store.Shop.Skus[Kettle], store.Shop.Skus[Cup]);
+        var start = DateTimeOffset.UtcNow.AddDays(1);
+        var created = await store.Staff.Client.PostAsJsonAsync(Url(store, "promotions"), new
+        {
+            type = "Discount", name = "Giảm giá tuần sau", startAt = start, endAt = start.AddDays(2), skus = new[] { new { skuId = kettle, price = 150_000 } },
+        });
+        var id = Guid.Parse((await created.ReadEnvelopeAsync()).Data.GetString()!);
+
+        (await store.Staff.Client.PutAsJsonAsync(Url(store, $"promotions/{id}"), new
+        {
+            type = "Discount", name = "", startAt = start, endAt = start.AddDays(2), skus = new[] { new { skuId = cup, price = 40_000 } },
+        })).StatusCode.Should().Be(HttpStatusCode.BadRequest, "sửa cũng qua đủ các luật kiểm như khi tạo");
+        var edit = await store.Staff.Client.PutAsJsonAsync(Url(store, $"promotions/{id}"), new
+        {
+            type = "Discount", name = "Giảm giá cốc", startAt = start.AddHours(2), endAt = start.AddDays(3), skus = new[] { new { skuId = cup, price = 40_000 } },
+        });
+        edit.StatusCode.Should().Be(HttpStatusCode.OK, await edit.Content.ReadAsStringAsync());
+        var promo = (await (await store.Staff.Client.GetAsync(Url(store, "promotions"))).ReadEnvelopeAsync()).Data.EnumerateArray().Single(p => p.Str("id") == id.ToString());
+        promo.Str("name").Should().Be("Giảm giá cốc");
+        promo.GetProperty("skus").EnumerateArray().Select(x => (x.Str("skuId"), x.GetProperty("price").GetInt64())).Should().Equal((cup.ToString(), 40_000L));
+        var programs = await factory.WithDbAsync(db => db.PricePrograms.AsNoTracking().Where(p => p.RefId == id && p.IsActive).ToListAsync());
+        var program = programs.Should().ContainSingle().Which;
+        (program.SkuId, program.Price).Should().Be((cup, 40_000L));
+        program.StartAt.Should().BeCloseTo(start.AddHours(2), TimeSpan.FromMilliseconds(1), "PostgreSQL giữ tới micro giây");
+
+        // The kettle is free again: a shop flash sale on it in the old window is accepted
+        (await store.Staff.Client.PostAsJsonAsync(Url(store, "flash-sales"), new
+        {
+            startAt = start.AddMinutes(10), endAt = start.AddHours(1), items = new[] { new { skuId = kettle, flashPrice = 120_000, quota = 5, perUserLimit = 1 } },
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Running already → no edit
+        await factory.WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE promo.promotions SET start_at = now() - interval '1 hour' WHERE id = {id}"));
+        var late = await store.Staff.Client.PutAsJsonAsync(Url(store, $"promotions/{id}"), new
+        {
+            type = "Discount", name = "Muộn", startAt = start, endAt = start.AddDays(3), skus = new[] { new { skuId = cup, price = 30_000 } },
+        });
+        late.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await late.Content.ReadAsStringAsync()).Should().Contain("đã bắt đầu");
+    }
+
+    [Fact]
+    public async Task A_shop_flash_sale_not_started_yet_can_be_edited_but_a_running_one_cannot()
+    {
+        var store = await StoreAsync();
+        var (kettle, cup) = (store.Shop.Skus[Kettle], store.Shop.Skus[Cup]);
+        var start = DateTimeOffset.UtcNow.AddDays(2);
+        var created = await store.Staff.Client.PostAsJsonAsync(Url(store, "flash-sales"), new
+        {
+            startAt = start, endAt = start.AddHours(2), items = new[] { new { skuId = kettle, flashPrice = 120_000, quota = 5, perUserLimit = 1 } },
+        });
+        var slotId = Guid.Parse((await created.ReadEnvelopeAsync()).Data.GetString()!);
+
+        var edit = await store.Staff.Client.PutAsJsonAsync(Url(store, $"flash-sales/{slotId}"), new
+        {
+            startAt = start.AddHours(1), endAt = start.AddHours(4),
+            items = new[] { new { skuId = kettle, flashPrice = 110_000, quota = 8, perUserLimit = 2 }, new { skuId = cup, flashPrice = 30_000, quota = 3, perUserLimit = 1 } },
+        });
+        edit.StatusCode.Should().Be(HttpStatusCode.OK, await edit.Content.ReadAsStringAsync());
+        var slot = (await (await store.Staff.Client.GetAsync(Url(store, "flash-sales"))).ReadEnvelopeAsync()).Data.EnumerateArray().Single(x => x.Str("id") == slotId.ToString());
+        slot.GetProperty("items").EnumerateArray().Select(i => (i.Str("skuId"), i.GetProperty("flashPrice").GetInt64(), i.GetProperty("quota").GetInt32()))
+            .Should().BeEquivalentTo([(kettle.ToString(), 110_000L, 8), (cup.ToString(), 30_000L, 3)]);
+        var live = await factory.WithDbAsync(db => db.PricePrograms.AsNoTracking().Where(p => p.Kind == PriceProgramKind.ShopFlash && p.IsActive && p.ShopId == store.Shop.ShopId).ToListAsync());
+        live.Select(p => (p.SkuId, p.Price)).Should().BeEquivalentTo([(kettle, 110_000L), (cup, 30_000L)], "giá cũ 120.000 không còn hiệu lực");
+        live.Should().OnlyContain(p => Math.Abs((p.StartAt - start.AddHours(1)).TotalMilliseconds) < 1 && Math.Abs((p.EndAt - start.AddHours(4)).TotalMilliseconds) < 1);
+
+        await factory.WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE promo.flash_sale_slots SET start_at = now() - interval '1 minute' WHERE id = {slotId}"));
+        var late = await store.Staff.Client.PutAsJsonAsync(Url(store, $"flash-sales/{slotId}"), new
+        {
+            startAt = start, endAt = start.AddHours(2), items = new[] { new { skuId = kettle, flashPrice = 100_000, quota = 5, perUserLimit = 1 } },
+        });
+        late.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await late.Content.ReadAsStringAsync()).Should().Contain("đã bắt đầu");
+    }
+
+    [Fact]
+    public async Task The_marketing_role_edits_the_curated_hot_keywords_on_its_own_screen_with_its_own_permission()
+    {
+        RoleCatalog.All.Single(r => r.Code == "MARKETING").Permissions.Should().Contain(Permissions.HotKeywordManage);
+        var old = await factory.WithDbAsync(db => db.SystemParameters.Where(p => p.Key == ParameterKeys.SearchHotKeywords).Select(p => p.Value).SingleAsync());
+        var marketing = await factory.ClientWithPermissionsAsync(Permissions.HotKeywordManage);
+        var other = await factory.ClientWithPermissionsAsync(Permissions.VoucherManage);
+        try
+        {
+            (await other.GetAsync("/api/admin/marketing/hot-keywords")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            (await marketing.GetAsync("/api/admin/marketing/hot-keywords")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var saved = await marketing.PutAsJsonAsync("/api/admin/marketing/hot-keywords", new { keywords = new[] { " Nồi cơm điện ", "Ốp lưng", "nồi cơm điện" } });
+            saved.StatusCode.Should().Be(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+            (await (await marketing.GetAsync("/api/admin/marketing/hot-keywords")).ReadEnvelopeAsync()).Data.EnumerateArray().Select(k => k.GetString())
+                .Should().Equal(["Nồi cơm điện", "Ốp lưng"], "bỏ khoảng trắng, bỏ trùng (không phân biệt hoa thường)");
+            var parameterId = await factory.WithDbAsync(db => db.SystemParameters.Where(p => p.Key == ParameterKeys.SearchHotKeywords).Select(p => p.Id).SingleAsync());
+            (await factory.WithDbAsync(db => db.AuditLogs.CountAsync(a => a.Entity == "SystemParameter" && a.EntityId == parameterId.ToString())))
+                .Should().BeGreaterThan(0, "sửa qua lệnh tham số nên có lịch sử thay đổi");
+
+            (await marketing.PutAsJsonAsync("/api/admin/marketing/hot-keywords", new { keywords = Enumerable.Range(1, 11).Select(i => $"Từ {i}") }))
+                .StatusCode.Should().Be(HttpStatusCode.BadRequest, "tối đa 10 từ khoá");
+        }
+        finally
+        {
+            await factory.WithDbAsync(db => db.SystemParameters.Where(p => p.Key == ParameterKeys.SearchHotKeywords).ExecuteUpdateAsync(u => u.SetProperty(p => p.Value, old)));
+            factory.Services.GetRequiredService<ISystemParameters>().Invalidate(ParameterKeys.SearchHotKeywords);
+        }
+    }
 }

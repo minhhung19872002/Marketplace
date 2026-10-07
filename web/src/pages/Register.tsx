@@ -8,11 +8,15 @@ import GoogleSignIn from '../components/GoogleSignIn';
 import './Auth.css';
 
 type Step = 'phone' | 'code' | 'details';
+// Sign up with a phone number (OTP by SMS) or an email address (OTP by mail) — spec I.1, E1
+type Channel = 'phone' | 'email';
 
 const Register = () => {
   const navigate = useNavigate();
   const { signIn } = useAuth();
   const [step, setStep] = useState<Step>('phone');
+  const [channel, setChannel] = useState<Channel>('phone');
+  // The phone number or the email address, as typed
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [ticket, setTicket] = useState('');
@@ -52,7 +56,7 @@ const Register = () => {
   const submitPhone = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!phone.trim()) {
-      setError('Vui lòng nhập số điện thoại');
+      setError(channel === 'email' ? 'Vui lòng nhập email' : 'Vui lòng nhập số điện thoại');
       return;
     }
     void sendCode();
@@ -88,7 +92,7 @@ const Register = () => {
           <div className="auth-card">
             <h2 className="auth-title">Đăng Ký</h2>
             <ol className="auth-steps" aria-label="Các bước đăng ký">
-              <li className={step === 'phone' ? 'active' : ''}>Số điện thoại</li>
+              <li className={step === 'phone' ? 'active' : ''}>{channel === 'email' ? 'Email' : 'Số điện thoại'}</li>
               <li className={step === 'code' ? 'active' : ''}>Xác thực</li>
               <li className={step === 'details' ? 'active' : ''}>Thông tin</li>
             </ol>
@@ -96,14 +100,22 @@ const Register = () => {
 
             {step === 'phone' && (
               <form onSubmit={submitPhone} className="auth-form">
+                <div className="auth-channel" role="tablist" aria-label="Đăng ký bằng">
+                  {(['phone', 'email'] as const).map((c) => (
+                    <button key={c} type="button" role="tab" aria-selected={channel === c} className={`auth-channel-btn ${channel === c ? 'active' : ''}`}
+                      onClick={() => { setChannel(c); setPhone(''); setError(''); }} data-testid={`register-channel-${c}`}>
+                      {c === 'phone' ? 'Số điện thoại' : 'Email'}
+                    </button>
+                  ))}
+                </div>
                 <input
-                  type="tel"
+                  type={channel === 'email' ? 'email' : 'tel'}
                   className="auth-input"
-                  placeholder="Số điện thoại"
+                  placeholder={channel === 'email' ? 'Email' : 'Số điện thoại'}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  aria-label="Số điện thoại"
-                  autoComplete="tel"
+                  aria-label={channel === 'email' ? 'Email' : 'Số điện thoại'}
+                  autoComplete={channel === 'email' ? 'email' : 'tel'}
                 />
                 <button type="submit" className="auth-submit" data-testid="register-send-otp" disabled={busy}>
                   TIẾP THEO
@@ -113,7 +125,11 @@ const Register = () => {
 
             {step === 'code' && (
               <form onSubmit={submitCode} className="auth-form">
-                <div className="auth-info">Mã xác thực đã được gửi tới {phone}.</div>
+                <div className="auth-info">
+                  {channel === 'email'
+                    ? `Mã xác thực đã được gửi tới hộp thư ${phone.trim()} (xem cả mục thư rác).`
+                    : `Mã xác thực đã được gửi tới ${phone}.`}
+                </div>
                 <div className="auth-otp-row">
                   <input
                     type="text"
@@ -134,7 +150,7 @@ const Register = () => {
                   XÁC NHẬN
                 </button>
                 <button type="button" className="auth-link-btn" onClick={() => setStep('phone')}>
-                  Đổi số điện thoại
+                  {channel === 'email' ? 'Đổi email' : 'Đổi số điện thoại'}
                 </button>
               </form>
             )}

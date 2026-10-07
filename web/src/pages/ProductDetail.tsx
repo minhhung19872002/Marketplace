@@ -14,6 +14,7 @@ import { productIdOf, productPath } from '../lib/urls';
 import ShopVouchers from '../components/ShopVouchers';
 import ProductShipping from '../components/ProductShipping';
 import ShareProduct from '../components/ShareProduct';
+import ImageLightbox from '../components/ImageLightbox';
 import ReportProduct from '../components/ReportProduct';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { clockSkew, marketingApi } from '../api/marketing';
@@ -22,6 +23,7 @@ import { formatDate, formatSince } from '../lib/datetime';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import type { ProductPage, PublicSku } from '../types';
 import './ProductDetail.css';
+import { usePageTitle } from '../lib/pageTitle';
 
 const priceRange = (min: number, max: number) => (min === max ? formatPrice(min) : `${formatPrice(min)} - ${formatPrice(max)}`);
 
@@ -31,7 +33,7 @@ const matching = (skus: PublicSku[], picked: (string | null)[]) =>
 
 const ProductView = ({ product }: { product: ProductPage }) => {
   const navigate = useNavigate();
-  const { add: addToCart } = useCart();
+  const { add: addToCart, select: selectInCart, update: updateInCart } = useCart();
   const { has, toggle } = useWishlist();
 
   const tiers = product.tiers;
@@ -40,6 +42,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
   const [variantError, setVariantError] = useState(false);
   const [toast, setToast] = useState('');
   const [activeImg, setActiveImg] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
 
   const images = product.media.filter((m) => m.type === 'Image');
   const video = product.media.find((m) => m.type === 'Video');
@@ -115,6 +118,18 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     }
   };
 
+  /** "Mua ngay" (II.4, E4): straight to checkout with only this line ticked — the other cart lines stay, unticked. */
+  const buyNow = async () => {
+    if (!(await add()) || !sku) return;
+    try {
+      await selectInCart(false);
+      await updateInCart(sku.id, { selected: true });
+      navigate('/thanh-toan');
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : 'Không mở được trang thanh toán, vui lòng thử lại.');
+    }
+  };
+
   const liked = has(product.id);
   const missingTiers = tiers.filter((_, i) => picked[i] == null).map((t) => t.name);
   const leaf = product.breadcrumb[product.breadcrumb.length - 1];
@@ -138,9 +153,13 @@ const ProductView = ({ product }: { product: ProductPage }) => {
 
         <div className="product-detail-main">
           <div className="product-detail-gallery">
-            <div className="product-detail-image">
+            <button type="button" className="product-detail-image" onClick={() => setZoomed(true)} aria-label="Phóng to ảnh" data-testid="pd-zoom">
               <img src={gallery[activeImg] ?? gallery[0]} alt={product.name} onError={handleImgError} data-testid="pd-main-image" />
-            </div>
+            </button>
+            {zoomed && (
+              <ImageLightbox images={gallery} index={Math.min(activeImg, gallery.length - 1)} alt={product.name} onIndex={setActiveImg}
+                onClose={() => setZoomed(false)} />
+            )}
             <div className="product-detail-thumbs">
               {gallery.map((src, i) => (
                 <button
@@ -314,7 +333,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               >
                 🛒 Thêm Vào Giỏ Hàng
               </button>
-              <button className="btn-buy-now" onClick={async () => (await add()) && navigate('/gio-hang')} disabled={!product.purchasable || busy}>
+              <button className="btn-buy-now" onClick={() => void buyNow()} disabled={!product.purchasable || busy} data-testid="buy-now">
                 Mua Ngay
               </button>
               <button className={`btn-wishlist ${liked ? 'liked' : ''}`} onClick={() => toggle(product.id)} data-testid="detail-heart" aria-label="Yêu thích">
@@ -343,6 +362,10 @@ const ProductView = ({ product }: { product: ProductPage }) => {
             </div>
           </div>
           <div className="pd-shop-stats">
+            <div data-testid="shop-rating">
+              <strong>{product.shop.ratingCount > 0 ? `${product.shop.ratingAvg.toFixed(1)} ★` : '—'}</strong>
+              <span>Đánh Giá ({formatSold(product.shop.ratingCount)})</span>
+            </div>
             <div><strong>{formatSold(product.shop.productCount)}</strong><span>Sản Phẩm</span></div>
             <div><strong>{formatSold(product.shop.followerCount)}</strong><span>Người Theo Dõi</span></div>
             <div><strong>{formatDate(product.shop.joinedAt)}</strong><span>Tham Gia</span></div>
@@ -416,6 +439,7 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { data, error, isLoading } = useQuery({ queryKey: ['product', id], queryFn: () => storefrontApi.product(id), retry: false });
+  usePageTitle(data?.name ?? (error ? 'Không tìm thấy sản phẩm' : null));
 
   useEffect(() => { window.scrollTo(0, 0); }, [id]);
   // One view per viewer per 30 minutes — the server de-duplicates. Wait for the session to be restored, or a signed-in

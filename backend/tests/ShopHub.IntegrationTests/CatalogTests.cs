@@ -507,4 +507,37 @@ public class CatalogTests(ApiFactory factory)
         sellerEdit.StatusCode.Should().Be(HttpStatusCode.Conflict, "sản phẩm bị khoá thì người bán không sửa được");
         (await unban.ReadEnvelopeAsync()).Data.GetString().Should().Be("Hidden");
     }
+
+    [Fact]
+    public async Task Registration_takes_the_chosen_carriers_and_a_bank_from_the_server_catalogue()
+    {
+        var banks = (await (await factory.CreateClient().GetAsync("/api/site/banks")).ReadEnvelopeAsync()).Data.EnumerateArray().Select(b => b.Str("code")).ToList();
+        banks.Should().Contain(["VCB", "TCB", "BIDV"], "danh mục ngân hàng lấy từ máy chủ");
+        var active = await factory.WithDbAsync(db => db.Carriers.Where(c => c.IsActive).OrderBy(c => c.SortOrder).Select(c => c.Code).ToListAsync());
+        active.Count.Should().BeGreaterThan(1);
+        var carriers = (await (await factory.CreateClient().GetAsync("/api/site/carriers")).ReadEnvelopeAsync()).Data.EnumerateArray().Select(c => c.Str("code")).ToList();
+        carriers.Should().Equal(active);
+
+        var owner = await factory.CreateUserAsync();
+        var front = (await UploadAsync(owner.Client, "kyc", Image())).Str("id");
+        var back = (await UploadAsync(owner.Client, "kyc", Image())).Str("id");
+        object Body(string name, string bankCode, string[]? carrierCodes) => new
+        {
+            name, type = "Personal", description = "Shop thử nghiệm",
+            warehouse = new { contactName = "Kho", phone = "0912345678", provinceCode = "01", districtCode = "001", wardCode = "00001", street = "1 Phố Thử" },
+            personal = new { legalName = "Nguyễn Văn Thử", idCardNumber = "001200012345", frontAssetId = front, backAssetId = back },
+            bank = new { bankCode, accountNo = "0011002233445", accountName = "Nguyen Van Thu" },
+            carrierCodes,
+        };
+        var name = $"Shop Chọn Hãng {Guid.NewGuid():N}"[..24];
+        (await owner.Client.PostAsJsonAsync("/api/seller/shops", Body(name, "XYZ", [active[0]]))).StatusCode.Should().Be(HttpStatusCode.BadRequest, "ngân hàng ngoài danh mục");
+        (await owner.Client.PostAsJsonAsync("/api/seller/shops", Body(name, "VCB", ["KHONG_CO"]))).StatusCode.Should().Be(HttpStatusCode.BadRequest, "hãng không có / đang tắt");
+        (await owner.Client.PostAsJsonAsync("/api/seller/shops", Body(name, "VCB", []))).StatusCode.Should().Be(HttpStatusCode.BadRequest, "cần ít nhất một hãng");
+
+        var ok = await owner.Client.PostAsJsonAsync("/api/seller/shops", Body(name, "VCB", [active[0]]));
+        ok.StatusCode.Should().Be(HttpStatusCode.OK, await ok.Content.ReadAsStringAsync());
+        var shopId = Guid.Parse((await ok.ReadEnvelopeAsync()).Data.GetString()!);
+        var channels = await factory.WithDbAsync(db => db.ShopShippingChannels.Where(c => c.ShopId == shopId).ToDictionaryAsync(c => c.CarrierCode, c => c.IsEnabled));
+        channels.Should().Equal(active.ToDictionary(c => c, c => c == active[0]), "hãng được chọn bật, các hãng khác tắt");
+    }
 }

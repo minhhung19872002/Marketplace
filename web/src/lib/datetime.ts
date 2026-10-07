@@ -58,3 +58,14 @@ export const countdownParts = (remainingMs: number): [string, string, string] =>
 
 /** "14:00" — the Vietnam wall-clock hour of an instant (Flash Sale slot labels). */
 export const formatClock = (value: DateInput): string => clockFormat.format(toDate(value));
+
+/** "5 phút trước", "3 giờ trước", "2 ngày trước" — how long ago an instant was (shop "online" line). */
+export const formatSince = (value: DateInput, nowMs: number = Date.now()): string => {
+  const minutes = Math.max(0, Math.floor((nowMs - toDate(value).getTime()) / 60_000));
+  if (minutes < 5) return 'vừa xong';
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  return days < 30 ? `${days} ngày trước` : `${Math.floor(days / 30)} tháng trước`;
+};

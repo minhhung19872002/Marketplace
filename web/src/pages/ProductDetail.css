@@ -787,3 +787,47 @@
   border-color: var(--sh-primary);
   color: #fff;
 }
+
+.pd-shipping {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.pd-shipping-to select {
+  max-width: 260px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+}
+
+.pd-shipping-from,
+.pd-shipping-none,
+.pd-shipping-nocod {
+  color: var(--sh-text-muted);
+  font-size: 13px;
+}
+
+.pd-shipping-options {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.pd-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.pd-share button,
+.pd-share a {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  color: inherit;
+  background: none;
+  text-decoration: none;
+  cursor: pointer;
+}

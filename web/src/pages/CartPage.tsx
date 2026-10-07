@@ -9,6 +9,7 @@ import type { CartLine } from '../api/commerce';
 import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { productPath } from '../lib/urls';
+import ProductGrid from '../components/ProductGrid';
 import './CartPage.css';
 
 /** "Phân loại: …" with a picker of the product's other SKUs (change variant without leaving the cart). */
@@ -215,7 +216,20 @@ const CartPage = () => {
             <button className="cart-checkout" onClick={checkout} disabled={selected.length === 0} data-testid="checkout">Mua Hàng</button>
           </div>
         </div>
+
+        <YouMayLike />
       </div>
+    </div>
+  );
+};
+
+/** "Bạn có thể thích" under the cart (II.6): the same personalised suggestions as the home page. */
+const YouMayLike = () => {
+  const suggestions = useQuery({ queryKey: ['cart-suggestions'], queryFn: () => storefrontApi.recommendations(1, 12), staleTime: 60_000 });
+  if (!suggestions.data?.items.length) return null;
+  return (
+    <div className="cart-suggestions" data-testid="cart-suggestions">
+      <ProductGrid title="BẠN CÓ THỂ THÍCH" products={suggestions.data.items} />
     </div>
   );
 };

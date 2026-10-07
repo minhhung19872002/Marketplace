@@ -100,7 +100,17 @@ export interface CheckInStatus {
   days: { day: number; coins: number; done: boolean; today: boolean }[];
 }
 
+export interface ShopOffer {
+  id: string;
+  type: string;
+  name: string;
+  text: string;
+  endAt: string;
+  productCount: number;
+}
+
 export const marketingApi = {
+  shopOffers: (shopId: string) => apiRequest<ShopOffer[]>(`/shops/${shopId}/offers`, { auth: false }),
   banners: () => apiRequest<HomeBanners>('/home/banners', { auth: false }),
   flashSale: (slotId?: string) => apiRequest<FlashBoard>(`/flash-sale${slotId ? `?slotId=${slotId}` : ''}`, { auth: false }),
   deals: (productId: string) => apiRequest<ProductDeals>(`/products/${productId}/deals`, { auth: false }),

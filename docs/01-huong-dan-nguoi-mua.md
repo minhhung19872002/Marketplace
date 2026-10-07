@@ -30,18 +30,21 @@ nhiều lần tài khoản bị khoá tạm vài phút. Quên mật khẩu: *Qu�
 
 Ô tìm kiếm hiểu tiếng Việt **không dấu** ("dien thoai" ra "Điện Thoại…") và chịu được gõ sai 1–2 ký tự; gợi ý hiện ngay khi gõ.
 Trang kết quả có bộ lọc kèm **số lượng thật** (danh mục, nơi bán, thương hiệu, khoảng giá, số sao, Mall / Yêu thích, dịch vụ…)
-và sắp xếp Liên quan / Mới nhất / Bán chạy / Giá.
+và sắp xếp Liên quan / Mới nhất / Bán chạy / Giá. Từ khoá trùng tên một shop thì khối **shop liên quan** hiện ở đầu kết quả; trang ngành
+có banner ngành và **thương hiệu nổi bật** (bấm để lọc).
 
 ![Tìm kiếm](images/01-tim-kiem.jpg)
 
 Trang sản phẩm: ảnh / video, giá theo phân loại đang chọn (giá Flash Sale hoặc giảm giá hiện đúng như khi thanh toán),
 lựa chọn hết hàng bị làm mờ, số lượng không vượt tồn kho và **giới hạn mua mỗi người** (nếu shop đặt), phí vận chuyển ước tính
-tới địa chỉ mặc định, voucher của shop (*Lưu*), đánh giá có lọc, sản phẩm tương tự. *Báo cáo sản phẩm* nếu thấy vi phạm.
+tới địa chỉ mặc định (chọn địa chỉ / tỉnh khác để xem lại phí), voucher của shop (*Lưu*), *Chia sẻ* (sao chép liên kết, Facebook, ứng dụng
+của máy), đánh giá có lọc (theo sao, có ảnh, có bình luận, **theo phân loại**), sản phẩm tương tự. *Báo cáo sản phẩm* nếu thấy vi phạm.
 
 ![Chi tiết sản phẩm](images/01-chi-tiet-san-pham.jpg)
 
 **Trang shop**: tab *Dạo* (trang trí của shop), *Tất Cả Sản Phẩm*, từng **danh mục của shop**, *Hồ Sơ Shop*; *Theo Dõi*,
-*Chat Ngay*. Shop tạm nghỉ hiện băng thông báo và chưa đặt hàng được.
+*Chat Ngay*, ô **tìm trong shop**, voucher của shop và các chương trình đang chạy. Shop tạm nghỉ hiện băng thông báo và chưa đặt hàng được.
+*Tài khoản → Đã Xem Gần Đây* và *Shop Theo Dõi* (bỏ theo dõi ngay tại đó); giỏ hàng gợi ý thêm sản phẩm *Bạn có thể thích*.
 
 ![Trang shop](images/01-trang-shop.jpg)
 

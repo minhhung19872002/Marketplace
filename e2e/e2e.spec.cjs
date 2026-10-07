@@ -229,10 +229,14 @@ test.describe('ShopHub Marketplace', () => {
     const expected = skuA.price + b.skus[0].price;
     await expect(page.locator('[data-testid="cart-total"]')).toHaveText(`₫${expected.toLocaleString('vi-VN')}`);
 
-    await page.locator('[data-testid="select-all"]').uncheck();
+    // The boxes are driven by the cart state (updated a few ms after the click): click, then wait for the state —
+    // .check() / .uncheck() read it back at once and fail whenever the re-render is a little slower
+    await page.locator('[data-testid="select-all"]').click();
+    await expect(page.locator('[data-testid="select-all"]')).not.toBeChecked();
     await expect(page.locator('[data-testid="cart-total"]')).toHaveText('₫0');
 
-    await page.locator('[data-testid="select-item"]').first().check();
+    await page.locator('[data-testid="select-item"]').first().click();
+    await expect(page.locator('[data-testid="select-item"]').first()).toBeChecked();
     await expect(page.locator('[data-testid="cart-total"]')).not.toHaveText('₫0');
   });
 

@@ -103,6 +103,34 @@ public sealed class SuggestHandler(IProductSearch search, IApplicationDbContext 
     }
 }
 
+/// <summary>"Shop liên quan đến từ khoá" (II.3): open shops whose name matches the keyword, Mall first, then the most followed.</summary>
+public record RelatedShopDto(Guid Id, string Name, string Slug, string? LogoUrl, bool IsMall, bool IsPreferred, double RatingAvg, int FollowerCount,
+    int ProductCount, string? ProvinceName);
+
+public record RelatedShopsQuery(string Q, int Take = 1) : IRequest<IReadOnlyList<RelatedShopDto>>;
+
+public sealed class RelatedShopsHandler(IApplicationDbContext db) : IRequestHandler<RelatedShopsQuery, IReadOnlyList<RelatedShopDto>>
+{
+    public async Task<IReadOnlyList<RelatedShopDto>> Handle(RelatedShopsQuery request, CancellationToken ct)
+    {
+        var slug = Slug.From(request.Q ?? string.Empty);
+        if (slug.Length < 2) return [];
+        var rows = await db.Shops.AsNoTracking()
+            .Where(s => (s.Status == Domain.Shops.ShopStatus.Active || s.Status == Domain.Shops.ShopStatus.Vacation) && s.Slug.Contains(slug))
+            .OrderByDescending(s => s.Type == Domain.Shops.ShopType.Mall).ThenByDescending(s => s.FollowerCount).ThenBy(s => s.Id)
+            .Take(Math.Clamp(request.Take, 1, 5))
+            .Select(s => new
+            {
+                Shop = s,
+                Province = db.ShopWarehouses.Where(w => w.ShopId == s.Id && w.IsPickupDefault)
+                    .Select(w => db.AdminDivisions.Where(d => d.Code == w.ProvinceCode).Select(d => d.Name).FirstOrDefault()).FirstOrDefault(),
+            })
+            .ToListAsync(ct);
+        return rows.Select(r => new RelatedShopDto(r.Shop.Id, r.Shop.Name, r.Shop.Slug, r.Shop.LogoUrl, r.Shop.Type == Domain.Shops.ShopType.Mall,
+            r.Shop.IsPreferred, r.Shop.RatingAvg, r.Shop.FollowerCount, r.Shop.ProductCount, ProductCards.ShortProvince(r.Province))).ToList();
+    }
+}
+
 public record HotKeywordsQuery(int Take = 8) : IRequest<IReadOnlyList<string>>;
 
 public sealed class HotKeywordsHandler(IApplicationDbContext db, ISystemParameters parameters, IClock clock)

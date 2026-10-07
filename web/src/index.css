@@ -1,6 +1,8 @@
 :root {
   --sh-primary: #c93d19;
   --sh-primary-dark: #a8300f;
+  --sh-primary-soft: #fff6f3;
+  --sh-surface: #fff;
   --sh-on-primary: #fff;
   --sh-focus: #1f5fb8;
   /* WCAG AA: white text on every stop of it reaches 4.5:1 */

@@ -14,6 +14,8 @@ import type {
   ShopSummary,
   Suggestion,
   TopCategoryProduct,
+  RelatedShop,
+  ShippingEstimate,
 } from '../types';
 
 /** Query string for /search/products — arrays repeat the key (provinces=01&provinces=79). */
@@ -48,11 +50,18 @@ export const storefrontApi = {
   search: (p: SearchParams) => apiRequest<SearchResult>(`/search/products?${searchQueryString(p)}`),
   suggest: (q: string) => apiRequest<Suggestion>(`/search/suggest?q=${encodeURIComponent(q)}`, { auth: false }),
   hotKeywords: () => apiRequest<string[]>('/search/hot-keywords', { auth: false }),
+  relatedShops: (q: string) => apiRequest<RelatedShop[]>(`/search/shops?q=${encodeURIComponent(q)}`, { auth: false }),
 
   product: (id: string) => apiRequest<ProductPage>(`/products/${id}`, { auth: false }),
   recordView: (id: string, source: string) => apiRequest<null>(`/products/${id}/views?source=${source}`, { method: 'POST' }),
   related: (id: string) => apiRequest<ProductCard[]>(`/products/${id}/related`, { auth: false }),
   shopProducts: (id: string) => apiRequest<ProductCard[]>(`/products/${id}/shop-products`, { auth: false }),
+  shipping: (id: string, to: { addressId?: string; province?: string }) => {
+    const qs = new URLSearchParams();
+    if (to.addressId) qs.set('addressId', to.addressId);
+    if (to.province) qs.set('province', to.province);
+    return apiRequest<ShippingEstimate>(`/products/${id}/shipping${qs.size ? `?${qs}` : ''}`);
+  },
 
   recommendations: (page: number, pageSize = 24) =>
     apiRequest<PagedResult<ProductCard>>(`/home/recommendations?page=${page}&pageSize=${pageSize}`),

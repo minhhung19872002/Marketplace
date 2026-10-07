@@ -4,17 +4,21 @@ import { useQuery } from '@tanstack/react-query';
 import { storefrontApi } from '../api/storefront';
 import { ApiError } from '../api/http';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 import ProductGrid from '../components/ProductGrid';
 import ProductReviews from '../components/ProductReviews';
 import Countdown from '../components/Countdown';
 import { viewSource } from '../lib/navigation';
 import { productIdOf, productPath } from '../lib/urls';
+import ShopVouchers from '../components/ShopVouchers';
+import ProductShipping from '../components/ProductShipping';
+import ShareProduct from '../components/ShareProduct';
 import ReportProduct from '../components/ReportProduct';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { clockSkew, marketingApi } from '../api/marketing';
 import { formatPrice, formatSold } from '../lib/money';
-import { formatDate } from '../lib/datetime';
+import { formatDate, formatSince } from '../lib/datetime';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import type { ProductPage, PublicSku } from '../types';
 import './ProductDetail.css';
@@ -228,6 +232,13 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               </div>
             )}
 
+            <div className="product-detail-row product-detail-row-top">
+              <span className="row-label">Voucher Của Shop</span>
+              <ShopVouchers shopId={product.shop.id} compact />
+            </div>
+
+            <ProductShipping productId={product.id} />
+
             {product.isPreorder && (
               <div className="product-detail-row">
                 <span className="row-label">Đặt Trước</span>
@@ -310,6 +321,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                 {liked ? '♥ Đã Thích' : '♡ Yêu Thích'} ({formatSold(product.likeCount)})
               </button>
             </div>
+            <ShareProduct title={product.name} />
             <ReportProduct productId={product.id} />
           </div>
         </div>
@@ -320,7 +332,11 @@ const ProductView = ({ product }: { product: ProductPage }) => {
           </div>
           <div className="pd-shop-info">
             <div className="pd-shop-name">{product.shop.name}</div>
-            <div className="pd-shop-sub">{product.shop.provinceName ?? ''}</div>
+            <div className="pd-shop-sub" data-testid="shop-last-active">
+              {product.shop.lastActiveAt && `Online ${formatSince(product.shop.lastActiveAt)}`}
+              {product.shop.lastActiveAt && product.shop.provinceName && ' · '}
+              {product.shop.provinceName ?? ''}
+            </div>
             <div className="pd-shop-actions">
               <ChatNowButton shopId={product.shop.id} productId={product.id} className="pd-shop-chat" />
               <Link to={`/shop/${product.shop.slug}`} className="pd-shop-view" data-testid="view-shop">🏪 Xem Shop</Link>
@@ -401,11 +417,14 @@ const ProductDetail = () => {
   const location = useLocation();
   const { data, error, isLoading } = useQuery({ queryKey: ['product', id], queryFn: () => storefrontApi.product(id), retry: false });
 
+  useEffect(() => { window.scrollTo(0, 0); }, [id]);
+  // One view per viewer per 30 minutes — the server de-duplicates. Wait for the session to be restored, or a signed-in
+  // buyer opening a product link directly is counted as a guest and the product never shows in "Đã xem" (L059).
+  const { isChecking } = useAuth();
   useEffect(() => {
-    window.scrollTo(0, 0);
-    // One view per viewer per 30 minutes — the server de-duplicates
+    if (isChecking) return;
     if (/^[0-9a-f-]{36}$/i.test(id)) storefrontApi.recordView(id, viewSource()).catch(() => undefined);
-  }, [id]);
+  }, [id, isChecking]);
 
   // Old or stale URLs settle on the canonical one (the crawler version answers 301 for the same)
   useEffect(() => {

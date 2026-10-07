@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../lib/datetime';
 import { handleImgError } from '../lib/image';
 
-type Filter = { rating?: number; withMedia?: boolean; withComment?: boolean };
+type Filter = { rating?: number; withMedia?: boolean; withComment?: boolean; variant?: string };
 
 /** "ĐÁNH GIÁ SẢN PHẨM" on the product page: real reviews, star summary, filters, shop replies. */
 const ProductReviews = ({ productId }: { productId: string }) => {
@@ -26,6 +26,8 @@ const ProductReviews = ({ productId }: { productId: string }) => {
     ...[5, 4, 3, 2, 1].map((n) => ({ label: `${n} sao (${summary.byStar[String(n)] ?? 0})`, f: { rating: n } })),
     { label: `Có hình ảnh/video (${summary.withMedia})`, f: { withMedia: true } },
     { label: `Có bình luận (${summary.withComment})`, f: { withComment: true } },
+    // "Theo phân loại" (spec 3.11): the variants buyers reviewed
+    ...(summary.variants ?? []).map((v) => ({ label: `${v.variant} (${v.count})`, f: { variant: v.variant } })),
   ];
   const report = async (id: string) => {
     try {

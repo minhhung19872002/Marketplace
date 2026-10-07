@@ -1,0 +1,76 @@
+.shop-vouchers {
+  margin: 12px 0;
+}
+
+.shop-vouchers-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.shop-vouchers-list {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.shop-voucher {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 240px;
+  max-width: 320px;
+  padding: 8px 10px;
+  border: 1px solid var(--sh-primary);
+  border-left-width: 4px;
+  background: var(--sh-primary-soft);
+}
+
+.shop-vouchers.compact .shop-voucher {
+  min-width: 200px;
+}
+
+.shop-voucher-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.shop-voucher-body strong {
+  font-size: 13px;
+  color: var(--sh-primary);
+}
+
+.shop-voucher-problem {
+  color: var(--sh-text-muted);
+}
+
+.shop-voucher-save {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border: none;
+  color: var(--sh-on-primary);
+  background: var(--sh-primary);
+  cursor: pointer;
+}
+
+.shop-voucher-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.shop-vouchers-message {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--sh-text-muted);
+}
+
+@media (max-width: 480px) {
+  .shop-voucher {
+    min-width: 200px;
+  }
+}

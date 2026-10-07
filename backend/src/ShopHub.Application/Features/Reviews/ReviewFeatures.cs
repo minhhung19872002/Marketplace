@@ -30,7 +30,11 @@ public record ReviewDto(
     string? SellerReply,
     DateTimeOffset? RepliedAt);
 
-public record ReviewSummaryDto(double Average, int Total, IReadOnlyDictionary<int, int> ByStar, int WithMedia, int WithComment);
+// Variants: how many reviews each bought variant has (filter "theo phân loại", spec 3.11)
+public record ReviewSummaryDto(double Average, int Total, IReadOnlyDictionary<int, int> ByStar, int WithMedia, int WithComment,
+    IReadOnlyList<ReviewVariantCountDto>? Variants = null);
+
+public record ReviewVariantCountDto(string Variant, int Count);
 
 public record ProductReviewsDto(ReviewSummaryDto Summary, PagedResult<ReviewDto> Reviews);
 
@@ -217,8 +221,8 @@ public sealed class EditReviewHandler(
 
 // ---------- product page ----------
 
-public record ProductReviewsQuery(Guid ProductId, int? Rating = null, bool WithMedia = false, bool WithComment = false, int Page = 1, int PageSize = 10)
-    : IRequest<ProductReviewsDto>, IPagedRequest;
+public record ProductReviewsQuery(Guid ProductId, int? Rating = null, bool WithMedia = false, bool WithComment = false, int Page = 1, int PageSize = 10,
+    string? Variant = null) : IRequest<ProductReviewsDto>, IPagedRequest;
 
 public sealed class ProductReviewsValidator : AbstractValidator<ProductReviewsQuery>
 {
@@ -226,6 +230,7 @@ public sealed class ProductReviewsValidator : AbstractValidator<ProductReviewsQu
     {
         this.ApplyPagingRules();
         RuleFor(x => x.Rating).InclusiveBetween(1, 5).When(x => x.Rating is not null).WithMessage("Số sao từ 1 đến 5.");
+        RuleFor(x => x.Variant).MaximumLength(100).WithMessage("Phân loại tối đa 100 ký tự.");
     }
 }
 
@@ -238,12 +243,16 @@ public sealed class ProductReviewsHandler(IApplicationDbContext db, IObjectStora
         var summary = new ReviewSummaryDto(
             byStar.Count == 0 ? 0 : Math.Round(byStar.Sum(kv => kv.Key * kv.Value) / (double)byStar.Values.Sum(), 1),
             byStar.Values.Sum(), Enumerable.Range(1, 5).ToDictionary(s => s, s => byStar.GetValueOrDefault(s)),
-            await visible.CountAsync(r => r.Media.Any(), ct), await visible.CountAsync(r => r.Content != "", ct));
+            await visible.CountAsync(r => r.Media.Any(), ct), await visible.CountAsync(r => r.Content != "", ct),
+            (await visible.Where(r => r.VariantSnapshot != null).GroupBy(r => r.VariantSnapshot!)
+                .Select(g => new { Variant = g.Key, Count = g.Count() }).OrderByDescending(v => v.Count).ThenBy(v => v.Variant).Take(30).ToListAsync(ct))
+                .Select(v => new ReviewVariantCountDto(v.Variant, v.Count)).ToList());
 
         var q = visible;
         if (request.Rating is { } rating) q = q.Where(r => r.Rating == rating);
         if (request.WithMedia) q = q.Where(r => r.Media.Any());
         if (request.WithComment) q = q.Where(r => r.Content != "");
+        if (!string.IsNullOrWhiteSpace(request.Variant)) q = q.Where(r => r.VariantSnapshot == request.Variant.Trim());
         var page = await q.Include(r => r.Media).OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id).ToPagedResultAsync(request, ct);
         var items = await ReviewViews.MapAsync(db, storage, page.Items, ct);
         return new ProductReviewsDto(summary, new PagedResult<ReviewDto>(items, page.TotalCount, page.Page, page.PageSize));

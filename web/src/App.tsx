@@ -21,6 +21,8 @@ const OrderSuccess = lazy(() => import('./pages/PaymentPages').then((m) => ({ de
 const GatewayPage = lazy(() => import('./pages/PaymentPages').then((m) => ({ default: m.SimulatedGatewayPage })))
 const PaymentResult = lazy(() => import('./pages/PaymentPages').then((m) => ({ default: m.PaymentResultPage })))
 const OrdersPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.OrdersPage })))
+const ViewedPage = lazy(() => import('./pages/account/BrowsingPages').then((m) => ({ default: m.ViewedPage })))
+const FollowedShopsPage = lazy(() => import('./pages/account/BrowsingPages').then((m) => ({ default: m.FollowedShopsPage })))
 const OrderDetailPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.OrderDetailPage })))
 const VouchersPage = lazy(() => import('./pages/account/CommercePages').then((m) => ({ default: m.VouchersPage })))
 const TrackingPage = lazy(() => import('./pages/TrackingPage'))
@@ -94,6 +96,8 @@ function App() {
                       <Route path="tra-hang" element={<ReturnsPage />} />
                       <Route path="tra-hang/:code" element={<ReturnDetailPage />} />
                       <Route path="voucher" element={<VouchersPage />} />
+                      <Route path="da-xem" element={<ViewedPage />} />
+                      <Route path="shop-theo-doi" element={<FollowedShopsPage />} />
                       <Route path="xu" element={<CoinsPage />} />
                       <Route path="vi" element={<WalletPage />} />
                       <Route path="ho-so" element={<ProfilePage />} />

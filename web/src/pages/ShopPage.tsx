@@ -11,6 +11,8 @@ import { formatSold } from '../lib/money';
 import { formatDate } from '../lib/datetime';
 import { handleImgError } from '../lib/image';
 import type { ProductSort } from '../types';
+import ShopVouchers from '../components/ShopVouchers';
+import { marketingApi } from '../api/marketing';
 import './ShopPage.css';
 
 const TABS: { key: ProductSort; label: string }[] = [
@@ -29,6 +31,9 @@ const ShopPage = () => {
   const [page, setPage] = useState(1);
   const [message, setMessage] = useState('');
   const [params, setParams] = useSearchParams();
+  // Tìm trong shop (II.3): the keyword lives in the URL so the result can be shared
+  const q = params.get('q') ?? '';
+  const [draft, setDraft] = useState(q);
 
   const shopQuery = useQuery({ queryKey: ['shop', slug, isLoggedIn], queryFn: () => storefrontApi.shop(slug), retry: false });
   const shopId = shopQuery.data?.shop.id;
@@ -39,9 +44,14 @@ const ShopPage = () => {
     setPage(1);
     setParams({ tab: key }, { replace: true });
   };
+  const searchInShop = () => {
+    setPage(1);
+    const keyword = draft.trim();
+    setParams(keyword ? { tab: 'tat-ca', q: keyword } : { tab: 'tat-ca' }, { replace: true });
+  };
   const products = useQuery({
-    queryKey: ['search', { shopId, sort, page }],
-    queryFn: () => storefrontApi.search({ shopId, sort, page, pageSize: 30 }),
+    queryKey: ['search', { shopId, sort, page, q }],
+    queryFn: () => storefrontApi.search({ shopId, sort, page, pageSize: 30, q: q || undefined }),
     enabled: !!shopId && tab === 'tat-ca',
     placeholderData: keepPreviousData,
   });
@@ -50,6 +60,7 @@ const ShopPage = () => {
     queryFn: () => storefrontApi.shopHome(shopId!),
     enabled: !!shopId && tab === 'dao',
   });
+  const offers = useQuery({ queryKey: ['shop-offers', shopId], queryFn: () => marketingApi.shopOffers(shopId!), enabled: !!shopId, staleTime: 60_000 });
   const categoryProducts = useQuery({
     queryKey: ['shop-category', shopId, categoryId, page],
     queryFn: () => storefrontApi.shopCategoryProducts(shopId!, categoryId!, page),
@@ -138,6 +149,22 @@ const ShopPage = () => {
           ))}
         </nav>
 
+        <form className="shop-search" role="search" onSubmit={(e) => { e.preventDefault(); searchInShop(); }}>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Tìm trong shop này" aria-label="Tìm trong shop" data-testid="shop-search" />
+          <button type="submit">Tìm</button>
+        </form>
+        <ShopVouchers shopId={shop.id} />
+        {(offers.data?.length ?? 0) > 0 && (
+          <div className="shop-offers" data-testid="shop-offers">
+            <div className="shop-section-head">CHƯƠNG TRÌNH ĐANG CHẠY</div>
+            <ul>
+              {offers.data!.map((o) => (
+                <li key={o.id}><strong>{o.name}</strong> — {o.text} · đến {formatDate(o.endAt)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {tab === 'dao' && (
           home.isLoading ? <div className="page-loader"><div className="loading-spinner" /></div>
             : <ShopHomeBlocks blocks={home.data ?? []} onOpenCategory={(id) => openTab(`dm-${id}`)} />
@@ -159,7 +186,7 @@ const ShopPage = () => {
         {tab === 'tat-ca' && (
           <>
             {!hasDecoration && description && <div className="shop-description">{description}</div>}
-            <div className="shop-section-head">TẤT CẢ SẢN PHẨM</div>
+            <div className="shop-section-head">{q ? `KẾT QUẢ CHO “${q.toUpperCase()}” TRONG SHOP` : 'TẤT CẢ SẢN PHẨM'}</div>
             <div className="shop-tabs">
               {TABS.map((t) => (
                 <button
@@ -174,7 +201,7 @@ const ShopPage = () => {
                 </button>
               ))}
             </div>
-            <ProductGrid title="" products={products.data?.items ?? []} loading={products.isLoading} emptyText="Shop chưa có sản phẩm nào đang bán." />
+            <ProductGrid title="" products={products.data?.items ?? []} loading={products.isLoading} emptyText={q ? 'Không tìm thấy sản phẩm phù hợp trong shop.' : 'Shop chưa có sản phẩm nào đang bán.'} />
           </>
         )}
 

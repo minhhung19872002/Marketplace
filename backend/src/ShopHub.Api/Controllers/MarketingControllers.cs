@@ -23,6 +23,12 @@ public sealed class MarketingController : ApiControllerBase
     [ProducesResponseType<ApiResponse<ProductDealsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Deals(Guid productId, CancellationToken ct) => OkData(await Sender.Send(new ProductDealsQuery(productId), ct));
 
+    /// <summary>Chương trình của shop đang chạy (giảm giá, combo, mua kèm, quà tặng).</summary>
+    [HttpGet("shops/{shopId:guid}/offers")]
+    [AllowAnonymous]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<ShopOfferDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ShopOffers(Guid shopId, CancellationToken ct) => OkData(await Sender.Send(new ShopOffersQuery(shopId), ct));
+
     [HttpGet("home/banners")]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<HomeBannersDto>>(StatusCodes.Status200OK)]

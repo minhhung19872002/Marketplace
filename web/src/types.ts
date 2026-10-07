@@ -32,6 +32,9 @@ export interface CategoryPage {
   category: CategoryCrumb;
   breadcrumb: CategoryCrumb[];
   children: CategoryCrumb[];
+  // Banner ngành and thương hiệu nổi bật (II.2)
+  banners: { id: string; title: string; imageUrl: string; link: string }[] | null;
+  brands: { id: string; name: string; slug: string; logoUrl: string | null; isVerified: boolean; productCount: number }[] | null;
 }
 
 export interface ProductCard {
@@ -122,6 +125,34 @@ export interface ShopSummary {
   provinceName: string | null;
   onVacation: boolean;
   vacationUntil: string | null;
+  // Latest sign-in of the shop's staff or chat answer ("Online … trước")
+  lastActiveAt: string | null;
+}
+
+export interface ShippingDestination {
+  addressId: string | null;
+  provinceCode: string;
+  label: string;
+}
+
+export interface ShippingEstimate {
+  destination: ShippingDestination;
+  fromProvinceName: string | null;
+  options: { code: string; name: string; fee: number; days: number; expectedDate: string; supportsCod: boolean }[];
+  myAddresses: ShippingDestination[];
+}
+
+export interface RelatedShop {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  isMall: boolean;
+  isPreferred: boolean;
+  ratingAvg: number;
+  followerCount: number;
+  productCount: number;
+  provinceName: string | null;
 }
 
 export interface PublicOption {

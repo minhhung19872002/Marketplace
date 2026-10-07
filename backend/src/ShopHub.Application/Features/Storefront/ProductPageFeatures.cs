@@ -34,7 +34,9 @@ public record ShopSummaryDto(
     DateTimeOffset JoinedAt,
     string? ProvinceName,
     bool OnVacation,
-    DateTimeOffset? VacationUntil);
+    DateTimeOffset? VacationUntil,
+    // "Online … trước": the latest sign-in of the shop's staff or chat answer from the shop
+    DateTimeOffset? LastActiveAt = null);
 
 public record ProductPageDto(
     Guid Id,
@@ -82,8 +84,15 @@ internal static class Breadcrumbs
         var province = await db.ShopWarehouses.AsNoTracking().Where(w => w.ShopId == s.Id && w.IsPickupDefault)
             .Select(w => db.AdminDivisions.Where(d => d.Code == w.ProvinceCode).Select(d => d.Name).FirstOrDefault())
             .FirstOrDefaultAsync(ct);
+        var signedIn = await db.ShopStaff.AsNoTracking().Where(m => m.ShopId == s.Id)
+            .Select(m => db.Users.Where(u => u.Id == m.UserId).Select(u => u.LastLoginAt).FirstOrDefault()).MaxAsync(ct);
+        var answered = await (from c in db.Conversations.AsNoTracking()
+                              join m in db.ChatMessages.AsNoTracking() on c.Id equals m.ConversationId
+                              where c.ShopId == s.Id && m.SenderRole == ChatRole.Shop
+                              select (DateTimeOffset?)m.CreatedAt).MaxAsync(ct);
+        var lastActive = new[] { signedIn, answered }.Where(x => x is not null).Max();
         return new ShopSummaryDto(s.Id, s.Name, s.Slug, s.LogoUrl, s.Type == ShopType.Mall, s.IsPreferred, s.FollowerCount, s.ProductCount,
-            s.ApprovedAt ?? s.CreatedAt, ProductCards.ShortProvince(province), s.Status == ShopStatus.Vacation, s.VacationUntil);
+            s.ApprovedAt ?? s.CreatedAt, ProductCards.ShortProvince(province), s.Status == ShopStatus.Vacation, s.VacationUntil, lastActive);
     }
 }
 
@@ -314,11 +323,15 @@ public sealed class MallShopsHandler(IApplicationDbContext db) : IRequestHandler
             .ToListAsync(ct);
 }
 
-public record CategoryPageDto(CategoryCrumbDto Category, IReadOnlyList<CategoryCrumbDto> Breadcrumb, IReadOnlyList<CategoryCrumbDto> Children);
+public record CategoryPageDto(CategoryCrumbDto Category, IReadOnlyList<CategoryCrumbDto> Breadcrumb, IReadOnlyList<CategoryCrumbDto> Children,
+    IReadOnlyList<Marketing.PublicBannerDto>? Banners = null, IReadOnlyList<FeaturedBrandDto>? Brands = null);
+
+// Thương hiệu nổi bật of an industry: the brands selling most in its subtree
+public record FeaturedBrandDto(Guid Id, string Name, string Slug, string? LogoUrl, bool IsVerified, int ProductCount);
 
 public record GetCategoryBySlugQuery(string Slug) : IRequest<CategoryPageDto>;
 
-public sealed class GetCategoryBySlugHandler(IApplicationDbContext db) : IRequestHandler<GetCategoryBySlugQuery, CategoryPageDto>
+public sealed class GetCategoryBySlugHandler(IApplicationDbContext db, IClock clock) : IRequestHandler<GetCategoryBySlugQuery, CategoryPageDto>
 {
     public async Task<CategoryPageDto> Handle(GetCategoryBySlugQuery request, CancellationToken ct)
     {
@@ -326,7 +339,40 @@ public sealed class GetCategoryBySlugHandler(IApplicationDbContext db) : IReques
             ?? throw new NotFoundException("Không tìm thấy danh mục.");
         var children = await db.Categories.AsNoTracking().Where(c => c.ParentId == category.Id && c.IsActive)
             .OrderBy(c => c.SortOrder).ThenBy(c => c.Name).Select(c => new CategoryCrumbDto(c.Id, c.Name, c.Slug)).ToListAsync(ct);
-        return new CategoryPageDto(new CategoryCrumbDto(category.Id, category.Name, category.Slug),
-            await Breadcrumbs.ForAsync(db, category.Id, ct), children);
+        var breadcrumb = await Breadcrumbs.ForAsync(db, category.Id, ct);
+
+        // Banner ngành (II.2): category banners of this category or one above it, as the platform scheduled them
+        var now = clock.UtcNow;
+        var lineage = breadcrumb.Select(c => c.Id).Append(category.Id).Distinct().ToList();
+        var banners = await db.Banners.AsNoTracking()
+            .Where(b => b.IsActive && b.Position == Domain.Promo.BannerPosition.Category && b.StartAt <= now && b.EndAt > now
+                        && b.CategoryId != null && lineage.Contains(b.CategoryId.Value))
+            .OrderBy(b => b.SortOrder).ThenByDescending(b => b.StartAt).ThenBy(b => b.Id).Take(5)
+            .Select(b => new Marketing.PublicBannerDto(b.Id, b.Title, b.ImageUrl, b.Link)).ToListAsync(ct);
+
+        // Thương hiệu nổi bật: brands with the most sales among the visible products of the subtree
+        var tree = await db.Categories.AsNoTracking().Where(c => c.IsActive).Select(c => new { c.Id, c.ParentId }).ToListAsync(ct);
+        var subtree = new HashSet<Guid> { category.Id };
+        for (var added = true; added;)
+        {
+            added = false;
+            foreach (var c in tree.Where(c => c.ParentId is { } pid && subtree.Contains(pid) && !subtree.Contains(c.Id)))
+                added |= subtree.Add(c.Id);
+        }
+        var ids = subtree.ToList();
+        var brands = await (from p in ProductCards.Visible(db).AsNoTracking()
+                            where ids.Contains(p.CategoryId) && p.BrandId != null
+                            group p by p.BrandId!.Value into g
+                            select new { BrandId = g.Key, Sold = g.Sum(p => p.SoldCount), Count = g.Count() })
+            .OrderByDescending(x => x.Sold).ThenByDescending(x => x.Count).ThenBy(x => x.BrandId).Take(12).ToListAsync(ct);
+        var brandIds = brands.Select(b => b.BrandId).ToList();
+        var brandRows = await db.Brands.AsNoTracking().Where(b => brandIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id, ct);
+        var featured = brands.Where(b => brandRows.ContainsKey(b.BrandId)).Select(b =>
+        {
+            var r = brandRows[b.BrandId];
+            return new FeaturedBrandDto(r.Id, r.Name, r.Slug, r.LogoUrl, r.IsVerified, b.Count);
+        }).ToList();
+
+        return new CategoryPageDto(new CategoryCrumbDto(category.Id, category.Name, category.Slug), breadcrumb, children, banners, featured);
     }
 }

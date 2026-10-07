@@ -41,7 +41,8 @@ export interface Review {
 }
 
 export interface ProductReviews {
-  summary: { average: number; total: number; byStar: Record<string, number>; withMedia: number; withComment: number };
+  summary: { average: number; total: number; byStar: Record<string, number>; withMedia: number; withComment: number;
+    variants: { variant: string; count: number }[] | null };
   reviews: PagedResult<Review>;
 }
 
@@ -66,11 +67,12 @@ export interface ReviewInput {
 }
 
 export const reviewsApi = {
-  forProduct: (productId: string, p: { rating?: number; withMedia?: boolean; withComment?: boolean; page: number }) => {
+  forProduct: (productId: string, p: { rating?: number; withMedia?: boolean; withComment?: boolean; variant?: string; page: number }) => {
     const qs = new URLSearchParams({ page: String(p.page), pageSize: '10' });
     if (p.rating) qs.set('rating', String(p.rating));
     if (p.withMedia) qs.set('withMedia', 'true');
     if (p.withComment) qs.set('withComment', 'true');
+    if (p.variant) qs.set('variant', p.variant);
     return apiRequest<ProductReviews>(`/products/${productId}/reviews?${qs}`, { auth: false });
   },
   reviewable: (code: string) => apiRequest<ReviewableItem[]>(`/orders/${encodeURIComponent(code)}/reviews`),

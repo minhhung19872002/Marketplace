@@ -281,3 +281,31 @@
   margin: 4px 0 0;
   font-weight: 500;
 }
+
+.shop-search {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.shop-search input {
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+}
+
+.shop-search button {
+  padding: 6px 14px;
+  border: none;
+  color: var(--sh-on-primary);
+  background: var(--sh-primary);
+  cursor: pointer;
+}
+
+.shop-offers ul {
+  margin: 6px 0 12px;
+  padding-left: 18px;
+  font-size: 14px;
+}

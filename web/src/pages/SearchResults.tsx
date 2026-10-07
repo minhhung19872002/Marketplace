@@ -6,6 +6,7 @@ import { ApiError } from '../api/http';
 import ProductGrid from '../components/ProductGrid';
 import { formatCount } from '../lib/money';
 import type { CategoryPage, FacetValue, ProductSort, SearchParams } from '../types';
+import { handleImgError } from '../lib/image';
 import './SearchResults.css';
 
 const SORTS: { key: ProductSort; label: string }[] = [
@@ -92,6 +93,15 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
     queryFn: () => storefrontApi.search(params),
     placeholderData: keepPreviousData,
   });
+  // "Shop liên quan đến từ khoá" (II.3) above the results
+  const keyword = (params.q ?? '').trim();
+  const relatedShops = useQuery({
+    queryKey: ['related-shops', keyword],
+    queryFn: () => storefrontApi.relatedShops(keyword),
+    enabled: keyword.length >= 2 && !category,
+    staleTime: 60_000,
+  });
+  const relatedShop = relatedShops.data?.[0];
 
   /** Change URL params; any filter change goes back to page 1. */
   const update = (change: (next: URLSearchParams) => void, keepPage = false) => {
@@ -270,6 +280,47 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
         </aside>
 
         <div className="search-content">
+          {category && (category.banners?.length ?? 0) > 0 && (
+            <div className="category-banners" data-testid="category-banners">
+              {category.banners!.map((b) => (
+                <a key={b.id} href={b.link} className="category-banner"><img src={b.imageUrl} alt={b.title} onError={handleImgError} /></a>
+              ))}
+            </div>
+          )}
+          {category && (category.brands?.length ?? 0) > 0 && (
+            <div className="category-brands" data-testid="category-brands">
+              <div className="category-brands-title">Thương hiệu nổi bật</div>
+              <div className="category-brands-list">
+                {category.brands!.map((b) => (
+                  <button key={b.id} type="button" className={`category-brand ${params.brands?.includes(b.id) ? 'active' : ''}`}
+                    onClick={() => toggleMulti('brands', b.id)} data-testid="category-brand">
+                    {b.logoUrl ? <img src={b.logoUrl} alt="" onError={handleImgError} /> : null}
+                    <span>{b.name}{b.isVerified && ' ✓'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {relatedShop && (
+            <div className="related-shop" data-testid="related-shop">
+              <div className="related-shop-title">SHOP LIÊN QUAN ĐẾN “{keyword}”</div>
+              <Link to={`/shop/${relatedShop.slug}`} className="related-shop-card">
+                <span className="related-shop-logo">
+                  {relatedShop.logoUrl ? <img src={relatedShop.logoUrl} alt="" onError={handleImgError} /> : relatedShop.name.charAt(0)}
+                </span>
+                <span className="related-shop-info">
+                  <strong>{relatedShop.name}</strong>
+                  {relatedShop.isMall && <span className="related-shop-badge">Mall</span>}
+                  <span className="related-shop-sub">
+                    {formatCount(relatedShop.followerCount)} người theo dõi · {formatCount(relatedShop.productCount)} sản phẩm
+                    {relatedShop.ratingAvg > 0 && ` · ${relatedShop.ratingAvg.toFixed(1)} ★`}
+                    {relatedShop.provinceName && ` · ${relatedShop.provinceName}`}
+                  </span>
+                </span>
+                <span className="related-shop-view">Xem Shop ›</span>
+              </Link>
+            </div>
+          )}
           <div className="search-results-head">
             <h1 className="search-results-title" data-testid="search-heading">{heading}</h1>
             <span className="search-results-count" data-testid="search-count">

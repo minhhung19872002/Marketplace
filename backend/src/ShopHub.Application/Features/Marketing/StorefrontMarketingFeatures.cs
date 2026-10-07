@@ -89,13 +89,36 @@ public sealed class ProductDealsHandler(IApplicationDbContext db, PriceBook pric
             .Where(p => p.ShopId == product.ShopId && p.Status == PromotionStatus.Active && p.StartAt <= now && p.EndAt > now
                         && p.Type != PromotionType.Discount && p.Products.Any(x => x.ProductId == product.Id))
             .OrderBy(p => p.EndAt).Take(5).ToListAsync(ct);
-        return new ProductDealsDto(now, skus, flashDto, offers.Select(p => new ProductOfferDto(p.Id, p.Type, p.Name, p.Type switch
-        {
-            PromotionType.Combo => p.DiscountBp > 0 ? $"Mua {p.MinQuantity} sản phẩm giảm {p.DiscountBp / 100.0:0.#}%" : $"Mua {p.MinQuantity} sản phẩm giảm {Money.Vnd(p.DiscountAmount)}",
-            PromotionType.AddOn => $"Mua kèm deal sốc (tối đa {p.MaxAddOnQuantity} sản phẩm)",
-            PromotionType.Gift => $"Đơn từ {Money.Vnd(p.MinSpend)} được tặng quà",
-            _ => p.Name,
-        })).ToList());
+        return new ProductDealsDto(now, skus, flashDto, offers.Select(p => new ProductOfferDto(p.Id, p.Type, p.Name, OfferText(p))).ToList());
+    }
+
+    public static string OfferText(Promotion p) => p.Type switch
+    {
+        PromotionType.Combo => p.DiscountBp > 0 ? $"Mua {p.MinQuantity} sản phẩm giảm {p.DiscountBp / 100.0:0.#}%" : $"Mua {p.MinQuantity} sản phẩm giảm {Money.Vnd(p.DiscountAmount)}",
+        PromotionType.AddOn => $"Mua kèm deal sốc (tối đa {p.MaxAddOnQuantity} sản phẩm)",
+        PromotionType.Gift => $"Đơn từ {Money.Vnd(p.MinSpend)} được tặng quà",
+        _ => p.Name,
+    };
+}
+
+// ---------- shop page: programmes running now (II.5) ----------
+
+public record ShopOfferDto(Guid Id, PromotionType Type, string Name, string Text, DateTimeOffset EndAt, int ProductCount);
+
+public record ShopOffersQuery(Guid ShopId) : IRequest<IReadOnlyList<ShopOfferDto>>;
+
+/// <summary>"Chương trình đang chạy" on the shop page: the shop's discounts, combos, add-on deals and gifts running now.</summary>
+public sealed class ShopOffersHandler(IApplicationDbContext db, IClock clock) : IRequestHandler<ShopOffersQuery, IReadOnlyList<ShopOfferDto>>
+{
+    public async Task<IReadOnlyList<ShopOfferDto>> Handle(ShopOffersQuery request, CancellationToken ct)
+    {
+        var now = clock.UtcNow;
+        var rows = await db.Promotions.AsNoTracking().Include(p => p.Products)
+            .Where(p => p.ShopId == request.ShopId && p.Status == PromotionStatus.Active && p.StartAt <= now && p.EndAt > now)
+            .OrderBy(p => p.EndAt).ThenBy(p => p.Id).Take(10).ToListAsync(ct);
+        return rows.Select(p => new ShopOfferDto(p.Id, p.Type, p.Name,
+            p.Type == PromotionType.Discount ? $"Giảm giá đến hết {VietnamTime.ToLocal(p.EndAt):dd/MM}" : ProductDealsHandler.OfferText(p),
+            p.EndAt, p.Products.Select(x => x.ProductId).Distinct().Count())).ToList();
     }
 }
 

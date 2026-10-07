@@ -48,6 +48,13 @@ public sealed class StorefrontController : ApiControllerBase
     [ProducesResponseType<ApiResponse<SuggestionDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Suggest([FromQuery] string q, CancellationToken ct) => OkData(await Sender.Send(new SuggestQuery(q ?? string.Empty), ct));
 
+    [HttpGet("search/shops")]
+    [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
+    [AllowAnonymous]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<RelatedShopDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RelatedShops([FromQuery] string q, CancellationToken ct) =>
+        OkData(await Sender.Send(new RelatedShopsQuery(q ?? string.Empty), ct));
+
     [HttpGet("search/hot-keywords")]
     [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]
@@ -70,6 +77,13 @@ public sealed class StorefrontController : ApiControllerBase
         await Sender.Send(new RecordProductViewCommand(id, VisitorKey(), source), ct);
         return OkData<object?>(null);
     }
+
+    /// <summary>Phí vận chuyển ước tính tới địa chỉ mặc định (hoặc địa chỉ / tỉnh người mua chọn).</summary>
+    [HttpGet("products/{id:guid}/shipping")]
+    [AllowAnonymous]
+    [ProducesResponseType<ApiResponse<ShippingEstimateDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Shipping(Guid id, [FromQuery] Guid? addressId, [FromQuery] string? province, CancellationToken ct) =>
+        OkData(await Sender.Send(new ShippingEstimateQuery(id, addressId, province), ct));
 
     [HttpGet("products/{id:guid}/related")]
     [OutputCache(PolicyName = OutputCachePolicies.Storefront)]

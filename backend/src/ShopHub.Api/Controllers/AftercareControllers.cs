@@ -20,8 +20,9 @@ public sealed class ReviewsController : ApiControllerBase
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<ProductReviewsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ForProduct(Guid productId, [FromQuery] int? rating = null, [FromQuery] bool withMedia = false,
-        [FromQuery] bool withComment = false, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default) =>
-        OkData(await Sender.Send(new ProductReviewsQuery(productId, rating, withMedia, withComment, page, pageSize), ct));
+        [FromQuery] bool withComment = false, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? variant = null,
+        CancellationToken ct = default) =>
+        OkData(await Sender.Send(new ProductReviewsQuery(productId, rating, withMedia, withComment, page, pageSize, variant), ct));
 }
 
 [Route("api")]

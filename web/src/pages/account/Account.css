@@ -987,3 +987,62 @@ img.header-user-avatar {
     order: -1;
   }
 }
+
+.followed-shops {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.followed-shop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+}
+
+.followed-shop-link {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.followed-shop-logo {
+  display: flex;
+  flex: 0 0 48px;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 50%;
+  color: var(--sh-on-primary);
+  background: var(--sh-primary);
+}
+
+.followed-shop-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.followed-shop-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.followed-shop-badge {
+  align-self: flex-start;
+  padding: 0 4px;
+  font-size: 11px;
+  color: var(--sh-on-primary);
+  background: var(--sh-primary);
+}

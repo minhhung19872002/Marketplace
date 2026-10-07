@@ -88,6 +88,19 @@ internal sealed class MessageTemplateConfiguration : IEntityTypeConfiguration<Me
     }
 }
 
+internal sealed class BackupRunConfiguration : IEntityTypeConfiguration<BackupRun>
+{
+    public void Configure(EntityTypeBuilder<BackupRun> b)
+    {
+        b.ToTable("backup_runs", "sys");
+        b.HasKey(r => r.Id);
+        b.Property(r => r.FileName).HasMaxLength(100).IsRequired();
+        b.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(r => r.Error).HasMaxLength(1000);
+        b.HasIndex(r => r.StartedAt).IsDescending().HasDatabaseName("ix_backup_runs_started");
+    }
+}
+
 internal sealed class BackgroundTaskConfiguration : IEntityTypeConfiguration<BackgroundTask>
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

@@ -21,6 +21,10 @@ public sealed class ShopHubSettings
     public string? MeiliMasterKey { get; init; }
     public bool MigrateOnStartup { get; init; }
     public bool JobsEnabled { get; init; }
+    // Where the database backups are written (SH_BACKUP_DIR; a volume in Docker)
+    public string BackupDirectory { get; init; } = "/backups";
+    // First-run admin password chosen by the operator (CI secret); null = generated and printed once
+    public string? SeedAdminPassword { get; init; }
     public required string JwtSecret { get; init; }
     public required string SmtpHost { get; init; }
     public int SmtpPort { get; init; }
@@ -78,6 +82,8 @@ public sealed class ShopHubSettings
             MeiliMasterKey = config["SH_MEILI_MASTER_KEY"],
             MigrateOnStartup = !string.Equals(config["SH_DB_MIGRATE"], "false", StringComparison.OrdinalIgnoreCase),
             JobsEnabled = !string.Equals(config["SH_JOBS_ENABLED"], "false", StringComparison.OrdinalIgnoreCase),
+            BackupDirectory = config["SH_BACKUP_DIR"] ?? Path.Combine(Path.GetTempPath(), "shophub-backups"),
+            SeedAdminPassword = config["SH_SEED_ADMIN_PASSWORD"] is { Length: >= 8 } adminPassword ? adminPassword : null,
             JwtSecret = config["SH_JWT_SECRET"] is { Length: >= 32 } secret
                 ? secret
                 : throw new InvalidOperationException("SH_JWT_SECRET phải có ít nhất 32 ký tự."),

@@ -63,12 +63,19 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <summary>Mails "sent" by the API during the tests (no SMTP server in the suite).</summary>
     public RecordingEmailSender Emails { get; } = new();
 
+    /// <summary>Stands in for pg_dump (not installed on the test machine); the real one runs in the API image.</summary>
+    public FakeDumper Dumper { get; } = new();
+
+    public string BackupDirectory { get; } = Path.Combine(Path.GetTempPath(), $"shophub-it-backups-{Guid.NewGuid():N}");
+
     /// <summary>VNPay / MoMo / ZaloPay / GHN / GHTK sandboxes, in process.</summary>
     public FakeProviders Providers { get; } = new();
 
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder) =>
         builder.ConfigureServices(services =>
         {
+            services.RemoveAll<ShopHub.Infrastructure.Ops.IDatabaseDumper>();
+            services.AddSingleton<ShopHub.Infrastructure.Ops.IDatabaseDumper>(Dumper);
             services.RemoveAll<ShopHub.Infrastructure.Notifications.IEmailSender>();
             services.AddSingleton<ShopHub.Infrastructure.Notifications.IEmailSender>(Emails);
             foreach (var name in new[] { "vnpay", "momo", "zalopay", "ghn", "ghtk" })
@@ -106,6 +113,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("SH_MEILI_URL", $"http://127.0.0.1:{_meili.GetMappedPublicPort(7700)}");
         Environment.SetEnvironmentVariable("SH_MEILI_MASTER_KEY", "integration-test-meili-key");
         Environment.SetEnvironmentVariable("SH_LOG_DIR", Path.Combine(Path.GetTempPath(), "shophub-it-logs"));
+        Environment.SetEnvironmentVariable("SH_BACKUP_DIR", BackupDirectory);
 
         // The whole suite signs in from one IP
         Environment.SetEnvironmentVariable("SH_RATE_LIMIT_AUTH", "100000");

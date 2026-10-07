@@ -20,7 +20,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 11 | Cổng thật | **Xong** (chưa chạy với sandbox thật — cần tài khoản thử, xem cuối bảng) | Xem bảng Phase 11 dưới đây |
 | 12 | Quản trị & báo cáo | **Xong** | Xem bảng Phase 12 dưới đây |
 | 13 | Hoàn thiện | **Xong** (cổng / hãng thật chờ tài khoản sandbox) | Xem bảng Phase 13 dưới đây |
-| 14 | Vá sau đợt rà soát độc lập (`PROMPT-PHASE-14-RA-SOAT.md`) | **Đang làm** — nhóm A, B xong; C–F đang làm; G chờ tài khoản | Xem bảng Phase 14 cuối tệp |
+| 14 | Vá sau đợt rà soát độc lập (`PROMPT-PHASE-14-RA-SOAT.md`) | **Đang làm** — nhóm A, B, C xong (C1: chờ lần chạy CI đầu tiên); D–F đang làm; G chờ tài khoản | Xem bảng Phase 14 cuối tệp |
 
 ## Phase 0 — Chuyển đổi repo
 
@@ -261,7 +261,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 6.5 / 9 #13: 375 px không cuộn ngang, seller/admin 1366 × 768 | 00 #113 | e2e `hardening.spec.cjs` (mọi trang người mua, 1366 px cho hai gói kia); L041–L043 |
 | 6.5 WCAG AA: tương phản, bàn phím | 00 #112, `--sh-focus`, `theme.ts` | `contrast.test.ts` ×3; e2e `a11y.spec.cjs` (axe, Tab tới ô tìm kiếm); L044 |
 | 7 `docker-compose.prod.yml`: HTTPS, giới hạn tài nguyên, restart, log driver; triển khai tự dọn ảnh cũ | 00 #119, `gateway-https.conf`, `deploy/scripts/deploy.sh` | `The_https_gateway_routes_exactly_like_the_dev_gateway`; `docker compose -f docker-compose.yml -f docker-compose.prod.yml config` hợp lệ |
-| 6.4 Sao lưu / phục hồi | `backup-db`, `backup-files`, `deploy/scripts/restore.sh` | Diễn tập trên CSDL dev: 489 đơn, 1.096 sản phẩm, tổng sổ cái khớp trước / sau (docs/04) |
+| 6.4 Sao lưu / phục hồi | việc nền `sys.backup` (Phase 14 C3), `backup-files`, `deploy/scripts/restore.sh` | Diễn tập trên CSDL dev: 489 đơn, 1.096 sản phẩm, tổng sổ cái khớp trước / sau (docs/04) |
 | 7 Dữ liệu gieo: 500 đơn mọi trạng thái trong 90 ngày, 800 đánh giá, qua đúng máy trạng thái và PricingEngine | 00 #136, `OrderSampleSeeder` | L054 (kiểm SQL trên DB mới) |
 | III.9 Tài khoản phụ: mời nhân viên, vai trò & quyền theo `shop_staff`; menu Kênh Người Bán theo quyền | 00 #120, `StaffFeatures.cs`, seller → Tài khoản phụ | `An_owner_adds_a_cskh_who_works_only_within_the_granted_permissions_and_loses_access_when_removed`, `Grants_cannot_exceed_the_granters_own_and_the_owner_cannot_be_changed_or_removed`; e2e `shop-design.spec.cjs` |
 | III.9 Trang trí shop (kéo thả khối banner / sản phẩm nổi bật / danh mục / video / chữ), danh mục của shop; II.5 tab Dạo, Tất cả, danh mục, Hồ sơ shop | 00 #121–122, `ShopDesignFeatures.cs`, `ShopHomeFeatures.cs`, seller → Trang trí shop / Danh mục của shop | `Shop_categories_become_tabs_with_the_shops_order_and_only_products_a_buyer_can_see`, `The_decoration_is_published_from_own_uploads_and_buyers_see_it_resolved`; e2e `shop-design.spec.cjs` |
@@ -320,12 +320,12 @@ Mỗi mục là một lỗi trong `08-so-loi.md` (L063…), kèm phép thử đ�
 | B5 | Bảng điều khiển Hangfire mở được bằng trình duyệt; màn "Việc nền" | **Xong** | 08 L078, `JobDashboardAccess`, `POST /api/admin/jobs/ticket`, `GET /api/admin/job-runs`, admin → Việc nền | `JobDashboardTests` (2) |
 | B6 | Giới hạn tốc độ theo SĐT/email | **Xong** | 08 L079, `[IdentifierRateLimit]`, `SH_RATE_LIMIT_IDENTIFIER`, khoá `otp:{đích}` | `IdentifierRateLimitTests` (2) |
 | B7 | Quyền nhỏ (OTP tài khoản ngân hàng, `DeclaredOnly`, `img src`, `upper(code)`, U+0000 trong form) | **Xong** | 08 L080, `SendShopFinanceOtpCommand`, `EndpointAuthorisationTests` không `DeclaredOnly`, `HtmlSanitizerAdapter.FilterUrl`, migration `VoucherCodeUpperIndex`, `NullCharacterMiddleware` (form) | `SmallHardeningTests` (4) |
-| C1 | CI GitHub Actions | **Chưa** | — | — |
-| C2 | Cron theo giờ Việt Nam | **Chưa** | — | — |
-| C3 | Sao lưu trong Hangfire + màn quản trị | **Chưa** | — | — |
-| C4 | Không viết cứng ngày trong bộ gieo | **Chưa** | — | — |
-| C5 | Nâng luật quét tiền / trạng thái đơn | **Chưa** | — | — |
-| C6 | Phép thử song song còn thiếu + gom phép thử IDOR | **Chưa** | — | — |
+| C1 | CI GitHub Actions | **Một phần** — workflow đã có; lần chạy trên GitHub ghi ở dòng này khi có kết quả | 08 L086, `.github/workflows/ci.yml`, `SH_SEED_ADMIN_PASSWORD` | Lần chạy GitHub Actions trên `main` |
+| C2 | Cron theo giờ Việt Nam | **Xong** | 08 L081, `RecurringJobOptions.TimeZone = Asia/Ho_Chi_Minh`, migration `CronScheduleVietnamTime`, màn Tham số hiện "lần chạy tới" | `Schedules_are_read_in_vietnam_time_and_the_next_run_comes_from_hangfire` |
+| C3 | Sao lưu trong Hangfire + màn quản trị | **Xong** | 08 L085, `BackupService` / `BackupJob` (`sys.backup`), `sys.backup_runs`, `GET /api/admin/backups`, admin → Việc nền | `Backups_keep_the_newest_ones_record_every_run_alert_on_failure_and_are_listed_for_admins`; `pg_dump` thật trên stack: 7,4 MB, `pg_restore --list` 119 bảng |
+| C4 | Không viết cứng ngày trong bộ gieo | **Xong** | 08 L082, `FinanceSeeder` (365 ngày trước ngày nạp), luật quét | `Seeders_never_write_a_fixed_calendar_date` |
+| C5 | Nâng luật quét tiền / trạng thái đơn | **Xong** | 08 L083 | `Unit_prices_and_shipping_fees_are_only_computed_in_the_allowed_places`, `Order_status_has_no_public_or_internal_setter_and_only_the_state_machine_moves_it` |
+| C6 | Phép thử song song còn thiếu + gom phép thử IDOR | **Xong** | 08 L084, `ShopMemberFilter`, `CrossAccessTests` | `CrossAccessTests` (5) |
 | D1 | Tab sản phẩm theo URL | **Chưa** | — | — |
 | D2 | Một luật "sắp hết hàng" | **Chưa** | — | — |
 | D3 | Shop bị từ chối: lý do + gửi lại | **Chưa** | — | — |

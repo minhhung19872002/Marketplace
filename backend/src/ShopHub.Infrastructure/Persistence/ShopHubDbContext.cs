@@ -85,6 +85,7 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<Domain.SystemConfig.CmsPage> CmsPages => Set<Domain.SystemConfig.CmsPage>();
     public DbSet<Domain.SystemConfig.MessageTemplate> MessageTemplates => Set<Domain.SystemConfig.MessageTemplate>();
     public DbSet<Domain.SystemConfig.BackgroundTask> BackgroundTasks => Set<Domain.SystemConfig.BackgroundTask>();
+    public DbSet<Domain.SystemConfig.BackupRun> BackupRuns => Set<Domain.SystemConfig.BackupRun>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<ReviewMedia> ReviewMedia => Set<ReviewMedia>();
     public DbSet<ReviewReport> ReviewReports => Set<ReviewReport>();

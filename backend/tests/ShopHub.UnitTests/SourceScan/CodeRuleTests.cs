@@ -24,10 +24,54 @@ public class OrderStatusWriteTests
 
         offenders.Should().BeEmpty("trạng thái đơn chỉ được đổi qua OrderStateMachine");
     }
+
+    /// <summary>
+    /// The name-based scan above misses a variable not called "order" (L083); the compiler-level rule: Order.Status has
+    /// a private setter, and the one internal door to it (TransitionTo) is used only by OrderStateMachine.
+    /// </summary>
+    [Fact]
+    public void Order_status_has_no_public_or_internal_setter_and_only_the_state_machine_moves_it()
+    {
+        var status = typeof(ShopHub.Domain.Sales.Order).GetProperty(nameof(ShopHub.Domain.Sales.Order.Status))!;
+        status.SetMethod.Should().NotBeNull();
+        status.SetMethod!.IsPrivate.Should().BeTrue("không setter public / internal");
+        var callers = RepoFiles.AllSourceFiles()
+            .Where(f => !f.EndsWith("OrderStateMachine.cs", StringComparison.Ordinal) && !f.EndsWith($"{Path.DirectorySeparatorChar}Order.cs", StringComparison.Ordinal))
+            .Where(f => RepoFiles.WithoutComments(File.ReadAllText(f)).Contains(".TransitionTo(", StringComparison.Ordinal))
+            .Select(RepoFiles.Relative).ToList();
+        callers.Should().BeEmpty("chỉ OrderStateMachine gọi TransitionTo");
+    }
 }
 
 public class MoneyTypeTests
 {
+    // C5 / L083: every price is computed in PricingEngine; arithmetic on a unit price or a shipping fee anywhere else
+    // must be one of these, with its reason (an order's settlement, a parcel's declared value…)
+    private static readonly Dictionary<string, string> PriceArithmeticAllowed = new()
+    {
+        ["PricingEngine.cs"] = "the price itself",
+        ["SettlementCalculator.cs"] = "what a completed order is worth to the shop, from the prices PricingEngine fixed",
+        ["LoyaltyFeatures.cs"] = "member spending: what was paid for goods (grand total less the shipping paid)",
+        ["Deals.cs"] = "free-gift threshold on the already-priced lines (feeds PricingEngine)",
+        ["ReturnFeatures.cs"] = "declared value of a return parcel for the carrier",
+        ["SellerOrderFeatures.cs"] = "COD amount split between the parcels of one order",
+    };
+
+    private static readonly Regex PriceArithmetic = new(@"\b(UnitPrice|ShippingFee)\s*[-+*]\s*[\w(]|[\w)]\s*[-+*]\s*\(?\s*[\w.]*\b(UnitPrice|ShippingFee)\b");
+
+    [Fact]
+    public void Unit_prices_and_shipping_fees_are_only_computed_in_the_allowed_places()
+    {
+        var offenders = RepoFiles.SourceFiles("ShopHub.Domain", "ShopHub.Application")
+            .Where(f => !PriceArithmeticAllowed.ContainsKey(Path.GetFileName(f)))
+            .SelectMany(f => RepoFiles.WithoutComments(File.ReadAllText(f)).Split('\n').Select((line, i) => (f, line, i)))
+            .Where(x => PriceArithmetic.IsMatch(x.line))
+            .Select(x => $"{RepoFiles.Relative(x.f)}:{x.i + 1}: {x.line.Trim()}")
+            .ToList();
+
+        offenders.Should().BeEmpty("mọi tính giá đi qua PricingEngine (mục 8: MoneyTypeTests)");
+    }
+
     // decimal/double/float with a money-like name is forbidden in Domain/Application (use Money / long VND)
     private static readonly Regex MoneyFloat = new(
         @"\b(decimal|double|float)\??\s+\w*(Price|Amount|Total|Fee|Discount|Balance|Cost|Money|Subtotal|Refund|Payout)\w*\b",
@@ -319,5 +363,24 @@ public class InventoryWriteTests
             .ToList();
 
         offenders.Should().BeEmpty("tồn kho chỉ đổi qua InventoryWriter: UPDATE có điều kiện + dòng inventory_movements trong cùng giao dịch");
+    }
+}
+
+public class SeedDateTests
+{
+    // C4 / L082: sample data is dated from the day it is loaded — a date written in a seeder ages and breaks (fees "not yet valid", orders in the future)
+    private static readonly Regex FixedDate = new(@"new\s+(System\.)?(DateTime|DateOnly|DateTimeOffset)\s*\(\s*20\d{2}|""20\d{2}-\d{2}-\d{2}|DateTime(Offset)?\.Parse\(\s*""20\d{2}");
+
+    [Fact]
+    public void Seeders_never_write_a_fixed_calendar_date()
+    {
+        var offenders = RepoFiles.SourceFiles("ShopHub.Infrastructure")
+            .Where(f => f.Contains($"{Path.DirectorySeparatorChar}Seed{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(f => RepoFiles.WithoutComments(File.ReadAllText(f)).Split('\n').Select((line, i) => (f, line, i)))
+            .Where(x => FixedDate.IsMatch(x.line))
+            .Select(x => $"{RepoFiles.Relative(x.f)}:{x.i + 1}: {x.line.Trim()}")
+            .ToList();
+
+        offenders.Should().BeEmpty("mọi mốc thời gian của dữ liệu gieo tính từ ngày nạp (đặc tả mục 7)");
     }
 }

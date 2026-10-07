@@ -12,8 +12,13 @@ COPY src/ src/
 RUN dotnet publish src/ShopHub.Api/ShopHub.Api.csproj -c Release -o /app --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim
-# ICU is needed for vi-VN culture formatting
-RUN apt-get update && apt-get install -y --no-install-recommends libicu72 curl && rm -rf /var/lib/apt/lists/*
+# ICU is needed for vi-VN culture formatting; pg_dump / pg_restore 16 (PGDG) for the backup job (same major as the server)
+RUN apt-get update && apt-get install -y --no-install-recommends libicu72 curl ca-certificates \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends postgresql-client-16 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app .
 ENV ASPNETCORE_URLS=http://+:8080 \

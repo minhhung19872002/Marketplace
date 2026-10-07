@@ -24,11 +24,25 @@ public static class JobIds
     public const string CarrierSync = "logistics.carrier-sync";
     public const string BulkSweep = "seller.bulk-sweep";
     public const string PriceIndex = "search.price-index";
+    public const string Backup = "sys.backup";
+
+    /// <summary>The JOB.*_CRON parameter holding each job's schedule (Vietnam time).</summary>
+    public static readonly IReadOnlyDictionary<string, string> ScheduleParameter = new Dictionary<string, string>
+    {
+        [OutboxDispatch] = ParameterKeys.JobOutboxDispatchCron, [OutboxCleanup] = ParameterKeys.JobOutboxCleanupCron,
+        [CounterRecompute] = ParameterKeys.JobCounterRecomputeCron, [PaymentExpiry] = ParameterKeys.JobPaymentExpiryCron,
+        [OrderAutomation] = ParameterKeys.JobOrderAutomationCron, [CarrierSimulator] = ParameterKeys.JobCarrierSimulatorCron,
+        [Settlement] = ParameterKeys.JobSettlementCron, [LedgerCheck] = ParameterKeys.JobLedgerCheckCron,
+        [FlashReconcile] = ParameterKeys.JobFlashReconcileCron, [CoinExpiry] = ParameterKeys.JobCoinExpiryCron,
+        [Reminders] = ParameterKeys.JobRemindersCron, [CartCleanup] = ParameterKeys.JobCartCleanupCron,
+        [CarrierSync] = ParameterKeys.JobCarrierSyncCron, [BulkSweep] = ParameterKeys.JobBulkSweepCron, [PriceIndex] = ParameterKeys.JobPriceIndexCron,
+        [Backup] = ParameterKeys.JobBackupCron,
+    };
 
     // Jobs an admin may trigger on demand (POST /api/admin/job-runs/{id})
     public static readonly IReadOnlyList<string> Runnable =
         [OutboxDispatch, CounterRecompute, PaymentExpiry, OrderAutomation, CarrierSimulator, Settlement, LedgerCheck, FlashReconcile, CoinExpiry, Reminders,
-            CarrierSync, CartCleanup];
+            CarrierSync, CartCleanup, Backup];
 }
 
 /// <summary>Hangfire entry for <see cref="Application.Features.Orders.OrderAutomationService"/>.</summary>
@@ -105,7 +119,14 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
 {
     public async Task RegisterRecurringJobsAsync(CancellationToken ct = default)
     {
-        var options = new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc };
+        // Schedules are written in Vietnam time, like every other time an admin types (L081)
+        var options = new RecurringJobOptions { TimeZone = Application.Common.VietnamTime.Zone };
+
+        recurringJobs.AddOrUpdate<Ops.BackupJob>(
+            JobIds.Backup,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobBackupCron, ct),
+            options);
 
         recurringJobs.AddOrUpdate<OutboxDispatcher>(
             JobIds.OutboxDispatch,

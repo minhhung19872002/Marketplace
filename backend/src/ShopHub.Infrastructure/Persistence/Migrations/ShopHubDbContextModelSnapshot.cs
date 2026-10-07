@@ -6223,6 +6223,52 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("background_tasks", "sys");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.SystemConfig.BackupRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("error");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("file_name");
+
+                    b.Property<DateTimeOffset?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_backup_runs");
+
+                    b.HasIndex("StartedAt")
+                        .IsDescending()
+                        .HasDatabaseName("ix_backup_runs_started");
+
+                    b.ToTable("backup_runs", "sys");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.SystemConfig.CmsPage", b =>
                 {
                     b.Property<Guid>("Id")

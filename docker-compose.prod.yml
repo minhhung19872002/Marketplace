@@ -7,7 +7,8 @@
 #  - no service publishes a port except the gateway; mailpit is not started (real SMTP from .env)
 #  - production settings: no simulated gateway, no sample data, code default rate limits, Production environment
 #  - restart always, CPU / memory limits, rotated json-file logs
-#  - backup-db (nightly pg_dump, kept SH_BACKUP_KEEP_DAYS) and backup-files (MinIO mirrored continuously)
+#  - database backups: the API's sys.backup job (Hangfire; schedule JOB.BACKUP_CRON, kept BACKUP.KEEP_COUNT) into ./backups/db;
+#    backup-files (MinIO mirrored continuously)
 
 x-logging: &logging
   logging:
@@ -117,29 +118,6 @@ services:
       resources:
         limits: { cpus: "1.0", memory: 256m }
 
-  # Nightly logical backup of PostgreSQL into ./backups/db (busybox crond inside the postgres image)
-  backup-db:
-    <<: *prod
-    image: postgres:16-alpine
-    environment:
-      PGHOST: postgres
-      PGUSER: ${SH_DB_USER:-shophub}
-      PGPASSWORD: ${SH_DB_PASSWORD}
-      PGDATABASE: ${SH_DB_NAME:-shophub}
-      SH_BACKUP_KEEP_DAYS: ${SH_BACKUP_KEEP_DAYS:-14}
-      SH_BACKUP_CRON: ${SH_BACKUP_CRON:-30 19 * * *}
-    volumes:
-      - ./deploy/scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
-      - ./backups/db:/backups
-    entrypoint: ["/bin/sh", "-c", "echo \"$$SH_BACKUP_CRON /bin/sh /usr/local/bin/backup-db.sh >> /proc/1/fd/1 2>&1\" > /etc/crontabs/root && exec crond -f -l 8"]
-    depends_on:
-      postgres:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits: { cpus: "0.5", memory: 256m }
-
-  # Files (product images, reviews, KYC, chat) mirrored continuously into ./backups/minio
   backup-files:
     <<: *prod
     image: minio/mc:latest
@@ -147,7 +125,7 @@ services:
       MC_HOST_sh: http://${SH_MINIO_ACCESS_KEY:-shophub}:${SH_MINIO_SECRET_KEY}@minio:9000
     volumes:
       - ./backups/minio:/backups
-    entrypoint: ["/bin/sh", "-c", "for b in sh-products sh-reviews sh-kyc sh-chat sh-banners; do mkdir -p /backups/$$b; done; exec mc mirror --watch --overwrite sh/ /backups/"]
+    entrypoint: ["/bin/sh", "-c", "for b in sh-products sh-reviews sh-kyc sh-chat sh-banners sh-returns; do mkdir -p /backups/$$b; done; exec mc mirror --watch --overwrite sh/ /backups/"]
     depends_on:
       minio:
         condition: service_healthy

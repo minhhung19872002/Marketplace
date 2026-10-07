@@ -131,6 +131,7 @@ services:
       # Dev/demo stack: every browser and the e2e suite share one IP behind the gateway
       SH_RATE_LIMIT_AUTH: ${SH_RATE_LIMIT_AUTH:-300}
       SH_RATE_LIMIT_OTP: ${SH_RATE_LIMIT_OTP:-300}
+      SH_BACKUP_DIR: /backups
       # Per phone / e-mail / username a minute (production default 10); the e2e suite signs the admin in many times
       SH_RATE_LIMIT_IDENTIFIER: ${SH_RATE_LIMIT_IDENTIFIER:-300}
       # Per-IP ceiling for every request (code default 600/min); e2e runs hammer it from one IP
@@ -142,6 +143,8 @@ services:
       # Load-test buyers for e2e/load (k6): off unless both are set in .env
       SH_SEED_LOAD_USERS: ${SH_SEED_LOAD_USERS:-0}
       SH_LOAD_USER_PASSWORD: ${SH_LOAD_USER_PASSWORD:-}
+      # First-run admin password chosen by the operator (CI: a GitHub secret); empty = generated and printed once
+      SH_SEED_ADMIN_PASSWORD: ${SH_SEED_ADMIN_PASSWORD:-}
       # Anonymous catalogue reads cached in Redis (seconds). Off on the dev stack so e2e always reads fresh data
       SH_OUTPUT_CACHE_SECONDS: ${SH_OUTPUT_CACHE_SECONDS:-0}
       # Real gateways / carriers (Phase 11): each one is on only when its keys are set in .env
@@ -165,6 +168,8 @@ services:
       SH_GHTK_ENDPOINT: ${SH_GHTK_ENDPOINT:-}
     volumes:
       - apilogs:/app/logs
+      # Database backups written by the sys.backup job (deploy/scripts/restore.sh reads them back)
+      - ./backups/db:/backups
     depends_on:
       postgres:
         condition: service_healthy

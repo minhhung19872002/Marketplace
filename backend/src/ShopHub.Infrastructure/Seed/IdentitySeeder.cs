@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Security;
 using ShopHub.Domain.Iam;
+using ShopHub.Infrastructure.Configuration;
 using ShopHub.Infrastructure.Persistence;
 
 namespace ShopHub.Infrastructure.Seed;
@@ -13,7 +14,7 @@ namespace ShopHub.Infrastructure.Seed;
 /// Accounts &amp; reference data. Every part checks its OWN presence so a partially seeded database only gets what it lacks.
 /// Generated passwords are printed to the log once (first seed) and never stored in the repository.
 /// </summary>
-public sealed class IdentitySeeder(ShopHubDbContext db, IPasswordHasher hasher, IClock clock, ILogger<IdentitySeeder> logger)
+public sealed class IdentitySeeder(ShopHubDbContext db, IPasswordHasher hasher, IClock clock, ShopHubSettings settings, ILogger<IdentitySeeder> logger)
 {
     public const string AdminUsername = "admin";
 
@@ -109,16 +110,20 @@ public sealed class IdentitySeeder(ShopHubDbContext db, IPasswordHasher hasher, 
         var superAdminRoleId = await db.Roles.Where(r => r.Code == RoleCatalog.SuperAdmin).Select(r => r.Id).SingleAsync(ct);
         if (await db.UserRoles.AnyAsync(ur => ur.RoleId == superAdminRoleId, ct)) return;
 
-        var password = NewPassword();
+        // SH_SEED_ADMIN_PASSWORD (CI, from a secret): the operator chose it — used as is, never printed, no forced change
+        var chosen = settings.SeedAdminPassword;
+        var password = chosen ?? NewPassword();
         var admin = User.Register(null, "admin@shophub.local", hasher.Hash(password), "Quản trị viên", clock.UtcNow);
         admin.SetUsername(AdminUsername);
-        admin.RequirePasswordChange();
+        if (chosen is null) admin.RequirePasswordChange();
         db.Users.Add(admin);
         db.UserRoles.Add(new UserRole(admin.Id, superAdminRoleId));
         await db.SaveChangesAsync(ct);
 
-        PrintCredentials($"Tài khoản quản trị mặc định: tên đăng nhập '{AdminUsername}', mật khẩu '{password}' — đổi ngay ở lần đăng nhập đầu tiên");
-        logger.LogInformation("Seeded default admin account '{Username}' (credentials printed to stdout once)", AdminUsername);
+        if (chosen is null)
+            PrintCredentials($"Tài khoản quản trị mặc định: tên đăng nhập '{AdminUsername}', mật khẩu '{password}' — đổi ngay ở lần đăng nhập đầu tiên");
+        logger.LogInformation("Seeded default admin account '{Username}' ({Source})", AdminUsername,
+            chosen is null ? "credentials printed to stdout once" : "password from SH_SEED_ADMIN_PASSWORD");
     }
 
     private async Task SeedSampleAccountsAsync(CancellationToken ct)

@@ -66,16 +66,18 @@ public static class DatabaseInitializer
             await sp.GetRequiredService<IJobScheduler>().RegisterRecurringJobsAsync(ct);
     }
 
-    // Each key is checked on its own: a partially seeded DB gets only what it lacks, existing values are kept
+    // Each key is checked on its own: a partially seeded DB gets only what it lacks, existing values are kept; names and
+    // help texts follow the catalogue (e.g. "giờ Việt Nam" on every schedule, L081)
     private static async Task SeedSystemParametersAsync(ShopHubDbContext db, ILogger logger, CancellationToken ct)
     {
-        var existing = await db.SystemParameters.IgnoreQueryFilters().Select(p => p.Key).ToListAsync(ct);
-        var missing = ParameterCatalog.All.Where(d => !existing.Contains(d.Key)).ToList();
-        if (missing.Count == 0) return;
+        var existing = await db.SystemParameters.IgnoreQueryFilters().ToDictionaryAsync(p => p.Key, ct);
+        var missing = ParameterCatalog.All.Where(d => !existing.ContainsKey(d.Key)).ToList();
+        var described = ParameterCatalog.All.Count(d => existing.TryGetValue(d.Key, out var row) && row.Describe(d.Name, d.Description));
+        if (missing.Count == 0 && described == 0) return;
 
         db.SystemParameters.AddRange(missing.Select(d =>
             new SystemParameter(d.Key, d.DefaultValue, d.DataType, d.Group, d.Name, d.Description)));
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Seeded {Count} system parameter(s)", missing.Count);
+        logger.LogInformation("Seeded {Count} system parameter(s), refreshed {Described} description(s)", missing.Count, described);
     }
 }

@@ -117,12 +117,12 @@ dịch vụ, log `json-file` xoay vòng (5 × 20 MB), output cache trang ngườ
 
 ## Sao lưu & phục hồi
 
-| Dịch vụ (chỉ production) | Làm gì | Ở đâu |
+| Gì | Làm gì | Ở đâu |
 |---|---|---|
-| `backup-db` | `pg_dump -Fc` theo `SH_BACKUP_CRON` (mặc định `30 19 * * *` UTC = 02:30 giờ VN), kiểm tệp bằng `pg_restore --list`, xoá bản cũ hơn `SH_BACKUP_KEEP_DAYS` (14) | `./backups/db/shophub-yyyyMMdd-HHmmss.dump` |
-| `backup-files` | `mc mirror --watch` mọi bucket MinIO, liên tục | `./backups/minio/<bucket>/` |
+| Việc nền `sys.backup` (API, dev và production) | `pg_dump -Fc` theo tham số `JOB.BACKUP_CRON` (giờ Việt Nam, mặc định `30 2 * * *` = 02:30), kiểm tệp bằng `pg_restore --list`, giữ `BACKUP.KEEP_COUNT` (14) bản mới nhất; mỗi lần chạy ghi `sys.backup_runs`, hỏng thì quản trị có quyền xem việc nền nhận thông báo | `./backups/db/shophub-yyyyMMdd-HHmmss.dump` (giờ VN) |
+| `backup-files` (chỉ production) | `mc mirror --watch` mọi bucket MinIO (cả `sh-returns`), liên tục | `./backups/minio/<bucket>/` |
 
-Sao lưu ngay: `docker compose -f docker-compose.yml -f docker-compose.prod.yml exec backup-db sh /usr/local/bin/backup-db.sh`.
+Sao lưu ngay / xem các bản: Quản trị → **Việc nền** → *Sao lưu ngay*, bảng "Bản sao lưu" (tên, cỡ, thời điểm, trạng thái).
 Chép `./backups` ra ngoài máy (rsync / object storage khác vùng) — bản sao trên cùng đĩa không chống được hỏng đĩa.
 
 Phục hồi: `deploy/scripts/restore.sh backups/db/<tệp>.dump [--files]` — hỏi xác nhận (gõ `dong y`), dừng API,

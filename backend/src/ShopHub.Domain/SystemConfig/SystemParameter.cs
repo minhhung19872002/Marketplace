@@ -38,6 +38,15 @@ public class SystemParameter : AuditableEntity
     // Optimistic concurrency token (PostgreSQL xmin)
     public uint Version { get; private set; }
 
+    /// <summary>Name and help text come from the code's catalogue (an admin edits only the value).</summary>
+    public bool Describe(string name, string description)
+    {
+        if (Name == name && Description == description) return false;
+        Name = name;
+        Description = description;
+        return true;
+    }
+
     public void SetValue(string value)
     {
         var error = Validate(DataType, value);

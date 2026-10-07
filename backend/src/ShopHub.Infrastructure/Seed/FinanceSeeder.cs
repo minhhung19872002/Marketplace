@@ -8,7 +8,8 @@ namespace ShopHub.Infrastructure.Seed;
 
 /// <summary>
 /// Fee schedule (reference data, always): the fixed fee of each top-level category taken from its current rate, and a
-/// payment fee for every order, valid from 01/01/2026. Also marks the bank accounts of approved shops as verified —
+/// payment fee for every order, valid from a year before the day the data is loaded (covers the 90 days of sample orders;
+/// never a date written in the code, L082). Also marks the bank accounts of approved shops as verified —
 /// the admin checked them with the KYC file when approving. Idempotent.
 /// </summary>
 public sealed class FinanceSeeder(ShopHubDbContext db, IClock clock, ILogger<FinanceSeeder> logger)
@@ -17,10 +18,13 @@ public sealed class FinanceSeeder(ShopHubDbContext db, IClock clock, ILogger<Fin
     public const int DefaultFixedFeeBp = 400;
     public const int DefaultFreeshipXtraBp = 500;
     public const int DefaultVoucherXtraBp = 300;
-    private static readonly DateTimeOffset From = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.FromHours(7)).ToUniversalTime();
+    public const int HistoryDays = 365;
 
     public async Task SeedAsync(CancellationToken ct)
     {
+        // 00:00 Vietnam time, HistoryDays before today
+        var From = new DateTimeOffset(Application.Common.VietnamTime.Today(clock.UtcNow).AddDays(-HistoryDays).ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(7))
+            .ToUniversalTime();
         if (!await db.FeeRules.AnyAsync(ct))
         {
             var now = clock.UtcNow;

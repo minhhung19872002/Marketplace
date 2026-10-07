@@ -25,7 +25,7 @@ web/       Site người mua — React 18 + TypeScript + Vite (@shophub/web)
 seller/    Kênh Người Bán — React + TS + Ant Design 5 (@shophub/seller)
 admin/     Quản trị sàn — React + TS + Ant Design 5 (@shophub/admin)
 e2e/       Playwright (19 kịch bản cũ + kịch bản mục 9) · e2e/load/ k6 (Flash Sale 1.000 người, hiệu năng 1 triệu sản phẩm)
-deploy/    nginx/ (gateway, gateway-https, SPA), postgres/init/, scripts/ (deploy, backup-db, restore), frontend.Dockerfile
+deploy/    nginx/ (gateway, gateway-https, SPA), postgres/init/, scripts/ (deploy, restore), frontend.Dockerfile
 docs/      Quyết định kỹ thuật, đối chiếu chức năng, sổ lỗi…
 ```
 

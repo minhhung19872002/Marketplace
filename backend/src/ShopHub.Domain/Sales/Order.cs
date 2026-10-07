@@ -188,7 +188,11 @@ public class Order : Entity
     public Guid ShopId { get; private set; }
     public string Code { get; private set; } = string.Empty;
     // Only OrderStateMachine changes this (source-scan rule)
-    public OrderStatus Status { get; internal set; }
+    // Private setter (code rule): only OrderStateMachine moves it, through TransitionTo
+    public OrderStatus Status { get; private set; }
+
+    /// <summary>For <see cref="OrderStateMachine"/> only (a source rule forbids every other caller).</summary>
+    internal void TransitionTo(OrderStatus to) => Status = to;
     public OrderPaymentStatus PaymentStatus { get; internal set; }
     public PaymentMethod PaymentMethod { get; private set; }
     public string CarrierCode { get; private set; } = string.Empty;

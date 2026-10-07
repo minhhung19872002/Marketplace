@@ -70,6 +70,9 @@ public static class DependencyInjection
         services.AddSingleton<MinioObjectStorage>();
         services.AddSingleton<IObjectStorage>(sp => sp.GetRequiredService<MinioObjectStorage>());
         services.AddScoped<EvidenceRelocation>();
+        services.AddSingleton<Ops.IDatabaseDumper, Ops.PgDumpDumper>();
+        services.AddScoped<Ops.BackupService>();
+        services.AddScoped<Ops.BackupJob>();
         services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
         services.AddSingleton<IVideoInspector, Mp4VideoInspector>();
         services.AddSingleton<Application.Abstractions.IHtmlSanitizer, HtmlSanitizerAdapter>();

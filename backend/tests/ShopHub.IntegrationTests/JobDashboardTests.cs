@@ -2,6 +2,7 @@ using System.Net;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using ShopHub.Application.Security;
 using ShopHub.Domain.Iam;
 using ShopHub.IntegrationTests.Infrastructure;
@@ -48,6 +49,21 @@ public class JobDashboardTests(ApiFactory factory)
 
         var plain = await factory.CreateUserAsync();
         (await plain.Client.PostAsync("/api/admin/jobs/ticket", null)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Schedules_are_read_in_vietnam_time_and_the_next_run_comes_from_hangfire()
+    {
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<Application.Abstractions.IJobScheduler>().RegisterRecurringJobsAsync(CancellationToken.None);
+        var viewer = await factory.CreateUserAsync(Permissions.JobDashboardView);
+        var jobs = (await (await viewer.Client.GetAsync("/api/admin/job-runs")).ReadEnvelopeAsync()).Data.EnumerateArray().ToList();
+        var ledger = jobs.Single(j => j.Str("id") == "finance.ledger-check");
+        ledger.Str("cron").Should().Be("30 2 * * *", "02:30 sáng giờ Việt Nam");
+        ledger.Str("parameterKey").Should().Be(Application.SystemConfig.ParameterKeys.JobLedgerCheckCron);
+        ledger.Str("timeZone").Should().Be("Asia/Ho_Chi_Minh");
+        var next = DateTime.Parse(ledger.Str("nextExecution"), null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal);
+        (next.Hour, next.Minute).Should().Be((19, 30), "02:30 giờ Việt Nam là 19:30 UTC hôm trước");
     }
 
     [Fact]

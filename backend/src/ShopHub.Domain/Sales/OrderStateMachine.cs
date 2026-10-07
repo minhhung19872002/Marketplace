@@ -53,7 +53,7 @@ public static class OrderStateMachine
             throw new BusinessRuleException($"Không thể chuyển đơn {order.Code} từ \"{Label(order.Status)}\" sang \"{Label(to)}\".");
 
         var from = order.Status;
-        order.Status = to;
+        order.TransitionTo(to);
         switch (to)
         {
             case OrderStatus.PendingConfirmation when from == OrderStatus.PendingPayment:

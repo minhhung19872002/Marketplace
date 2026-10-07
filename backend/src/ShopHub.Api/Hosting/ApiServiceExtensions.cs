@@ -50,6 +50,8 @@ public static class ApiServiceExtensions
                 ModelStateResponse.UseVietnameseMessages(o.ModelBindingMessageProvider);
                 // Required-ness is FluentValidation's job (Vietnamese messages), not MVC's implicit [Required]
                 o.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+                // Before the automatic 400 of invalid model state (order -2000): another shop's routes are "not found" first
+                o.Filters.Add(typeof(Security.ShopMemberFilter), -3000);
             })
             .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
             .ConfigureApiBehaviorOptions(o => o.InvalidModelStateResponseFactory = ModelStateResponse.Create);

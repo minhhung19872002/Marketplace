@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { App as AntApp, Button, Input, Modal, Segmented, Space, Table, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi, type SystemParameter } from '../api/admin'
+import { jobsApi } from '../api/jobs'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
 import { P, can } from '../permissions'
@@ -24,6 +25,9 @@ const ParametersPage = ({ permissions }: { permissions: string[] }) => {
   const [value, setValue] = useState('')
   const [error, setError] = useState('')
   const params = useQuery({ queryKey: ['parameters', group], queryFn: () => adminApi.parameters(group || undefined) })
+  // Next run of each schedule as Hangfire computes it (only for admins who may see the jobs)
+  const jobs = useQuery({ queryKey: ['jobs'], queryFn: jobsApi.list, enabled: can(permissions, P.JobDashboardView) })
+  const nextRun = (key: string) => jobs.data?.find((j) => j.parameterKey === key)?.nextExecution ?? null
 
   const save = useMutation({
     mutationFn: () => adminApi.updateParameter(editing!.key, value, editing!.version),
@@ -46,7 +50,17 @@ const ParametersPage = ({ permissions }: { permissions: string[] }) => {
         pagination={false}
         columns={[
           { title: 'Tham số', render: (_, p) => <><div>{p.name}</div><Typography.Text type="secondary" code>{p.key}</Typography.Text></> },
-          { title: 'Giá trị', dataIndex: 'value', render: (v: string, p) => <Space><span>{v}</span><Tag>{p.dataType}</Tag></Space> },
+          {
+            title: 'Giá trị', dataIndex: 'value', render: (v: string, p) => {
+              const next = p.dataType === 'Cron' ? nextRun(p.key) : null
+              return (
+                <Space direction="vertical" size={0}>
+                  <Space><span>{v}</span><Tag>{p.dataType === 'Cron' ? 'Cron · giờ Việt Nam' : p.dataType}</Tag></Space>
+                  {next && <Typography.Text type="secondary" data-testid={`next-run-${p.key}`}>Lần chạy tới: {formatDateTime(`${next}${next.endsWith('Z') ? '' : 'Z'}`)}</Typography.Text>}
+                </Space>
+              )
+            },
+          },
           { title: 'Mô tả', dataIndex: 'description' },
           { title: 'Sửa lúc', dataIndex: 'updatedAt', render: (v: string | null) => (v ? formatDateTime(v) : '—') },
           {

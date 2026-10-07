@@ -42,7 +42,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         .Build();
 
     private readonly IContainer _minio = new ContainerBuilder()
-        .WithImage("minio/minio:RELEASE.2025-04-22T22-12-26Z")
+        .WithImage("pgsty/minio:RELEASE.2026-08-04T00-00-00Z")
         .WithCommand("server", "/data")
         .WithEnvironment("MINIO_ROOT_USER", "shophub")
         .WithEnvironment("MINIO_ROOT_PASSWORD", "shophub-test-secret")

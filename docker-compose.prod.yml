@@ -120,7 +120,7 @@ services:
 
   backup-files:
     <<: *prod
-    image: minio/mc:latest
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
     environment:
       MC_HOST_sh: http://${SH_MINIO_ACCESS_KEY:-shophub}:${SH_MINIO_SECRET_KEY}@minio:9000
     volumes:

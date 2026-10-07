@@ -101,6 +101,10 @@ internal sealed class BackgroundTaskConfiguration : IEntityTypeConfiguration<Bac
         b.Property(t => t.FileName).HasMaxLength(255).IsRequired();
         b.Property(t => t.Message).HasMaxLength(1000);
         b.Property(t => t.Input).HasColumnType("bytea");
+        b.Property(t => t.Output).HasColumnType("bytea");
+        b.Property(t => t.OutputName).HasMaxLength(255);
+        b.Property(t => t.OutputType).HasMaxLength(100);
+        b.HasIndex(t => new { t.OwnerUserId, t.CreatedAt }).HasDatabaseName("ix_background_tasks_owner");
         b.Property(t => t.Errors).HasColumnType("jsonb").HasConversion(
             v => JsonSerializer.Serialize(v, Json),
             v => JsonSerializer.Deserialize<List<TaskRowError>>(v, Json) ?? new List<TaskRowError>(),

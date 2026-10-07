@@ -125,6 +125,24 @@ internal sealed class BannerConfiguration : IEntityTypeConfiguration<Banner>
     }
 }
 
+internal sealed class CampaignRegistrationConfiguration : IEntityTypeConfiguration<CampaignRegistration>
+{
+    public void Configure(EntityTypeBuilder<CampaignRegistration> b)
+    {
+        b.ToTable("campaign_registrations", "promo");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(x => x.RejectReason).HasMaxLength(300);
+        b.Property(x => x.Version).IsRowVersion();
+        b.HasOne<Campaign>().WithMany().HasForeignKey(x => x.CampaignId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<Domain.Catalog.Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Cascade);
+        // One registration per campaign + product (a refused one is put forward again on the same row)
+        b.HasIndex(x => new { x.CampaignId, x.ProductId }).IsUnique().HasDatabaseName("ux_campaign_registrations");
+        b.HasIndex(x => new { x.CampaignId, x.Status, x.CreatedAt }).HasDatabaseName("ix_campaign_registrations_status");
+        b.HasIndex(x => new { x.ShopId, x.CampaignId }).HasDatabaseName("ix_campaign_registrations_shop");
+    }
+}
+
 internal sealed class CampaignConfiguration : IEntityTypeConfiguration<Campaign>
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)

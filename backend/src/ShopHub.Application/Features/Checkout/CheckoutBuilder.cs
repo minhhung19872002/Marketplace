@@ -193,7 +193,8 @@ public sealed class CheckoutBuilder(
             }
             var shopLines = buyable.Where(l => l.Shop.Id == shop.Id).ToList();
             var planned = Parcels.Plan(shop.MultiWarehouse, warehouses, shopLines.Select(l => new ParcelLine(l.Product.Id, l.Product.WarehouseId,
-                new ParcelItem(l.Sku.WeightG ?? l.Product.WeightG, l.Product.LengthMm, l.Product.WidthMm, l.Product.HeightMm, l.Item.Quantity))).ToList());
+                new ParcelItem(l.Sku.WeightG ?? l.Product.WeightG, l.Sku.LengthMm ?? l.Product.LengthMm, l.Sku.WidthMm ?? l.Product.WidthMm,
+                    l.Sku.HeightMm ?? l.Product.HeightMm, l.Item.Quantity))).ToList());
             var to = new RoutePoint(address.ProvinceCode, address.DistrictCode, address.WardCode);
             var quoted = new List<(PlannedParcel, IReadOnlyList<ShippingOption>)>();
             foreach (var parcel in planned)

@@ -257,12 +257,24 @@ public sealed class PlatformAdminController : ApiControllerBase
 
     // ---------- audit export ----------
 
-    [HttpGet("audit-logs/export")]
+    /// <summary>Xuất nhật ký ra Excel (6.4): queued as a background task of the signed-in admin.</summary>
+    [HttpPost("audit-logs/export-tasks")]
+    [RequirePermission(Permissions.AuditLogView)]
+    [ProducesResponseType<ApiResponse<BackgroundTaskDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportAudit([FromBody] AuditLogsExportQuery query, CancellationToken ct) =>
+        OkData(await Sender.Send(new StartAuditExportCommand(query), ct), "Đang xuất tệp, bạn sẽ tải được khi xong.");
+
+    [HttpGet("my-tasks/{taskId:guid}")]
+    [RequirePermission(Permissions.AuditLogView)]
+    [ProducesResponseType<ApiResponse<BackgroundTaskDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> MyTask(Guid taskId, CancellationToken ct) => OkData(await Sender.Send(new MyTaskQuery(taskId), ct));
+
+    [HttpGet("my-tasks/{taskId:guid}/file")]
     [RequirePermission(Permissions.AuditLogView)]
     [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/json")]
-    public async Task<IActionResult> ExportAudit([FromQuery] AuditLogsExportQuery query, CancellationToken ct)
+    public async Task<IActionResult> MyTaskFile(Guid taskId, CancellationToken ct)
     {
-        var file = await Sender.Send(query, ct);
+        var file = await Sender.Send(new MyTaskFileQuery(taskId), ct);
         return File(file.Content, file.ContentType, file.FileName);
     }
 

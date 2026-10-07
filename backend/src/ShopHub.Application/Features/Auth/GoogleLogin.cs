@@ -46,6 +46,7 @@ public sealed class GoogleLoginHandler(IApplicationDbContext db, IGoogleTokenVer
             ? await db.Users.FirstOrDefaultAsync(u => u.Id == linked.UserId, ct)
             : await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
 
+        var isNew = user is null;
         if (user is null)
         {
             if (!request.AcceptTerms)
@@ -59,9 +60,11 @@ public sealed class GoogleLoginHandler(IApplicationDbContext db, IGoogleTokenVer
         if (user.Status == UserStatus.Deleted) throw new AuthenticationFailedException();
         if (linked is null) db.UserIdentities.Add(new UserIdentity(user.Id, ExternalProvider.Google, identity.Subject, email, now));
 
-        user.RecordSuccessfulLogin(now);
+        // A new account carries its first sign-in; an existing one is stamped set-based (concurrent sign-ins, L061)
+        if (isNew) user.RecordSuccessfulLogin(now);
         // The unique (provider, key) and e-mail indexes decide two first sign-ins at the same moment
         await db.SaveChangesAsync(ct);
+        if (!isNew) await LoginStamp.RecordAsync(db, user, now, ct);
         return await sessions.StartAsync(user, request.Device, ct);
     }
 }

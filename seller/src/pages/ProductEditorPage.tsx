@@ -30,6 +30,8 @@ interface SkuRow {
   originalPrice: number | null
   stock: number | null
   isActive: boolean
+  // Own package size (mm) when it differs from the product's
+  size: { l: number | null; w: number | null; h: number | null }
 }
 
 const MAX_IMAGES = 9
@@ -45,7 +47,8 @@ function rebuildSkus(tiers: Tier[], previous: SkuRow[]): SkuRow[] {
   for (const a of t1) {
     for (const b of t2) {
       const key = comboKey(a, b)
-      rows.push(byKey.get(key) ?? { key, option1: a, option2: b, sellerSku: '', price: null, originalPrice: null, stock: null, isActive: true })
+      rows.push(byKey.get(key) ?? { key, option1: a, option2: b, sellerSku: '', price: null, originalPrice: null, stock: null, isActive: true,
+        size: { l: null, w: null, h: null } })
     }
   }
   return rows
@@ -149,6 +152,7 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
     setSkus(p.skus.map((s) => ({
       key: comboKey(s.option1, s.option2), option1: s.option1, option2: s.option2, sellerSku: s.sellerSku ?? '',
       price: s.price, originalPrice: s.originalPrice, stock: s.stock, isActive: s.isActive,
+      size: { l: s.size?.lengthMm ?? null, w: s.size?.widthMm ?? null, h: s.size?.heightMm ?? null },
     })))
     setWeightG(p.weightG)
     setDims({ l: p.lengthMm, w: p.widthMm, h: p.heightMm })
@@ -187,6 +191,7 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
     skus: skus.map((s) => ({
       option1: s.option1, option2: s.option2, sellerSku: s.sellerSku || null, price: s.price ?? 0,
       originalPrice: s.originalPrice ?? s.price ?? 0, stock: s.stock ?? 0, weightG: null, isActive: s.isActive,
+      size: s.size.l && s.size.w && s.size.h ? { lengthMm: s.size.l, widthMm: s.size.w, heightMm: s.size.h } : null,
     })),
   })
 
@@ -387,6 +392,17 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
               {
                 title: 'Tồn kho',
                 render: (_, r) => <InputNumber<number> min={0} value={r.stock} aria-label="Tồn kho" onChange={(v) => updateSku(r.key, { stock: v })} />,
+              },
+              {
+                title: 'Kích thước riêng (D×R×C mm)',
+                render: (_, r) => (
+                  <Space.Compact>
+                    {(['l', 'w', 'h'] as const).map((k) => (
+                      <InputNumber<number> key={k} min={1} max={5000} value={r.size[k]} style={{ width: 70 }} placeholder={k === 'l' ? 'D' : k === 'w' ? 'R' : 'C'}
+                        aria-label={`Kích thước ${k}`} onChange={(v) => updateSku(r.key, { size: { ...r.size, [k]: v } })} />
+                    ))}
+                  </Space.Compact>
+                ),
               },
               {
                 title: 'Mã SKU',

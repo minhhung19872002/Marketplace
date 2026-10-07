@@ -172,18 +172,34 @@ const OrdersPage = ({ shopId }: { shopId: string }) => {
       fail(e)
     }
   }
+  const [exporting, setExporting] = useState(false)
   const exportExcel = async () => {
+    setExporting(true)
     try {
-      openBlob(await ordersApi.export(shopId, tab), 'don-hang.xlsx')
+      const started = await ordersApi.startExport(shopId, tab)
+      message.info(started.message)
+      // Follow the background task (a second per check, up to two minutes)
+      for (let i = 0; i < 120; i++) {
+        const t = await ordersApi.exportTask(shopId, started.data.id)
+        if (t.status === 'Done') {
+          openBlob(await ordersApi.exportFile(shopId, t.id), 'don-hang.xlsx')
+          return
+        }
+        if (t.status === 'Failed') throw new Error(t.message ?? 'Không xuất được tệp.')
+        await new Promise((r) => setTimeout(r, 1000))
+      }
+      message.warning('Tệp vẫn đang được tạo, vui lòng thử lại sau ít phút.')
     } catch (e) {
       fail(e)
+    } finally {
+      setExporting(false)
     }
   }
 
   const rows = list.data?.items ?? []
   const selectable = (r: ShopOrderRow) => r.status === 'PendingConfirmation' || r.status === 'ReadyToShip'
   return (
-    <Card title="Quản lý đơn hàng" extra={<Button onClick={exportExcel} data-testid="export-orders">Xuất Excel</Button>}>
+    <Card title="Quản lý đơn hàng" extra={<Button onClick={exportExcel} loading={exporting} data-testid="export-orders">Xuất Excel</Button>}>
       <Tabs activeKey={tab} onChange={(k) => { setParams({ tab: k }); setPage(1); setSelected([]) }} items={TABS.map((t) => ({ key: t.key, label: t.label }))} />
       <Space style={{ marginBottom: 12 }} wrap>
         <Input.Search placeholder="Mã đơn, mã vận đơn, tên người mua, tên sản phẩm" allowClear style={{ width: 360 }} defaultValue={q}

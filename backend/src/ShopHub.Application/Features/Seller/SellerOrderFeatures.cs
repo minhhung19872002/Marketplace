@@ -226,8 +226,16 @@ public sealed class PrepareOrdersHandler(
         var dims = await db.Products.IgnoreQueryFilters().Where(p => productIds.Contains(p.Id))
             .Select(p => new { p.Id, p.WeightG, p.LengthMm, p.WidthMm, p.HeightMm }).ToDictionaryAsync(p => p.Id, ct);
         var skuIds = order.Items.Select(i => i.SkuId).ToList();
-        var skuWeights = await db.Skus.IgnoreQueryFilters().Where(s => skuIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, s => s.WeightG, ct);
-        int WeightOf(OrderItem i) => skuWeights.GetValueOrDefault(i.SkuId) ?? dims[i.ProductId].WeightG;
+        var skuRows = await db.Skus.IgnoreQueryFilters().Where(s => skuIds.Contains(s.Id))
+            .Select(s => new { s.Id, s.WeightG, s.LengthMm, s.WidthMm, s.HeightMm }).ToDictionaryAsync(s => s.Id, ct);
+        int WeightOf(OrderItem i) => skuRows.GetValueOrDefault(i.SkuId)?.WeightG ?? dims[i.ProductId].WeightG;
+        // A variant's own package size when it has one (3.2)
+        ParcelItem ItemOf(OrderItem i)
+        {
+            var s = skuRows.GetValueOrDefault(i.SkuId);
+            var d = dims[i.ProductId];
+            return new ParcelItem(WeightOf(i), s?.LengthMm ?? d.LengthMm, s?.WidthMm ?? d.WidthMm, s?.HeightMm ?? d.HeightMm, i.Quantity);
+        }
 
         var carrier = await db.Carriers.AsNoTracking().SingleAsync(c => c.Code == order.CarrierCode, ct);
         var provider = carriers.FirstOrDefault(c => c.Provider == carrier.Provider)
@@ -242,8 +250,7 @@ public sealed class PrepareOrdersHandler(
             var p = parcels[k];
             var fromProvince = p.Warehouse.ProvinceCode;
             var toProvince = receiver?.Point.ProvinceCode ?? fromProvince;
-            var weight = ShippingCalculator.ChargeableWeightG(p.Items.Select(i =>
-                new ParcelItem(WeightOf(i), dims[i.ProductId].LengthMm, dims[i.ProductId].WidthMm, dims[i.ProductId].HeightMm, i.Quantity)));
+            var weight = ShippingCalculator.ChargeableWeightG(p.Items.Select(ItemOf));
             var cod = order.PaymentMethod == PaymentMethod.Cod ? cods[k] : 0;
             var tracking = await provider.CreateShipmentAsync(carrier,
                 new CarrierParcel(order.Id, parcels.Count > 1 ? $"{order.Code}-{p.No}" : order.Code, fromProvince, toProvince, weight, cod,
@@ -383,7 +390,8 @@ public record ExportShopOrdersQuery(Guid ShopId, ShopOrderTab Tab, DateTimeOffse
 
 public sealed class ExportShopOrdersHandler(IApplicationDbContext db, SellerAccess access, IShippingDocuments documents) : IRequestHandler<ExportShopOrdersQuery, byte[]>
 {
-    public const int MaxRows = 5000;
+    // Runs as a background task (6.4)
+    public const int MaxRows = 50_000;
 
     public async Task<byte[]> Handle(ExportShopOrdersQuery request, CancellationToken ct)
     {

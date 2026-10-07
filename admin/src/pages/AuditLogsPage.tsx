@@ -37,11 +37,26 @@ const AuditLogsPage = () => {
     queryKey: ['audit', page, pageSize, action, entity, entityId, userId, from, to],
     queryFn: () => adminApi.auditLogs({ page, pageSize, action, entity, entityId, userId, from, to }),
   })
+  const [exporting, setExporting] = useState(false)
   const exportExcel = async () => {
+    setExporting(true)
     try {
-      saveBlob(await platformApi.auditExport({ action, entity, entityId, userId, from, to }), 'nhat-ky-thao-tac.xlsx')
+      const started = await platformApi.startAuditExport({ action, entity, entityId, userId, from, to })
+      message.info(started.message)
+      for (let i = 0; i < 120; i++) {
+        const t = await platformApi.myTask(started.data.id)
+        if (t.status === 'Done') {
+          saveBlob(await platformApi.myTaskFile(t.id), 'nhat-ky-thao-tac.xlsx')
+          return
+        }
+        if (t.status === 'Failed') throw new Error(t.message ?? 'Không xuất được nhật ký.')
+        await new Promise((r) => setTimeout(r, 1000))
+      }
+      message.warning('Tệp vẫn đang được tạo, vui lòng thử lại sau ít phút.')
     } catch (e) {
-      message.error(e instanceof ApiError ? e.message : 'Không xuất được nhật ký.')
+      message.error(e instanceof ApiError || e instanceof Error ? e.message : 'Không xuất được nhật ký.')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -57,7 +72,7 @@ const AuditLogsPage = () => {
         {(userId || entityId) && (
           <Tag closable onClose={() => { setParams({}); setPage(1) }}>{userId ? 'Lọc theo người dùng' : 'Lọc theo đối tượng'}</Tag>
         )}
-        <Button onClick={exportExcel} data-testid="audit-export">Xuất Excel</Button>
+        <Button onClick={exportExcel} loading={exporting} data-testid="audit-export">Xuất Excel</Button>
       </Space>
       {logs.isError && <Alert type="error" showIcon message={logs.error instanceof ApiError ? logs.error.message : 'Không tải được nhật ký.'} />}
       <Table<AuditLog>

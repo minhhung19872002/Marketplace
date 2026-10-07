@@ -100,7 +100,27 @@ export const xtraApi = {
     apiCommand(`/seller/shops/${shopId}/xtra/${program}`, { method: 'PUT', body: { join } }),
 }
 
+export interface OpenCampaign { id: string; name: string; slug: string; startAt: string; endAt: string; pending: number; approved: number; rejected: number }
+
+export interface CampaignRegistration {
+  id: string
+  productId: string
+  productName: string
+  imageUrl: string | null
+  minPrice: number
+  status: 'Pending' | 'Approved' | 'Rejected'
+  rejectReason: string | null
+  createdAt: string
+}
+
 export const marketingApi = {
+  campaigns: (shopId: string) => apiRequest<OpenCampaign[]>(`${base(shopId)}/campaigns`),
+  campaignRegistrations: (shopId: string, campaignId: string) =>
+    apiRequest<CampaignRegistration[]>(`${base(shopId)}/campaigns/${campaignId}/registrations`),
+  registerCampaign: (shopId: string, campaignId: string, productIds: string[]) =>
+    apiCommand<number>(`${base(shopId)}/campaigns/${campaignId}/registrations`, { method: 'POST', body: { productIds } }),
+  withdrawCampaign: (shopId: string, registrationId: string) =>
+    apiCommand(`${base(shopId)}/campaign-registrations/${registrationId}`, { method: 'DELETE' }),
   skus: (shopId: string, q: string) => apiRequest<PickSku[]>(`${base(shopId)}/skus?q=${encodeURIComponent(q)}`),
   promotions: (shopId: string) => apiRequest<Promotion[]>(`${base(shopId)}/promotions`),
   createPromotion: (shopId: string, body: PromotionInput) => apiCommand<string>(`${base(shopId)}/promotions`, { method: 'POST', body }),

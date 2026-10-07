@@ -45,7 +45,8 @@ public record ProductSkuDto(
     int Reserved,
     int Available,
     int? WeightG,
-    bool IsActive);
+    bool IsActive,
+    PackageSize? Size = null);
 
 public record ProductMediaDto(MediaType Type, Guid? AssetId, string Url, string? OptionValue);
 
@@ -87,7 +88,9 @@ public record OptionInput(string Value, Guid? ImageAssetId);
 
 public record TierInput(string Name, IReadOnlyList<OptionInput> Options);
 
-public record SkuInput(string? Option1, string? Option2, string? SellerSku, long Price, long OriginalPrice, int Stock, int? WeightG, bool IsActive = true);
+public record SkuInput(string? Option1, string? Option2, string? SellerSku, long Price, long OriginalPrice, int Stock, int? WeightG, bool IsActive = true,
+    // Kích thước đóng gói of this variant (mm); null = the product's
+    PackageSize? Size = null);
 
 public record ProductInput(
     Guid CategoryId,
@@ -185,7 +188,7 @@ public sealed class ProductWriter(
         var deltas = product.SetVariants(
             input.Tiers.Select(t => new TierSpec(t.Name, t.Options.Select(o =>
                 new OptionSpec(o.Value, o.ImageAssetId is { } img ? UrlOf(img) : null)).ToList())).ToList(),
-            input.Skus.Select(s => new SkuSpec(s.Option1, s.Option2, s.SellerSku, s.Price, s.OriginalPrice, s.Stock, s.WeightG, s.IsActive)).ToList());
+            input.Skus.Select(s => new SkuSpec(s.Option1, s.Option2, s.SellerSku, s.Price, s.OriginalPrice, s.Stock, s.WeightG, s.IsActive, s.Size)).ToList());
 
         sensitive |= product.SetMedia(input.Media.Select(m => new MediaSpec(
             assets[m.AssetId].Kind == Domain.Media.MediaKind.Video ? MediaType.Video : MediaType.Image,
@@ -308,7 +311,7 @@ internal static class ProductLoader
                 .Where(t => t.Options.Count > 0).ToList(),
             p.Skus.OrderBy(s => OptionSort(options, s.Option1Id)).ThenBy(s => OptionSort(options, s.Option2Id))
                 .Select(s => new ProductSkuDto(s.Id, OptionValue(options, s.Option1Id), OptionValue(options, s.Option2Id), s.SellerSku,
-                    s.Price, s.OriginalPrice, s.Stock, s.Reserved, s.Available, s.WeightG, s.IsActive)).ToList(),
+                    s.Price, s.OriginalPrice, s.Stock, s.Reserved, s.Available, s.WeightG, s.IsActive, s.Size)).ToList(),
             p.ReviewNote, p.BanReason, p.Flags, p.Version, p.MaxPerBuyer, p.WarehouseId, p.CarrierCodes);
     }
 
@@ -538,7 +541,7 @@ public sealed class CopyProductHandler(IApplicationDbContext db, SellerAccess ac
             source.Tiers.OrderBy(t => t.TierIndex).Select(t => new TierSpec(t.Name,
                 t.Options.Where(o => o.IsActive).OrderBy(o => o.SortOrder).Select(o => new OptionSpec(o.Value, o.ImageUrl)).ToList()))
                 .Where(t => t.Options.Count > 0).ToList(),
-            source.Skus.Select(s => new SkuSpec(Value(s.Option1Id), Value(s.Option2Id), null, s.Price, s.OriginalPrice, 0, s.WeightG, s.IsActive)).ToList());
+            source.Skus.Select(s => new SkuSpec(Value(s.Option1Id), Value(s.Option2Id), null, s.Price, s.OriginalPrice, 0, s.WeightG, s.IsActive, s.Size)).ToList());
         copy.SetMedia(source.Media.OrderBy(m => m.SortOrder)
             .Select(m => new MediaSpec(m.Type, m.AssetId, m.Url, m.VariantOptionId is { } oid && options.TryGetValue(oid, out var o) ? o.Value : null)).ToList());
         db.Products.Add(copy);
@@ -572,8 +575,8 @@ public sealed class UpdateSkuQuickHandler(IApplicationDbContext db, SellerAccess
         if (current.All(s => s.Id != request.SkuId)) throw new NotFoundException("Không tìm thấy SKU.");
         var specs = current.Select(s => s.Id == request.SkuId
             ? new SkuSpec(Val(s.Option1Id), Val(s.Option2Id), s.SellerSku, request.Price ?? s.Price,
-                request.OriginalPrice ?? Math.Max(s.OriginalPrice, request.Price ?? s.Price), request.Stock ?? s.Stock, s.WeightG, s.IsActive)
-            : new SkuSpec(Val(s.Option1Id), Val(s.Option2Id), s.SellerSku, s.Price, s.OriginalPrice, s.Stock, s.WeightG, s.IsActive)).ToList();
+                request.OriginalPrice ?? Math.Max(s.OriginalPrice, request.Price ?? s.Price), request.Stock ?? s.Stock, s.WeightG, s.IsActive, s.Size)
+            : new SkuSpec(Val(s.Option1Id), Val(s.Option2Id), s.SellerSku, s.Price, s.OriginalPrice, s.Stock, s.WeightG, s.IsActive, s.Size)).ToList();
         var tiers = product.Tiers.OrderBy(t => t.TierIndex).Where(t => t.Options.Any(o => o.IsActive))
             .Select(t => new TierSpec(t.Name, t.Options.Where(o => o.IsActive).OrderBy(o => o.SortOrder)
                 .Select(o => new OptionSpec(o.Value, o.ImageUrl)).ToList())).ToList();

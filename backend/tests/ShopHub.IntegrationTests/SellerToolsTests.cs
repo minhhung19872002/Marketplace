@@ -168,4 +168,38 @@ public class SellerToolsTests(ApiFactory factory)
         (await factory.CreateClient().PostAsJsonAsync("/api/admin/divisions", new { code = "999", name = "x", parentCode = (string?)null }))
             .StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task A_variants_own_package_size_decides_its_chargeable_weight_and_survives_quick_edits()
+    {
+        var store = await factory.CreateStoreAsync("01", products: [new("Thùng Kích Thước", "Đèn Bàn", 100_000, 20, "Việt Nam", WeightG: 500)]);
+        var product = store.Products["Thùng Kích Thước"];
+        var buyer = await factory.CreateUserAsync();
+        var addressId = await factory.AddAddressAsync(buyer.Id, "79");
+        (await buyer.Client.PostAsJsonAsync("/api/cart/items", new { skuId = store.Skus["Thùng Kích Thước"], quantity = 1 })).EnsureSuccessStatusCode();
+        var request = new
+        {
+            addressId, shops = new[] { new { shopId = store.ShopId, voucherCode = (string?)null, carrierCode = (string?)null, note = (string?)null } },
+            platformVoucherCode = (string?)null, freeshipVoucherCode = (string?)null, useCoins = false, paymentMethod = "Cod",
+        };
+        async Task<long> FeeAsync() => (await (await buyer.Client.PostAsJsonAsync("/api/checkout/quote", request)).ReadEnvelopeAsync()).Data
+            .GetProperty("shops")[0].GetProperty("shippingFee").GetInt64();
+        var small = await FeeAsync();
+
+        // The variant comes in a 60 cm box: 600×600×600 / 6000 = 36 kg chargeable
+        await factory.WithDbAsync(async db =>
+        {
+            var p = await db.Products.Include(x => x.Tiers).Include(x => x.Skus).SingleAsync(x => x.Id == product);
+            var sku = p.Skus.Single();
+            p.SetVariants([], [new SkuSpec(null, null, null, sku.Price, sku.OriginalPrice, sku.Stock, null, true, new PackageSize(600, 600, 600))]);
+            await db.SaveChangesAsync();
+        });
+        var big = await FeeAsync();
+        big.Should().BeGreaterThan(small, "cân quy đổi theo kích thước riêng của phân loại");
+
+        // A quick price edit keeps the size
+        var seller = await SellerAsync(store);
+        (await seller.PutAsJsonAsync($"/api/seller/shops/{store.ShopId}/skus/{store.Skus["Thùng Kích Thước"]}", new { price = 110_000 })).EnsureSuccessStatusCode();
+        (await factory.WithDbAsync(db => db.Skus.AsNoTracking().SingleAsync(s => s.Id == store.Skus["Thùng Kích Thước"]))).LengthMm.Should().Be(600);
+    }
 }

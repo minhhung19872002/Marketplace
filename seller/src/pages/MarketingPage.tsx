@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
-import { marketingApi, xtraApi, type FlashItemInput, type FlashSlot, type PickSku, type Promotion, type PromotionType, type XtraProgram } from '../api/marketing'
+import { marketingApi, xtraApi, type CampaignRegistration, type OpenCampaign, type FlashItemInput, type FlashSlot, type PickSku, type Promotion, type PromotionType, type XtraProgram } from '../api/marketing'
 import { ApiError } from '../api/http'
+import ProductPicker from '../components/ProductPicker'
 import { formatPercentBp, formatPrice } from '../lib/money'
 import { formatDateTime } from '../lib/datetime'
 
@@ -289,12 +290,74 @@ const XtraTab = ({ shopId }: { shopId: string }) => {
 }
 
 /** Kênh Marketing (spec III.5): programmes, Flash Sale của shop, đăng ký Flash Sale của sàn. Vouchers stay on their own page. */
+const REG_STATUS: Record<CampaignRegistration['status'], { text: string; color: string }> = {
+  Pending: { text: 'Chờ duyệt', color: 'gold' },
+  Approved: { text: 'Đã duyệt', color: 'green' },
+  Rejected: { text: 'Từ chối', color: 'red' },
+}
+
+/** Chiến dịch của sàn (III.5): campaigns open to shops, put products forward, follow the decisions. */
+const CampaignsTab = ({ shopId }: { shopId: string }) => {
+  const { message } = App.useApp()
+  const queryClient = useQueryClient()
+  const campaigns = useQuery({ queryKey: ['open-campaigns', shopId], queryFn: () => marketingApi.campaigns(shopId) })
+  const [current, setCurrent] = useState<OpenCampaign | null>(null)
+  const [picking, setPicking] = useState(false)
+  const regs = useQuery({
+    queryKey: ['campaign-regs', shopId, current?.id],
+    queryFn: () => marketingApi.campaignRegistrations(shopId, current!.id),
+    enabled: !!current,
+  })
+  const done = (r: { message: string }) => {
+    message.success(r.message)
+    void queryClient.invalidateQueries({ queryKey: ['campaign-regs', shopId] })
+    void queryClient.invalidateQueries({ queryKey: ['open-campaigns', shopId] })
+  }
+  const fail = (e: unknown) => message.error(e instanceof ApiError ? e.message : 'Không thực hiện được.')
+  const register = useMutation({
+    mutationFn: (ids: string[]) => marketingApi.registerCampaign(shopId, current!.id, ids),
+    onSuccess: (r) => { setPicking(false); done(r) },
+    onError: fail,
+  })
+  const withdraw = useMutation({ mutationFn: (id: string) => marketingApi.withdrawCampaign(shopId, id), onSuccess: done, onError: fail })
+
+  return (
+    <>
+      <Table<OpenCampaign> rowKey="id" loading={campaigns.isLoading} dataSource={campaigns.data ?? []} pagination={false}
+        locale={{ emptyText: 'Hiện chưa có chiến dịch nào nhận đăng ký.' }}
+        columns={[
+          { title: 'Chiến dịch', render: (_, c) => <a href={`/su-kien/${c.slug}`} target="_blank" rel="noreferrer">{c.name}</a> },
+          { title: 'Thời gian', render: (_, c) => `${formatDateTime(c.startAt)} – ${formatDateTime(c.endAt)}` },
+          { title: 'Đã gửi', render: (_, c) => `${c.pending} chờ · ${c.approved} duyệt · ${c.rejected} từ chối` },
+          { title: '', render: (_, c) => <Button size="small" onClick={() => setCurrent(c)} data-testid="campaign-open">Đăng ký sản phẩm</Button> },
+        ]} />
+      {current && (
+        <Card title={`Sản phẩm đăng ký — ${current.name}`} style={{ marginTop: 16 }}
+          extra={<Button type="primary" onClick={() => setPicking(true)} data-testid="campaign-pick">Chọn sản phẩm</Button>}>
+          <Table<CampaignRegistration> rowKey="id" size="small" loading={regs.isLoading} dataSource={regs.data ?? []} pagination={false}
+            locale={{ emptyText: 'Chưa đăng ký sản phẩm nào.' }}
+            columns={[
+              { title: 'Sản phẩm', dataIndex: 'productName' },
+              { title: 'Giá từ', dataIndex: 'minPrice', render: (v: number) => formatPrice(v) },
+              { title: 'Trạng thái', render: (_, r) => <Tag color={REG_STATUS[r.status].color} data-testid="campaign-reg-status">{REG_STATUS[r.status].text}</Tag> },
+              { title: 'Lý do', dataIndex: 'rejectReason' },
+              { title: '', render: (_, r) => <Button size="small" danger onClick={() => withdraw.mutate(r.id)}>Rút</Button> },
+            ]} />
+          <ProductPicker shopId={shopId} open={picking} title="Chọn sản phẩm đăng ký chiến dịch" value={[]} max={50}
+            onClose={() => setPicking(false)} onPick={(ps) => register.mutate(ps.map((p) => p.id))} />
+        </Card>
+      )}
+    </>
+  )
+}
+
 const MarketingPage = ({ shopId }: { shopId: string }) => (
   <Card title="Kênh Marketing">
     <Tabs items={[
       { key: 'promotions', label: 'Chương trình của shop', children: <PromotionsTab shopId={shopId} /> },
       { key: 'flash', label: 'Flash Sale', children: <FlashTab shopId={shopId} /> },
       { key: 'xtra', label: 'Chương trình dịch vụ', children: <XtraTab shopId={shopId} /> },
+      { key: 'campaigns', label: 'Chiến dịch của sàn', children: <CampaignsTab shopId={shopId} /> },
     ]} />
   </Card>
 )

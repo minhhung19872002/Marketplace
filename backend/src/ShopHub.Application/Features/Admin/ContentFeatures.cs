@@ -233,10 +233,66 @@ public sealed class UpdateMessageTemplateHandler(IApplicationDbContext db, IHtml
 
 public record AuditLogsExportQuery(Guid? UserId, string? Action, string? Entity, string? EntityId, DateTimeOffset? From, DateTimeOffset? To) : IRequest<ReportFile>;
 
+public record TaskFile(byte[] Content, string ContentType, string FileName);
+
+public static class TaskFiles
+{
+    /// <summary>The finished export of a task the caller may see; 404 otherwise, 409 while it is still running.</summary>
+    public static async Task<TaskFile> LoadAsync(IApplicationDbContext db, System.Linq.Expressions.Expression<Func<Domain.SystemConfig.BackgroundTask, bool>> mine,
+        CancellationToken ct)
+    {
+        var t = await db.BackgroundTasks.AsNoTracking().Where(mine).Select(x => new { x.Status, x.Output, x.OutputName, x.OutputType }).FirstOrDefaultAsync(ct)
+                ?? throw new NotFoundException("Không tìm thấy việc.");
+        if (t.Output is null) throw new ConflictException(t.Status == Domain.SystemConfig.BackgroundTaskStatus.Failed
+            ? "Việc xuất tệp đã dừng do lỗi, vui lòng xuất lại." : "Tệp đang được tạo, vui lòng chờ.", "TASK_NOT_READY");
+        return new TaskFile(t.Output, t.OutputType ?? "application/octet-stream", t.OutputName ?? "tep");
+    }
+}
+
+public record StartAuditExportCommand(AuditLogsExportQuery Filters) : IRequest<Seller.BackgroundTaskDto>;
+
+/// <summary>Queues the audit log export of the signed-in admin (permission checked by the endpoint).</summary>
+public sealed class StartAuditExportHandler(IApplicationDbContext db, ICurrentUser currentUser, IBackgroundTasks tasks, IClock clock)
+    : IRequestHandler<StartAuditExportCommand, Seller.BackgroundTaskDto>
+{
+    public async Task<Seller.BackgroundTaskDto> Handle(StartAuditExportCommand request, CancellationToken ct)
+    {
+        var userId = Storefront.UserGuard.Require(currentUser);
+        var q = request.Filters;
+        if (q.From is { } f && q.To is { } t && f > t) throw new BusinessRuleException("Khoảng ngày không hợp lệ: ngày bắt đầu sau ngày kết thúc.");
+        var task = new Domain.SystemConfig.BackgroundTask(Domain.SystemConfig.BackgroundTaskKind.AuditExport, userId, null,
+            $"nhat-ky-{VietnamTime.ToLocal(clock.UtcNow):yyyyMMdd-HHmm}.xlsx",
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(q, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)), clock.UtcNow);
+        db.BackgroundTasks.Add(task);
+        await db.SaveChangesAsync(ct);
+        tasks.Enqueue(task.Id);
+        return Seller.BulkMapping.ToDto(task);
+    }
+}
+
+public record MyTaskQuery(Guid TaskId) : IRequest<Seller.BackgroundTaskDto>;
+
+public sealed class MyTaskHandler(IApplicationDbContext db, ICurrentUser currentUser) : IRequestHandler<MyTaskQuery, Seller.BackgroundTaskDto>
+{
+    public async Task<Seller.BackgroundTaskDto> Handle(MyTaskQuery request, CancellationToken ct) =>
+        Seller.BulkMapping.ToDto(await db.BackgroundTasks.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == request.TaskId && t.OwnerUserId == currentUser.UserId && t.ShopId == null, ct)
+            ?? throw new NotFoundException("Không tìm thấy việc."));
+}
+
+public record MyTaskFileQuery(Guid TaskId) : IRequest<TaskFile>;
+
+public sealed class MyTaskFileHandler(IApplicationDbContext db, ICurrentUser currentUser) : IRequestHandler<MyTaskFileQuery, TaskFile>
+{
+    public Task<TaskFile> Handle(MyTaskFileQuery request, CancellationToken ct) =>
+        TaskFiles.LoadAsync(db, t => t.Id == request.TaskId && t.OwnerUserId == currentUser.UserId && t.ShopId == null, ct);
+}
+
 /// <summary>Nhật ký thao tác ra Excel with the same filters as the screen (capped at 5.000 newest rows).</summary>
 public sealed class AuditLogsExportHandler(ISender sender, IReportDocuments documents) : IRequestHandler<AuditLogsExportQuery, ReportFile>
 {
-    public const int MaxRows = 5_000;
+    // Runs as a background task (6.4)
+    public const int MaxRows = 50_000;
 
     public async Task<ReportFile> Handle(AuditLogsExportQuery q, CancellationToken ct)
     {

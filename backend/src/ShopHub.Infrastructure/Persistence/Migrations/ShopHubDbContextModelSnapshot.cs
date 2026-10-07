@@ -625,9 +625,17 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<int?>("HeightMm")
+                        .HasColumnType("integer")
+                        .HasColumnName("height_mm");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<int?>("LengthMm")
+                        .HasColumnType("integer")
+                        .HasColumnName("length_mm");
 
                     b.Property<Guid?>("Option1Id")
                         .HasColumnType("uuid")
@@ -671,6 +679,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.Property<int?>("WeightG")
                         .HasColumnType("integer")
                         .HasColumnName("weight_g");
+
+                    b.Property<int?>("WidthMm")
+                        .HasColumnType("integer")
+                        .HasColumnName("width_mm");
 
                     b.HasKey("Id")
                         .HasName("pk_skus");
@@ -3402,6 +3414,69 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Promo.CampaignRegistration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("campaign_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<string>("RejectReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reject_reason");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_campaign_registrations");
+
+                    b.HasIndex("ProductId")
+                        .HasDatabaseName("ix_campaign_registrations_product_id");
+
+                    b.HasIndex("CampaignId", "ProductId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_campaign_registrations");
+
+                    b.HasIndex("ShopId", "CampaignId")
+                        .HasDatabaseName("ix_campaign_registrations_shop");
+
+                    b.HasIndex("CampaignId", "Status", "CreatedAt")
+                        .HasDatabaseName("ix_campaign_registrations_status");
+
+                    b.ToTable("campaign_registrations", "promo");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Promo.CoinEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6055,6 +6130,20 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("message");
 
+                    b.Property<byte[]>("Output")
+                        .HasColumnType("bytea")
+                        .HasColumnName("output");
+
+                    b.Property<string>("OutputName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("output_name");
+
+                    b.Property<string>("OutputType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("output_type");
+
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("uuid")
                         .HasColumnName("owner_user_id");
@@ -6087,6 +6176,9 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_background_tasks");
+
+                    b.HasIndex("OwnerUserId", "CreatedAt")
+                        .HasDatabaseName("ix_background_tasks_owner");
 
                     b.HasIndex("ShopId", "CreatedAt")
                         .HasDatabaseName("ix_background_tasks_shop");
@@ -6949,6 +7041,23 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_media_assets_users_owner_user_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.CampaignRegistration", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Promo.Campaign", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_campaign_registrations_campaigns_campaign_id");
+
+                    b.HasOne("ShopHub.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_campaign_registrations_products_product_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Promo.CoinEntry", b =>

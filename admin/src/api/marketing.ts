@@ -42,7 +42,7 @@ export interface Banner {
 }
 
 export interface CampaignBlock {
-  type: 'Banner' | 'Vouchers' | 'FlashSale' | 'Products'
+  type: 'Banner' | 'Vouchers' | 'FlashSale' | 'Products' | 'Registered'
   title: string | null
   imageUrl: string | null
   link: string | null
@@ -71,6 +71,20 @@ export const POSITION_LABEL: Record<BannerPosition, string> = {
   Popup: 'Popup',
 }
 
+export type RegistrationStatus = 'Pending' | 'Approved' | 'Rejected'
+
+export interface CampaignRegistration {
+  id: string
+  shopName: string
+  productId: string
+  productName: string
+  imageUrl: string | null
+  minPrice: number
+  status: RegistrationStatus
+  rejectReason: string | null
+  createdAt: string
+}
+
 export const marketingApi = {
   slots: () => apiRequest<FlashSlot[]>('/admin/marketing/flash-slots'),
   createSlot: (body: { date: string; hour: number; minDiscountBp: number; minRating: number; categoryIds: string[] }) =>
@@ -81,6 +95,10 @@ export const marketingApi = {
   saveBanner: (body: Omit<Banner, 'id'> & { id: string | null }) => apiCommand<string>('/admin/marketing/banners', { method: 'POST', body }),
   campaigns: () => apiRequest<Campaign[]>('/admin/marketing/campaigns'),
   saveCampaign: (body: Omit<Campaign, 'id'> & { id: string | null }) => apiCommand<string>('/admin/marketing/campaigns', { method: 'POST', body }),
+  registrations: (campaignId: string, status?: RegistrationStatus) =>
+    apiRequest<{ items: CampaignRegistration[]; totalCount: number }>(`/admin/marketing/campaigns/${campaignId}/registrations?pageSize=100${status ? `&status=${status}` : ''}`),
+  decideRegistrations: (campaignId: string, body: { registrationIds: string[]; approve: boolean; reason: string | null }) =>
+    apiCommand<number>(`/admin/marketing/campaigns/${campaignId}/registrations/decisions`, { method: 'POST', body }),
   broadcasts: () => apiRequest<Broadcast[]>('/admin/marketing/broadcasts'),
   sendBroadcast: (body: { title: string; body: string; link: string | null; segment: BroadcastSegment }) =>
     apiCommand<Broadcast>('/admin/marketing/broadcasts', { method: 'POST', body }),

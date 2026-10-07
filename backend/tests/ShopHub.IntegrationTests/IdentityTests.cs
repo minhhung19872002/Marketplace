@@ -568,4 +568,16 @@ public class IdentityTests(ApiFactory factory)
         await factory.DispatchOutboxAsync();
         (await factory.WithDbAsync(db => db.SimulatedSms.CountAsync(s => s.To == phone))).Should().Be(1);
     }
+
+    [Fact]
+    public async Task Signing_in_to_the_same_account_from_several_devices_at_once_never_fails_on_a_concurrency_conflict()
+    {
+        // L061: every sign-in writes last_login_at on the user row; concurrent sign-ins must not trip the row version (409)
+        var user = await factory.CreateUserAsync();
+        var phone = await factory.WithDbAsync(db => db.Users.Where(u => u.Id == user.Id).Select(u => u.Phone).SingleAsync());
+        var results = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ =>
+            factory.CreateClient().PostAsJsonAsync("/api/auth/login", new { identifier = phone, password = ApiFactory.DefaultPassword })));
+        results.Select(r => r.StatusCode).Should().OnlyContain(c => c == HttpStatusCode.OK);
+        (await factory.WithDbAsync(db => db.RefreshTokens.CountAsync(t => t.UserId == user.Id))).Should().BeGreaterThanOrEqualTo(12);
+    }
 }

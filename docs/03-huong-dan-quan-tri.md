@@ -54,6 +54,7 @@ phạm*: báo cáo sản phẩm của người mua, khoá hàng loạt.
 *Voucher của sàn*: giảm tiền / % có trần / miễn ship / hoàn xu, đơn tối thiểu, thời gian, tổng lượt, lượt mỗi người, người dùng mới,
 **chỉ shop tham gia Xtra**. *Marketing*: khung Flash Sale và duyệt đăng ký của shop, chiến dịch (trang `/su-kien/…`), banner, popup
 (tần suất), lối tắt trang chủ, từ khoá hot, thông báo hàng loạt theo phân khúc.
+Chiến dịch có khối `Registered` thì shop đăng ký được sản phẩm: *Đăng ký của shop* → duyệt / từ chối (kèm lý do) từng cái hoặc nhiều cái.
 
 ![Voucher](images/03-voucher.jpg)
 ![Marketing](images/03-marketing.jpg)
@@ -84,6 +85,8 @@ toán, hạn tự hoàn thành, hạn trả hàng, phí, ngưỡng COD, xu, Flas
 OTP qua SMS / email, thư thông báo và **mẫu thông báo từng sự kiện đơn hàng** cho người mua và cho shop (biến `{{code}}`,
 `{{total}}`, `{{shop}}`, `{{note}}`, `{{deadline}}`).
 *Vận chuyển & cổng thanh toán*: bật / tắt từng đơn vị vận chuyển và cổng.
+*Danh mục hành chính* (tab trong Nội dung & mẫu tin): xem cây, thêm đơn vị mới dưới cấp cha, đổi tên — mã không đổi, mọi thay đổi vào nhật ký.
+*Nhật ký thao tác → Xuất Excel* chạy nền, trang tự tải tệp khi xong.
 
 ![Tham số](images/03-tham-so.jpg)
 ![Nội dung & mẫu tin](images/03-noi-dung.jpg)

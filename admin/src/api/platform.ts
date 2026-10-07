@@ -280,8 +280,11 @@ export const platformApi = {
   saveTemplate: (id: string, subject: string | null, body: string) =>
     apiCommand(`/admin/message-templates/${id}`, { method: 'PUT', body: { subject, body } }),
 
-  auditExport: (p: { userId?: string; action?: string; entity?: string; entityId?: string; from?: string; to?: string }) =>
-    file(`/admin/audit-logs/export${query(p)}`),
+  // Xuất nhật ký runs in the background (6.4): start, follow the task, then download its file
+  startAuditExport: (p: { userId?: string; action?: string; entity?: string; entityId?: string; from?: string; to?: string }) =>
+    apiCommand<{ id: string; status: string; message: string | null }>('/admin/audit-logs/export-tasks', { method: 'POST', body: p }),
+  myTask: (id: string) => apiRequest<{ id: string; status: string; message: string | null }>(`/admin/my-tasks/${id}`),
+  myTaskFile: (id: string) => file(`/admin/my-tasks/${id}/file`),
 
   providers: () => apiRequest<{ carriers: CarrierRow[]; gateways: GatewayRow[] }>('/admin/providers'),
   updateCarrier: (c: CarrierRow) => apiCommand(`/admin/carriers/${c.id}`, {

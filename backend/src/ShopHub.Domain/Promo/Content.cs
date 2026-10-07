@@ -66,6 +66,56 @@ public enum CampaignBlockType
     Vouchers,   // platform vouchers to claim (codes)
     FlashSale,  // the running flash sale slot
     Products,   // a product grid from search criteria (keyword / category / price)
+    Registered, // products the shops registered for the campaign and the platform approved (III.5)
+}
+
+public enum CampaignRegistrationStatus
+{
+    Pending,
+    Approved,
+    Rejected,
+}
+
+/// <summary>A shop's product put forward for a platform campaign (ngày hội 9.9…); the platform approves it. One row per campaign + product.</summary>
+public class CampaignRegistration : Entity
+{
+    private CampaignRegistration() { }
+
+    public CampaignRegistration(Guid campaignId, Guid shopId, Guid productId, DateTimeOffset now)
+    {
+        CampaignId = campaignId;
+        ShopId = shopId;
+        ProductId = productId;
+        Status = CampaignRegistrationStatus.Pending;
+        CreatedAt = now;
+    }
+
+    public Guid CampaignId { get; private set; }
+    public Guid ShopId { get; private set; }
+    public Guid ProductId { get; private set; }
+    public CampaignRegistrationStatus Status { get; private set; }
+    public string? RejectReason { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset? DecidedAt { get; private set; }
+    public uint Version { get; private set; }
+
+    /// <summary>Put forward again after a refusal.</summary>
+    public void Resubmit(DateTimeOffset now)
+    {
+        if (Status != CampaignRegistrationStatus.Rejected) throw new BusinessRuleException("Sản phẩm này đã được đăng ký cho chiến dịch.");
+        Status = CampaignRegistrationStatus.Pending;
+        RejectReason = null;
+        DecidedAt = null;
+        CreatedAt = now;
+    }
+
+    public void Decide(bool approve, string? reason, DateTimeOffset now)
+    {
+        if (!approve && string.IsNullOrWhiteSpace(reason)) throw new BusinessRuleException("Vui lòng nhập lý do từ chối.");
+        Status = approve ? CampaignRegistrationStatus.Approved : CampaignRegistrationStatus.Rejected;
+        RejectReason = approve ? null : reason!.Trim();
+        DecidedAt = now;
+    }
 }
 
 /// <summary>One block of a campaign landing page (stored as jsonb on the campaign).</summary>

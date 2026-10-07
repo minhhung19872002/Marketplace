@@ -6,6 +6,8 @@ public enum BackgroundTaskKind
 {
     ProductImport,     // Đăng sản phẩm hàng loạt bằng Excel
     PriceStockUpdate,  // Cập nhật giá / tồn kho hàng loạt bằng Excel
+    OrdersExport,      // Xuất danh sách đơn của shop ra Excel (6.4: không chạy trong lượt HTTP)
+    AuditExport,       // Xuất nhật ký thao tác ra Excel
 }
 
 public enum BackgroundTaskStatus
@@ -68,6 +70,20 @@ public class BackgroundTask : Entity
         Succeeded = succeeded;
         FailedCount = failed;
         Errors = errors.Take(MaxErrors).ToList();
+    }
+
+    // The file an export produced (downloaded by its owner)
+    public string? OutputName { get; private set; }
+    public string? OutputType { get; private set; }
+    public byte[]? Output { get; private set; }
+
+    public void Deliver(string fileName, string contentType, byte[] content, string message, DateTimeOffset now)
+    {
+        OutputName = fileName;
+        OutputType = contentType;
+        Output = content;
+        Total = Processed = Succeeded = 1;
+        Finish(message, now);
     }
 
     public void Finish(string message, DateTimeOffset now)

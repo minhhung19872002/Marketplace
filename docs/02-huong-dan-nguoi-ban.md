@@ -77,6 +77,9 @@ thì *Xác nhận đã nhận hàng*. Đơn đang có yêu cầu trả hàng t�
 
 Mỗi mã giảm giá của shop hiện *lượt lưu*, số đơn đã dùng và *doanh số mang lại*.
 
+*Chiến dịch của sàn* (Kênh Marketing): chọn sản phẩm đang bán để đăng ký vào ngày hội của sàn (tối đa 50), theo dõi *Chờ duyệt / Đã duyệt /
+Từ chối* kèm lý do; sản phẩm được duyệt hiện trên trang chiến dịch. *Xuất Excel* đơn hàng chạy nền — trang tự tải tệp khi xong.
+
 ## 6. Chăm sóc khách hàng
 
 Hộp chat của shop: nhiều nhân viên cùng trực, giao hội thoại cho người phụ trách, câu trả lời nhanh, tin tự động ngoài giờ.

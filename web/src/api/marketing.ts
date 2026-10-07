@@ -67,7 +67,7 @@ export interface CampaignVoucher {
 }
 
 export interface CampaignBlock {
-  type: 'Banner' | 'Vouchers' | 'FlashSale' | 'Products';
+  type: 'Banner' | 'Vouchers' | 'FlashSale' | 'Products' | 'Registered';
   title: string | null;
   imageUrl: string | null;
   link: string | null;

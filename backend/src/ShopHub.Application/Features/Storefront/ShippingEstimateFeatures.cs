@@ -65,7 +65,7 @@ public sealed class ShippingEstimateHandler(IApplicationDbContext db, ICurrentUs
         {
             var from = Parcels.ShipFrom(shop.MultiWarehouse, warehouses, p.WarehouseId);
             fromName = await db.AdminDivisions.AsNoTracking().Where(d => d.Code == from.ProvinceCode).Select(d => d.Name).FirstOrDefaultAsync(ct);
-            var weight = ShippingCalculator.ChargeableWeightG([new ParcelItem(sku.WeightG ?? p.WeightG, p.LengthMm, p.WidthMm, p.HeightMm, 1)]);
+            var weight = ShippingCalculator.ChargeableWeightG([new ParcelItem(sku.WeightG ?? p.WeightG, sku.LengthMm ?? p.LengthMm, sku.WidthMm ?? p.WidthMm, sku.HeightMm ?? p.HeightMm, 1)]);
             var channels = await ShopChannels.ForShopAsync(db, shop.Id, ct);
             options = (await shipping.QuoteAsync(new RoutePoint(from.ProvinceCode, from.DistrictCode, from.WardCode), to, weight, sku.Price, ct))
                 .Where(o => ShopChannels.Allows(channels, o.Code) && (p.CarrierCodes.Count == 0 || p.CarrierCodes.Contains(o.Code)))

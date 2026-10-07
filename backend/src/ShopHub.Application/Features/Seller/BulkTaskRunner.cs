@@ -44,8 +44,12 @@ public sealed class BulkTaskRunner(IApplicationDbContext db, ISender sender, Act
         acting.UserId = task.OwnerUserId;
         try
         {
-            if (task.Kind == BackgroundTaskKind.ProductImport) await ImportAsync(task, ct);
-            else await PriceStockAsync(task, ct);
+            switch (task.Kind)
+            {
+                case BackgroundTaskKind.ProductImport: await ImportAsync(task, ct); break;
+                case BackgroundTaskKind.PriceStockUpdate: await PriceStockAsync(task, ct); break;
+                default: await ExportAsync(task, ct); break;
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -56,6 +60,38 @@ public sealed class BulkTaskRunner(IApplicationDbContext db, ISender sender, Act
             await db.SaveChangesAsync(ct);
         }
         return true;
+    }
+
+    // ---------- exports (6.4): the same queries the screens use, run here instead of inside the HTTP request ----------
+
+    private static readonly System.Text.Json.JsonSerializerOptions ExportJson = new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    private async Task ExportAsync(BackgroundTask task, CancellationToken ct)
+    {
+        task.Begin(1);
+        await db.SaveChangesAsync(ct);
+        var input = task.Input!;
+        var now = clock.UtcNow;
+        switch (task.Kind)
+        {
+            case BackgroundTaskKind.OrdersExport:
+            {
+                var q = System.Text.Json.JsonSerializer.Deserialize<ExportShopOrdersQuery>(input, ExportJson)!;
+                var bytes = await sender.Send(q with { ShopId = task.ShopId!.Value }, ct);
+                task.Deliver(task.FileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes, "Đã xuất xong, bấm Tải về.", now);
+                break;
+            }
+            case BackgroundTaskKind.AuditExport:
+            {
+                var q = System.Text.Json.JsonSerializer.Deserialize<Admin.AuditLogsExportQuery>(input, ExportJson)!;
+                var file = await sender.Send(q, ct);
+                task.Deliver(file.FileName, file.ContentType, file.Content, "Đã xuất xong, bấm Tải về.", now);
+                break;
+            }
+            default:
+                throw new InvalidOperationException($"Unknown task kind {task.Kind}");
+        }
+        await db.SaveChangesAsync(ct);
     }
 
     // ---------- product import ----------

@@ -240,4 +240,40 @@ test.describe('Thiết lập & trang trí shop', () => {
     await expect(seller.getByText('Đã tạo bản sao (bản nháp, tồn kho 0).')).toBeVisible();
     await expect(seller).toHaveURL(/\/seller\/san-pham\/[0-9a-f-]{36}$/);
   });
+  test('Xuất Excel đơn hàng chạy nền (Hangfire thật) rồi tải về được', async ({ browser, request }) => {
+    const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
+    const shop = await shopWithProduct(request, admin);
+    const seller = await sellerLogin(browser, shop.seller);
+    await seller.getByRole('menuitem', { name: 'Đơn hàng' }).click();
+    const [file] = await Promise.all([seller.waitForEvent('download', { timeout: 60_000 }), seller.getByTestId('export-orders').click()]);
+    expect(fs.readFileSync(await file.path()).subarray(0, 2).toString()).toBe('PK');
+  });
+  test('Chiến dịch của sàn: shop đăng ký sản phẩm → sàn duyệt → trang chiến dịch hiện sản phẩm', async ({ browser, page, request }) => {
+    const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
+    const shop = await shopWithProduct(request, admin);
+    const slug = `ngay-hoi-${shop.seller.phone.slice(-6)}`;
+    const now = Date.now();
+    const campaignId = await apiAs(request, admin.accessToken, 'POST', '/admin/marketing/campaigns', {
+      id: null, name: `Ngày hội ${shop.seller.phone.slice(-6)}`, slug, startAt: new Date(now - 60_000).toISOString(),
+      endAt: new Date(now + 7 * 86_400_000).toISOString(), isActive: true,
+      blocks: [{ type: 'Registered', title: 'Sản phẩm tham gia', imageUrl: null, link: null, voucherCodes: null, keyword: null, categoryId: null, maxPrice: null, limit: 24 }],
+    });
+
+    const seller = await sellerLogin(browser, shop.seller);
+    await seller.getByRole('menuitem', { name: 'Kênh Marketing' }).click();
+    await seller.getByRole('tab', { name: 'Chiến dịch của sàn' }).click();
+    await seller.getByRole('row', { name: new RegExp(slug.slice(-6)) }).getByTestId('campaign-open').click();
+    await seller.getByTestId('campaign-pick').click();
+    const dialog = seller.getByRole('dialog');
+    await dialog.getByRole('row', { name: new RegExp(shop.name) }).getByRole('checkbox').check();
+    await dialog.getByRole('button', { name: /Chọn|OK|Xong/ }).last().click();
+    await expect(seller.getByText('Đã gửi đăng ký, chờ sàn duyệt.')).toBeVisible();
+    await expect(seller.getByTestId('campaign-reg-status').first()).toHaveText('Chờ duyệt');
+
+    const pending = await apiAs(request, admin.accessToken, 'GET', `/admin/marketing/campaigns/${campaignId}/registrations?status=Pending`);
+    await apiAs(request, admin.accessToken, 'POST', `/admin/marketing/campaigns/${campaignId}/registrations/decisions`,
+      { registrationIds: pending.items.map((r) => r.id), approve: true, reason: null });
+    await page.goto(`${BASE}/su-kien/${slug}`);
+    await expect(page.getByTestId('campaign-registered')).toContainText(shop.name);
+  });
 });

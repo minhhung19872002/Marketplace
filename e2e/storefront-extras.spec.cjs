@@ -90,21 +90,42 @@ test.describe('Trang người mua — phần bổ sung', () => {
     const count = async (locator) => Number(((await locator.locator('.filter-count').textContent()) ?? '').replace(/[^\d]/g, ''));
     const results = async () => Number(((await page.getByTestId('search-count').textContent()) ?? '').replace(/[^\d]/g, ''));
 
+    // Other scenarios add products while this one runs: compare the total with the facet count of the SAME filtered answer
     const cod = page.getByTestId('facet-services').locator('label', { has: page.getByTestId('filter-cod') });
-    const expected = await count(cod);
-    expect(expected).toBeGreaterThan(0);
+    expect(await count(cod)).toBeGreaterThan(0);
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/search/products') && r.url().includes('cod=true') && r.ok()),
       page.getByTestId('filter-cod').click(),
     ]);
-    await expect.poll(results).toBe(expected);
+    await expect(async () => expect(await results()).toBe(await count(cod))).toPass({ timeout: 5_000 });
 
     const carrier = page.getByTestId('facet-carriers').locator('label').first();
-    const perCarrier = await count(carrier);
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/search/products') && r.url().includes('carriers=') && r.ok()),
       carrier.locator('input').click(),
     ]);
-    await expect.poll(results).toBe(perCarrier);
+    await expect(async () => expect(await results()).toBe(await count(carrier))).toPass({ timeout: 5_000 });
+  });
+  test('Thanh toán: thêm địa chỉ mới ngay tại trang, đơn dùng địa chỉ vừa thêm', async ({ page, request }) => {
+    const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
+    const shop = await shopWithProduct(request, admin);
+    const buyer = await registerViaApi(request, 'Người Mua Thêm Địa Chỉ');
+    const login = await apiLogin(request, buyer.phone, buyer.password);
+    const detail = await apiAs(request, login.accessToken, 'GET', `/products/${shop.productId}`);
+    await apiAs(request, login.accessToken, 'POST', '/cart/items', { skuId: detail.skus[0].id, quantity: 1 });
+    await loginInBrowser(page, buyer);
+    await page.goto(`${BASE}/thanh-toan`);
+    await expect(page.getByTestId('checkout-address')).toContainText('Bạn chưa có địa chỉ nhận hàng.');
+    await page.getByTestId('checkout-address-add').click();
+    const form = page.getByTestId('checkout-address-form');
+    await form.getByLabel('Tên người nhận').fill('Người Nhận Tại Trang');
+    await form.getByLabel('Số điện thoại người nhận').fill(buyer.phone);
+    for (const [label, option] of [['Tỉnh/Thành phố', 'Thành phố Hà Nội'], ['Quận/Huyện', 'Quận Ba Đình'], ['Phường/Xã', 'Phường Phúc Xá']]) {
+      await form.getByLabel(label).selectOption({ label: option });
+    }
+    await form.getByLabel('Địa chỉ cụ thể').fill('7 Phố Thanh Toán');
+    await form.getByTestId('address-save').click();
+    await expect(page.getByTestId('checkout-address')).toContainText('Người Nhận Tại Trang');
+    await expect(page.getByTestId('place-order')).toBeEnabled();
   });
 });

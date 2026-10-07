@@ -324,7 +324,15 @@ public class AdminReportTests(ApiFactory factory)
         }
 
         var audit = await factory.ClientWithPermissionsAsync(Permissions.AuditLogView);
-        var file = await audit.GetAsync("/api/admin/audit-logs/export?entity=SystemParameter");
+        var started = await audit.PostAsJsonAsync("/api/admin/audit-logs/export-tasks", new { entity = "SystemParameter" });
+        started.StatusCode.Should().Be(HttpStatusCode.OK);
+        var taskId = Guid.Parse((await started.ReadEnvelopeAsync()).Data.Str("id"));
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<Application.Features.Seller.BulkTaskRunner>().RunAsync(taskId, CancellationToken.None);
+        (await (await audit.GetAsync($"/api/admin/my-tasks/{taskId}")).ReadEnvelopeAsync()).Data.Str("status").Should().Be("Done");
+        var other = await factory.ClientWithPermissionsAsync(Permissions.AuditLogView);
+        (await other.GetAsync($"/api/admin/my-tasks/{taskId}/file")).StatusCode.Should().Be(HttpStatusCode.NotFound, "tệp của người khác");
+        var file = await audit.GetAsync($"/api/admin/my-tasks/{taskId}/file");
         file.StatusCode.Should().Be(HttpStatusCode.OK);
         using var book = new XLWorkbook(await file.Content.ReadAsStreamAsync());
         book.Worksheet(1).LastRowUsed()!.RowNumber().Should().BeGreaterThan(4, "có dòng đổi tham số PAYMENT.DISABLED_METHODS");

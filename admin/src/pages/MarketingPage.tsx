@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
-import { POSITION_LABEL, SEGMENT_LABEL, marketingApi, type Broadcast, type BroadcastSegment, type Banner, type BannerPosition, type Campaign, type CampaignBlock, type FlashItem, type FlashSlot } from '../api/marketing'
+import { POSITION_LABEL, SEGMENT_LABEL, marketingApi, type Broadcast, type BroadcastSegment, type Banner, type BannerPosition, type Campaign, type CampaignBlock, type CampaignRegistration, type RegistrationStatus, type FlashItem, type FlashSlot } from '../api/marketing'
 import { ApiError } from '../api/http'
 import { formatPrice } from '../lib/money'
 import { formatDateTime } from '../lib/datetime'
@@ -152,6 +152,7 @@ const BannersTab = () => {
 const CampaignsTab = () => {
   const { message } = App.useApp()
   const queryClient = useQueryClient()
+  const [reviewing, setReviewing] = useState<Campaign | null>(null)
   const [editing, setEditing] = useState<Campaign | null>(null)
   const [blocks, setBlocks] = useState('')
   const [form] = Form.useForm<{ name: string; slug: string; period: [Dayjs, Dayjs]; isActive: boolean }>()
@@ -185,19 +186,70 @@ const CampaignsTab = () => {
           { title: 'Trang', dataIndex: 'slug', render: (s: string) => <a href={`/su-kien/${s}`} target="_blank" rel="noreferrer">/su-kien/{s}</a> },
           { title: 'Thời gian', render: (_, c) => `${formatDateTime(c.startAt)} – ${formatDateTime(c.endAt)}` },
           { title: 'Khối', render: (_, c) => c.blocks.length },
-          { title: '', render: (_, c) => <Button size="small" onClick={() => edit(c)}>Sửa</Button> },
+          {
+            title: '',
+            render: (_, c) => (
+              <Space>
+                <Button size="small" onClick={() => edit(c)}>Sửa</Button>
+                {c.blocks.some((b) => b.type === 'Registered') && (
+                  <Button size="small" onClick={() => setReviewing(c)} data-testid="campaign-registrations">Đăng ký của shop</Button>
+                )}
+              </Space>
+            ),
+          },
         ]} />
+      {reviewing && <RegistrationsModal campaign={reviewing} onClose={() => setReviewing(null)} />}
       <Modal title="Chiến dịch" open={!!editing} onCancel={() => setEditing(null)} onOk={() => form.submit()} okText="Lưu" width={760} confirmLoading={save.isPending} destroyOnClose>
         <Form form={form} layout="vertical" onFinish={(v) => save.mutate(v)}>
           <Form.Item name="name" label="Tên" rules={[{ required: true, message: 'Nhập tên.' }]}><Input /></Form.Item>
           <Form.Item name="slug" label="Đường dẫn (/su-kien/…)" rules={[{ required: true, pattern: /^[a-z0-9]+(-[a-z0-9]+)*$/, message: 'Chữ thường không dấu, số, gạch ngang.' }]}><Input /></Form.Item>
           <Form.Item name="period" label="Thời gian"><DatePicker.RangePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="isActive" label="Bật" valuePropName="checked"><Switch /></Form.Item>
-          <Typography.Text type="secondary">Khối (JSON): Banner (title, imageUrl, link) · Vouchers (voucherCodes) · FlashSale · Products (keyword, categoryId, maxPrice, limit)</Typography.Text>
+          <Typography.Text type="secondary">
+            Khối (JSON): Banner (title, imageUrl, link) · Vouchers (voucherCodes) · FlashSale · Products (keyword, categoryId, maxPrice, limit) ·
+            Registered (title, limit — sản phẩm shop đăng ký và được duyệt; có khối này thì shop đăng ký được)
+          </Typography.Text>
           <Input.TextArea rows={12} value={blocks} onChange={(e) => setBlocks(e.target.value)} style={{ fontFamily: 'monospace' }} />
         </Form>
       </Modal>
     </>
+  )
+}
+
+/** Đăng ký của shop cho một chiến dịch: duyệt / từ chối (kèm lý do) từng sản phẩm hoặc nhiều cái một lần. */
+const RegistrationsModal = ({ campaign, onClose }: { campaign: Campaign; onClose: () => void }) => {
+  const { message } = App.useApp()
+  const queryClient = useQueryClient()
+  const [status, setStatus] = useState<RegistrationStatus>('Pending')
+  const [selected, setSelected] = useState<string[]>([])
+  const [reason, setReason] = useState('')
+  const list = useQuery({ queryKey: ['registrations', campaign.id, status], queryFn: () => marketingApi.registrations(campaign.id, status) })
+  const decide = useMutation({
+    mutationFn: (approve: boolean) => marketingApi.decideRegistrations(campaign.id, { registrationIds: selected, approve, reason: approve ? null : reason }),
+    onSuccess: (r) => { message.success(r.message); setSelected([]); void queryClient.invalidateQueries({ queryKey: ['registrations', campaign.id] }) },
+    onError: (e) => message.error(errorText(e, 'Không lưu được.')),
+  })
+  return (
+    <Modal title={`Đăng ký sản phẩm — ${campaign.name}`} open onCancel={onClose} footer={null} width={900}>
+      <Space style={{ marginBottom: 12 }} wrap>
+        <Select value={status} onChange={(v) => { setStatus(v); setSelected([]) }} style={{ width: 160 }}
+          options={[{ value: 'Pending', label: 'Chờ duyệt' }, { value: 'Approved', label: 'Đã duyệt' }, { value: 'Rejected', label: 'Từ chối' }]} />
+        <Button type="primary" disabled={!selected.length} loading={decide.isPending} onClick={() => decide.mutate(true)} data-testid="registrations-approve">
+          Duyệt ({selected.length})
+        </Button>
+        <Input placeholder="Lý do từ chối" value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: 240 }} />
+        <Button danger disabled={!selected.length || !reason.trim()} loading={decide.isPending} onClick={() => decide.mutate(false)}>Từ chối</Button>
+      </Space>
+      <Table<CampaignRegistration> rowKey="id" size="small" loading={list.isLoading} dataSource={list.data?.items ?? []} pagination={false}
+        rowSelection={{ selectedRowKeys: selected, onChange: (k) => setSelected(k as string[]) }}
+        columns={[
+          { title: 'Sản phẩm', render: (_, r) => <Space>{r.imageUrl && <img src={r.imageUrl} alt="" width={40} height={40} style={{ objectFit: 'cover' }} />}{r.productName}</Space> },
+          { title: 'Shop', dataIndex: 'shopName' },
+          { title: 'Giá từ', dataIndex: 'minPrice', render: (v: number) => formatPrice(v) },
+          { title: 'Gửi lúc', dataIndex: 'createdAt', render: (v: string) => formatDateTime(v) },
+          { title: 'Lý do', dataIndex: 'rejectReason' },
+        ]} />
+    </Modal>
   )
 }
 

@@ -106,6 +106,31 @@ public sealed class SellerMarketingController : ApiControllerBase
     [ProducesResponseType<ApiResponse<int>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Register(Guid shopId, Guid slotId, [FromBody] RegisterBody body, CancellationToken ct) =>
         OkData(await Sender.Send(new RegisterFlashItemsCommand(shopId, slotId, body.Items ?? []), ct), "Đã gửi đăng ký, chờ sàn duyệt.");
+    // ---------- chiến dịch của sàn (III.5) ----------
+
+    [HttpGet("campaigns")]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<OpenCampaignDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> OpenCampaigns(Guid shopId, CancellationToken ct) => OkData(await Sender.Send(new ShopCampaignsQuery(shopId), ct));
+
+    [HttpGet("campaigns/{campaignId:guid}/registrations")]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<CampaignRegistrationDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CampaignRegistrations(Guid shopId, Guid campaignId, CancellationToken ct) =>
+        OkData(await Sender.Send(new ShopCampaignRegistrationsQuery(shopId, campaignId), ct));
+
+    public record CampaignRegisterBody(IReadOnlyList<Guid> ProductIds);
+
+    [HttpPost("campaigns/{campaignId:guid}/registrations")]
+    [ProducesResponseType<ApiResponse<int>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RegisterCampaign(Guid shopId, Guid campaignId, [FromBody] CampaignRegisterBody body, CancellationToken ct) =>
+        OkData(await Sender.Send(new RegisterCampaignProductsCommand(shopId, campaignId, body.ProductIds ?? []), ct), "Đã gửi đăng ký, chờ sàn duyệt.");
+
+    [HttpDelete("campaign-registrations/{registrationId:guid}")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> WithdrawCampaign(Guid shopId, Guid registrationId, CancellationToken ct)
+    {
+        await Sender.Send(new WithdrawCampaignProductCommand(shopId, registrationId), ct);
+        return OkData<object?>(null, "Đã rút sản phẩm khỏi chiến dịch.");
+    }
 }
 
 [Route("api/admin/marketing")]
@@ -164,4 +189,19 @@ public sealed class MarketingAdminController : ApiControllerBase
     [ProducesResponseType<ApiResponse<Guid>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SaveCampaign([FromBody] SaveCampaignCommand body, CancellationToken ct) =>
         OkData(await Sender.Send(body, ct), "Đã lưu chiến dịch.");
+    [HttpGet("campaigns/{campaignId:guid}/registrations")]
+    [RequirePermission(Permissions.MarketingManage)]
+    [ProducesResponseType<ApiResponse<Application.Common.PagedResult<CampaignRegistrationDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CampaignRegistrations(Guid campaignId, [FromQuery] Domain.Promo.CampaignRegistrationStatus? status, [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20, CancellationToken ct = default) =>
+        OkData(await Sender.Send(new AdminCampaignRegistrationsQuery(campaignId, status, page, pageSize), ct));
+
+    public record DecideRegistrationsBody(IReadOnlyList<Guid> RegistrationIds, bool Approve, string? Reason);
+
+    [HttpPost("campaigns/{campaignId:guid}/registrations/decisions")]
+    [RequirePermission(Permissions.MarketingManage)]
+    [ProducesResponseType<ApiResponse<int>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DecideRegistrations(Guid campaignId, [FromBody] DecideRegistrationsBody body, CancellationToken ct) =>
+        OkData(await Sender.Send(new DecideCampaignRegistrationsCommand(campaignId, body.RegistrationIds ?? [], body.Approve, body.Reason), ct),
+            body.Approve ? "Đã duyệt." : "Đã từ chối.");
 }

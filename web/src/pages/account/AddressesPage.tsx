@@ -14,7 +14,8 @@ const EMPTY: AddressInput = {
   isDefault: false,
 };
 
-const AddressForm = ({ initial, onDone }: { initial: Address | null; onDone: () => void }) => {
+/** Add / edit one address — also used inline on the checkout page (II.7), which then picks the new address. */
+export const AddressForm = ({ initial, onDone }: { initial: Address | null; onDone: (saved?: Address) => void }) => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<AddressInput>(initial ? { ...initial } : EMPTY);
   const set = <K extends keyof AddressInput>(key: K, value: AddressInput[K]) => setForm((f) => ({ ...f, [key]: value }));
@@ -35,9 +36,9 @@ const AddressForm = ({ initial, onDone }: { initial: Address | null; onDone: () 
 
   const save = useMutation({
     mutationFn: () => (initial ? accountApi.updateAddress(initial.id, form) : accountApi.createAddress(form)),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ['addresses'] });
-      onDone();
+      onDone(result.data);
     },
   });
   const errors = save.error instanceof ApiError ? save.error.fieldErrors.map((f) => f.message) : [];
@@ -90,7 +91,7 @@ const AddressForm = ({ initial, onDone }: { initial: Address | null; onDone: () 
       </label>
       {errorMessage && <div className="account-error" role="alert">{errorMessage}</div>}
       <div className="account-actions">
-        <button type="button" className="account-btn-outline" onClick={onDone}>Trở lại</button>
+        <button type="button" className="account-btn-outline" onClick={() => onDone()}>Trở lại</button>
         <button type="submit" className="account-btn-primary" disabled={save.isPending} data-testid="address-save">Hoàn thành</button>
       </div>
     </form>

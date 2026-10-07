@@ -135,6 +135,7 @@ internal sealed class SkuConfiguration : IEntityTypeConfiguration<Sku>
         b.Property(s => s.SellerSku).HasMaxLength(50);
         b.Property(s => s.Version).IsRowVersion();
         b.Ignore(s => s.Available);
+        b.Ignore(s => s.Size);
         b.HasOne<VariantOption>().WithMany().HasForeignKey(s => s.Option1Id).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<VariantOption>().WithMany().HasForeignKey(s => s.Option2Id).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(s => new { s.ProductId, s.Option1Id, s.Option2Id }).IsUnique().AreNullsDistinct(false)

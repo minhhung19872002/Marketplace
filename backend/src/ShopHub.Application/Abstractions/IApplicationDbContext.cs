@@ -59,6 +59,7 @@ public interface IApplicationDbContext
     DbSet<OrderItem> OrderItems { get; }
     DbSet<OrderPackage> OrderPackages { get; }
     DbSet<ShopShippingChannel> ShopShippingChannels { get; }
+    DbSet<Domain.Promo.CampaignRegistration> CampaignRegistrations { get; }
     DbSet<OrderItemDiscount> OrderItemDiscounts { get; }
     DbSet<OrderStatusHistory> OrderStatusHistory { get; }
     DbSet<Payment> Payments { get; }

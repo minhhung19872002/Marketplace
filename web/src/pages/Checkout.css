@@ -311,6 +311,24 @@
   border: 1px solid var(--border);
 }
 
+.checkout-address-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+button.checkout-address-manage {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.checkout-address-form {
+  margin-top: 12px;
+}
+
 .checkout-address-manage {
   display: inline-block;
   margin-top: 8px;

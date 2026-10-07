@@ -124,5 +124,10 @@ export const ordersApi = {
   carrierLabel: (shopId: string, id: string, packageNo?: number) =>
     download(`${base(shopId)}/orders/${id}/carrier-label${packageNo ? `?package=${packageNo}` : ''}`),
   pickingList: (shopId: string, ids: string[]) => download(`${base(shopId)}/orders/picking-list?${ids.map((i) => `ids=${i}`).join('&')}`),
-  export: (shopId: string, tab: ShopOrderTab) => download(`${base(shopId)}/orders/export?tab=${tab}`),
+  // Xuất Excel runs in the background (6.4): start, follow the task, then download its file
+  startExport: (shopId: string, tab: ShopOrderTab) =>
+    apiCommand<{ id: string; status: string; message: string | null }>(`${base(shopId)}/orders/export-tasks`, { method: 'POST', body: { tab } }),
+  exportTask: (shopId: string, taskId: string) =>
+    apiRequest<{ id: string; status: string; message: string | null }>(`${base(shopId)}/bulk/tasks/${taskId}`),
+  exportFile: (shopId: string, taskId: string) => download(`${base(shopId)}/tasks/${taskId}/file`),
 }

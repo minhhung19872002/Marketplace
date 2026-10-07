@@ -67,11 +67,21 @@ public sealed class SellerOrdersController : ApiControllerBase
     public async Task<IActionResult> PickingList(Guid shopId, [FromQuery] Guid[] ids, CancellationToken ct) =>
         File(await Sender.Send(new PickingListQuery(shopId, ids), ct), Pdf, $"phieu-soan-hang-{DateTime.UtcNow:yyyyMMddHHmm}.pdf");
 
-    [HttpGet("shops/{shopId:guid}/orders/export")]
+    public record OrdersExportRequest(ShopOrderTab Tab = ShopOrderTab.All, DateTimeOffset? From = null, DateTimeOffset? To = null);
+
+    /// <summary>Xuất Excel đơn hàng (6.4): queued as a background task; follow it at bulk/tasks/{id}, then download the file.</summary>
+    [HttpPost("shops/{shopId:guid}/orders/export-tasks")]
+    [ProducesResponseType<ApiResponse<BackgroundTaskDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Export(Guid shopId, [FromBody] OrdersExportRequest body, CancellationToken ct) =>
+        OkData(await Sender.Send(new StartOrdersExportCommand(shopId, body.Tab, body.From, body.To), ct), "Đang xuất tệp, bạn sẽ tải được khi xong.");
+
+    [HttpGet("shops/{shopId:guid}/tasks/{taskId:guid}/file")]
     [Produces(Xlsx, "application/json")]
-    public async Task<IActionResult> Export(Guid shopId, [FromQuery] ShopOrderTab tab = ShopOrderTab.All, [FromQuery] DateTimeOffset? from = null,
-        [FromQuery] DateTimeOffset? to = null, CancellationToken ct = default) =>
-        File(await Sender.Send(new ExportShopOrdersQuery(shopId, tab, from, to), ct), Xlsx, $"don-hang-{DateTime.UtcNow:yyyyMMddHHmm}.xlsx");
+    public async Task<IActionResult> TaskFile(Guid shopId, Guid taskId, CancellationToken ct)
+    {
+        var file = await Sender.Send(new ShopTaskFileQuery(shopId, taskId), ct);
+        return File(file.Content, file.ContentType, file.FileName);
+    }
 
     public record ReasonRequest(string Reason);
 

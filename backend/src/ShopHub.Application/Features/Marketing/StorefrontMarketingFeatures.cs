@@ -200,6 +200,14 @@ public sealed class CampaignPageHandler(IApplicationDbContext db, ISender sender
                         .Select(ProductCards.Row(db)).ToListAsync(ct);
                     blocks.Add(new CampaignBlockDto(b.Type, b.Title, null, b.Link, null, null, await pricing.ApplyAsync(cards.Select(ProductCards.ToDto).ToList(), ct)));
                     break;
+                case CampaignBlockType.Registered:
+                    // The shops' products the platform approved for this campaign (III.5), best sellers first
+                    var approved = await ProductCards.Visible(db).AsNoTracking()
+                        .Where(p => db.CampaignRegistrations.Any(r => r.CampaignId == campaign.Id && r.ProductId == p.Id && r.Status == CampaignRegistrationStatus.Approved))
+                        .OrderByDescending(p => p.SoldCount).ThenBy(p => p.Id).Take(Math.Clamp(b.Limit ?? 24, 1, 48))
+                        .Select(ProductCards.Row(db)).ToListAsync(ct);
+                    blocks.Add(new CampaignBlockDto(b.Type, b.Title, null, b.Link, null, null, await pricing.ApplyAsync(approved.Select(ProductCards.ToDto).ToList(), ct)));
+                    break;
             }
         }
         return new CampaignPageDto(campaign.Name, campaign.Slug, campaign.StartAt, campaign.EndAt, now, blocks);

@@ -436,7 +436,18 @@ public class FulfilmentTests(ApiFactory factory)
         await PrepareAsync(a);
 
         var picking = await a.Seller.GetAsync($"/api/seller/shops/{store.ShopId}/orders/picking-list?ids={a.OrderId}&ids={b.OrderId}");
-        var excel = await a.Seller.GetAsync($"/api/seller/shops/{store.ShopId}/orders/export?tab=All");
+        // Xuất Excel runs as a background task (6.4): the request only queues it; the file is not ready until it ran
+        var started = await a.Seller.PostAsJsonAsync($"/api/seller/shops/{store.ShopId}/orders/export-tasks", new { tab = "All" });
+        started.StatusCode.Should().Be(HttpStatusCode.OK);
+        var taskId = (await started.ReadEnvelopeAsync()).Data.Str("id");
+        (await a.Seller.GetAsync($"/api/seller/shops/{store.ShopId}/tasks/{taskId}/file")).StatusCode.Should().Be(HttpStatusCode.Conflict, "đang tạo tệp");
+        using (var scope = factory.Services.CreateScope())
+            (await scope.ServiceProvider.GetRequiredService<Application.Features.Seller.BulkTaskRunner>().RunAsync(Guid.Parse(taskId), CancellationToken.None))
+                .Should().BeTrue();
+        (await (await a.Seller.GetAsync($"/api/seller/shops/{store.ShopId}/bulk/tasks/{taskId}")).ReadEnvelopeAsync()).Data.Str("status").Should().Be("Done");
+        var stranger = await SellerClientAsync(await factory.CreateStoreAsync());
+        (await stranger.GetAsync($"/api/seller/shops/{store.ShopId}/tasks/{taskId}/file")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var excel = await a.Seller.GetAsync($"/api/seller/shops/{store.ShopId}/tasks/{taskId}/file");
 
         using (var pdf = PdfDocument.Open(await picking.Content.ReadAsByteArrayAsync()))
         {

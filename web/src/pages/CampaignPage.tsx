@@ -71,6 +71,9 @@ const CampaignPage = () => {
           )}
           {b.type === 'FlashSale' && b.flashSale && <FlashSaleBoard board={b.flashSale} compact />}
           {b.type === 'Products' && <ProductGrid title={b.title ?? 'SẢN PHẨM'} products={b.products ?? []} />}
+          {b.type === 'Registered' && (b.products?.length ?? 0) > 0 && (
+            <div data-testid="campaign-registered"><ProductGrid title={b.title ?? 'SẢN PHẨM THAM GIA'} products={b.products ?? []} /></div>
+          )}
         </section>
       ))}
     </div>

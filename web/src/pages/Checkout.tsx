@@ -10,6 +10,8 @@ import { formatCount, formatPrice } from '../lib/money';
 import { formatDate } from '../lib/datetime';
 import { goTo } from '../lib/navigation';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import { AddressForm } from './account/AddressesPage';
+import './account/Account.css';
 import './Checkout.css';
 
 const newKey = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
@@ -74,6 +76,8 @@ const Checkout = () => {
   const idempotencyKey = useRef(newKey());
 
   const [addressId, setAddressId] = useState<string | null>(null);
+  // Thêm địa chỉ ngay tại trang (II.7): the new one is picked for this order
+  const [adding, setAdding] = useState(false);
   const [carriers, setCarriers] = useState<Record<string, string>>({});
   const [shopVouchers, setShopVouchers] = useState<Record<string, string | null>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -190,7 +194,16 @@ const Checkout = () => {
               ))}
             </select>
           )}
-          <Link to="/tai-khoan/dia-chi" className="checkout-address-manage">+ Thêm / sửa địa chỉ</Link>
+          {adding ? (
+            <div className="checkout-address-form" data-testid="checkout-address-form">
+              <AddressForm initial={null} onDone={(saved) => { setAdding(false); if (saved) setAddressId(saved.id); }} />
+            </div>
+          ) : (
+            <span className="checkout-address-actions">
+              <button type="button" className="checkout-address-manage" onClick={() => setAdding(true)} data-testid="checkout-address-add">+ Thêm địa chỉ mới</button>
+              <Link to="/tai-khoan/dia-chi" className="checkout-address-manage">Sửa sổ địa chỉ</Link>
+            </span>
+          )}
         </div>
 
         {quote.shops.map((shop) => (

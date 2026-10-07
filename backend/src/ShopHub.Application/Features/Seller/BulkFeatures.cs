@@ -156,9 +156,13 @@ public record StartBulkTaskCommand(Guid ShopId, BackgroundTaskKind Kind, string 
 
 public sealed class StartBulkTaskValidator : AbstractValidator<StartBulkTaskCommand>
 {
-    public StartBulkTaskValidator() =>
+    public StartBulkTaskValidator()
+    {
+        RuleFor(x => x.Kind).Must(k => k is BackgroundTaskKind.ProductImport or BackgroundTaskKind.PriceStockUpdate)
+            .WithMessage("Loại việc không hợp lệ.");
         RuleFor(x => x.Content).Cascade(CascadeMode.Stop).NotNull().Must(c => c.Length > 0).WithMessage("Vui lòng chọn tệp Excel.")
             .Must(c => c.Length <= BulkColumns.MaxFileBytes).WithMessage("Tệp tối đa 5 MB.");
+    }
 }
 
 /// <summary>Checks the file is the right ShopHub sheet for this shop, stores it and queues the work; returns the task to follow.</summary>
@@ -186,6 +190,40 @@ public sealed class StartBulkTaskHandler(IApplicationDbContext db, SellerAccess 
         await db.SaveChangesAsync(ct);
         tasks.Enqueue(task.Id);
         return BulkMapping.ToDto(task);
+    }
+}
+
+// ---------- exports in the background (6.4) ----------
+
+public record StartOrdersExportCommand(Guid ShopId, ShopOrderTab Tab, DateTimeOffset? From, DateTimeOffset? To) : IRequest<BackgroundTaskDto>;
+
+/// <summary>Queues "Xuất Excel" of the shop's orders; the page follows the task and downloads the file when it is ready.</summary>
+public sealed class StartOrdersExportHandler(IApplicationDbContext db, SellerAccess access, IBackgroundTasks tasks, IClock clock)
+    : IRequestHandler<StartOrdersExportCommand, BackgroundTaskDto>
+{
+    public async Task<BackgroundTaskDto> Handle(StartOrdersExportCommand request, CancellationToken ct)
+    {
+        var staff = await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
+        if (request.From is { } f && request.To is { } t && f > t) throw new BusinessRuleException("Khoảng ngày không hợp lệ: ngày bắt đầu sau ngày kết thúc.");
+        var input = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new ExportShopOrdersQuery(request.ShopId, request.Tab, request.From, request.To),
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        var task = new BackgroundTask(BackgroundTaskKind.OrdersExport, staff.UserId, request.ShopId,
+            $"don-hang-{VietnamTime.ToLocal(clock.UtcNow):yyyyMMdd-HHmm}.xlsx", input, clock.UtcNow);
+        db.BackgroundTasks.Add(task);
+        await db.SaveChangesAsync(ct);
+        tasks.Enqueue(task.Id);
+        return BulkMapping.ToDto(task);
+    }
+}
+
+public record ShopTaskFileQuery(Guid ShopId, Guid TaskId) : IRequest<Admin.TaskFile>;
+
+public sealed class ShopTaskFileHandler(IApplicationDbContext db, SellerAccess access) : IRequestHandler<ShopTaskFileQuery, Admin.TaskFile>
+{
+    public async Task<Admin.TaskFile> Handle(ShopTaskFileQuery request, CancellationToken ct)
+    {
+        await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
+        return await Admin.TaskFiles.LoadAsync(db, t => t.Id == request.TaskId && t.ShopId == request.ShopId, ct);
     }
 }
 

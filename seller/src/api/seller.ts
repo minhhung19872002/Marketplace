@@ -91,7 +91,11 @@ export interface Sku {
   available: number
   weightG: number | null
   isActive: boolean
+  size: PackageSize | null
 }
+
+/** Kích thước đóng gói of a variant (mm); null = the product's */
+export interface PackageSize { lengthMm: number; widthMm: number; heightMm: number }
 
 export interface ProductDetail {
   id: string
@@ -139,7 +143,8 @@ export interface ProductInput {
   attributes: { attributeId: string; values: string[] }[]
   media: { assetId: string; optionValue: string | null }[]
   tiers: { name: string; options: { value: string; imageAssetId: string | null }[] }[]
-  skus: { option1: string | null; option2: string | null; sellerSku: string | null; price: number; originalPrice: number; stock: number; weightG: number | null; isActive: boolean }[]
+  skus: { option1: string | null; option2: string | null; sellerSku: string | null; price: number; originalPrice: number; stock: number; weightG: number | null; isActive: boolean;
+    size: PackageSize | null }[]
 }
 
 export interface Movement {

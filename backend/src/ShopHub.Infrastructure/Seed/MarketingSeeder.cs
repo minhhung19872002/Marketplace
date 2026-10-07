@@ -90,6 +90,8 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, ILogger<M
                 new(CampaignBlockType.Vouchers, "Mã giảm giá của sàn", null, null, ["SHOPHUB50", "FREESHIP", "SALE12"], null, null, null, null),
                 new(CampaignBlockType.FlashSale, "Flash Sale đang diễn ra", null, null, null, null, null, null, null),
                 new(CampaignBlockType.Products, "Deal dưới ₫200.000", null, "/tim-kiem?maxPrice=200000", null, null, null, 200_000, 12),
+                // Shops put their products forward from Kênh Marketing → Chiến dịch của sàn; approved ones show here
+                new(CampaignBlockType.Registered, "Sản phẩm của các shop tham gia", null, null, null, null, null, null, 24),
             ], now));
             await db.SaveChangesAsync(ct);
             logger.LogInformation("SEED campaign: sieu-sale-10-10");

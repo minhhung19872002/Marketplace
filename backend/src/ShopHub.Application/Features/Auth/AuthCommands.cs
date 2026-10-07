@@ -162,8 +162,7 @@ public sealed class LoginHandler(
         if (user.Status == UserStatus.Locked)
             throw new AuthenticationFailedException("Tài khoản đã bị khoá. Vui lòng liên hệ bộ phận hỗ trợ.", "ACCOUNT_LOCKED");
 
-        user.RecordSuccessfulLogin(now);
-        await db.SaveChangesAsync(ct);
+        await LoginStamp.RecordAsync(db, user, now, ct);
         return await sessions.StartAsync(user, request.Device, ct);
     }
 
@@ -217,9 +216,23 @@ public sealed class LoginWithOtpHandler(IApplicationDbContext db, OtpService otp
         if (user.Status != UserStatus.Active)
             throw new AuthenticationFailedException("Tài khoản đã bị khoá. Vui lòng liên hệ bộ phận hỗ trợ.", "ACCOUNT_LOCKED");
 
-        user.RecordSuccessfulLogin(clock.UtcNow);
-        await db.SaveChangesAsync(ct);
+        await LoginStamp.RecordAsync(db, user, clock.UtcNow, ct);
         return await sessions.StartAsync(user, request.Device, ct);
+    }
+}
+
+/// <summary>
+/// A successful sign-in clears the failure counter and stamps last_login_at with one set-based statement: several
+/// devices signing in to one account at the same moment would otherwise trip the user row's version (409, L061).
+/// </summary>
+internal static class LoginStamp
+{
+    public static async Task RecordAsync(IApplicationDbContext db, User user, DateTimeOffset now, CancellationToken ct)
+    {
+        await db.Users.Where(u => u.Id == user.Id).ExecuteUpdateAsync(u => u
+            .SetProperty(x => x.FailedLoginCount, 0)
+            .SetProperty(x => x.LockedUntil, (DateTimeOffset?)null)
+            .SetProperty(x => x.LastLoginAt, now), ct);
     }
 }
 

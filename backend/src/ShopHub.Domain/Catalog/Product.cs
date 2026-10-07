@@ -29,7 +29,11 @@ public record TierSpec(string Name, IReadOnlyList<OptionSpec> Options);
 public record OptionSpec(string Value, string? ImageUrl);
 
 /// <summary>Price/stock for one combination; option values identify the SKU (tier 2 value null without a 2nd tier).</summary>
-public record SkuSpec(string? Option1, string? Option2, string? SellerSku, long Price, long OriginalPrice, int Stock, int? WeightG, bool IsActive);
+public record SkuSpec(string? Option1, string? Option2, string? SellerSku, long Price, long OriginalPrice, int Stock, int? WeightG, bool IsActive,
+    PackageSize? Size = null);
+
+/// <summary>Kích thước đóng gói of one variant (3.2) in mm; a variant without one uses the product's.</summary>
+public record PackageSize(int LengthMm, int WidthMm, int HeightMm);
 
 public record MediaSpec(MediaType Type, Guid? AssetId, string Url, string? OptionValue);
 
@@ -236,7 +240,7 @@ public class Product : AuditableEntity
                 sku = new Sku(Id, option1?.Id, option2?.Id);
                 _skus.Add(sku);
             }
-            sku.Update(spec.SellerSku, spec.Price, spec.OriginalPrice, spec.WeightG, spec.IsActive);
+            sku.Update(spec.SellerSku, spec.Price, spec.OriginalPrice, spec.WeightG, spec.IsActive, spec.Size);
             var delta = sku.SetStockForEditor(spec.Stock);
             if (delta != 0) deltas.Add((sku, delta));
         }
@@ -430,13 +434,24 @@ public class Sku : Entity
     public int Stock { get; private set; }
     public int Reserved { get; private set; }
     public int? WeightG { get; private set; }
+    // Package size of this variant (mm); null = the product's
+    public int? LengthMm { get; private set; }
+    public int? WidthMm { get; private set; }
+    public int? HeightMm { get; private set; }
     public bool IsActive { get; private set; }
     public uint Version { get; private set; }
 
     public int Available => Stock - Reserved;
 
-    internal void Update(string? sellerSku, long price, long originalPrice, int? weightG, bool isActive)
+    public PackageSize? Size => LengthMm is { } l && WidthMm is { } w && HeightMm is { } h ? new PackageSize(l, w, h) : null;
+
+    internal void Update(string? sellerSku, long price, long originalPrice, int? weightG, bool isActive, PackageSize? size = null)
     {
+        if (size is { } s && (s.LengthMm is < 0 or > 5_000 || s.WidthMm is < 0 or > 5_000 || s.HeightMm is < 0 or > 5_000))
+            throw new BusinessRuleException("Kích thước đóng gói mỗi chiều từ 0 đến 5.000 mm.");
+        LengthMm = size?.LengthMm;
+        WidthMm = size?.WidthMm;
+        HeightMm = size?.HeightMm;
         if (price <= 0) throw new BusinessRuleException("Giá bán phải lớn hơn 0.");
         if (price > 1_000_000_000) throw new BusinessRuleException("Giá bán tối đa ₫1.000.000.000.");
         if (originalPrice < price) throw new BusinessRuleException("Giá gốc không được thấp hơn giá bán.");

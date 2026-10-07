@@ -90,7 +90,12 @@ const OrderDrawer = ({ shopId, orderId, onClose }: { shopId: string; orderId: st
             <Descriptions.Item label="Địa chỉ">{o.address.fullAddress}</Descriptions.Item>
             <Descriptions.Item label="Thanh toán">{o.paymentMethod === 'Cod' ? 'COD (thu hộ)' : 'Online'} · {o.paymentStatus}</Descriptions.Item>
             {o.buyerNote && <Descriptions.Item label="Lời nhắn">{o.buyerNote}</Descriptions.Item>}
-            {o.shipment && <Descriptions.Item label="Vận đơn">{o.shipment.trackingNo} · {o.shipment.carrierName} · {o.shipment.statusLabel}</Descriptions.Item>}
+            {o.parcels ? o.parcels.map((p) => (
+              <Descriptions.Item key={p.no} label={`Kiện ${p.no}`}>
+                {p.warehouseName} ({p.provinceName}) · {p.itemIds.length} sản phẩm · phí {formatPrice(p.shippingFee)}
+                {p.shipment && <><br />{p.shipment.trackingNo} · {p.shipment.statusLabel}{p.shipment.codAmount > 0 && ` · thu hộ ${formatPrice(p.shipment.codAmount)}`}</>}
+              </Descriptions.Item>
+            )) : o.shipment && <Descriptions.Item label="Vận đơn">{o.shipment.trackingNo} · {o.shipment.carrierName} · {o.shipment.statusLabel}</Descriptions.Item>}
           </Descriptions>
           <Table size="small" rowKey="id" pagination={false} dataSource={o.items} columns={[
             { title: 'Sản phẩm', render: (_, i) => <span>{i.name}{i.variant && <Typography.Text type="secondary"> · {i.variant}</Typography.Text>}</span> },
@@ -220,7 +225,16 @@ const OrdersPage = ({ shopId }: { shopId: string }) => {
               </Space>
             ),
           },
-          { title: 'Vận chuyển', render: (_, r) => r.trackingNo ? <span>{r.carrierCode}<br />{r.trackingNo}{r.labelPrinted ? ' · đã in' : ''}</span> : r.carrierCode },
+          {
+            title: 'Vận chuyển',
+            render: (_, r) => (
+              <span>
+                {r.carrierCode}
+                {r.trackingNo && <><br />{r.trackingNo}{r.labelPrinted ? ' · đã in' : ''}</>}
+                {r.parcelCount > 1 && <><br /><Tag color="geekblue">{r.parcelCount} kiện</Tag></>}
+              </span>
+            ),
+          },
           { title: 'Ngày đặt', dataIndex: 'createdAt', render: (v: string) => formatDateTime(v) },
           {
             title: '',
@@ -233,7 +247,9 @@ const OrdersPage = ({ shopId }: { shopId: string }) => {
                 {r.status === 'ReadyToShip' && r.carrierCode.startsWith('GHTK') && (
                   <Button size="small" onClick={async () => {
                     try {
-                      openBlob(await ordersApi.carrierLabel(shopId, r.id), `phieu-ghtk-${r.code}.pdf`)
+                      // One carrier label per parcel
+                      for (let no = 1; no <= Math.max(1, r.parcelCount); no++)
+                        openBlob(await ordersApi.carrierLabel(shopId, r.id, r.parcelCount > 1 ? no : undefined), `phieu-ghtk-${r.code}-${no}.pdf`)
                     } catch (e) {
                       fail(e)
                     }

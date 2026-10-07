@@ -20,7 +20,8 @@ public sealed class OrderLocks(IApplicationDbContext db)
     public async Task<Order> LockAsync(Guid orderId, CancellationToken ct)
     {
         await db.LockAsync($"order:{orderId}", ct);
-        return await db.Orders.Include(o => o.Items).Include(o => o.History).SingleAsync(o => o.Id == orderId, ct);
+        return await db.Orders.Include(o => o.Items).ThenInclude(i => i.Discounts).Include(o => o.History).Include(o => o.Packages)
+            .AsSplitQuery().SingleAsync(o => o.Id == orderId, ct);
     }
 }
 
@@ -114,6 +115,7 @@ public sealed class ShipmentEventProcessor(
     OrderCanceller canceller,
     ICounterRecomputer counters,
     ISystemParameters parameters,
+    Returns.ReturnRefunder refunder,
     IOutbox outbox,
     IClock clock,
     ILogger<ShipmentEventProcessor> logger)
@@ -131,13 +133,17 @@ public sealed class ShipmentEventProcessor(
         var touched = false;
         if (shipment.Direction == ShipmentDirection.Return && shipment.ReturnId is { } returnId)
             await Returns.ReturnAutomationService.OnReturnParcelAsync(db, returnId, e.Status, parameters, now, ct);
+        else if (shipment.Direction == ShipmentDirection.Outbound
+                 && await db.Shipments.CountAsync(s => s.OrderId == order.Id && s.Direction == ShipmentDirection.Outbound
+                                                       && s.Status != ShipmentStatus.Cancelled, ct) > 1)
+            touched = await ApplyParcelAsync(order, shipment, e, now, ct);
         else if (shipment.Direction == ShipmentDirection.Outbound)
         {
             switch (e.Status)
             {
                 case ShipmentStatus.Picked when order.Status == OrderStatus.ReadyToShip:
                     OrderStateMachine.Transition(order, OrderStatus.Shipping, OrderActor.Carrier, null, "Đơn vị vận chuyển đã lấy hàng", now);
-                    await TakeStockAsync(order, now, ct);
+                    await TakeStockAsync(order, order.Items, now, ct);
                     foreach (var open in await db.OrderCancelRequests.Where(r => r.OrderId == order.Id && r.Status == CancelRequestStatus.Pending).ToListAsync(ct))
                         open.Close("Đơn đã được giao cho đơn vị vận chuyển", now);
                     outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Shipped, shipment.TrackingNo));
@@ -160,7 +166,7 @@ public sealed class ShipmentEventProcessor(
                     break;
                 case ShipmentStatus.Returned when order.Status == OrderStatus.Returning:
                     OrderStateMachine.Transition(order, OrderStatus.Returned, OrderActor.Carrier, null, "Đã hoàn hàng về shop", now);
-                    await RestockAsync(order, now, ct);
+                    await RestockAsync(order, order.Items, now, ct);
                     await canceller.GiveBackPromotionsAsync(order, now, ct);
                     await canceller.RefundIfPaidAsync(order, "Giao hàng không thành công, hàng đã hoàn về", now, ct);
                     outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Returned, null));
@@ -181,10 +187,92 @@ public sealed class ShipmentEventProcessor(
         return "APPLIED";
     }
 
-    /// <summary>Handed to the carrier: the held quantity leaves the warehouse for real.</summary>
-    private async Task TakeStockAsync(Order order, DateTimeOffset now, CancellationToken ct)
+    /// <summary>
+    /// An order in several parcels (đa kho): each parcel takes its own stock when picked up and puts it back when it comes
+    /// home; the order moves only on the whole picture — "Đang giao" at the first pickup, and once every parcel has ended:
+    /// all back → "Đã hoàn về" (everything refunded as for one parcel), some delivered → "Đã giao", and each parcel that
+    /// came back is refunded on its own (its lines' paid share + its net shipping) as a system return.
+    /// </summary>
+    private async Task<bool> ApplyParcelAsync(Order order, Shipment shipment, CarrierEvent e, DateTimeOffset now, CancellationToken ct)
     {
-        foreach (var item in order.Items.OrderBy(i => i.SkuId))
+        var items = order.Items.Where(i => i.PackageNo == shipment.PackageNo).ToList();
+        var label = $"Kiện {shipment.PackageNo} ({shipment.TrackingNo})";
+        var touched = false;
+        switch (e.Status)
+        {
+            case ShipmentStatus.Picked when order.Status is OrderStatus.ReadyToShip or OrderStatus.Shipping:
+                if (order.Status == OrderStatus.ReadyToShip)
+                {
+                    OrderStateMachine.Transition(order, OrderStatus.Shipping, OrderActor.Carrier, null, $"Đơn vị vận chuyển đã lấy {label}", now);
+                    foreach (var open in await db.OrderCancelRequests.Where(r => r.OrderId == order.Id && r.Status == CancelRequestStatus.Pending).ToListAsync(ct))
+                        open.Close("Đơn đã được giao cho đơn vị vận chuyển", now);
+                    outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Shipped, shipment.TrackingNo));
+                }
+                await TakeStockAsync(order, items, now, ct);
+                touched = true;
+                break;
+            case ShipmentStatus.Failed when order.Status == OrderStatus.Shipping:
+                outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.DeliveryFailed, $"{label}: {e.Description}"));
+                break;
+            case ShipmentStatus.Returned when order.Status == OrderStatus.Shipping:
+                await RestockAsync(order, items, now, ct);
+                touched = true;
+                break;
+        }
+        if (e.Status is ShipmentStatus.Delivered or ShipmentStatus.Returned && order.Status == OrderStatus.Shipping)
+        {
+            var parcels = await db.Shipments.Where(s => s.OrderId == order.Id && s.Direction == ShipmentDirection.Outbound && s.Status != ShipmentStatus.Cancelled)
+                .ToListAsync(ct);
+            if (parcels.All(s => s.Status is ShipmentStatus.Delivered or ShipmentStatus.Returned))
+            {
+                if (parcels.All(s => s.Status == ShipmentStatus.Returned))
+                {
+                    OrderStateMachine.Transition(order, OrderStatus.DeliveryFailed, OrderActor.Carrier, null, "Không kiện nào giao được", now);
+                    OrderStateMachine.Transition(order, OrderStatus.Returning, OrderActor.Carrier, null, "Các kiện đang hoàn về", now);
+                    OrderStateMachine.Transition(order, OrderStatus.Returned, OrderActor.Carrier, null, "Mọi kiện đã hoàn về shop", now);
+                    await canceller.GiveBackPromotionsAsync(order, now, ct);
+                    await canceller.RefundIfPaidAsync(order, "Giao hàng không thành công, hàng đã hoàn về", now, ct);
+                    outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Returned, null));
+                }
+                else
+                {
+                    OrderStateMachine.Transition(order, OrderStatus.Delivered, OrderActor.Carrier, null, "Đã giao các kiện", now);
+                    order.ScheduleAutoComplete(now.AddDays(await parameters.GetIntAsync(ParameterKeys.OrderAutoCompleteDays, ct)));
+                    outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Delivered, null));
+                    await db.SaveChangesAsync(ct);
+                    foreach (var back in parcels.Where(s => s.Status == ShipmentStatus.Returned).OrderBy(s => s.PackageNo))
+                        await RefundParcelAsync(order, back.PackageNo, now, ct);
+                }
+                touched = true;
+            }
+        }
+        return touched;
+    }
+
+    /// <summary>A parcel that came back while the rest arrived: refunded at once as a system return (spec 3.8 amounts).</summary>
+    private async Task RefundParcelAsync(Order order, int packageNo, DateTimeOffset now, CancellationToken ct)
+    {
+        var package = order.Packages.FirstOrDefault(p => p.No == packageNo);
+        var r = ReturnRequest.ForUndeliveredParcel(order.Id, order.BuyerId, order.ShopId, Returns.CreateReturnHandler.NewCode(now), packageNo,
+            package?.ShippingFee ?? 0, package?.ShippingDiscount ?? 0, now);
+        long money = 0, coins = 0;
+        foreach (var line in order.Items.Where(i => i.PackageNo == packageNo).OrderBy(i => i.Id))
+        {
+            var (m, c) = Returns.ReturnPricing.ForUnits(Returns.Returnability.PaidMoney(line), Returns.Returnability.PaidCoins(line), line.Quantity, 0,
+                line.Quantity);
+            r.Items.Add(new ReturnItem(r.Id, line.Id, line.Quantity, m, c));
+            money += m;
+            coins += c;
+        }
+        r.SetAmounts(money + r.ShippingRefund, coins);
+        db.ReturnRequests.Add(r);
+        await refunder.RefundAsync(r, money + r.ShippingRefund, coins, ReturnParty.System, r.Description, ct);
+    }
+
+    /// <summary>Handed to the carrier: the held quantity leaves the warehouse for real.</summary>
+    private async Task TakeStockAsync(Order order, IEnumerable<OrderItem> items, DateTimeOffset now, CancellationToken ct)
+    {
+        foreach (var item in items.OrderBy(i => i.SkuId))
         {
             var done = await db.ExecuteSqlAsync($"""
                 UPDATE catalog.skus SET stock = stock - {item.Quantity}, reserved = reserved - {item.Quantity}
@@ -196,9 +284,9 @@ public sealed class ShipmentEventProcessor(
         }
     }
 
-    private async Task RestockAsync(Order order, DateTimeOffset now, CancellationToken ct)
+    private async Task RestockAsync(Order order, IEnumerable<OrderItem> items, DateTimeOffset now, CancellationToken ct)
     {
-        foreach (var item in order.Items.OrderBy(i => i.SkuId))
+        foreach (var item in items.OrderBy(i => i.SkuId))
         {
             await db.ExecuteSqlAsync($"UPDATE catalog.skus SET stock = stock + {item.Quantity} WHERE id = {item.SkuId}", ct);
             db.InventoryMovements.Add(new InventoryMovement(item.SkuId, item.Quantity, 0, InventoryReason.ReturnRestock, "order", order.Id, null,

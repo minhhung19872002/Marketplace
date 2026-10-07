@@ -15,6 +15,7 @@ public enum ReturnReason
     Damaged,          // hư hỏng
     NotAsDescribed,   // không giống mô tả
     Counterfeit,      // hàng giả
+    UndeliveredParcel, // a parcel of the order came back undelivered while the others arrived (system)
     Other,
 }
 
@@ -37,6 +38,7 @@ public enum ReturnParty
     Buyer,
     Shop,
     Admin,
+    System,
 }
 
 /// <summary>
@@ -106,6 +108,26 @@ public class ReturnRequest : Entity
     public List<ReturnItem> Items { get; private set; } = [];
     public List<ReturnEvidence> Evidence { get; private set; } = [];
     public List<ReturnHistory> History { get; private set; } = [];
+
+    // A parcel that came back undelivered (system refund): its carrier fee and free-shipping share go back too
+    public int? PackageNo { get; private set; }
+    public long ShippingRefund { get; private set; }
+    public long ShippingDiscountBack { get; private set; }
+
+    /// <summary>The system refund of an undelivered parcel: refunded at once, its lines' paid share plus the parcel's net shipping.</summary>
+    public static ReturnRequest ForUndeliveredParcel(Guid orderId, Guid buyerId, Guid shopId, string code, int packageNo, long shippingFee,
+        long shippingDiscount, DateTimeOffset now)
+    {
+        var r = new ReturnRequest
+        {
+            OrderId = orderId, BuyerId = buyerId, ShopId = shopId, Code = code, Type = ReturnType.RefundOnly,
+            Reason = ReturnReason.UndeliveredParcel, Description = $"Kiện {packageNo} giao không thành công và đã hoàn về shop.",
+            CreatedAt = now, UpdatedAt = now, Status = ReturnStatus.Requested, Restock = false,
+            PackageNo = packageNo, ShippingRefund = shippingFee - shippingDiscount, ShippingDiscountBack = shippingDiscount,
+        };
+        r.History.Add(new ReturnHistory(r.Id, null, r.Status, ReturnParty.System, r.Description, now));
+        return r;
+    }
 
     public bool IsOpen => Status is not (ReturnStatus.Refunded or ReturnStatus.Closed or ReturnStatus.Cancelled);
 

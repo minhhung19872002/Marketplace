@@ -348,18 +348,25 @@ test.describe('ShopHub Marketplace', () => {
     await page.goto(`${BASE}/tim-kiem`);
     await page.waitForLoadState('networkidle');
 
-    await page.locator('[data-testid="sort-price"]').click();
+    // The grid keeps the previous results on screen while the sorted page loads: wait for the sorted response, then read
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/search/products') && r.url().includes('sort=PriceAsc') && r.ok()),
+      page.locator('[data-testid="sort-price"]').click(),
+    ]);
     await expect(page).toHaveURL(/sort=PriceAsc/);
-    await page.waitForLoadState('networkidle');
-
-    const priceTexts = await page.locator('[data-testid="product-card-price"]').allTextContents();
-    const prices = priceTexts.map((t) => Number(t.replace(/[^\d]/g, '')));
-    expect(prices.length).toBeGreaterThan(1);
-    expect(prices).toEqual([...prices].sort((x, y) => x - y));
+    await expect(async () => {
+      const priceTexts = await page.locator('[data-testid="product-card-price"]').allTextContents();
+      const prices = priceTexts.map((t) => Number(t.replace(/[^\d]/g, '')));
+      expect(prices.length).toBeGreaterThan(1);
+      expect(prices).toEqual([...prices].sort((x, y) => x - y));
+    }).toPass({ timeout: 5_000 });
   });
 
   test('Sắp xếp theo giá vẫn đúng khi có từ khoá', async ({ page }) => {
-    await page.goto(`${BASE}/tim-kiem?q=dien+thoai&sort=PriceDesc`);
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/search/products') && r.url().includes('sort=PriceDesc') && r.ok()),
+      page.goto(`${BASE}/tim-kiem?q=dien+thoai&sort=PriceDesc`),
+    ]);
     await page.waitForLoadState('networkidle');
     const prices = (await page.locator('[data-testid="product-card-price"]').allTextContents()).map((t) => Number(t.replace(/[^\d]/g, '')));
     expect(prices.length).toBeGreaterThan(1);

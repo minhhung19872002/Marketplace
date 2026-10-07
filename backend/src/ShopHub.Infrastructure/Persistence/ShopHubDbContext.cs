@@ -59,6 +59,8 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<CheckoutSession> CheckoutSessions => Set<CheckoutSession>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<OrderPackage> OrderPackages => Set<OrderPackage>();
+    public DbSet<ShopShippingChannel> ShopShippingChannels => Set<ShopShippingChannel>();
     public DbSet<OrderItemDiscount> OrderItemDiscounts => Set<OrderItemDiscount>();
     public DbSet<OrderStatusHistory> OrderStatusHistory => Set<OrderStatusHistory>();
     public DbSet<Payment> Payments => Set<Payment>();

@@ -63,6 +63,7 @@ export const RETURN_REASON_LABELS: Record<string, string> = {
   Damaged: 'Hàng bể vỡ / hư hỏng',
   NotAsDescribed: 'Khác với mô tả',
   Counterfeit: 'Hàng giả, hàng nhái',
+  UndeliveredParcel: 'Kiện giao không thành công (hệ thống tự hoàn)',
   Other: 'Lý do khác',
 }
 

@@ -244,7 +244,7 @@ public sealed class ReconcileCarrierHandler(IApplicationDbContext db) : IRequest
                             join o in db.Orders.AsNoTracking() on s.OrderId equals o.Id
                             where s.Direction == ShipmentDirection.Outbound && o.PaymentMethod == PaymentMethod.Cod && o.DeliveredAt >= fromAt
                                   && o.DeliveredAt < toAt
-                            select new { s.TrackingNo, o.Code, Cod = o.GrandTotal, Fee = o.ShippingFee }).ToListAsync(ct);
+                            select new { s.TrackingNo, o.Code, Cod = s.CodAmount, Fee = s.Fee }).ToListAsync(ct);
         var byTracking = system.ToDictionary(s => s.TrackingNo);
         var issues = new List<ReconcileLine>();
         var seen = new HashSet<string>();

@@ -225,6 +225,19 @@ const Checkout = () => {
             {shop.comboDiscount > 0 && (
               <div className="checkout-combo" data-testid="checkout-combo">Ưu đãi combo của shop: −{formatPrice(shop.comboDiscount)}</div>
             )}
+            {(shop.parcels?.length ?? 0) > 1 && (
+              <div className="checkout-parcels" data-testid="checkout-parcels">
+                Đơn của shop được gửi thành {shop.parcels!.length} kiện từ các kho khác nhau:
+                <ul>
+                  {shop.parcels!.map((p) => (
+                    <li key={p.no}>
+                      Kiện {p.no} — {p.warehouseName}: {shop.lines.filter((l) => p.productIds.includes(l.productId)).map((l) => l.name).join(', ')}
+                      {' '}· phí vận chuyển {formatPrice(p.shippingFee)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="checkout-shop-options">
               <label className="checkout-note">

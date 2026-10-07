@@ -67,6 +67,14 @@ public class Shipment : Entity
     public Guid OrderId { get; private set; }
     // Set for a return parcel (buyer → shop)
     public Guid? ReturnId { get; private set; }
+    // Parcel of the order this outbound shipment carries (orders shipped from several warehouses have several)
+    public int PackageNo { get; private set; } = 1;
+
+    public void ForPackage(int packageNo)
+    {
+        if (packageNo < 1) throw new BusinessRuleException("Số kiện không hợp lệ.");
+        PackageNo = packageNo;
+    }
     public string CarrierCode { get; private set; } = string.Empty;
     public string TrackingNo { get; private set; } = string.Empty;
     public ShipmentDirection Direction { get; private set; }

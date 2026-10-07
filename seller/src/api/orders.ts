@@ -23,6 +23,7 @@ export interface ShopOrderRow {
   shipmentStatus: string | null
   hasCancelRequest: boolean
   labelPrinted: boolean
+  parcelCount: number
 }
 
 export interface ShipmentEvent { status: string; label: string; location: string | null; description: string; occurredAt: string }
@@ -51,6 +52,9 @@ export interface OrderDetail {
   history: { toLabel: string; actor: string; reason: string | null; occurredAt: string }[]
   shipment: { trackingNo: string; carrierName: string | null; statusLabel: string; pickupMethod: string; pickupSlot: string | null; codAmount: number; events: ShipmentEvent[] } | null
   cancelRequest: { reason: string; status: string; dueAt: string; rejectReason: string | null } | null
+  // Đa kho: one parcel per ship-from warehouse (null = a single parcel)
+  parcels: { no: number; warehouseName: string; provinceName: string; itemIds: string[]; shippingFee: number;
+    shipment: { trackingNo: string; carrierName: string | null; statusLabel: string; codAmount: number } | null }[] | null
 }
 
 export interface ShopOrderDetail {
@@ -111,7 +115,8 @@ export const ordersApi = {
   labels: (shopId: string, ids: string[], size: 'A6' | 'A5' = 'A6') =>
     download(`${base(shopId)}/orders/labels?${ids.map((i) => `ids=${i}`).join('&')}&size=${size}`),
   // The carrier's own label (GHTK); 404 when the carrier uses ShopHub's label
-  carrierLabel: (shopId: string, id: string) => download(`${base(shopId)}/orders/${id}/carrier-label`),
+  carrierLabel: (shopId: string, id: string, packageNo?: number) =>
+    download(`${base(shopId)}/orders/${id}/carrier-label${packageNo ? `?package=${packageNo}` : ''}`),
   pickingList: (shopId: string, ids: string[]) => download(`${base(shopId)}/orders/picking-list?${ids.map((i) => `ids=${i}`).join('&')}`),
   export: (shopId: string, tab: ShopOrderTab) => download(`${base(shopId)}/orders/export?tab=${tab}`),
 }

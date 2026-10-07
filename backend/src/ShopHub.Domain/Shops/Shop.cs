@@ -42,6 +42,10 @@ public class Shop : AuditableEntity
     public bool IsMall => Type == ShopType.Mall;
     public bool IsPreferred { get; private set; }
     public DateTimeOffset? VacationUntil { get; private set; }
+    // Đa kho: each product ships from its own warehouse (one parcel per warehouse); off → everything from the default pickup
+    public bool MultiWarehouse { get; private set; }
+
+    public void SetMultiWarehouse(bool on) => MultiWarehouse = on;
     // Service programmes the shop joined (spec 3.9 phí dịch vụ): null = not taking part
     public DateTimeOffset? FreeshipXtraSince { get; private set; }
     public DateTimeOffset? VoucherXtraSince { get; private set; }
@@ -224,6 +228,12 @@ public class ShopWarehouse : AuditableEntity
     public bool IsPickupDefault { get; private set; }
     public bool IsReturnDefault { get; private set; }
 
+    public void MakeDefaults(bool pickup, bool @return)
+    {
+        IsPickupDefault = pickup;
+        IsReturnDefault = @return;
+    }
+
     public void Update(string name, string contactName, string phone, string provinceCode, string districtCode, string wardCode,
         string street, bool isPickupDefault, bool isReturnDefault)
     {
@@ -236,6 +246,33 @@ public class ShopWarehouse : AuditableEntity
         Street = street.Trim();
         IsPickupDefault = isPickupDefault;
         IsReturnDefault = isReturnDefault;
+    }
+}
+
+/// <summary>
+/// The shop's own choice of carriers (spec 4.3 shop_shipping_channels): a carrier can be switched off for the shop, or
+/// kept without COD. No row = on, COD as the carrier allows.
+/// </summary>
+public class ShopShippingChannel : Entity
+{
+    private ShopShippingChannel() { }
+
+    public ShopShippingChannel(Guid shopId, string carrierCode, bool isEnabled, bool codEnabled)
+    {
+        ShopId = shopId;
+        CarrierCode = carrierCode;
+        Set(isEnabled, codEnabled);
+    }
+
+    public Guid ShopId { get; private set; }
+    public string CarrierCode { get; private set; } = string.Empty;
+    public bool IsEnabled { get; private set; }
+    public bool CodEnabled { get; private set; }
+
+    public void Set(bool isEnabled, bool codEnabled)
+    {
+        IsEnabled = isEnabled;
+        CodEnabled = codEnabled;
     }
 }
 

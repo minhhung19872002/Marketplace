@@ -510,3 +510,14 @@
 .checkout-gift {
   background: #fffaf5;
 }
+
+.checkout-parcels {
+  font-size: 13px;
+  color: var(--sh-text-muted);
+  padding: 8px 0;
+}
+
+.checkout-parcels ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}

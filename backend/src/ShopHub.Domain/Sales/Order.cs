@@ -188,6 +188,8 @@ public class Order : Entity
 
     public List<OrderItem> Items { get; private set; } = [];
     public List<OrderStatusHistory> History { get; private set; } = [];
+    // One parcel per ship-from warehouse; empty on orders placed before đa kho (one parcel from the default pickup)
+    public List<OrderPackage> Packages { get; private set; } = [];
 
     /// <summary>When the order completes by itself if the buyer never presses "Đã nhận được hàng".</summary>
     public void ScheduleAutoComplete(DateTimeOffset at)
@@ -219,6 +221,34 @@ public class Order : Entity
         ShopVoucherId = shopVoucherId;
         ExpectedDeliveryDays = expectedDeliveryDays;
     }
+}
+
+/// <summary>
+/// A parcel of the order (spec 3.5: one per ship-from warehouse when the shop runs several): its warehouse, chargeable
+/// weight, the carrier fee quoted for it, and its share of the order's free-shipping discount (largest remainder).
+/// </summary>
+public class OrderPackage : Entity
+{
+    private OrderPackage() { }
+
+    public OrderPackage(Guid orderId, int no, Guid warehouseId, int weightG, long shippingFee, long shippingDiscount)
+    {
+        if (no < 1 || weightG < 0 || shippingFee < 0 || shippingDiscount < 0 || shippingDiscount > shippingFee)
+            throw new BusinessRuleException("Thông tin kiện hàng không hợp lệ.");
+        OrderId = orderId;
+        No = no;
+        WarehouseId = warehouseId;
+        WeightG = weightG;
+        ShippingFee = shippingFee;
+        ShippingDiscount = shippingDiscount;
+    }
+
+    public Guid OrderId { get; private set; }
+    public int No { get; private set; }
+    public Guid WarehouseId { get; private set; }
+    public int WeightG { get; private set; }
+    public long ShippingFee { get; private set; }
+    public long ShippingDiscount { get; private set; }
 }
 
 /// <summary>Snapshot of the line at ordering time — later price / name edits never change an old order.</summary>
@@ -259,6 +289,13 @@ public class OrderItem : Entity
     public Guid? GiftPromotionId { get; private set; }
 
     public List<OrderItemDiscount> Discounts { get; private set; } = [];
+    public int PackageNo { get; private set; } = 1;
+
+    public void InPackage(int packageNo)
+    {
+        if (packageNo < 1) throw new BusinessRuleException("Số kiện không hợp lệ.");
+        PackageNo = packageNo;
+    }
 
     public void FromPriceProgram(Promo.PriceProgramKind kind, Guid refId)
     {

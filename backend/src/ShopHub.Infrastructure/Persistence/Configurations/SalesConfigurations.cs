@@ -84,10 +84,22 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         b.HasOne<Shop>().WithMany().HasForeignKey(o => o.ShopId).OnDelete(DeleteBehavior.Restrict);
         b.HasMany(o => o.Items).WithOne().HasForeignKey(i => i.OrderId).OnDelete(DeleteBehavior.Cascade);
         b.HasMany(o => o.History).WithOne().HasForeignKey(h => h.OrderId).OnDelete(DeleteBehavior.Cascade);
+        b.HasMany(o => o.Packages).WithOne().HasForeignKey(p => p.OrderId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(o => o.Code).IsUnique().HasDatabaseName("ux_orders_code");
         b.HasIndex(o => new { o.BuyerId, o.CreatedAt }).IsDescending(false, true).HasDatabaseName("ix_orders_buyer");
         b.HasIndex(o => new { o.ShopId, o.Status, o.CreatedAt }).IsDescending(false, false, true).HasDatabaseName("ix_orders_shop_status");
         b.HasIndex(o => o.CheckoutId).HasDatabaseName("ix_orders_checkout");
+    }
+}
+
+internal sealed class OrderPackageConfiguration : IEntityTypeConfiguration<OrderPackage>
+{
+    public void Configure(EntityTypeBuilder<OrderPackage> b)
+    {
+        b.ToTable("order_packages", "sales", t => t.HasCheckConstraint("ck_order_packages_amounts",
+            "no >= 1 AND weight_g >= 0 AND shipping_fee >= 0 AND shipping_discount >= 0 AND shipping_discount <= shipping_fee"));
+        b.HasKey(p => p.Id);
+        b.HasIndex(p => new { p.OrderId, p.No }).IsUnique().HasDatabaseName("ux_order_packages_no");
     }
 }
 
@@ -98,6 +110,7 @@ internal sealed class OrderItemConfiguration : IEntityTypeConfiguration<OrderIte
         b.ToTable("order_items", "sales", t =>
         {
             t.HasCheckConstraint("ck_order_items_quantity", "quantity > 0");
+            t.HasCheckConstraint("ck_order_items_package", "package_no >= 1");
             t.HasCheckConstraint("ck_order_items_total", "line_total = unit_price * quantity AND unit_price >= 0");
         });
         b.HasKey(i => i.Id);

@@ -313,6 +313,11 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("brand_id");
 
+                    b.Property<List<string>>("CarrierCodes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("carrier_codes");
+
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid")
                         .HasColumnName("category_id");
@@ -441,6 +446,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.Property<int>("ViewCount")
                         .HasColumnType("integer")
                         .HasColumnName("view_count");
+
+                    b.Property<Guid?>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
 
                     b.Property<int>("WeightG")
                         .HasColumnType("integer")
@@ -3038,6 +3047,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("order_id");
 
+                    b.Property<int>("PackageNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("package_no");
+
                     b.Property<string>("PickupMethod")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -4621,6 +4634,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("original_price");
 
+                    b.Property<int>("PackageNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("package_no");
+
                     b.Property<Guid?>("PriceRefId")
                         .HasColumnType("uuid")
                         .HasColumnName("price_ref_id");
@@ -4661,6 +4678,8 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
 
                     b.ToTable("order_items", "sales", t =>
                         {
+                            t.HasCheckConstraint("ck_order_items_package", "package_no >= 1");
+
                             t.HasCheckConstraint("ck_order_items_quantity", "quantity > 0");
 
                             t.HasCheckConstraint("ck_order_items_total", "line_total = unit_price * quantity AND unit_price >= 0");
@@ -4701,6 +4720,50 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("order_item_discounts", "sales", t =>
                         {
                             t.HasCheckConstraint("ck_order_item_discounts_amount", "amount >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Sales.OrderPackage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("No")
+                        .HasColumnType("integer")
+                        .HasColumnName("no");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<long>("ShippingDiscount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("shipping_discount");
+
+                    b.Property<long>("ShippingFee")
+                        .HasColumnType("bigint")
+                        .HasColumnName("shipping_fee");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.Property<int>("WeightG")
+                        .HasColumnType("integer")
+                        .HasColumnName("weight_g");
+
+                    b.HasKey("Id")
+                        .HasName("pk_order_packages");
+
+                    b.HasIndex("OrderId", "No")
+                        .IsUnique()
+                        .HasDatabaseName("ux_order_packages_no");
+
+                    b.ToTable("order_packages", "sales", t =>
+                        {
+                            t.HasCheckConstraint("ck_order_packages_amounts", "no >= 1 AND weight_g >= 0 AND shipping_fee >= 0 AND shipping_discount >= 0 AND shipping_discount <= shipping_fee");
                         });
                 });
 
@@ -5139,6 +5202,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("order_id");
 
+                    b.Property<int?>("PackageNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("package_no");
+
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -5172,6 +5239,14 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Restock")
                         .HasColumnType("boolean")
                         .HasColumnName("restock");
+
+                    b.Property<long>("ShippingDiscountBack")
+                        .HasColumnType("bigint")
+                        .HasColumnName("shipping_discount_back");
+
+                    b.Property<long>("ShippingRefund")
+                        .HasColumnType("bigint")
+                        .HasColumnName("shipping_refund");
 
                     b.Property<Guid>("ShopId")
                         .HasColumnType("uuid")
@@ -5284,6 +5359,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("logo_url");
+
+                    b.Property<bool>("MultiWarehouse")
+                        .HasColumnType("boolean")
+                        .HasColumnName("multi_warehouse");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -5736,6 +5815,41 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_shop_penalties_points", "points > 0");
                         });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopShippingChannel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("CarrierCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("carrier_code");
+
+                    b.Property<bool>("CodEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("cod_enabled");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_shipping_channels");
+
+                    b.HasIndex("ShopId", "CarrierCode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_shop_shipping_channels");
+
+                    b.ToTable("shop_shipping_channels", "shop");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopStaff", b =>
@@ -7103,6 +7217,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_order_item_discounts_order_items_order_item_id");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Sales.OrderPackage", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Sales.Order", null)
+                        .WithMany("Packages")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_order_packages_orders_order_id");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Sales.OrderStatusHistory", b =>
                 {
                     b.HasOne("ShopHub.Domain.Sales.Order", null)
@@ -7260,6 +7384,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_shop_penalties_shops_shop_id");
                 });
 
+            modelBuilder.Entity("ShopHub.Domain.Shops.ShopShippingChannel", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_shipping_channels_shops_shop_id");
+                });
+
             modelBuilder.Entity("ShopHub.Domain.Shops.ShopStaff", b =>
                 {
                     b.HasOne("ShopHub.Domain.Shops.Shop", null)
@@ -7345,6 +7479,8 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.Navigation("History");
 
                     b.Navigation("Items");
+
+                    b.Navigation("Packages");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Sales.OrderItem", b =>

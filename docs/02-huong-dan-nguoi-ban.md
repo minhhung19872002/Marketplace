@@ -48,6 +48,8 @@ Tab theo trạng thái, lọc ngày / vận chuyển / thanh toán, tìm theo m�
 **Chuẩn bị hàng**: chọn một hoặc nhiều đơn → lấy hàng tận nơi (chọn khung giờ) hoặc tự mang ra bưu cục → hệ thống tạo vận đơn
 → **In phiếu giao** (PDF A6/A5 có mã vạch) và **In phiếu soạn hàng** gộp nhiều đơn. Không chuẩn bị trong hạn (mặc định 2 ngày) đơn bị
 tự huỷ và shop bị ghi điểm phạt. Yêu cầu huỷ của người mua: chấp thuận / từ chối trong 24 giờ.
+Đơn gửi từ nhiều kho hiện nhãn *N kiện*; mỗi kiện được lấy, giao và theo dõi riêng — một kiện hoàn về trong khi kiện khác đã giao thì
+hệ thống nhập lại kho và tự hoàn tiền phần hàng của kiện ấy cho người mua.
 
 ![Đơn hàng](images/02-don-hang.jpg)
 
@@ -97,6 +99,7 @@ Excel; tab *Hiệu quả hoạt động*: đơn không thành công, giao trễ,
 | Thiết lập shop | Logo, ảnh bìa, giới thiệu; **chế độ tạm nghỉ** (người mua vẫn xem được, không đặt hàng được) |
 | Trang trí shop | Các khối của tab *Dạo*: Banner (1–5 ảnh, link trong ShopHub), Sản phẩm nổi bật (≤ 12), Danh mục của shop, Video, Đoạn chữ; kéo thả hoặc ↑ ↓ để sắp xếp → *Đăng* |
 | Danh mục của shop | Tối đa 30 danh mục, mỗi danh mục ≤ 500 sản phẩm theo thứ tự bạn chọn; danh mục hiển thị và có hàng thành tab trên trang shop |
+| Kho hàng & vận chuyển | Tối đa 10 kho; một kho **lấy hàng mặc định** và một **địa chỉ nhận hàng trả**. Bật **Đa kho** (cần ≥ 2 kho) rồi chọn *Kho gửi* trong trang sửa sản phẩm: đơn có hàng ở nhiều kho được gửi thành nhiều kiện, mỗi kiện một vận đơn và một phiếu giao, phí ship tính riêng từng kiện. Bật / tắt từng **đơn vị vận chuyển** và **COD** của shop; trang sửa sản phẩm còn giới hạn được đơn vị vận chuyển cho sản phẩm ấy |
 | Tài khoản phụ | Thêm nhân viên bằng SĐT / email tài khoản ShopHub của họ, vai trò Quản lý / CSKH / Kho với quyền mặc định chỉnh được (không cấp được quyền mình không có); gỡ có hiệu lực ngay |
 
 ![Thiết lập](images/02-thiet-lap.jpg)

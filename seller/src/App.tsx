@@ -21,6 +21,7 @@ import MarketingPage from './pages/MarketingPage'
 import ChatPage from './pages/ChatPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import StaffPage from './pages/StaffPage'
+import LogisticsPage from './pages/LogisticsPage'
 import ShopCategoriesPage from './pages/ShopCategoriesPage'
 import DecorationPage from './pages/DecorationPage'
 import BulkPage from './pages/BulkPage'
@@ -44,6 +45,7 @@ const MENU: { path: string; label: string; perm?: string }[] = [
   { path: '/ma-giam-gia', label: 'Mã giảm giá', perm: 'MARKETING.MANAGE' },
   { path: '/marketing', label: 'Kênh Marketing', perm: 'MARKETING.MANAGE' },
   { path: '/thiet-lap', label: 'Thiết lập shop', perm: 'SETTINGS.MANAGE' },
+  { path: '/kho-hang', label: 'Kho hàng & vận chuyển', perm: 'SETTINGS.MANAGE' },
   { path: '/trang-tri-shop', label: 'Trang trí shop', perm: 'SETTINGS.MANAGE' },
   { path: '/danh-muc-shop', label: 'Danh mục của shop', perm: 'PRODUCT.VIEW' },
   { path: '/tai-khoan-phu', label: 'Tài khoản phụ', perm: 'STAFF.MANAGE' },
@@ -123,6 +125,7 @@ const Shell = () => {
               <Route path="/marketing" element={<MarketingPage shopId={shop.id} />} />
               <Route path="/thiet-lap" element={<ShopSettingsPage key={shop.id} shop={shop} />} />
               <Route path="/tai-khoan-phu" element={<StaffPage shopId={shop.id} />} />
+              <Route path="/kho-hang" element={<LogisticsPage key={shop.id} shopId={shop.id} />} />
               <Route path="/trang-tri-shop" element={<DecorationPage key={shop.id} shopId={shop.id} shopSlug={shop.slug} />} />
               <Route path="/danh-muc-shop" element={<ShopCategoriesPage shopId={shop.id} />} />
               <Route path="/dang-ky-ban-hang" element={<RegisterShopPage />} />

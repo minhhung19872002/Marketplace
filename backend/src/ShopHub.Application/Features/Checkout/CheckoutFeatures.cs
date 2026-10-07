@@ -197,6 +197,13 @@ public sealed class PlaceOrderHandler(
                     gift.AsGiftOf(g.PromotionId);
                     order.Items.Add(gift);
                 }
+                // Parcels (one per ship-from warehouse): their fees as quoted, the free-shipping discount shared by fee
+                var parcels = plan.Parcels?.GetValueOrDefault(shop.ShopId) ?? [];
+                var shares = Parcels.ShareDiscount(shop.ShippingDiscount, parcels.Select(p => p.Fee).ToList());
+                for (var k = 0; k < parcels.Count; k++)
+                    order.Packages.Add(new OrderPackage(order.Id, parcels[k].No, parcels[k].WarehouseId, parcels[k].WeightG, parcels[k].Fee, shares[k]));
+                foreach (var item in order.Items)
+                    item.InPackage(parcels.FirstOrDefault(p => p.ProductIds.Contains(item.ProductId))?.No ?? 1);
                 OrderStateMachine.Start(order, OrderActor.Buyer, userId, now);
                 db.Orders.Add(order);
                 orders.Add(order);

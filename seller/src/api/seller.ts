@@ -108,6 +108,8 @@ export interface ProductDetail {
   isPreorder: boolean
   preorderDays: number
   maxPerBuyer: number | null
+  warehouseId: string | null
+  carrierCodes: string[]
   attributes: { attributeId: string; values: string[] }[]
   media: { type: 'Image' | 'Video'; assetId: string | null; url: string; optionValue: string | null }[]
   tiers: { tierIndex: number; name: string; options: { id: string; value: string; imageUrl: string | null }[] }[]
@@ -131,6 +133,8 @@ export interface ProductInput {
   isPreorder: boolean
   preorderDays: number
   maxPerBuyer: number | null
+  warehouseId: string | null
+  carrierCodes: string[]
   attributes: { attributeId: string; values: string[] }[]
   media: { assetId: string; optionValue: string | null }[]
   tiers: { name: string; options: { value: string; imageAssetId: string | null }[] }[]

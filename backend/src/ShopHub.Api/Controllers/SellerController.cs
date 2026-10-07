@@ -56,6 +56,54 @@ public sealed class SellerController : ApiControllerBase
         return OkData<object?>(null, body.Until is null ? "Đã tắt chế độ tạm nghỉ." : "Đã bật chế độ tạm nghỉ.");
     }
 
+    // ---------- Kho hàng, đa kho, đơn vị vận chuyển ----------
+
+    [HttpGet("shops/{shopId:guid}/logistics")]
+    [ProducesResponseType<ApiResponse<ShopLogisticsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Logistics(Guid shopId, CancellationToken ct) => OkData(await Sender.Send(new ShopLogisticsQuery(shopId), ct));
+
+    public record WarehouseRequest(string Name, WarehouseInput Address, bool IsPickupDefault, bool IsReturnDefault);
+
+    [HttpPost("shops/{shopId:guid}/warehouses")]
+    [ProducesResponseType<ApiResponse<Guid>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddWarehouse(Guid shopId, [FromBody] WarehouseRequest body, CancellationToken ct) =>
+        OkData(await Sender.Send(new SaveWarehouseCommand(shopId, null, body.Name, body.Address, body.IsPickupDefault, body.IsReturnDefault), ct),
+            "Đã thêm kho hàng.");
+
+    [HttpPut("shops/{shopId:guid}/warehouses/{warehouseId:guid}")]
+    [ProducesResponseType<ApiResponse<Guid>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateWarehouse(Guid shopId, Guid warehouseId, [FromBody] WarehouseRequest body, CancellationToken ct) =>
+        OkData(await Sender.Send(new SaveWarehouseCommand(shopId, warehouseId, body.Name, body.Address, body.IsPickupDefault, body.IsReturnDefault), ct),
+            "Đã lưu kho hàng.");
+
+    [HttpDelete("shops/{shopId:guid}/warehouses/{warehouseId:guid}")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeleteWarehouse(Guid shopId, Guid warehouseId, CancellationToken ct)
+    {
+        await Sender.Send(new DeleteWarehouseCommand(shopId, warehouseId), ct);
+        return OkData<object?>(null, "Đã xoá kho hàng.");
+    }
+
+    public record MultiWarehouseRequest(bool Enabled);
+
+    [HttpPut("shops/{shopId:guid}/multi-warehouse")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> MultiWarehouse(Guid shopId, [FromBody] MultiWarehouseRequest body, CancellationToken ct)
+    {
+        await Sender.Send(new SetMultiWarehouseCommand(shopId, body.Enabled), ct);
+        return OkData<object?>(null, body.Enabled ? "Đã bật đa kho." : "Đã tắt đa kho.");
+    }
+
+    public record ShippingChannelRequest(bool Enabled, bool CodEnabled);
+
+    [HttpPut("shops/{shopId:guid}/shipping-channels/{carrierCode}")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ShippingChannel(Guid shopId, string carrierCode, [FromBody] ShippingChannelRequest body, CancellationToken ct)
+    {
+        await Sender.Send(new SetShippingChannelCommand(shopId, carrierCode, body.Enabled, body.CodEnabled), ct);
+        return OkData<object?>(null, "Đã lưu đơn vị vận chuyển.");
+    }
+
     // ---------- Staff (tài khoản phụ) ----------
 
     [HttpGet("shops/{shopId:guid}/staff-accounts")]

@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
-const { BASE, apiAs, apiLogin, registerViaApi, shopWithProduct } = require('./helpers.cjs');
+const { BASE, addAddressViaApi, apiAs, apiLogin, loginInBrowser, registerViaApi, shopWithProduct } = require('./helpers.cjs');
 
 const ADMIN_USER = process.env.SH_E2E_ADMIN_USER;
 const ADMIN_PASSWORD = process.env.SH_E2E_ADMIN_PASSWORD;
@@ -166,5 +166,59 @@ test.describe('Thiết lập & trang trí shop', () => {
     expect(state.find((p) => p.program === 'FreeshipXtra').joined).toBe(true);
     await seller.getByTestId('xtra-FreeshipXtra').click();
     await expect(seller.getByText('Đã rời Freeship Xtra.')).toBeVisible();
+  });
+  test('Đa kho: shop thêm kho Hà Nội, bật đa kho → đơn hai kho thành 2 kiện, người mua thấy 2 mã vận đơn', async ({ browser, page, request }) => {
+    const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
+    const shop = await shopWithProduct(request, admin);   // its default warehouse is in TP.HCM
+    const seller = await sellerLogin(browser, shop.seller);
+    await seller.getByRole('menuitem', { name: 'Kho hàng & vận chuyển' }).click();
+    await seller.getByTestId('warehouse-add').click();
+    const dialog = seller.getByRole('dialog');
+    await dialog.getByLabel('Tên kho').fill('Kho Hà Nội');
+    await dialog.getByLabel('Người liên hệ').fill('Thủ Kho');
+    await dialog.getByLabel('Số điện thoại kho').fill(shop.seller.phone);
+    for (const [label, option] of [['Tỉnh', 'Thành phố Hà Nội'], ['Quận', 'Quận Ba Đình'], ['Phường', 'Phường Phúc Xá']]) {
+      await dialog.getByRole('combobox', { name: label, exact: true }).fill(option);
+      await seller.locator('.ant-select-item-option', { hasText: option }).first().click();
+    }
+    await dialog.getByLabel('Số nhà, tên đường').fill('9 Phố Kho');
+    await dialog.getByRole('button', { name: 'Lưu' }).click();
+    await expect(seller.getByText('Đã thêm kho hàng.')).toBeVisible();
+    await seller.getByTestId('multi-warehouse').click();
+    await expect(seller.getByText('Đã bật đa kho.')).toBeVisible();
+
+    // A second product ships from Hà Nội
+    const logistics = await apiAs(request, shop.token, 'GET', `/seller/shops/${shop.shopId}/logistics`);
+    const hanoi = logistics.warehouses.find((w) => w.name === 'Kho Hà Nội');
+    const second = { ...shop.input, name: `${shop.name} Kho HN`, warehouseId: hanoi.id,
+      skus: [{ ...shop.input.skus[0], sellerSku: 'E2E-HN' }] };
+    const productId = await apiAs(request, shop.token, 'POST', `/seller/shops/${shop.shopId}/products`, second);
+    await apiAs(request, shop.token, 'POST', `/seller/shops/${shop.shopId}/products/${productId}/actions/submit`);
+    await apiAs(request, admin.accessToken, 'POST', `/admin/products/${productId}/approve`);
+
+    const buyer = await registerViaApi(request, 'Người Mua Hai Kho');
+    const { token } = await addAddressViaApi(request, buyer);
+    for (const id of [shop.productId, productId]) {
+      const detail = await apiAs(request, token, 'GET', `/products/${id}`);
+      await apiAs(request, token, 'POST', '/cart/items', { skuId: detail.skus[0].id, quantity: 1 });
+    }
+    await loginInBrowser(page, buyer);
+    await page.goto(`${BASE}/thanh-toan`);
+    const parcels = page.getByTestId('checkout-parcels');
+    await expect(parcels).toContainText('2 kiện');
+    await expect(parcels).toContainText('Kho Hà Nội');
+    await page.getByTestId('place-order').click();
+    await page.waitForURL(/\/dat-hang-thanh-cong/);
+    const code = (await page.locator('[data-testid="result-order"] strong').first().textContent()).trim();
+
+    const orders = await apiAs(request, shop.token, 'GET', `/seller/shops/${shop.shopId}/orders?tab=ToConfirm`);
+    const order = orders.items.find((o) => o.code === code);
+    expect(order.parcelCount).toBe(2);
+    const prepared = await apiAs(request, shop.token, 'POST', `/seller/shops/${shop.shopId}/orders/prepare`,
+      { orderIds: [order.id], pickupMethod: 'DropOff', pickupSlot: null });
+    expect(prepared[0].ok).toBe(true);
+    await page.goto(`${BASE}/tai-khoan/don-mua/${code}`);
+    await expect(page.getByTestId('order-parcel')).toHaveCount(2);
+    await expect(page.getByTestId('tracking-no')).toHaveCount(2);
   });
 });

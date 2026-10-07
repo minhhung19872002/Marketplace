@@ -25,13 +25,16 @@ public record OrderAddressDto(string ReceiverName, string Phone, string FullAddr
 public record ShipmentEventDto(ShipmentStatus Status, string Label, string? Location, string Description, DateTimeOffset OccurredAt);
 
 public record ShipmentDto(Guid Id, string TrackingNo, string CarrierCode, string? CarrierName, ShipmentStatus Status, string StatusLabel, PickupMethod PickupMethod,
-    string? PickupSlot, long CodAmount, int WeightG, DateTimeOffset ExpectedDeliveryAt, IReadOnlyList<ShipmentEventDto> Events)
+    string? PickupSlot, long CodAmount, int WeightG, DateTimeOffset ExpectedDeliveryAt, IReadOnlyList<ShipmentEventDto> Events, int PackageNo = 1)
 {
     public static ShipmentDto From(Shipment s, string? carrierName) => new(s.Id, s.TrackingNo, s.CarrierCode, carrierName, s.Status,
         Shipment.Label(s.Status), s.PickupMethod, s.PickupSlot, s.CodAmount, s.WeightG, s.ExpectedDeliveryAt,
         s.Events.OrderBy(e => e.OccurredAt).ThenBy(e => e.Id)
-            .Select(e => new ShipmentEventDto(e.Status, Shipment.Label(e.Status), e.Location, e.Description, e.OccurredAt)).ToList());
+            .Select(e => new ShipmentEventDto(e.Status, Shipment.Label(e.Status), e.Location, e.Description, e.OccurredAt)).ToList(), s.PackageNo);
 }
+
+/// <summary>A parcel of the order (đa kho): where it leaves from, its lines, its shipment once booked.</summary>
+public record OrderParcelDto(int No, string WarehouseName, string ProvinceName, IReadOnlyList<Guid> ItemIds, long ShippingFee, ShipmentDto? Shipment);
 
 public record CancelRequestDto(Guid Id, string Reason, CancelRequestStatus Status, DateTimeOffset CreatedAt, DateTimeOffset DueAt, string? RejectReason);
 
@@ -69,7 +72,8 @@ public record OrderDetailDto(
     ShipmentDto? Shipment,
     CancelRequestDto? CancelRequest,
     BuyerOrderActionsDto Actions,
-    DateTimeOffset? AutoCompleteAt);
+    DateTimeOffset? AutoCompleteAt,
+    IReadOnlyList<OrderParcelDto>? Parcels = null);
 
 /// <summary>Buyer's order tabs (spec II.8). Status groups map to the tabs; other buyers' orders never show (404).</summary>
 public enum BuyerOrderTab
@@ -176,9 +180,29 @@ internal static class OrderDetails
         var carrier = await db.Carriers.AsNoTracking().Where(c => c.Code == order.CarrierCode).Select(c => c.Name).FirstOrDefaultAsync(ct);
         var address = JsonSerializer.Deserialize<OrderAddressDto>(checkout.AddressSnapshot, new JsonSerializerOptions(JsonSerializerDefaults.Web))
                       ?? new OrderAddressDto("", "", "");
-        var shipment = await db.Shipments.AsNoTracking().Include(s => s.Events)
+        var shipments = await db.Shipments.AsNoTracking().Include(s => s.Events)
             .Where(s => s.OrderId == order.Id && s.Direction == ShipmentDirection.Outbound && s.Status != ShipmentStatus.Cancelled)
-            .OrderByDescending(s => s.CreatedAt).FirstOrDefaultAsync(ct);
+            .OrderBy(s => s.PackageNo).ThenByDescending(s => s.CreatedAt).ThenBy(s => s.Id).ToListAsync(ct);
+        var shipment = shipments.FirstOrDefault();
+        // Several parcels (đa kho): each with its warehouse and its own tracking
+        List<OrderParcelDto>? parcels = null;
+        var packages = await db.OrderPackages.AsNoTracking().Where(p => p.OrderId == order.Id).OrderBy(p => p.No).ToListAsync(ct);
+        if (packages.Count > 1)
+        {
+            var whIds = packages.Select(p => p.WarehouseId).ToList();
+            var warehouses = await db.ShopWarehouses.AsNoTracking().IgnoreQueryFilters().Where(w => whIds.Contains(w.Id))
+                .ToDictionaryAsync(w => w.Id, ct);
+            var provinces = warehouses.Values.Select(w => w.ProvinceCode).Distinct().ToList();
+            var provinceNames = await db.AdminDivisions.AsNoTracking().Where(d => provinces.Contains(d.Code)).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
+            parcels = packages.Select(p =>
+            {
+                var w = warehouses.GetValueOrDefault(p.WarehouseId);
+                var s = shipments.FirstOrDefault(x => x.PackageNo == p.No);
+                return new OrderParcelDto(p.No, w?.Name ?? "", w is null ? "" : provinceNames.GetValueOrDefault(w.ProvinceCode) ?? "",
+                    order.Items.Where(i => i.PackageNo == p.No).OrderBy(i => i.Id).Select(i => i.Id).ToList(), p.ShippingFee,
+                    s is null ? null : ShipmentDto.From(s, carrier));
+            }).ToList();
+        }
         var cancel = await db.OrderCancelRequests.AsNoTracking().Where(r => r.OrderId == order.Id).OrderByDescending(r => r.CreatedAt).FirstOrDefaultAsync(ct);
         var pendingRequest = cancel?.Status == CancelRequestStatus.Pending;
         var actions = new BuyerOrderActionsDto(
@@ -198,6 +222,6 @@ internal static class OrderDetails
                 .Select(h => new OrderHistoryDto(h.FromStatus, h.ToStatus, OrderStateMachine.Label(h.ToStatus), h.ActorType, h.Reason, h.OccurredAt)).ToList(),
             shipment is null ? null : ShipmentDto.From(shipment, carrier),
             cancel is null ? null : new CancelRequestDto(cancel.Id, cancel.Reason, cancel.Status, cancel.CreatedAt, cancel.DueAt, cancel.RejectReason),
-            actions, order.AutoCompleteAt);
+            actions, order.AutoCompleteAt, parcels);
     }
 }

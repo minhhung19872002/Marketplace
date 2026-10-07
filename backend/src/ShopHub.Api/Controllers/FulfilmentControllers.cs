@@ -53,8 +53,8 @@ public sealed class SellerOrdersController : ApiControllerBase
     /// <summary>The carrier's own label (PDF) of one order, when the carrier provides one (GHTK).</summary>
     [HttpGet("shops/{shopId:guid}/orders/{orderId:guid}/carrier-label")]
     [Produces(Pdf, "application/json")]
-    public async Task<IActionResult> CarrierLabel(Guid shopId, Guid orderId, CancellationToken ct) =>
-        File(await Sender.Send(new CarrierLabelQuery(shopId, orderId), ct), Pdf, $"phieu-hang-van-chuyen-{orderId:N}.pdf");
+    public async Task<IActionResult> CarrierLabel(Guid shopId, Guid orderId, [FromQuery] int? package, CancellationToken ct) =>
+        File(await Sender.Send(new CarrierLabelQuery(shopId, orderId, package), ct), Pdf, $"phieu-hang-van-chuyen-{orderId:N}.pdf");
 
     /// <summary>Shipping labels (PDF, one page per parcel, A6 or A5) for one or many orders: <c>?ids=…&amp;ids=…</c>.</summary>
     [HttpGet("shops/{shopId:guid}/orders/labels")]

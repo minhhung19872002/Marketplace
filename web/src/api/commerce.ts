@@ -139,6 +139,16 @@ export interface QuoteShop {
   note: string | null;
   comboDiscount: number;
   gifts: QuoteGift[] | null;
+  // Đa kho: one parcel per ship-from warehouse, each with its own carrier fee
+  parcels: QuoteParcel[] | null;
+}
+
+export interface QuoteParcel {
+  no: number;
+  warehouseName: string;
+  provinceCode: string;
+  shippingFee: number;
+  productIds: string[];
 }
 
 export interface CheckoutQuote {
@@ -322,6 +332,7 @@ export interface OrderDetail {
   paymentExpiresAt: string | null;
   history: { from: OrderStatus | null; to: OrderStatus; toLabel: string; actor: string; reason: string | null; occurredAt: string }[];
   shipment: ShipmentInfo | null;
+  parcels: { no: number; warehouseName: string; provinceName: string; itemIds: string[]; shippingFee: number; shipment: ShipmentInfo | null }[] | null;
   cancelRequest: CancelRequestInfo | null;
   actions: { pay: boolean; cancel: boolean; requestCancel: boolean; confirmReceived: boolean; buyAgain: boolean; review: boolean; return: boolean };
   autoCompleteAt: string | null;

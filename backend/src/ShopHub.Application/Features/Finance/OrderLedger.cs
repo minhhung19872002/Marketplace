@@ -114,7 +114,8 @@ public sealed class OrderLedger(IApplicationDbContext db, Ledger ledger, FeeSche
         var input = new SettlementInput(order.GrandTotal, order.ShippingFee, order.ShippingDiscount, order.PlatformDiscount, order.CoinUsed,
             await fees.RateAsync(FeeType.Payment, null, order.CreatedAt, ct), lines,
             returns.Select(r => new SettlementReturn(r.Id, r.RefundedAt ?? r.UpdatedAt, r.RequestedAmount, r.RequestedCoins, r.RefundAmount ?? 0,
-                r.RefundCoins ?? 0, r.Items.Select(i => new SettlementReturnItem(i.OrderItemId, i.Quantity, i.RefundAmount, i.RefundCoins)).ToList())).ToList());
+                r.RefundCoins ?? 0, r.Items.Select(i => new SettlementReturnItem(i.OrderItemId, i.Quantity, i.RefundAmount, i.RefundCoins)).ToList(),
+                r.ShippingRefund, r.ShippingDiscountBack)).ToList());
         return SettlementCalculator.Compute(input);
     }
 }

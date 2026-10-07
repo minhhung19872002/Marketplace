@@ -208,7 +208,24 @@ export const OrderDetailPage = () => {
       )}
       <OrderActions order={data} />
 
-      {data.shipment && (
+      {data.parcels ? data.parcels.map((p) => (
+        <div key={p.no} className="order-detail-shipment" data-testid="order-parcel">
+          <h3>
+            Kiện {p.no}/{data.parcels!.length} · gửi từ {p.warehouseName}{p.provinceName && ` (${p.provinceName})`} ·{' '}
+            {data.items.filter((i) => p.itemIds.includes(i.id)).map((i) => i.name).join(', ')}
+          </h3>
+          {p.shipment ? (
+            <>
+              <p>
+                {p.shipment.carrierName ?? p.shipment.carrierCode} · Mã vận đơn{' '}
+                <Link to={`/tra-cuu-van-don/${p.shipment.trackingNo}`} data-testid="tracking-no">{p.shipment.trackingNo}</Link>
+                {' '}· Dự kiến giao: {formatDate(p.shipment.expectedDeliveryAt)}
+              </p>
+              <ShipmentTimeline events={p.shipment.events} />
+            </>
+          ) : <p>Shop đang chuẩn bị kiện này.</p>}
+        </div>
+      )) : data.shipment && (
         <div className="order-detail-shipment">
           <h3>
             Vận chuyển: {data.shipment.carrierName ?? data.shipment.carrierCode} · Mã vận đơn{' '}

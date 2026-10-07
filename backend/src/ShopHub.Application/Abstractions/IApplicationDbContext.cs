@@ -57,6 +57,8 @@ public interface IApplicationDbContext
     DbSet<CheckoutSession> CheckoutSessions { get; }
     DbSet<Order> Orders { get; }
     DbSet<OrderItem> OrderItems { get; }
+    DbSet<OrderPackage> OrderPackages { get; }
+    DbSet<ShopShippingChannel> ShopShippingChannels { get; }
     DbSet<OrderItemDiscount> OrderItemDiscounts { get; }
     DbSet<OrderStatusHistory> OrderStatusHistory { get; }
     DbSet<Payment> Payments { get; }

@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   sellerApi, uploadMedia, type CategoryAttribute, type CategoryNode, type ProductInput,
 } from '../api/seller'
+import { logisticsApi } from '../api/logistics'
 import { ApiError } from '../api/http'
 
 interface MediaItem {
@@ -112,6 +113,8 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
   const [isPreorder, setIsPreorder] = useState(false)
   const [preorderDays, setPreorderDays] = useState(7)
   const [maxPerBuyer, setMaxPerBuyer] = useState<number | null>(null)
+  const [warehouseId, setWarehouseId] = useState<string | null>(null)
+  const [carrierCodes, setCarrierCodes] = useState<string[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -122,6 +125,7 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
     enabled: !!categoryId,
   })
   const brands = useQuery({ queryKey: ['brands', brandQuery], queryFn: () => sellerApi.brands(brandQuery) })
+  const logistics = useQuery({ queryKey: ['logistics', shopId], queryFn: () => logisticsApi.get(shopId) })
   const suggestions = useQuery({
     queryKey: ['suggest', name],
     queryFn: () => sellerApi.suggestCategories(name),
@@ -151,6 +155,8 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
     setIsPreorder(p.isPreorder)
     setPreorderDays(p.preorderDays || 7)
     setMaxPerBuyer(p.maxPerBuyer)
+    setWarehouseId(p.warehouseId)
+    setCarrierCodes(p.carrierCodes ?? [])
   }, [existing.data])
 
   const activeTiers = useMemo(() => (hasVariants ? tiers.filter((t) => t.name.trim() && t.options.length) : []), [hasVariants, tiers])
@@ -173,6 +179,8 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
     isPreorder,
     preorderDays: isPreorder ? preorderDays : 0,
     maxPerBuyer,
+    warehouseId,
+    carrierCodes,
     attributes: Object.entries(attributes).filter(([, v]) => v.length).map(([attributeId, values]) => ({ attributeId, values })),
     media: media.map((m) => ({ assetId: m.assetId, optionValue: null })),
     tiers: activeTiers.map((t) => ({ name: t.name.trim(), options: t.options.map((o) => ({ value: o, imageAssetId: null })) })),
@@ -407,6 +415,22 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
         <div style={{ marginTop: 12 }}>
           <InputNumber<number> min={1} max={999} value={maxPerBuyer} onChange={(v) => setMaxPerBuyer(v ?? null)} placeholder="Không giới hạn"
             addonBefore="Giới hạn mua mỗi người" addonAfter="sản phẩm" style={{ width: 380 }} data-testid="max-per-buyer" />
+        </div>
+        {logistics.data?.multiWarehouse && (
+          <div style={{ marginTop: 12 }}>
+            <Typography.Text>Kho gửi </Typography.Text>
+            <Select style={{ width: 320 }} value={warehouseId ?? ''} onChange={(v) => setWarehouseId(v || null)} aria-label="Kho gửi" data-testid="product-warehouse"
+              options={[
+                { value: '', label: 'Kho lấy hàng mặc định' },
+                ...logistics.data.warehouses.filter((w) => !w.isPickupDefault).map((w) => ({ value: w.id, label: w.name })),
+              ]} />
+          </div>
+        )}
+        <div style={{ marginTop: 12 }}>
+          <Typography.Text>Đơn vị vận chuyển cho sản phẩm </Typography.Text>
+          <Select mode="multiple" allowClear style={{ minWidth: 320 }} value={carrierCodes} onChange={setCarrierCodes} placeholder="Mọi đơn vị shop đang dùng"
+            aria-label="Đơn vị vận chuyển cho sản phẩm"
+            options={(logistics.data?.channels ?? []).filter((c) => c.carrierActive && c.isEnabled).map((c) => ({ value: c.carrierCode, label: c.name }))} />
         </div>
       </Card>
 

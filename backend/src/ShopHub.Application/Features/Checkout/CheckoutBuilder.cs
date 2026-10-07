@@ -48,7 +48,11 @@ public record QuoteShopDto(
     IReadOnlyList<VoucherOptionDto> ShopVoucherOptions,
     string? Note,
     long ComboDiscount = 0,
-    IReadOnlyList<QuoteGiftDto>? Gifts = null);
+    IReadOnlyList<QuoteGiftDto>? Gifts = null,
+    IReadOnlyList<QuoteParcelDto>? Parcels = null);
+
+// A parcel of the shop's order (đa kho): where it leaves from and what is in it
+public record QuoteParcelDto(int No, string WarehouseName, string ProvinceCode, long ShippingFee, IReadOnlyList<Guid> ProductIds);
 
 public record PaymentMethodDto(PaymentMethod Code, string Name, bool Available, string? Reason);
 
@@ -87,7 +91,8 @@ public sealed record CheckoutPlan(
     Voucher? PlatformVoucher,
     Voucher? FreeshipVoucher,
     IReadOnlyDictionary<Guid, ShippingOption> Carriers,
-    IReadOnlyList<Marketing.GiftLine>? Gifts = null);
+    IReadOnlyList<Marketing.GiftLine>? Gifts = null,
+    IReadOnlyDictionary<Guid, IReadOnlyList<PlanParcel>>? Parcels = null);
 
 public sealed record PlanLine(Guid SkuId, Guid ProductId, Guid ShopId, Guid CategoryId, string Name, string? Variant, string? ImageUrl,
     long UnitPrice, long OriginalPrice, int Quantity, Marketing.LinePrice? Price = null);
@@ -175,29 +180,51 @@ public sealed class CheckoutBuilder(
         // ----- shipping per shop -----
         var shippingOptions = new Dictionary<Guid, IReadOnlyList<ShippingOption>>();
         var chosenCarrier = new Dictionary<Guid, ShippingOption>();
+        // Đa kho: one parcel per ship-from warehouse, each quoted on its own route; the shop's fee is their sum
+        var parcelQuotes = new Dictionary<Guid, List<(PlannedParcel Parcel, IReadOnlyList<ShippingOption> Options)>>();
         foreach (var shop in shops)
         {
-            var from = await db.ShopWarehouses.AsNoTracking().Where(w => w.ShopId == shop.Id).OrderByDescending(w => w.IsPickupDefault).ThenBy(w => w.Id)
-                .Select(w => new RoutePoint(w.ProvinceCode, w.DistrictCode, w.WardCode)).FirstOrDefaultAsync(ct);
-            if (from is null || address is null)
+            var warehouses = await Parcels.WarehousesAsync(db, shop.Id, ct);
+            if (warehouses.Count == 0 || address is null)
             {
                 shippingOptions[shop.Id] = [];
-                if (from is null) problems.Add($"Shop {shop.Name} chưa có kho lấy hàng.");
+                if (warehouses.Count == 0) problems.Add($"Shop {shop.Name} chưa có kho lấy hàng.");
                 continue;
             }
-            var weight = ShippingCalculator.ChargeableWeightG(buyable.Where(l => l.Shop.Id == shop.Id).Select(l =>
-                new ParcelItem(l.Sku.WeightG ?? l.Product.WeightG, l.Product.LengthMm, l.Product.WidthMm, l.Product.HeightMm, l.Item.Quantity)));
-            var value = buyable.Where(l => l.Shop.Id == shop.Id).Sum(l => UnitPrice(l) * l.Item.Quantity);
-            var options = await shipping.QuoteAsync(from, new RoutePoint(address.ProvinceCode, address.DistrictCode, address.WardCode), weight, value, ct);
+            var shopLines = buyable.Where(l => l.Shop.Id == shop.Id).ToList();
+            var planned = Parcels.Plan(shop.MultiWarehouse, warehouses, shopLines.Select(l => new ParcelLine(l.Product.Id, l.Product.WarehouseId,
+                new ParcelItem(l.Sku.WeightG ?? l.Product.WeightG, l.Product.LengthMm, l.Product.WidthMm, l.Product.HeightMm, l.Item.Quantity))).ToList());
+            var to = new RoutePoint(address.ProvinceCode, address.DistrictCode, address.WardCode);
+            var quoted = new List<(PlannedParcel, IReadOnlyList<ShippingOption>)>();
+            foreach (var parcel in planned)
+            {
+                var value = shopLines.Where(l => parcel.ProductIds.Contains(l.Product.Id)).Sum(l => UnitPrice(l) * l.Item.Quantity);
+                var w = parcel.Warehouse;
+                quoted.Add((parcel, await shipping.QuoteAsync(new RoutePoint(w.ProvinceCode, w.DistrictCode, w.WardCode), to, parcel.WeightG, value, ct)));
+            }
+            parcelQuotes[shop.Id] = quoted;
+            // The shop's own carrier choice (on / COD) and each product's allowed carriers (III.3, III.9)
+            var channels = await Seller.ShopChannels.ForShopAsync(db, shop.Id, ct);
+            var limited = shopLines.Select(l => l.Product.CarrierCodes).Where(c => c.Count > 0).ToList();
+            var options = Parcels.Combine(quoted.Select(q => q.Item2).ToList())
+                .Where(o => Seller.ShopChannels.Allows(channels, o.Code) && limited.All(c => c.Contains(o.Code)))
+                .Select(o => o with { SupportsCod = o.SupportsCod && Seller.ShopChannels.AllowsCod(channels, o.Code) })
+                .ToList();
             shippingOptions[shop.Id] = options;
             if (options.Count == 0)
             {
-                problems.Add($"Chưa có đơn vị vận chuyển phục vụ tuyến này cho shop {shop.Name}.");
+                problems.Add(planned.Count > 1
+                    ? $"Chưa có đơn vị vận chuyển nào giao được cả {planned.Count} kiện của shop {shop.Name} tới địa chỉ này."
+                    : $"Chưa có đơn vị vận chuyển phục vụ tuyến này cho shop {shop.Name}.");
                 continue;
             }
             var wanted = choices.GetValueOrDefault(shop.Id)?.CarrierCode;
             chosenCarrier[shop.Id] = options.FirstOrDefault(o => o.Code == wanted) ?? options[0];
         }
+        // The chosen carrier's fee of every parcel
+        var shopParcels = chosenCarrier.ToDictionary(c => c.Key, c => (IReadOnlyList<PlanParcel>)parcelQuotes[c.Key].Select(q =>
+            new PlanParcel(q.Parcel.No, q.Parcel.Warehouse.Id, q.Parcel.Warehouse.Name, q.Parcel.Warehouse.ProvinceCode, q.Parcel.WeightG,
+                q.Options.First(o => o.Code == c.Value.Code).Fee, q.Parcel.ProductIds)).ToList());
 
         // ----- vouchers -----
         var lines = buyable.Select(l => new PricingLine(l.Sku.Id, l.Product.Id, l.Product.CategoryId, l.Shop.Id, UnitPrice(l), l.Item.Quantity,
@@ -325,7 +352,8 @@ public sealed class CheckoutBuilder(
                 selectedOption is { Usable: true } ? selectedOption with { Discount = priced?.ShopDiscount ?? 0 } : null, shopOptions,
                 choices.GetValueOrDefault(shop.Id)?.Note?.Trim(), priced?.ComboDiscount ?? 0,
                 offers.Gifts.Where(g => g.ShopId == shop.Id).Select(g => new QuoteGiftDto(g.SkuId, g.Name, g.Variant, g.Quantity, g.OriginalPrice * g.Quantity))
-                    .ToList()));
+                    .ToList(),
+                shopParcels.GetValueOrDefault(shop.Id)?.Select(p => new QuoteParcelDto(p.No, p.WarehouseName, p.ProvinceCode, p.Fee, p.ProductIds)).ToList()));
         }
 
         var platformOptions = new List<VoucherOptionDto>();
@@ -374,7 +402,8 @@ public sealed class CheckoutBuilder(
 
         var planLines = buyable.ToDictionary(l => l.Sku.Id, l => new PlanLine(l.Sku.Id, l.Product.Id, l.Shop.Id, l.Product.CategoryId, l.Product.Name,
             l.Variant, l.Image, UnitPrice(l), Math.Max(l.Sku.OriginalPrice, l.Sku.Price), l.Item.Quantity, offers.Prices.GetValueOrDefault(l.Sku.Id)));
-        return new CheckoutPlan(quote, address, snapshot, pricing, planLines, selectedShopVouchers, platform, freeship, chosenCarrier, offers.Gifts);
+        return new CheckoutPlan(quote, address, snapshot, pricing, planLines, selectedShopVouchers, platform, freeship, chosenCarrier, offers.Gifts,
+            shopParcels);
     }
 
     private async Task<List<LineInfo>> LoadLinesAsync(List<CartItem> items, CancellationToken ct)

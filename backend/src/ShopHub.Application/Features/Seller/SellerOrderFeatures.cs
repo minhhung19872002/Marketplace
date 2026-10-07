@@ -45,7 +45,8 @@ public record ShopOrderRowDto(
     string? TrackingNo,
     ShipmentStatus? ShipmentStatus,
     bool HasCancelRequest,
-    bool LabelPrinted);
+    bool LabelPrinted,
+    int ParcelCount = 1);
 
 public record ShopOrderDetailDto(Orders.OrderDetailDto Order, string BuyerName, string? SellerNote, DateOnly? ShipDeadline);
 
@@ -120,12 +121,13 @@ public sealed class ListShopOrdersHandler(IApplicationDbContext db, SellerAccess
             Shipment = db.Shipments.Where(s => s.OrderId == o.Id && s.Direction == ShipmentDirection.Outbound)
                 .OrderByDescending(s => s.CreatedAt).Select(s => new { s.TrackingNo, s.Status, s.LabelPrintedAt }).FirstOrDefault(),
             CancelRequest = db.OrderCancelRequests.Any(r => r.OrderId == o.Id && r.Status == CancelRequestStatus.Pending),
+            Parcels = o.Packages.Count(),
         }, request, ct);
 
         return new PagedResult<ShopOrderRowDto>(page.Items.Select(r => new ShopOrderRowDto(r.Order.Id, r.Order.Code, r.Order.CreatedAt, r.Order.Status,
             OrderStateMachine.Label(r.Order.Status), r.Order.PaymentMethod, r.Order.PaymentStatus, r.Buyer ?? "", r.Items, r.First?.NameSnapshot,
             r.First?.ImageSnapshot, r.Order.GrandTotal, r.Order.CarrierCode, r.Shipment?.TrackingNo, r.Shipment?.Status, r.CancelRequest,
-            r.Shipment?.LabelPrintedAt is not null)).ToList(), page.TotalCount, page.Page, page.PageSize);
+            r.Shipment?.LabelPrintedAt is not null, Math.Max(1, r.Parcels))).ToList(), page.TotalCount, page.Page, page.PageSize);
     }
 }
 
@@ -182,8 +184,8 @@ public sealed class PrepareOrdersHandler(
             var slots = JsonSerializer.Deserialize<List<string>>(await parameters.GetStringAsync(ParameterKeys.OrderPickupSlots, ct)) ?? [];
             if (!slots.Contains(request.PickupSlot!)) throw new ConflictException("Khung giờ lấy hàng không hợp lệ.", "BAD_SLOT");
         }
-        var warehouse = await db.ShopWarehouses.AsNoTracking().Where(w => w.ShopId == request.ShopId).OrderByDescending(w => w.IsPickupDefault).ThenBy(w => w.Id)
-            .FirstOrDefaultAsync(ct) ?? throw new ConflictException("Shop chưa có kho lấy hàng.", "NO_WAREHOUSE");
+        var warehouses = await Parcels.WarehousesAsync(db, request.ShopId, ct);
+        if (warehouses.Count == 0) throw new ConflictException("Shop chưa có kho lấy hàng.", "NO_WAREHOUSE");
 
         var results = new List<PrepareResultDto>();
         foreach (var orderId in request.OrderIds.Distinct())
@@ -196,7 +198,7 @@ public sealed class PrepareOrdersHandler(
             }
             try
             {
-                results.Add(new PrepareResultDto(orderId, code, true, await PrepareOneAsync(orderId, warehouse, request, ct), null));
+                results.Add(new PrepareResultDto(orderId, code, true, await PrepareOneAsync(orderId, warehouses, request, ct), null));
             }
             catch (Exception ex) when (ex is ConflictException or Domain.Common.BusinessRuleException)
                 // (a real carrier refusing the booking is a CarrierUnavailableException, i.e. a ConflictException)
@@ -208,9 +210,9 @@ public sealed class PrepareOrdersHandler(
         return results;
     }
 
-    private async Task<string> PrepareOneAsync(Guid orderId, Domain.Shops.ShopWarehouse warehouse, PrepareOrdersCommand request, CancellationToken ct)
+    private async Task<string> PrepareOneAsync(Guid orderId, IReadOnlyList<Domain.Shops.ShopWarehouse> warehouses, PrepareOrdersCommand request,
+        CancellationToken ct)
     {
-        var fromProvince = warehouse.ProvinceCode;
         var now = clock.UtcNow;
         await using var tx = await db.BeginTransactionAsync(ct);
         var order = await locks.LockAsync(orderId, ct);
@@ -220,34 +222,47 @@ public sealed class PrepareOrdersHandler(
 
         var checkout = await db.CheckoutSessions.AsNoTracking().SingleAsync(c => c.Id == order.CheckoutId, ct);
         var receiver = CarrierParties.FromSnapshot(checkout.AddressSnapshot);
-        var toProvince = receiver?.Point.ProvinceCode ?? fromProvince;
         var productIds = order.Items.Select(i => i.ProductId).ToList();
         var dims = await db.Products.IgnoreQueryFilters().Where(p => productIds.Contains(p.Id))
             .Select(p => new { p.Id, p.WeightG, p.LengthMm, p.WidthMm, p.HeightMm }).ToDictionaryAsync(p => p.Id, ct);
         var skuIds = order.Items.Select(i => i.SkuId).ToList();
         var skuWeights = await db.Skus.IgnoreQueryFilters().Where(s => skuIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, s => s.WeightG, ct);
-        var weight = ShippingCalculator.ChargeableWeightG(order.Items.Select(i =>
-            new ParcelItem(skuWeights.GetValueOrDefault(i.SkuId) ?? dims[i.ProductId].WeightG, dims[i.ProductId].LengthMm, dims[i.ProductId].WidthMm,
-                dims[i.ProductId].HeightMm, i.Quantity)));
+        int WeightOf(OrderItem i) => skuWeights.GetValueOrDefault(i.SkuId) ?? dims[i.ProductId].WeightG;
 
         var carrier = await db.Carriers.AsNoTracking().SingleAsync(c => c.Code == order.CarrierCode, ct);
         var provider = carriers.FirstOrDefault(c => c.Provider == carrier.Provider)
                        ?? throw new ConflictException("Đơn vị vận chuyển của đơn này hiện không khả dụng.", "NO_CARRIER");
-        var cod = order.PaymentMethod == PaymentMethod.Cod ? order.GrandTotal : 0;
-        var tracking = await provider.CreateShipmentAsync(carrier,
-            new CarrierParcel(order.Id, order.Code, fromProvince, toProvince, weight, cod, request.PickupMethod, request.PickupSlot,
-                CarrierParties.FromWarehouse(warehouse), receiver, order.Subtotal,
-                order.Items.Select(i => new CarrierItem(i.NameSnapshot, i.Quantity, skuWeights.GetValueOrDefault(i.SkuId) ?? dims[i.ProductId].WeightG)).ToList(),
-                order.BuyerNote), ct);
-        var days = carrier.DaysFor(ShippingCalculator.ZoneOf(fromProvince, toProvince));
-        var expected = VietnamTime.AddWorkingDays(VietnamTime.Today(now), days, new HashSet<DateOnly>());
-        var expectedAt = new DateTimeOffset(expected.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(7)).ToUniversalTime();
-        db.Shipments.Add(new Shipment(order.Id, carrier.Code, tracking, ShipmentDirection.Outbound, order.ShippingFee, cod, weight, request.PickupMethod,
-            request.PickupMethod == PickupMethod.Pickup ? request.PickupSlot : null, expectedAt, now));
-        outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Confirmed, tracking));
+
+        // One shipment per parcel, from its own warehouse (orders before đa kho: one parcel from the default pickup)
+        var parcels = OrderParcels.Of(order, warehouses);
+        var cods = Parcels.ShareCod(order.GrandTotal, parcels.Select(p => p.Items.Sum(i => i.PaidAmount) + p.ShippingFee - p.ShippingDiscount).ToList());
+        var trackings = new List<string>();
+        for (var k = 0; k < parcels.Count; k++)
+        {
+            var p = parcels[k];
+            var fromProvince = p.Warehouse.ProvinceCode;
+            var toProvince = receiver?.Point.ProvinceCode ?? fromProvince;
+            var weight = ShippingCalculator.ChargeableWeightG(p.Items.Select(i =>
+                new ParcelItem(WeightOf(i), dims[i.ProductId].LengthMm, dims[i.ProductId].WidthMm, dims[i.ProductId].HeightMm, i.Quantity)));
+            var cod = order.PaymentMethod == PaymentMethod.Cod ? cods[k] : 0;
+            var tracking = await provider.CreateShipmentAsync(carrier,
+                new CarrierParcel(order.Id, parcels.Count > 1 ? $"{order.Code}-{p.No}" : order.Code, fromProvince, toProvince, weight, cod,
+                    request.PickupMethod, request.PickupSlot, CarrierParties.FromWarehouse(p.Warehouse), receiver, p.Items.Sum(i => i.LineTotal),
+                    p.Items.Select(i => new CarrierItem(i.NameSnapshot, i.Quantity, WeightOf(i))).ToList(), order.BuyerNote), ct);
+            var days = carrier.DaysFor(ShippingCalculator.ZoneOf(fromProvince, toProvince));
+            var expected = VietnamTime.AddWorkingDays(VietnamTime.Today(now), days, new HashSet<DateOnly>());
+            var expectedAt = new DateTimeOffset(expected.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(7)).ToUniversalTime();
+            var shipment = new Shipment(order.Id, carrier.Code, tracking, ShipmentDirection.Outbound, p.ShippingFee, cod, weight, request.PickupMethod,
+                request.PickupMethod == PickupMethod.Pickup ? request.PickupSlot : null, expectedAt, now);
+            shipment.ForPackage(p.No);
+            db.Shipments.Add(shipment);
+            trackings.Add(tracking);
+        }
+        var all = string.Join(", ", trackings);
+        outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Confirmed, all));
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return tracking;
+        return all;
     }
 }
 
@@ -270,7 +285,7 @@ public sealed class ShippingLabelsValidator : AbstractValidator<ShippingLabelsQu
 }
 
 /// <summary>The carrier's own label for one order (GHTK prints its own); 404 when the carrier relies on ShopHub's label.</summary>
-public record CarrierLabelQuery(Guid ShopId, Guid OrderId) : IRequest<byte[]>;
+public record CarrierLabelQuery(Guid ShopId, Guid OrderId, int? PackageNo = null) : IRequest<byte[]>;
 
 public sealed class CarrierLabelHandler(IApplicationDbContext db, SellerAccess access, IEnumerable<ICarrier> carriers)
     : IRequestHandler<CarrierLabelQuery, byte[]>
@@ -280,8 +295,9 @@ public sealed class CarrierLabelHandler(IApplicationDbContext db, SellerAccess a
         await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
         var shipment = await db.Shipments.AsNoTracking()
                            .Where(s => s.OrderId == request.OrderId && s.Direction == ShipmentDirection.Outbound
+                                       && (request.PackageNo == null || s.PackageNo == request.PackageNo)
                                        && db.Orders.Any(o => o.Id == request.OrderId && o.ShopId == request.ShopId))
-                           .OrderByDescending(s => s.CreatedAt).FirstOrDefaultAsync(ct)
+                           .OrderBy(s => s.PackageNo).ThenByDescending(s => s.CreatedAt).FirstOrDefaultAsync(ct)
                        ?? throw new NotFoundException("Đơn hàng chưa có vận đơn.");
         var carrier = await db.Carriers.AsNoTracking().SingleAsync(c => c.Code == shipment.CarrierCode, ct);
         var provider = carriers.FirstOrDefault(c => c.Provider == carrier.Provider);
@@ -297,15 +313,15 @@ public sealed class ShippingLabelsHandler(IApplicationDbContext db, SellerAccess
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
         var shop = await db.Shops.AsNoTracking().SingleAsync(s => s.Id == request.ShopId, ct);
-        var warehouse = await db.ShopWarehouses.AsNoTracking().Where(w => w.ShopId == shop.Id).OrderByDescending(w => w.IsPickupDefault).ThenBy(w => w.Id)
-            .FirstAsync(ct);
-        var names = await db.AdminDivisions.AsNoTracking()
-            .Where(d => d.Code == warehouse.WardCode || d.Code == warehouse.DistrictCode || d.Code == warehouse.ProvinceCode).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
-        var sender = string.Join(", ", new[] { warehouse.Street, names.GetValueOrDefault(warehouse.WardCode), names.GetValueOrDefault(warehouse.DistrictCode),
-            names.GetValueOrDefault(warehouse.ProvinceCode) }.Where(x => !string.IsNullOrEmpty(x)));
+        var warehouses = await Parcels.WarehousesAsync(db, shop.Id, ct);
+        var codes = warehouses.SelectMany(w => new[] { w.WardCode, w.DistrictCode, w.ProvinceCode }).Distinct().ToList();
+        var names = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code)).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
+        string SenderOf(Domain.Shops.ShopWarehouse w) => string.Join(", ", new[] { w.Street, names.GetValueOrDefault(w.WardCode),
+            names.GetValueOrDefault(w.DistrictCode), names.GetValueOrDefault(w.ProvinceCode) }.Where(x => !string.IsNullOrEmpty(x)));
 
         var ids = request.OrderIds.Distinct().ToList();
-        var orders = await db.Orders.AsNoTracking().Include(o => o.Items).Where(o => o.ShopId == shop.Id && ids.Contains(o.Id)).ToListAsync(ct);
+        var orders = await db.Orders.AsNoTracking().Include(o => o.Items).Include(o => o.Packages).AsSplitQuery()
+            .Where(o => o.ShopId == shop.Id && ids.Contains(o.Id)).ToListAsync(ct);
         if (orders.Count != ids.Count) throw new NotFoundException("Không tìm thấy đơn hàng.");
         var shipments = await db.Shipments.Where(s => ids.Contains(s.OrderId) && s.Direction == ShipmentDirection.Outbound && s.Status != ShipmentStatus.Cancelled)
             .ToListAsync(ct);
@@ -316,14 +332,22 @@ public sealed class ShippingLabelsHandler(IApplicationDbContext db, SellerAccess
         var labels = new List<ShippingLabel>();
         foreach (var o in orders.OrderBy(o => o.Code))
         {
-            var s = shipments.FirstOrDefault(x => x.OrderId == o.Id)
-                    ?? throw new ConflictException($"Đơn {o.Code} chưa có vận đơn, vui lòng chuẩn bị hàng trước.", "NO_SHIPMENT");
+            var own = shipments.Where(x => x.OrderId == o.Id).OrderBy(x => x.PackageNo).ThenBy(x => x.Id).ToList();
+            if (own.Count == 0) throw new ConflictException($"Đơn {o.Code} chưa có vận đơn, vui lòng chuẩn bị hàng trước.", "NO_SHIPMENT");
             var address = JsonDocument.Parse(checkouts[o.CheckoutId]).RootElement;
-            labels.Add(new ShippingLabel(s.TrackingNo, carriers.GetValueOrDefault(s.CarrierCode) ?? s.CarrierCode, o.Code, shop.Name, warehouse.Phone, sender,
-                address.GetProperty("receiverName").GetString() ?? "", address.GetProperty("phone").GetString() ?? "",
-                address.GetProperty("fullAddress").GetString() ?? "", s.CodAmount, s.WeightG,
-                o.Items.OrderBy(i => i.Id).Select(i => new ShippingLabelItem(i.NameSnapshot, i.VariantSnapshot, i.Quantity)).ToList(), o.BuyerNote, s.CreatedAt));
-            s.MarkPrinted(clock.UtcNow);
+            // One label per parcel: its own warehouse as sender and only its lines
+            var parcels = OrderParcels.Of(o, warehouses);
+            foreach (var s in own)
+            {
+                var parcel = parcels.FirstOrDefault(p => p.No == s.PackageNo) ?? parcels[0];
+                var code = own.Count > 1 ? $"{o.Code} · kiện {s.PackageNo}/{own.Count}" : o.Code;
+                labels.Add(new ShippingLabel(s.TrackingNo, carriers.GetValueOrDefault(s.CarrierCode) ?? s.CarrierCode, code, shop.Name, parcel.Warehouse.Phone,
+                    SenderOf(parcel.Warehouse), address.GetProperty("receiverName").GetString() ?? "", address.GetProperty("phone").GetString() ?? "",
+                    address.GetProperty("fullAddress").GetString() ?? "", s.CodAmount, s.WeightG,
+                    (own.Count > 1 ? parcel.Items : o.Items).OrderBy(i => i.Id).Select(i => new ShippingLabelItem(i.NameSnapshot, i.VariantSnapshot, i.Quantity))
+                    .ToList(), o.BuyerNote, s.CreatedAt));
+                s.MarkPrinted(clock.UtcNow);
+            }
         }
         await db.SaveChangesAsync(ct);
         return documents.RenderLabels(labels, request.Size);

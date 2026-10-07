@@ -10,8 +10,8 @@ cd e2e && SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=… SH_E2E_AD
 
 (gateway e2e nên nâng giới hạn: `SH_GATEWAY_RATE=100r/s SH_GATEWAY_BURST=200`, mọi trình duyệt cùng một IP.)
 
-Lần chạy gần nhất: **2026-10-07**, 61 kịch bản, 61 đạt (trên dữ liệu mẫu đầy đủ: ~600 đơn, 800 đánh giá). Phần phụ trợ: backend
-`dotnet test` 151 unit + 175 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
+Lần chạy gần nhất: **2026-10-07**, 62 kịch bản, 62 đạt (trên dữ liệu mẫu đầy đủ: ~600 đơn, 800 đánh giá). Phần phụ trợ: backend
+`dotnet test` 157 unit + 181 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
 
 ## A. Mục 9 của đặc tả (bắt buộc)
 
@@ -73,6 +73,7 @@ Lần chạy gần nhất: **2026-10-07**, 61 kịch bản, 61 đạt (trên d�
 | KB49 | Giới hạn mua, sản phẩm tương tự | Giới hạn 2; thêm cái thứ 3; shop hết hàng (`cart-rules.spec.cjs`) | Ô số lượng dừng ở 2; giỏ 409; dòng hết hàng mở được sản phẩm tương tự | Như mong đợi | ✔ |
 | KB50 | Chặn / báo cáo shop | Người mua chặn + báo cáo; quản trị phạt (`chat.spec.cjs`) | Shop không gửi được tin (409); 2 điểm phạt | Như mong đợi | ✔ |
 | KB51 | Liên hệ shop | Đơn mua → Liên hệ shop (`orders.spec.cjs`) | Chat mở đúng shop kèm thẻ đơn | Lần đầu thiếu chức năng (L052), sau bổ sung đạt | ✔ |
+| KB52 | Đa kho | Shop thêm kho Hà Nội, bật đa kho; người mua mua 2 sản phẩm ở 2 kho (`shop-design.spec.cjs`) | Trang thanh toán báo 2 kiện; một đơn, 2 vận đơn; chi tiết đơn hiện 2 kiện | Như mong đợi | ✔ |
 
 ## D. Kiểm bằng công cụ khác / tay
 

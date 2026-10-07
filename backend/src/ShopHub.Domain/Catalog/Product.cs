@@ -74,6 +74,15 @@ public class Product : AuditableEntity
 
     // Giới hạn mua mỗi người (all variants together); null = no limit
     public int? MaxPerBuyer { get; private set; }
+    // Kho gửi when the shop runs several warehouses (null → the default pickup warehouse)
+    public Guid? WarehouseId { get; private set; }
+
+    public void ShipFrom(Guid? warehouseId) => WarehouseId = warehouseId;
+
+    // Đơn vị vận chuyển cho sản phẩm (III.3): only these carriers may take it; empty = every carrier the shop uses
+    public List<string> CarrierCodes { get; private set; } = [];
+
+    public void LimitCarriers(IEnumerable<string> codes) => CarrierCodes = codes.Select(c => c.Trim()).Where(c => c.Length > 0).Distinct().Order().ToList();
 
     // Denormalised, always recomputed from the source rows (SKUs / orders / reviews), never accumulated
     public long MinPrice { get; private set; }

@@ -75,7 +75,9 @@ public record SellerProductDetailDto(
     string? BanReason,
     string? Flags,
     uint Version,
-    int? MaxPerBuyer);
+    int? MaxPerBuyer,
+    Guid? WarehouseId = null,
+    IReadOnlyList<string>? CarrierCodes = null);
 
 // ---------- Input ----------
 
@@ -104,7 +106,10 @@ public record ProductInput(
     IReadOnlyList<TierInput> Tiers,
     IReadOnlyList<SkuInput> Skus,
     // Giới hạn mua mỗi người (all variants together); null = no limit
-    int? MaxPerBuyer = null);
+    int? MaxPerBuyer = null,
+    // Kho gửi (đa kho; null = the default pickup warehouse) and the carriers allowed for it (empty = all the shop uses)
+    Guid? WarehouseId = null,
+    IReadOnlyList<string>? CarrierCodes = null);
 
 public sealed class ProductInputValidator : AbstractValidator<ProductInput>
 {
@@ -147,6 +152,11 @@ public sealed class ProductWriter(
         else if (await db.Categories.AnyAsync(c => c.ParentId == category.Id, ct)) errors.Add(new("categoryId", "Vui lòng chọn danh mục cấp cuối."));
         if (input.BrandId is { } brandId && !await db.Brands.AnyAsync(b => b.Id == brandId, ct))
             errors.Add(new("brandId", "Thương hiệu không tồn tại."));
+        if (input.WarehouseId is { } warehouseId && !await db.ShopWarehouses.AnyAsync(w => w.Id == warehouseId && w.ShopId == product.ShopId, ct))
+            errors.Add(new("warehouseId", "Kho gửi không thuộc shop này."));
+        var carrierCodes = (input.CarrierCodes ?? []).Select(c => c.Trim()).Where(c => c.Length > 0).Distinct().ToList();
+        if (carrierCodes.Count > 0 && await db.Carriers.CountAsync(c => carrierCodes.Contains(c.Code), ct) != carrierCodes.Count)
+            errors.Add(new("carrierCodes", "Có đơn vị vận chuyển không tồn tại."));
 
         // Required / typed industry attributes of the leaf category
         var definitions = await db.CategoryAttributes.AsNoTracking().Where(a => a.CategoryId == input.CategoryId).ToListAsync(ct);
@@ -169,6 +179,8 @@ public sealed class ProductWriter(
             input.HeightMm, input.IsPreorder, input.PreorderDays);
         product.SetAttributes(input.Attributes.Select(a => (a.AttributeId, a.Values)));
         product.SetPurchaseLimit(input.MaxPerBuyer);
+        product.ShipFrom(input.WarehouseId);
+        product.LimitCarriers(carrierCodes);
 
         var deltas = product.SetVariants(
             input.Tiers.Select(t => new TierSpec(t.Name, t.Options.Select(o =>
@@ -297,7 +309,7 @@ internal static class ProductLoader
             p.Skus.OrderBy(s => OptionSort(options, s.Option1Id)).ThenBy(s => OptionSort(options, s.Option2Id))
                 .Select(s => new ProductSkuDto(s.Id, OptionValue(options, s.Option1Id), OptionValue(options, s.Option2Id), s.SellerSku,
                     s.Price, s.OriginalPrice, s.Stock, s.Reserved, s.Available, s.WeightG, s.IsActive)).ToList(),
-            p.ReviewNote, p.BanReason, p.Flags, p.Version, p.MaxPerBuyer);
+            p.ReviewNote, p.BanReason, p.Flags, p.Version, p.MaxPerBuyer, p.WarehouseId, p.CarrierCodes);
     }
 
     private static string? OptionValue(Dictionary<Guid, VariantOption> options, Guid? id) =>

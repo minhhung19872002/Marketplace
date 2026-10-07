@@ -62,6 +62,7 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             t.HasCheckConstraint("ck_products_price_range", "min_price >= 0 AND max_price >= min_price");
         });
         b.HasKey(p => p.Id);
+        b.Property(p => p.CarrierCodes).HasColumnType("text[]");
         b.Property(p => p.Name).HasMaxLength(Product.MaxNameLength).IsRequired();
         b.Property(p => p.Slug).HasMaxLength(120).IsRequired();
         b.Property(p => p.Description).IsRequired();
@@ -233,6 +234,18 @@ internal sealed class ShopKycConfiguration : IEntityTypeConfiguration<ShopKyc>
         b.Property(k => k.RejectReason).HasMaxLength(500);
         b.HasOne<Shop>().WithMany().HasForeignKey(k => k.ShopId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(k => k.ShopId).IsUnique().HasDatabaseName("ux_shop_kyc_shop");
+    }
+}
+
+internal sealed class ShopShippingChannelConfiguration : IEntityTypeConfiguration<ShopShippingChannel>
+{
+    public void Configure(EntityTypeBuilder<ShopShippingChannel> b)
+    {
+        b.ToTable("shop_shipping_channels", "shop");
+        b.HasKey(c => c.Id);
+        b.Property(c => c.CarrierCode).HasMaxLength(30).IsRequired();
+        b.HasOne<Shop>().WithMany().HasForeignKey(c => c.ShopId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(c => new { c.ShopId, c.CarrierCode }).IsUnique().HasDatabaseName("ux_shop_shipping_channels");
     }
 }
 

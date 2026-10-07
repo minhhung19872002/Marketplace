@@ -7,9 +7,16 @@ public record SettlementLine(Guid OrderItemId, long LineTotal, int Quantity, lon
 
 public record SettlementReturnItem(Guid OrderItemId, int Quantity, long RefundAmount, long RefundCoins);
 
-/// <summary>A refunded return of the order: what was asked (the units' paid share) and what was finally given.</summary>
+/// <summary>
+/// A refunded return of the order: what was asked (the units' paid share) and what was finally given. A parcel that came
+/// back undelivered also gives back its net shipping (<see cref="ShippingRefund"/>, inside the amounts) and the platform's
+/// free-shipping share on it; the carrier is owed nothing for it.
+/// </summary>
 public record SettlementReturn(Guid ReturnId, DateTimeOffset RefundedAt, long RequestedAmount, long RequestedCoins, long RefundAmount, long RefundCoins,
-    IReadOnlyList<SettlementReturnItem> Items);
+    IReadOnlyList<SettlementReturnItem> Items, long ShippingRefund = 0, long ShippingDiscountBack = 0)
+{
+    public long ShippingFeeBack => ShippingRefund + ShippingDiscountBack;
+}
 
 public record SettlementInput(
     long GrandTotal,
@@ -57,14 +64,16 @@ public static class SettlementCalculator
         var lines = input.Lines.ToDictionary(l => l.OrderItemId);
         var borne = input.Lines.ToDictionary(l => l.OrderItemId, _ => 0L);
         var returned = input.Lines.ToDictionary(l => l.OrderItemId, _ => 0);
-        long moneyRefunded = 0, subsidyCancelled = 0;
+        long moneyRefunded = 0, subsidyCancelled = 0, shippingBack = 0;
 
         foreach (var r in input.Returns.OrderBy(r => r.RefundedAt).ThenBy(r => r.ReturnId))
         {
             moneyRefunded += r.RefundAmount;
-            subsidyCancelled += r.RefundCoins;
+            subsidyCancelled += r.RefundCoins + r.ShippingDiscountBack;
+            shippingBack += r.ShippingFeeBack;
             var whole = r.RefundAmount >= r.RequestedAmount && r.RefundCoins >= r.RequestedCoins;
-            var cost = r.RefundAmount + r.RefundCoins;
+            // The goods' part only: the shipping given back is not the shop's cost
+            var cost = r.RefundAmount + r.RefundCoins - r.ShippingRefund;
             var weights = r.Items.Select(i => i.RefundAmount + i.RefundCoins).ToList();
             var shares = Money.Vnd(cost).Allocate(weights.All(w => w == 0) ? r.Items.Select(_ => 1L).ToList() : weights);
             for (var k = 0; k < r.Items.Count; k++)
@@ -108,11 +117,12 @@ public static class SettlementCalculator
         }
         var net = gross - fees;
         var subsidy = input.PlatformDiscount + input.CoinUsed + input.ShippingDiscount - subsidyCancelled;
-
-        if (moneyKept + subsidy != net + fees + input.ShippingFee)
+        var shipping = input.ShippingFee - shippingBack;
+        if (shipping < 0) throw new InvalidOperationException("More shipping was given back than charged.");
+        if (moneyKept + subsidy != net + fees + shipping)
             throw new InvalidOperationException(
-                $"Settlement does not balance: kept {moneyKept} + subsidy {subsidy} ≠ net {net} + fees {fees} + shipping {input.ShippingFee}.");
+                $"Settlement does not balance: kept {moneyKept} + subsidy {subsidy} ≠ net {net} + fees {fees} + shipping {shipping}.");
         return new SettlementBreakdown(goods, shopDiscount, refundsBorne, fixedFee, paymentFee, serviceFee, net, moneyKept, subsidy,
-            input.ShippingFee, results);
+            shipping, results);
     }
 }

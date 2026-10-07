@@ -73,6 +73,7 @@ public enum RefundDestination
 {
     Gateway,   // về đúng nguồn thanh toán online
     Wallet,    // Ví ShopHub (Phase 8)
+    Uncollected, // COD of a parcel that was never delivered: nothing to pay back, the money never came in
 }
 
 public enum RefundStatus

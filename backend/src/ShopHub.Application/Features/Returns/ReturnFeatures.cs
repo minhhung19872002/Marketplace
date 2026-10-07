@@ -123,14 +123,18 @@ public sealed class ReturnRefunder(
         {
             // Paid through a gateway → refund there; COD and Ví ShopHub → into the wallet (credited by the finance sync)
             var online = order.PaymentMethod.IsOnline();
+            // A COD parcel that never arrived was never paid for: the refund only takes it off what the carrier owes
+            var uncollected = order.PaymentMethod == PaymentMethod.Cod && r.Reason == ReturnReason.UndeliveredParcel;
             var payment = online
                 ? await db.Payments.Where(p => p.CheckoutId == order.CheckoutId && p.Status == PaymentStatus.Succeeded).OrderByDescending(p => p.PaidAt).FirstOrDefaultAsync(ct)
                 : null;
-            var refund = new Refund(order.Id, payment?.Id, money, online ? RefundDestination.Gateway : RefundDestination.Wallet,
+            var refund = new Refund(order.Id, payment?.Id, money,
+                online ? RefundDestination.Gateway : uncollected ? RefundDestination.Uncollected : RefundDestination.Wallet,
                 $"Hoàn tiền trả hàng {r.Code}", now);
             refund.LinkReturn(r.Id);
             db.Refunds.Add(refund);
-            if (payment is not null)
+            if (uncollected) refund.Complete(true, "COD-KHONG-THU", now);
+            else if (payment is not null)
             {
                 var ok = await gateways.For(payment.Method).RefundAsync(payment, money, $"Trả hàng {r.Code}", ct);
                 refund.Complete(ok, payment.ProviderTxnId, now);
@@ -314,7 +318,7 @@ public sealed class CreateReturnHandler(
         return await ReturnViews.BuildAsync(db, await ReturnViews.WithDetails(db).AsNoTracking().SingleAsync(x => x.Id == r.Id, ct), ct);
     }
 
-    private static string NewCode(DateTimeOffset now)
+    internal static string NewCode(DateTimeOffset now)
     {
         var random = string.Create(6, 0, (span, _) =>
         {

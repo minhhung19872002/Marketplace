@@ -13,6 +13,25 @@ namespace ShopHub.Application.Features.Checkout;
 /// </summary>
 public sealed class VoucherEvaluator(IApplicationDbContext db, Marketing.Membership membership, ICurrentUser currentUser, IClock clock)
 {
+    // Scoped, per buyer: a quote checks every voucher it lists, so the buyer's uses and "has ordered before" are read
+    // once per request instead of once per voucher (L123). Taking a use is still the conditional UPDATE at order time.
+    private Guid? _for;
+    private Dictionary<Guid, int>? _uses;
+    private bool? _hasOrdered;
+
+    private async Task<int> UsesAsync(Guid voucherId, Guid userId, CancellationToken ct)
+    {
+        if (_for != userId) (_for, _uses, _hasOrdered) = (userId, null, null);
+        _uses ??= await db.VoucherUserCounters.AsNoTracking().Where(c => c.UserId == userId).ToDictionaryAsync(c => c.VoucherId, c => c.UsedCount, ct);
+        return _uses.GetValueOrDefault(voucherId);
+    }
+
+    private async Task<bool> HasOrderedAsync(Guid userId, CancellationToken ct)
+    {
+        if (_for != userId) (_for, _uses, _hasOrdered) = (userId, null, null);
+        return _hasOrdered ??= await db.Orders.AnyAsync(o => o.BuyerId == userId && o.Status != OrderStatus.Cancelled, ct);
+    }
+
     /// <summary>Why this user cannot use the voucher now, or null when they can.</summary>
     public async Task<string?> ProblemAsync(Voucher v, Guid userId, CancellationToken ct)
     {
@@ -23,11 +42,11 @@ public sealed class VoucherEvaluator(IApplicationDbContext db, Marketing.Members
         if (v.Channel != VoucherChannel.All && v.Channel != channel)
             return v.Channel == VoucherChannel.App ? "Mã chỉ dùng trên ứng dụng di động." : "Mã chỉ dùng trên website.";
         if (v.TotalQuota is { } quota && v.UsedCount >= quota) return "Mã đã hết lượt sử dụng.";
-        var used = await db.VoucherUserCounters.Where(c => c.VoucherId == v.Id && c.UserId == userId).Select(c => c.UsedCount).FirstOrDefaultAsync(ct);
+        var used = await UsesAsync(v.Id, userId, ct);
         if (used >= v.PerUserLimit) return "Bạn đã dùng hết lượt của mã này.";
         switch (v.Audience)
         {
-            case VoucherAudience.NewBuyer when await db.Orders.AnyAsync(o => o.BuyerId == userId && o.Status != OrderStatus.Cancelled, ct):
+            case VoucherAudience.NewBuyer when await HasOrderedAsync(userId, ct):
                 return "Mã chỉ dành cho khách hàng lần đầu mua sắm.";
             case VoucherAudience.ShopFollowers when !await db.ShopFollowers.AnyAsync(f => f.ShopId == v.ShopId && f.UserId == userId, ct):
                 return "Mã chỉ dành cho người theo dõi shop.";

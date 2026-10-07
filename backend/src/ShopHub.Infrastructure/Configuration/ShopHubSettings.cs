@@ -67,6 +67,9 @@ public sealed class ShopHubSettings
             MaxPoolSize = int.TryParse(config["SH_DB_MAX_POOL"], out var pool) ? pool : 100,
             Timeout = 15,
             CommandTimeout = 30,
+            // No session state is ever set (locks are transaction-scoped): skip the DISCARD ALL round trip each time a
+            // pooled connection goes back — a quote returns one about 30 times (L123)
+            NoResetOnClose = true,
         };
 
         return new ShopHubSettings

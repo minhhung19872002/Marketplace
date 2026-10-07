@@ -85,8 +85,11 @@ public sealed class FlashSaleQuota(IApplicationDbContext db, IFlashSaleCounter c
 {
     public record Taken(Guid ItemId, Guid UserId, int Quantity, bool InRedis);
 
-    /// <summary>Must run inside the order transaction. On failure the caller gives back what was taken in Redis.</summary>
-    public async Task<Taken> TakeAsync(FlashInfo flash, Guid userId, int quantity, string productName, CancellationToken ct)
+    /// <summary>
+    /// The crowd gate (L123): Redis says sold out / over the limit before the order is even written — no database row
+    /// is locked here. The caller gives the units back when the order does not go through.
+    /// </summary>
+    public async Task<Taken> TakeInRedisAsync(FlashInfo flash, Guid userId, int quantity, string productName, CancellationToken ct)
     {
         var result = await counter.TryTakeAsync(flash.ItemId, userId, quantity, flash.PerUserLimit, ct);
         if (result == FlashTakeResult.NotLoaded)
@@ -100,31 +103,32 @@ public sealed class FlashSaleQuota(IApplicationDbContext db, IFlashSaleCounter c
             throw new ConflictException($"Mỗi người chỉ mua tối đa {flash.PerUserLimit} suất Flash Sale \"{productName}\".", "FLASH_USER_LIMIT");
         if (result is FlashTakeResult.Unavailable or FlashTakeResult.NotLoaded)
             logger.LogWarning("Flash counter unavailable for item {ItemId}: database guard only", flash.ItemId);
-        var taken = new Taken(flash.ItemId, userId, quantity, result == FlashTakeResult.Taken);
-        try
-        {
-            var sold = await db.ExecuteSqlAsync($"""
-                UPDATE promo.flash_sale_items SET sold = sold + {quantity}
-                WHERE id = {flash.ItemId} AND status = 'Approved' AND sold + {quantity} <= quota
-                """, ct);
-            if (sold == 0) throw new ConflictException($"\"{productName}\" đã hết suất Flash Sale.", "FLASH_SOLD_OUT");
-            var mine = await db.ExecuteSqlAsync($"""
-                INSERT INTO promo.flash_sale_buyers (id, item_id, user_id, quantity) VALUES ({Guid.NewGuid()}, {flash.ItemId}, {userId}, {quantity})
-                ON CONFLICT (item_id, user_id) DO UPDATE SET quantity = flash_sale_buyers.quantity + {quantity}
-                WHERE flash_sale_buyers.quantity + {quantity} <= {flash.PerUserLimit}
-                """, ct);
-            if (mine == 0 || quantity > flash.PerUserLimit)
-                throw new ConflictException($"Mỗi người chỉ mua tối đa {flash.PerUserLimit} suất Flash Sale \"{productName}\".", "FLASH_USER_LIMIT");
-            // The last unit: the SKU sells at its normal price from now on — the search index follows (same transaction)
-            if (await db.FlashSaleItems.AnyAsync(i => i.Id == flash.ItemId && i.Sold >= i.Quota, ct))
-                outbox.Enqueue(OutboxTypes.SearchSyncSkus, new SearchSyncSkusPayload([await SkuOfAsync(flash.ItemId, ct)]));
-        }
-        catch
-        {
-            await GiveBackRedisAsync([taken], ct);
-            throw;
-        }
-        return taken;
+        return new Taken(flash.ItemId, userId, quantity, result == FlashTakeResult.Taken);
+    }
+
+    /// <summary>
+    /// The database decides (inside the order transaction): <c>sold + n &lt;= quota</c> and the buyer's counter. Its row
+    /// lock lasts until commit, so the caller runs this as late as it can. On failure the caller gives the Redis units
+    /// back (it holds them all since <see cref="TakeInRedisAsync"/>).
+    /// </summary>
+    public async Task TakeInDatabaseAsync(FlashInfo flash, Taken taken, string productName, CancellationToken ct)
+    {
+        var (userId, quantity) = (taken.UserId, taken.Quantity);
+        var sold = await db.ExecuteSqlAsync($"""
+            UPDATE promo.flash_sale_items SET sold = sold + {quantity}
+            WHERE id = {flash.ItemId} AND status = 'Approved' AND sold + {quantity} <= quota
+            """, ct);
+        if (sold == 0) throw new ConflictException($"\"{productName}\" đã hết suất Flash Sale.", "FLASH_SOLD_OUT");
+        var mine = await db.ExecuteSqlAsync($"""
+            INSERT INTO promo.flash_sale_buyers (id, item_id, user_id, quantity) VALUES ({Guid.NewGuid()}, {flash.ItemId}, {userId}, {quantity})
+            ON CONFLICT (item_id, user_id) DO UPDATE SET quantity = flash_sale_buyers.quantity + {quantity}
+            WHERE flash_sale_buyers.quantity + {quantity} <= {flash.PerUserLimit}
+            """, ct);
+        if (mine == 0 || quantity > flash.PerUserLimit)
+            throw new ConflictException($"Mỗi người chỉ mua tối đa {flash.PerUserLimit} suất Flash Sale \"{productName}\".", "FLASH_USER_LIMIT");
+        // The last unit: the SKU sells at its normal price from now on — the search index follows (same transaction)
+        if (await db.FlashSaleItems.AnyAsync(i => i.Id == flash.ItemId && i.Sold >= i.Quota, ct))
+            outbox.Enqueue(OutboxTypes.SearchSyncSkus, new SearchSyncSkusPayload([await SkuOfAsync(flash.ItemId, ct)]));
     }
 
     /// <summary>

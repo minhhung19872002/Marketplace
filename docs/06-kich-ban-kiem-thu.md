@@ -13,8 +13,8 @@ cd e2e && SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=… SH_E2E_AD
 Lần chạy gần nhất: **2026-10-07, bản cài mới** (Phase 14 H — project Docker riêng, CSDL / MinIO / Meilisearch / Redis
 **trắng**, dữ liệu gieo lúc nạp: 1.000 sản phẩm, 606 đơn, 800 đánh giá; xong thì gỡ đúng các volume ấy):
 Playwright **77 kịch bản, 77 đạt** (lần đầu 67 đạt + 2 chập chờn + 8 hỏng: 8 do helper e2e chỉ tìm sản phẩm trên trang
-đầu "bán chạy" — L122, 2 do trùng chữ với toast mới — đã sửa, chạy lại toàn bộ thì đạt hết). k6 Flash Sale: **chưa đạt**
-ngưỡng thời gian (KB38, L123). Sao lưu / phục hồi: đạt (KB40). Phần phụ trợ: backend `dotnet test` 187 unit + 252 tích
+đầu "bán chạy" — L122, 2 do trùng chữ với toast mới — đã sửa, chạy lại toàn bộ thì đạt hết). k6 Flash Sale: đạt sau khi sửa L123
+(p95 2,89 s / 2,73 s, KB38). Sao lưu / phục hồi: đạt (KB40). Phần phụ trợ: backend `dotnet test` 187 unit + 252 tích
 hợp đạt (lượt chạy lại trước commit: 251/252, 1 chập chờn — L147); vitest web 25, seller 22, admin 13 đạt. Sandbox thật (KB41): chưa chạy — chờ tài khoản.
 
 ## A. Mục 9 của đặc tả (bắt buộc)
@@ -100,7 +100,7 @@ hợp đạt (lượt chạy lại trước commit: 251/252, 1 chập chờn —
 
 | Mã | Chức năng | Bước | Mong đợi | Thực tế | Đạt |
 |---|---|---|---|---|---|
-| KB38 | Tải Flash Sale 1.000 người | k6 `e2e/load/flash-sale.js` (docs/04) | Không lỗi máy chủ, suất bán = số đơn ≤ quota, p95 đặt hàng < 3 s | Bản cài mới: đúng 75/75 suất → 75 đơn, 925 từ chối đúng luật, 0 lỗi máy chủ; **p95 đặt hàng 4,30 s (ngưỡng 3 s)**. Cùng máy, mã trước Phase 14 (`ea48b76`): p95 3,37 s — L123 | ✘ |
+| KB38 | Tải Flash Sale 1.000 người | k6 `e2e/load/flash-sale.js` (docs/04) | Không lỗi máy chủ, suất bán = số đơn ≤ quota, p95 đặt hàng < 3 s | Bản cài mới, 1.000 người: đúng suất → đúng số đơn, 0 lỗi máy chủ; p95 đặt hàng **2,89 s** và **2,73 s** (hai lần, ngưỡng 3 s). Trước khi sửa L123: 3,97 s | ✔ |
 | KB39 | Hiệu năng 1 triệu sản phẩm | k6 `e2e/load/perf.js` trên stack `shophub-perf` | Tìm kiếm p95 < 500 ms, trang < 300 ms | Không chạy lại ở lượt này (cần stack `shophub-perf` 1 triệu sản phẩm); số gần nhất 2026-10-07: 131 / 110 / 102 / 62 / 58 ms, 0 lỗi | — |
 | KB40 | Sao lưu / phục hồi | tay: Quản trị → Việc nền → *Sao lưu ngay* (`sys.backup`, tệp `backups/db/shophub-*.dump`) → xoá dữ liệu → `restore.sh <tệp>` | Số đơn, sản phẩm, tổng sổ cái như trước | Bản cài mới: 735 đơn, 1.052 sản phẩm, tổng nợ sổ cái 2.967.019.770 ₫ → `TRUNCATE` đơn (0) → khôi phục: 735 / 1.052 / 2.967.019.770 ₫ khớp | ✔ |
 | KB41 | Cổng / hãng thật | tay: VNPay, MoMo, GHN, GHTK sandbox (docs/04) | Thanh toán, IPN, vận đơn, webhook chạy với tài khoản thử | **Chưa chạy** — chưa có tài khoản sandbox; đã kiểm với bản giả lập cùng giao thức (docs/07 Phase 11) | — |

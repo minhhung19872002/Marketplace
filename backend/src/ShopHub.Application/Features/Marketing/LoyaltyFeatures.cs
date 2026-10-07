@@ -30,7 +30,16 @@ public sealed partial class Membership(IApplicationDbContext db, ISystemParamete
 {
     public static string Label(MemberTier tier) => tier switch { MemberTier.Gold => "Vàng", MemberTier.Diamond => "Kim cương", _ => "Bạc" };
 
+    // Scoped: a quote asks once per member voucher it lists — compute the tier once per request (L123)
+    private readonly Dictionary<Guid, MembershipDto> _known = [];
+
     public async Task<MembershipDto> OfAsync(Guid userId, CancellationToken ct)
+    {
+        if (_known.TryGetValue(userId, out var known)) return known;
+        return _known[userId] = await ComputeAsync(userId, ct);
+    }
+
+    private async Task<MembershipDto> ComputeAsync(Guid userId, CancellationToken ct)
     {
         var days = (int)await parameters.GetIntAsync(ParameterKeys.MemberWindowDays, ct);
         var gold = await parameters.GetIntAsync(ParameterKeys.MemberGoldMinSpend, ct);

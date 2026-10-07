@@ -144,27 +144,10 @@ public sealed class PlaceOrderHandler(
                         throw new ConflictException(Cart.PurchaseLimits.Message(g.First().Name, limited[g.Key]), "PURCHASE_LIMIT");
             }
 
-            // ----- Flash Sale quota (Redis Lua, then the database row — spec 3.10) -----
-            foreach (var line in plan.Lines.Values.Where(l => l.Price?.Flash is not null).OrderBy(l => l.Price!.Flash!.ItemId))
-                flashTaken.Add(await flashQuota.TakeAsync(line.Price!.Flash!, userId, line.Quantity, line.Name, ct));
-            // ----- discount programme quota and per-buyer limit (L139) -----
-            foreach (var line in plan.Lines.Values.Where(l => l.Price?.Discount is not null).OrderBy(l => l.Price!.Discount!.PromotionSkuId))
-                await discountQuota.TakeAsync(line.Price!.Discount!, userId, line.Quantity, line.Name, ct);
-
-            // ----- stock holds (cart lines and free gifts, in SKU order) -----
-            var holds = plan.Lines.Values.Select(l => (l.SkuId, l.Quantity, l.Name))
-                .Concat((plan.Gifts ?? []).Select(g => (g.SkuId, g.Quantity, Name: $"Quà tặng {g.Name}")))
-                .GroupBy(h => h.SkuId).Select(g => (SkuId: g.Key, Quantity: g.Sum(x => x.Quantity), g.First().Name)).OrderBy(h => h.SkuId);
-            foreach (var line in holds)
-            {
-                var held = await inventory.TryMoveAsync(new InventoryMove(line.SkuId, 0, line.Quantity, InventoryReason.OrderReserve, "checkout", checkout.Id,
-                    userId, null, RequireActive: true), ct);
-                if (!held)
-                {
-                    var left = await db.Skus.Where(s => s.Id == line.SkuId).Select(s => s.Stock - s.Reserved).FirstOrDefaultAsync(ct);
-                    throw new ConflictException(left <= 0 ? $"\"{line.Name}\" vừa hết hàng." : $"\"{line.Name}\" chỉ còn {left} sản phẩm.", "OUT_OF_STOCK");
-                }
-            }
+            // ----- Flash Sale in Redis first: the crowd is turned away here, before anything is written (L123) -----
+            var flashLines = plan.Lines.Values.Where(l => l.Price?.Flash is not null).OrderBy(l => l.Price!.Flash!.ItemId).ToList();
+            foreach (var line in flashLines)
+                flashTaken.Add(await flashQuota.TakeInRedisAsync(line.Price!.Flash!, userId, line.Quantity, line.Name, ct));
 
             // ----- orders (one per shop) -----
             var shopIds = pricing.Shops.Select(s => s.ShopId).ToList();
@@ -229,14 +212,40 @@ public sealed class PlaceOrderHandler(
             checkout.SetTotals(pricing.Subtotal, pricing.ShippingFee, pricing.ShippingDiscount, pricing.ShopDiscount + pricing.ComboDiscount + pricing.PlatformDiscount,
                 pricing.CoinUsed, pricing.GrandTotal, plan.PlatformVoucher?.Id, plan.FreeshipVoucher?.Id, expiresAt);
 
-            // ----- payment attempt -----
-            if (method.IsOnline()) await payments.StartAsync(checkout, orders.Select(o => o.Code), ct);
-            if (method == PaymentMethod.Wallet) await PayFromWalletAsync(checkout, orders, userId, now, ct);
-
             // ----- the bought lines leave the cart -----
             var bought = plan.Lines.Keys.ToList();
             var cart = await db.Carts.Include(c => c.Items).FirstOrDefaultAsync(c => c.UserId == userId, ct);
             cart?.Remove(bought, now);
+
+            // Everything that touches no shared row is written first (L123): the flash / discount / SKU rows below are
+            // the ones every buyer of a sale waits on, so their row locks are held only for the last few statements
+            await db.SaveChangesAsync(ct);
+
+            // ----- Flash Sale quota (spec 3.10): the database rows, Redis was taken before the order was written -----
+            foreach (var (line, taken) in flashLines.Zip(flashTaken))
+                await flashQuota.TakeInDatabaseAsync(line.Price!.Flash!, taken, line.Name, ct);
+            // ----- discount programme quota and per-buyer limit (L139) -----
+            foreach (var line in plan.Lines.Values.Where(l => l.Price?.Discount is not null).OrderBy(l => l.Price!.Discount!.PromotionSkuId))
+                await discountQuota.TakeAsync(line.Price!.Discount!, userId, line.Quantity, line.Name, ct);
+
+            // ----- stock holds (cart lines and free gifts, in SKU order) -----
+            var holds = plan.Lines.Values.Select(l => (l.SkuId, l.Quantity, l.Name))
+                .Concat((plan.Gifts ?? []).Select(g => (g.SkuId, g.Quantity, Name: $"Quà tặng {g.Name}")))
+                .GroupBy(h => h.SkuId).Select(g => (SkuId: g.Key, Quantity: g.Sum(x => x.Quantity), g.First().Name)).OrderBy(h => h.SkuId);
+            foreach (var line in holds)
+            {
+                var held = await inventory.TryMoveAsync(new InventoryMove(line.SkuId, 0, line.Quantity, InventoryReason.OrderReserve, "checkout", checkout.Id,
+                    userId, null, RequireActive: true), ct);
+                if (!held)
+                {
+                    var left = await db.Skus.Where(s => s.Id == line.SkuId).Select(s => s.Stock - s.Reserved).FirstOrDefaultAsync(ct);
+                    throw new ConflictException(left <= 0 ? $"\"{line.Name}\" vừa hết hàng." : $"\"{line.Name}\" chỉ còn {left} sản phẩm.", "OUT_OF_STOCK");
+                }
+            }
+
+            // ----- payment attempt -----
+            if (method.IsOnline()) await payments.StartAsync(checkout, orders.Select(o => o.Code), ct);
+            if (method == PaymentMethod.Wallet) await PayFromWalletAsync(checkout, orders, userId, now, ct);
 
             // Stock holds were set-based: refresh "còn hàng" in the search index
             outbox.Enqueue(OutboxTypes.SearchSyncProducts, new SearchSyncProductsPayload(plan.Lines.Values.Select(l => l.ProductId).Distinct().ToList()));

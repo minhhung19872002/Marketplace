@@ -93,6 +93,16 @@ public class VoucherRuleTests
         var act = () => shop.Configure(VoucherType.FreeShipping, 0, 0, 20_000, 0, VoucherAudience.Everyone, [], [], now, now.AddDays(1), null, 1, true, VoucherChannel.All);
         act.Should().Throw<BusinessRuleException>().WithMessage("Voucher miễn phí vận chuyển chỉ do sàn phát hành.");
     }
+
+    [Fact]
+    public void Coin_cashback_is_platform_only()
+    {
+        // L132: a shop "hoàn xu" voucher (API only) was priced as a plain discount — xu are the platform's to give
+        var now = DateTimeOffset.UtcNow;
+        var shop = new Voucher(VoucherOwner.Shop, Guid.NewGuid(), "SHOPXU", "x");
+        var act = () => shop.Configure(VoucherType.CoinCashback, 0, 1_000, 20_000, 0, VoucherAudience.Everyone, [], [], now, now.AddDays(1), null, 1, true, VoucherChannel.All);
+        act.Should().Throw<BusinessRuleException>().WithMessage("Voucher hoàn xu chỉ do sàn phát hành.");
+    }
 }
 
 public class ShippingRuleTests

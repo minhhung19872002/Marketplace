@@ -105,10 +105,10 @@ public class AftercareTests(ApiFactory factory)
         return Guid.Parse((await res.ReadEnvelopeAsync()).Data.Str("id"));
     }
 
-    private static Task<HttpResponseMessage> ReturnAsync(Bought b, int quantity, Guid evidence, string type = "RefundOnly") =>
+    private static Task<HttpResponseMessage> ReturnAsync(Bought b, int quantity, Guid evidence, string type = "RefundOnly", string reason = "Damaged") =>
         b.Buyer.Client.PostAsJsonAsync($"/api/orders/{b.Code}/returns", new
         {
-            type, reason = "Damaged", description = "Ly bị nứt khi mở hộp, có ảnh đính kèm",
+            type, reason, description = "Ly bị nứt khi mở hộp, có ảnh đính kèm",
             lines = new[] { new { orderItemId = b.ItemId, quantity } }, evidenceAssetIds = new[] { evidence },
         });
 
@@ -232,6 +232,27 @@ public class AftercareTests(ApiFactory factory)
         after.Str("refundDestination").Should().Be("Ví ShopHub", "đơn COD hoàn vào ví");
         (await factory.WithDbAsync(db => db.Refunds.Where(r => r.OrderId == b.OrderId).Select(r => new { r.Destination, r.Status }).SingleAsync()))
             .Should().Be(new { Destination = RefundDestination.Wallet, Status = RefundStatus.Pending });
+        // L140: losing a dispute costs the shop the points set for it (SHOP.PENALTY_POINTS_DISPUTE_LOST)
+        (await factory.WithDbAsync(db => db.ShopPenalties.Where(x => x.ShopId == b.Store.ShopId && x.OrderId == b.OrderId).SumAsync(x => x.Points)))
+            .Should().Be(2, "thua khiếu nại: 2 điểm (mặc định)");
+    }
+
+    [Fact]
+    public async Task A_counterfeit_dispute_lost_by_the_shop_costs_the_counterfeit_points()
+    {
+        // L140: only a late preparation added points; a lost counterfeit case added none
+        var b = await BuyAsync(2);
+        var created = (await (await ReturnAsync(b, 1, await UploadAsync(b.Buyer.Client, "evidence"), reason: "Counterfeit")).ReadEnvelopeAsync()).Data;
+        (await b.Seller.PostAsJsonAsync($"/api/seller/shops/{b.Store.ShopId}/returns/{created.Str("id")}/actions",
+            new { action = "Reject", note = "Hàng chính hãng có hoá đơn" })).EnsureSuccessStatusCode();
+        (await b.Buyer.Client.PostAsJsonAsync($"/api/returns/{created.Str("code")}/dispute", new { reason = "Tem chống giả không quét được" })).EnsureSuccessStatusCode();
+        var admin = await factory.ClientWithPermissionsAsync(Permissions.DisputeResolve);
+        (await admin.PostAsJsonAsync($"/api/admin/disputes/{created.Str("id")}/decide",
+            new { decision = "FavorBuyer", reason = "Hãng xác nhận tem giả", refundAmount = (long?)null, requireReturn = false })).EnsureSuccessStatusCode();
+
+        var penalty = await factory.WithDbAsync(db => db.ShopPenalties.AsNoTracking().SingleAsync(x => x.ShopId == b.Store.ShopId && x.OrderId == b.OrderId));
+        penalty.Points.Should().Be(5, "hàng giả: 5 điểm (mặc định SHOP.PENALTY_POINTS_COUNTERFEIT)");
+        penalty.Reason.Should().Contain("Hàng giả");
     }
 
     [Fact]

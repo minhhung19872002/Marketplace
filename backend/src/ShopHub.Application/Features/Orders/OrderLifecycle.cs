@@ -323,7 +323,6 @@ public sealed class OrderAutomationService(
     {
         var now = clock.UtcNow;
         await penalties.RecomputeExpiredAsync(ct);
-        var penaltyDays = await parameters.GetIntAsync(ParameterKeys.ShopPenaltyExpiryDays, ct);
         var completed = 0;
         foreach (var id in await db.Orders.AsNoTracking().Where(o => o.Status == OrderStatus.Delivered && o.AutoCompleteAt <= now)
                      .OrderBy(o => o.AutoCompleteAt).ThenBy(o => o.Id).Select(o => o.Id).Take(500).ToListAsync(ct))
@@ -366,8 +365,7 @@ public sealed class OrderAutomationService(
                     var deadline = await calendar.AddWorkingDaysAsync(start, days, ct);
                     if (VietnamTime.Today(now) <= deadline) return false;
                     await canceller.CancelAsync(order, OrderActor.System, null, "Shop không chuẩn bị hàng đúng hạn", ct);
-                    db.ShopPenalties.Add(new ShopPenalty(order.ShopId, 1, "Không chuẩn bị hàng đúng hạn", order.Id, now, now.AddDays(penaltyDays)));
-                    await penalties.RecomputeAsync(order.ShopId, ct);
+                    await penalties.AddAsync(order.ShopId, Seller.PenaltyViolation.LatePreparation, order.Id, ct);
                     return true;
                 }, ct)) overdue++;
         }

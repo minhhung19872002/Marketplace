@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
 using ShopHub.Application.Features.Checkout;
@@ -183,7 +184,8 @@ public sealed class PrepareOrdersHandler(
     ISystemParameters parameters,
     IOutbox outbox,
     ICurrentUser currentUser,
-    IClock clock) : IRequestHandler<PrepareOrdersCommand, IReadOnlyList<PrepareResultDto>>
+    IClock clock,
+    ILogger<PrepareOrdersHandler> logger) : IRequestHandler<PrepareOrdersCommand, IReadOnlyList<PrepareResultDto>>
 {
     public async Task<IReadOnlyList<PrepareResultDto>> Handle(PrepareOrdersCommand request, CancellationToken ct)
     {
@@ -254,31 +256,50 @@ public sealed class PrepareOrdersHandler(
         var parcels = OrderParcels.Of(order, warehouses);
         var cods = Parcels.ShareCod(order.GrandTotal, parcels.Select(p => p.Items.Sum(i => i.PaidAmount) + p.ShippingFee - p.ShippingDiscount).ToList());
         var trackings = new List<string>();
-        for (var k = 0; k < parcels.Count; k++)
+        try
         {
-            var p = parcels[k];
-            var fromProvince = p.Warehouse.ProvinceCode;
-            var toProvince = receiver?.Point.ProvinceCode ?? fromProvince;
-            var weight = ShippingCalculator.ChargeableWeightG(p.Items.Select(ItemOf));
-            var cod = order.PaymentMethod == PaymentMethod.Cod ? cods[k] : 0;
-            var tracking = await provider.CreateShipmentAsync(carrier,
-                new CarrierParcel(order.Id, parcels.Count > 1 ? $"{order.Code}-{p.No}" : order.Code, fromProvince, toProvince, weight, cod,
-                    request.PickupMethod, request.PickupSlot, CarrierParties.FromWarehouse(p.Warehouse), receiver, p.Items.Sum(i => i.LineTotal),
-                    p.Items.Select(i => new CarrierItem(i.NameSnapshot, i.Quantity, WeightOf(i))).ToList(), order.BuyerNote), ct);
-            var days = carrier.DaysFor(ShippingCalculator.ZoneOf(fromProvince, toProvince));
-            var expected = await calendar.AddWorkingDaysAsync(VietnamTime.Today(now), days, ct);
-            var expectedAt = new DateTimeOffset(expected.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(7)).ToUniversalTime();
-            var shipment = new Shipment(order.Id, carrier.Code, tracking, ShipmentDirection.Outbound, p.ShippingFee, cod, weight, request.PickupMethod,
-                request.PickupMethod == PickupMethod.Pickup ? request.PickupSlot : null, expectedAt, now);
-            shipment.ForPackage(p.No);
-            db.Shipments.Add(shipment);
-            trackings.Add(tracking);
+            for (var k = 0; k < parcels.Count; k++)
+            {
+                var p = parcels[k];
+                var fromProvince = p.Warehouse.ProvinceCode;
+                var toProvince = receiver?.Point.ProvinceCode ?? fromProvince;
+                var weight = ShippingCalculator.ChargeableWeightG(p.Items.Select(ItemOf));
+                var cod = order.PaymentMethod == PaymentMethod.Cod ? cods[k] : 0;
+                var tracking = await provider.CreateShipmentAsync(carrier,
+                    new CarrierParcel(order.Id, parcels.Count > 1 ? $"{order.Code}-{p.No}" : order.Code, fromProvince, toProvince, weight, cod,
+                        request.PickupMethod, request.PickupSlot, CarrierParties.FromWarehouse(p.Warehouse), receiver, p.Items.Sum(i => i.LineTotal),
+                        p.Items.Select(i => new CarrierItem(i.NameSnapshot, i.Quantity, WeightOf(i))).ToList(), order.BuyerNote), ct);
+                var days = carrier.DaysFor(ShippingCalculator.ZoneOf(fromProvince, toProvince));
+                var expected = await calendar.AddWorkingDaysAsync(VietnamTime.Today(now), days, ct);
+                var expectedAt = new DateTimeOffset(expected.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(7)).ToUniversalTime();
+                var shipment = new Shipment(order.Id, carrier.Code, tracking, ShipmentDirection.Outbound, p.ShippingFee, cod, weight, request.PickupMethod,
+                    request.PickupMethod == PickupMethod.Pickup ? request.PickupSlot : null, expectedAt, now);
+                shipment.ForPackage(p.No);
+                db.Shipments.Add(shipment);
+                trackings.Add(tracking);
+            }
+            var all = string.Join(", ", trackings);
+            outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Confirmed, all));
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return all;
         }
-        var all = string.Join(", ", trackings);
-        outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(order.Id, OrderEvents.Confirmed, all));
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        return all;
+        catch
+        {
+            // The order rolls back: parcels already booked at the carrier must not stay there with no shipment (L130)
+            foreach (var tracking in trackings)
+            {
+                try
+                {
+                    await provider.CancelShipmentAsync(carrier, tracking, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Parcel {Tracking} of order {Order} stays booked at {Carrier}: cancel it at the carrier", tracking, order.Code, carrier.Code);
+                }
+            }
+            throw;
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { reviewsApi } from '../api/aftercare';
+import { REVIEW_REPORT_REASONS, reviewsApi } from '../api/aftercare';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../lib/datetime';
@@ -14,6 +14,9 @@ const ProductReviews = ({ productId }: { productId: string }) => {
   const [filter, setFilter] = useState<Filter>({});
   const [page, setPage] = useState(1);
   const [message, setMessage] = useState('');
+  // The review being reported and the reason picked (L146: the reason used to be fixed)
+  const [reporting, setReporting] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
   const { data } = useQuery({
     queryKey: ['product-reviews', productId, filter, page],
     queryFn: () => reviewsApi.forProduct(productId, { ...filter, page }),
@@ -31,7 +34,9 @@ const ProductReviews = ({ productId }: { productId: string }) => {
   ];
   const report = async (id: string) => {
     try {
-      setMessage((await reviewsApi.report(id, 'Nội dung không phù hợp')).message);
+      setMessage((await reviewsApi.report(id, reason)).message);
+      setReporting(null);
+      setReason('');
     } catch (e) {
       setMessage(e instanceof ApiError ? e.message : 'Không gửi được báo cáo.');
     }
@@ -75,7 +80,18 @@ const ProductReviews = ({ productId }: { productId: string }) => {
                   </div>
                 )}
                 {r.sellerReply && <div className="pd-review-reply"><strong>Phản hồi của người bán:</strong> {r.sellerReply}</div>}
-                {isLoggedIn && <button className="pd-review-report" onClick={() => report(r.id)}>Báo cáo</button>}
+                {isLoggedIn && (
+                  <button className="pd-review-report" data-testid="review-report" onClick={() => setReporting(reporting === r.id ? null : r.id)}>Báo cáo</button>
+                )}
+                {reporting === r.id && (
+                  <form className="pd-review-report-form" onSubmit={(e) => { e.preventDefault(); if (reason) void report(r.id); }}>
+                    <select value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Lý do báo cáo đánh giá" data-testid="review-report-reason">
+                      <option value="">Chọn lý do…</option>
+                      {REVIEW_REPORT_REASONS.map((x) => <option key={x}>{x}</option>)}
+                    </select>
+                    <button type="submit" disabled={!reason} data-testid="review-report-send">Gửi báo cáo</button>
+                  </form>
+                )}
               </div>
             </div>
           ))}

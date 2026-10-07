@@ -135,6 +135,14 @@ test.describe('Đơn hàng & vận chuyển', () => {
     const shown = buyerPage.getByTestId('review').first();
     await expect(shown).toContainText('vải dày dặn');
     await expect(shown.locator('.pd-review-media img')).toHaveCount(1);
+    // Reporting a review takes a reason the buyer picks (L146), and the moderators see that reason
+    await shown.getByTestId('review-report').click();
+    await expect(shown.getByTestId('review-report-send')).toBeDisabled();
+    await shown.getByTestId('review-report-reason').selectOption('Quảng cáo, spam hoặc dẫn ra ngoài sàn');
+    await shown.getByTestId('review-report-send').click();
+    await expect(buyerPage.getByTestId('reviews').getByRole('status')).toBeVisible();
+    const reports = await apiAs(request, admin.accessToken, 'GET', '/admin/review-reports?pageSize=100');
+    expect(reports.items.some((r) => r.reason === 'Quảng cáo, spam hoặc dẫn ra ngoài sàn' && r.productName.length > 0)).toBe(true);
     await expect(async () => {
       expect((await apiAs(request, buyer.token, 'GET', '/account/coins')).balance).toBeGreaterThan(0);
     }).toPass({ timeout: 20_000 });

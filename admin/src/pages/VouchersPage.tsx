@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
-import { promoApi, type PlatformVoucher, type VoucherType } from '../api/promo'
+import { promoApi, type PlatformVoucher, type VoucherAudience, type VoucherChannel, type VoucherType } from '../api/promo'
+import { catalogApi } from '../api/catalog'
+import CategoryPicker from '../components/CategoryPicker'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
 
@@ -14,6 +16,49 @@ const TYPES: { value: VoucherType; label: string }[] = [
   { value: 'FreeShipping', label: 'Miễn phí vận chuyển' },
   { value: 'CoinCashback', label: 'Hoàn xu (% có trần)' },
 ]
+
+// Platform vouchers cannot target one shop's followers; member tiers are the tier vouchers of spec VIII (L136)
+const AUDIENCES: { value: VoucherAudience; label: string }[] = [
+  { value: 'Everyone', label: 'Mọi người dùng' },
+  { value: 'NewBuyer', label: 'Chỉ khách mới' },
+  { value: 'MemberGold', label: 'Thành viên Vàng trở lên' },
+  { value: 'MemberDiamond', label: 'Thành viên Kim cương' },
+]
+
+const CHANNELS: { value: VoucherChannel; label: string }[] = [
+  { value: 'All', label: 'Website và ứng dụng' },
+  { value: 'Web', label: 'Chỉ website' },
+  { value: 'App', label: 'Chỉ ứng dụng di động' },
+]
+
+/** Products the voucher is limited to (searched among the products on sale). */
+const ProductPicker = ({ value, onChange }: { value?: string[]; onChange?: (ids: string[]) => void }) => {
+  const [search, setSearch] = useState('')
+  const found = useQuery({
+    queryKey: ['voucher-products', search],
+    queryFn: () => catalogApi.reviewQueue({ status: 'Active', q: search || undefined, page: 1, pageSize: 20 }),
+  })
+  const [names, setNames] = useState<Record<string, string>>({})
+  const options = (found.data?.items ?? []).map((p) => ({ value: p.id, label: `${p.name} — ${p.shopName}` }))
+  return (
+    <Select
+      mode="multiple"
+      value={value ?? []}
+      onChange={(ids: string[]) => {
+        setNames((n) => ({ ...n, ...Object.fromEntries(options.filter((o) => ids.includes(o.value)).map((o) => [o.value, o.label])) }))
+        onChange?.(ids)
+      }}
+      options={[...options, ...(value ?? []).filter((id) => !options.some((o) => o.value === id)).map((id) => ({ value: id, label: names[id] ?? id }))]}
+      showSearch
+      filterOption={false}
+      onSearch={setSearch}
+      loading={found.isFetching}
+      allowClear
+      placeholder="Mọi sản phẩm"
+      data-testid="voucher-products"
+    />
+  )
+}
 
 const describe = (v: PlatformVoucher) =>
   v.type === 'Amount' ? `Giảm ${vnd(v.discountValue)}`
@@ -32,7 +77,10 @@ interface FormValues {
   totalQuota?: number
   perUserLimit: number
   isPublic: boolean
-  newBuyer: boolean
+  audience: VoucherAudience
+  channel: VoucherChannel
+  categoryIds: string[]
+  productIds: string[]
   xtraOnly: boolean
 }
 
@@ -74,15 +122,15 @@ const VouchersPage = () => {
       discountPercentBp: v.type === 'Percent' || v.type === 'CoinCashback' ? Math.round((v.percent ?? 0) * 100) : 0,
       maxDiscount: v.type === 'Amount' ? null : v.maxDiscount ?? null,
       minOrder: v.minOrder ?? 0,
-      audience: v.newBuyer ? 'NewBuyer' : 'Everyone',
-      categoryIds: [],
-      productIds: [],
+      audience: v.audience,
+      categoryIds: v.categoryIds ?? [],
+      productIds: v.productIds ?? [],
       startAt: v.period[0].toISOString(),
       endAt: v.period[1].toISOString(),
       totalQuota: v.totalQuota ?? null,
       perUserLimit: v.perUserLimit,
       isPublic: v.isPublic,
-      channel: 'All',
+      channel: v.channel,
       xtraOnly: v.xtraOnly,
     })
 
@@ -116,7 +164,7 @@ const VouchersPage = () => {
       />
       <Modal title="Tạo voucher của sàn" open={open} onCancel={() => setOpen(false)} onOk={() => form.submit()} okText="Lưu" confirmLoading={save.isPending} destroyOnClose>
         <Form<FormValues> form={form} layout="vertical" onFinish={submit}
-          initialValues={{ type: 'Amount', minOrder: 0, perUserLimit: 1, isPublic: true, newBuyer: false, xtraOnly: false, period: [dayjs(), dayjs().add(30, 'day')] }}>
+          initialValues={{ type: 'Amount', minOrder: 0, perUserLimit: 1, isPublic: true, audience: 'Everyone', channel: 'All', categoryIds: [], productIds: [], xtraOnly: false, period: [dayjs(), dayjs().add(30, 'day')] }}>
           <Form.Item name="code" label="Mã" rules={[{ required: true, message: 'Vui lòng nhập mã.' }, { pattern: /^[A-Za-z0-9]{3,20}$/, message: '3–20 chữ cái hoặc số.' }]}>
             <Input />
           </Form.Item>
@@ -148,8 +196,17 @@ const VouchersPage = () => {
               tooltip="Miễn phí vận chuyển → chỉ shop Freeship Xtra; loại khác → chỉ shop Voucher Xtra">
               <Switch data-testid="voucher-xtra" />
             </Form.Item>
-            <Form.Item name="newBuyer" label="Chỉ khách mới" valuePropName="checked"><Switch /></Form.Item>
           </Space>
+          <Space style={{ display: 'flex' }} align="start">
+            <Form.Item name="audience" label="Đối tượng"><Select options={AUDIENCES} style={{ width: 220 }} data-testid="voucher-audience" /></Form.Item>
+            <Form.Item name="channel" label="Kênh"><Select options={CHANNELS} style={{ width: 220 }} data-testid="voucher-channel" /></Form.Item>
+          </Space>
+          <Form.Item name="categoryIds" label="Ngành hàng áp dụng" tooltip="Để trống: mọi ngành hàng">
+            <CategoryPicker leavesOnly />
+          </Form.Item>
+          <Form.Item name="productIds" label="Sản phẩm áp dụng" tooltip="Để trống: mọi sản phẩm (trong các ngành đã chọn)">
+            <ProductPicker />
+          </Form.Item>
         </Form>
       </Modal>
     </Card>

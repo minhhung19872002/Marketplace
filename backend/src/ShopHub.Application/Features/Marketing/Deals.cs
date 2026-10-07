@@ -9,7 +9,8 @@ namespace ShopHub.Application.Features.Marketing;
 public record DealLine(Guid SkuId, Guid ProductId, Guid ShopId, int Quantity);
 
 /// <summary>The unit price a cart line is sold at and why (programme price, add-on price, or the normal price).</summary>
-public record LinePrice(long UnitPrice, long BasePrice, PriceProgramKind? Kind, Guid? RefId, FlashInfo? Flash, Guid? AddOnPromotionId);
+public record LinePrice(long UnitPrice, long BasePrice, PriceProgramKind? Kind, Guid? RefId, FlashInfo? Flash, Guid? AddOnPromotionId,
+    DiscountInfo? Discount = null);
 
 public record GiftLine(Guid PromotionId, Guid ShopId, Guid SkuId, Guid ProductId, Guid CategoryId, string Name, string? Variant, string? ImageUrl,
     long OriginalPrice, int Quantity);
@@ -36,6 +37,10 @@ public sealed class DealsBook(IApplicationDbContext db, PriceBook prices)
         var flashItems = effective.Values.Where(e => e.Flash is not null && e.IsPromo).Select(e => e.Flash!.ItemId).ToList();
         var mine = await db.FlashSaleBuyers.AsNoTracking().Where(b => b.UserId == userId && flashItems.Contains(b.ItemId))
             .ToDictionaryAsync(b => b.ItemId, b => b.Quantity, ct);
+        // Discount lines with a per-buyer limit (L139): what this buyer already got at the discount price
+        var limitedDiscounts = effective.Values.Where(e => e.Discount is { PerUserLimit: not null } && e.IsPromo).Select(e => e.Discount!.PromotionSkuId).ToList();
+        var mineAtDiscount = await db.PromotionSkuBuyers.AsNoTracking().Where(b => b.UserId == userId && limitedDiscounts.Contains(b.PromotionSkuId))
+            .ToDictionaryAsync(b => b.PromotionSkuId, b => b.Quantity, ct);
         foreach (var line in lines)
         {
             if (!effective.TryGetValue(line.SkuId, out var e)) continue;
@@ -47,7 +52,15 @@ public sealed class DealsBook(IApplicationDbContext db, PriceBook prices)
                 else if (line.Quantity > f.Left)
                     problems.Add($"\"{name}\" chỉ còn {f.Left} suất Flash Sale.");
             }
-            result[line.SkuId] = new LinePrice(e.Price, e.BasePrice, e.Kind, e.RefId, e.IsPromo ? e.Flash : null, null);
+            if (e.IsPromo && e.Discount is { } d)
+            {
+                var name = names.GetValueOrDefault(line.ProductId) ?? "Sản phẩm";
+                if (d.PerUserLimit is { } limit && mineAtDiscount.GetValueOrDefault(d.PromotionSkuId) + line.Quantity > limit)
+                    problems.Add($"Mỗi người chỉ mua tối đa {limit} sản phẩm giá ưu đãi \"{name}\".");
+                else if (d.Left is { } left && line.Quantity > left)
+                    problems.Add($"\"{name}\" chỉ còn {left} suất giá ưu đãi.");
+            }
+            result[line.SkuId] = new LinePrice(e.Price, e.BasePrice, e.Kind, e.RefId, e.IsPromo ? e.Flash : null, null, e.IsPromo ? e.Discount : null);
         }
 
         var shopIds = lines.Select(l => l.ShopId).Distinct().ToList();
@@ -73,7 +86,8 @@ public sealed class DealsBook(IApplicationDbContext db, PriceBook prices)
                 var addOn = deal.Skus.First(s => s.SkuId == line.SkuId).Price;
                 var current = result[line.SkuId];
                 // A flash / discount price that is already lower wins
-                if (addOn < current.UnitPrice) result[line.SkuId] = current with { UnitPrice = addOn, Kind = null, RefId = null, Flash = null, AddOnPromotionId = deal.Id };
+                if (addOn < current.UnitPrice)
+                    result[line.SkuId] = current with { UnitPrice = addOn, Kind = null, RefId = null, Flash = null, AddOnPromotionId = deal.Id, Discount = null };
             }
         }
 

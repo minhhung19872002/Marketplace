@@ -97,7 +97,7 @@ public sealed class JwtAccessTokenIssuer(ShopHubSettings settings, IClock clock)
 /// Results are cached for a few seconds; lock/logout/password change invalidate them here and, through the
 /// "iam.sessions.changed" outbox message, on every other instance.
 /// </summary>
-public sealed class CachedSessionValidator(IServiceScopeFactory scopeFactory, IClock clock) : ISessionValidator
+public sealed class CachedSessionValidator(IServiceScopeFactory scopeFactory, IClock clock, IEnumerable<ISessionEndListener> listeners) : ISessionValidator
 {
     private static readonly TimeSpan Ttl = TimeSpan.FromSeconds(30);
     private readonly ConcurrentDictionary<Guid, (bool Active, DateTimeOffset At)> _users = new();
@@ -126,7 +126,12 @@ public sealed class CachedSessionValidator(IServiceScopeFactory scopeFactory, IC
         _users.TryRemove(userId, out _);
         foreach (var (sid, entry) in _sessions)
             if (entry.UserId == userId) _sessions.TryRemove(sid, out _);
+        foreach (var listener in listeners) listener.SessionsChanged(userId, null);
     }
 
-    public void InvalidateSession(Guid sessionId) => _sessions.TryRemove(sessionId, out _);
+    public void InvalidateSession(Guid sessionId)
+    {
+        _sessions.TryRemove(sessionId, out _);
+        foreach (var listener in listeners) listener.SessionsChanged(null, sessionId);
+    }
 }

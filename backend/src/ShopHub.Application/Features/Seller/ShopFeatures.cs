@@ -260,6 +260,31 @@ public sealed class SetLowStockThresholdHandler(IApplicationDbContext db, Seller
     }
 }
 
+/// <summary>
+/// Tạm nghỉ hết hạn (II.5, L141): a shop whose vacation end has passed opens again on its own — cart and checkout
+/// stop refusing it without the owner having to switch the mode off. Runs with the order automation job.
+/// </summary>
+public sealed class VacationService(IApplicationDbContext db, IClock clock)
+{
+    public const int BatchSize = 500;
+
+    public async Task<int> RunAsync(CancellationToken ct)
+    {
+        var now = clock.UtcNow;
+        var done = 0;
+        while (true)
+        {
+            var shops = await db.Shops.Where(s => s.Status == ShopStatus.Vacation && s.VacationUntil != null && s.VacationUntil <= now)
+                .OrderBy(s => s.Id).Take(BatchSize).ToListAsync(ct);
+            if (shops.Count == 0) return done;
+            foreach (var shop in shops) shop.EndVacation();
+            await db.SaveChangesAsync(ct);
+            done += shops.Count;
+            db.ClearTracking();
+        }
+    }
+}
+
 public record SetVacationCommand(Guid ShopId, DateTimeOffset? Until) : IRequest<Unit>;
 
 public sealed class SetVacationHandler(IApplicationDbContext db, SellerAccess access, IClock clock) : IRequestHandler<SetVacationCommand, Unit>

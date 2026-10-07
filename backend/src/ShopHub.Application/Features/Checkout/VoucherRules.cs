@@ -11,7 +11,7 @@ namespace ShopHub.Application.Features.Checkout;
 /// Voucher checks that need the database (time, quota, per-user limit, audience). Minimum order and product scope
 /// are applied by <see cref="PricingEngine"/>.
 /// </summary>
-public sealed class VoucherEvaluator(IApplicationDbContext db, Marketing.Membership membership, IClock clock)
+public sealed class VoucherEvaluator(IApplicationDbContext db, Marketing.Membership membership, ICurrentUser currentUser, IClock clock)
 {
     /// <summary>Why this user cannot use the voucher now, or null when they can.</summary>
     public async Task<string?> ProblemAsync(Voucher v, Guid userId, CancellationToken ct)
@@ -19,6 +19,9 @@ public sealed class VoucherEvaluator(IApplicationDbContext db, Marketing.Members
         var now = clock.UtcNow;
         if (!v.IsActive || now >= v.EndAt) return "Mã đã hết hạn.";
         if (now < v.StartAt) return $"Mã có hiệu lực từ {VietnamTime.Format(v.StartAt)}.";
+        var channel = currentUser.Channel == "app" ? VoucherChannel.App : VoucherChannel.Web;
+        if (v.Channel != VoucherChannel.All && v.Channel != channel)
+            return v.Channel == VoucherChannel.App ? "Mã chỉ dùng trên ứng dụng di động." : "Mã chỉ dùng trên website.";
         if (v.TotalQuota is { } quota && v.UsedCount >= quota) return "Mã đã hết lượt sử dụng.";
         var used = await db.VoucherUserCounters.Where(c => c.VoucherId == v.Id && c.UserId == userId).Select(c => c.UsedCount).FirstOrDefaultAsync(ct);
         if (used >= v.PerUserLimit) return "Bạn đã dùng hết lượt của mã này.";
@@ -96,10 +99,22 @@ public sealed class VoucherLedger(IApplicationDbContext db, IOutbox outbox, IClo
 }
 
 /// <summary>ShopHub Xu balance = sum of the ledger. Spending holds a per-user advisory lock inside the caller's transaction.</summary>
-public sealed class CoinWallet(IApplicationDbContext db)
+public sealed class CoinWallet(IApplicationDbContext db, IClock clock)
 {
+    /// <summary>Spendable xu: expired credits are left out even before the expiry job writes them off (L126).</summary>
     public async Task<long> BalanceAsync(Guid userId, CancellationToken ct) =>
-        await db.CoinLedger.Where(c => c.UserId == userId).SumAsync(c => (long?)c.Delta, ct) ?? 0;
+        Marketing.CoinExpiryService.Spendable(await EntriesAsync(userId, ct), clock.UtcNow);
+
+    /// <summary>Xu that will expire by <paramref name="until"/> unless spent first (spends take the earliest expiry).</summary>
+    public async Task<long> ExpiringAsync(Guid userId, DateTimeOffset until, CancellationToken ct)
+    {
+        var entries = await EntriesAsync(userId, ct);
+        var now = clock.UtcNow;
+        return Marketing.CoinExpiryService.Expirable(entries, until) - Marketing.CoinExpiryService.Expirable(entries, now);
+    }
+
+    private async Task<List<CoinEntry>> EntriesAsync(Guid userId, CancellationToken ct) =>
+        await db.CoinLedger.AsNoTracking().Where(c => c.UserId == userId).ToListAsync(ct);
 
     /// <summary>Must run inside a transaction: locks the user's coins, then re-reads the balance.</summary>
     public async Task<long> LockedBalanceAsync(Guid userId, CancellationToken ct)

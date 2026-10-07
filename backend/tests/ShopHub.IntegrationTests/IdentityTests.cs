@@ -383,6 +383,19 @@ public class IdentityTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Fifteen_addresses_sent_at_once_still_leave_exactly_ten()
+    {
+        // L134: the limit was read then written, so requests in parallel all saw "under 10"
+        var user = await factory.CreateUserAsync();
+        var results = await Task.WhenAll(Enumerable.Range(0, 15).Select(i => Task.Run(() => user.Client.PostAsJsonAsync("/api/account/addresses", Address($"S{i}")))));
+
+        results.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(10, string.Join(" | ", (await Task.WhenAll(results.Select(r => r.Content.ReadAsStringAsync()))).Distinct()));
+        results.Where(r => r.StatusCode != HttpStatusCode.OK).Should().OnlyContain(r => r.StatusCode == HttpStatusCode.Conflict);
+        (await factory.WithDbAsync(db => db.Addresses.CountAsync(a => a.UserId == user.Id))).Should().Be(10);
+        (await factory.WithDbAsync(db => db.Addresses.CountAsync(a => a.UserId == user.Id && a.IsDefault))).Should().Be(1, "đúng một địa chỉ mặc định");
+    }
+
+    [Fact]
     public async Task Someone_elses_address_is_404_for_every_action()
     {
         var owner = await factory.CreateUserAsync();

@@ -69,6 +69,7 @@ public sealed class PlaceOrderHandler(
     WalletPins walletPins,
     Ledger ledger,
     Marketing.FlashSaleQuota flashQuota,
+    Marketing.DiscountQuota discountQuota,
     Cart.PurchaseLimits purchaseLimits,
     IOutbox outbox,
     ISystemParameters parameters,
@@ -146,6 +147,9 @@ public sealed class PlaceOrderHandler(
             // ----- Flash Sale quota (Redis Lua, then the database row — spec 3.10) -----
             foreach (var line in plan.Lines.Values.Where(l => l.Price?.Flash is not null).OrderBy(l => l.Price!.Flash!.ItemId))
                 flashTaken.Add(await flashQuota.TakeAsync(line.Price!.Flash!, userId, line.Quantity, line.Name, ct));
+            // ----- discount programme quota and per-buyer limit (L139) -----
+            foreach (var line in plan.Lines.Values.Where(l => l.Price?.Discount is not null).OrderBy(l => l.Price!.Discount!.PromotionSkuId))
+                await discountQuota.TakeAsync(line.Price!.Discount!, userId, line.Quantity, line.Name, ct);
 
             // ----- stock holds (cart lines and free gifts, in SKU order) -----
             var holds = plan.Lines.Values.Select(l => (l.SkuId, l.Quantity, l.Name))

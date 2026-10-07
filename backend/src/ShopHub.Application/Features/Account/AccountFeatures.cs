@@ -29,7 +29,9 @@ public record MeDto(
     bool MustChangePassword,
     IReadOnlyCollection<string> Roles,
     IReadOnlyCollection<string> Permissions,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    // Signs in with Google: an account it created has no password the person knows — the page points to "Quên mật khẩu" (L143)
+    bool HasGoogle = false);
 
 public record GetMeQuery : IRequest<MeDto>;
 
@@ -43,8 +45,9 @@ public sealed class GetMeHandler(IApplicationDbContext db, ICurrentUser currentU
         var roles = await (from ur in db.UserRoles join r in db.Roles on ur.RoleId equals r.Id
                            where ur.UserId == userId select r.Code).ToListAsync(ct);
         var permissions = await sessions.GetPermissionsAsync(userId, ct);
+        var hasGoogle = await db.UserIdentities.AnyAsync(i => i.UserId == userId && i.Provider == Domain.Iam.ExternalProvider.Google, ct);
         return new MeDto(user.Id, user.FullName, user.Phone, user.Email, user.Username, user.AvatarUrl, user.Gender,
-            user.DateOfBirth, user.MustChangePassword, roles, permissions, user.CreatedAt);
+            user.DateOfBirth, user.MustChangePassword, roles, permissions, user.CreatedAt, hasGoogle);
     }
 }
 

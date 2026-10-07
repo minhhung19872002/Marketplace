@@ -81,6 +81,32 @@ public class MarketingRulesTests
         CoinExpiryService.Expirable([.. entries, Spend(700, now)], now.AddDays(11)).Should().Be(0);
     }
 
+    private static CoinEntry Refund(long coins, DateTimeOffset at) => new(Guid.Empty, coins, CoinReason.CheckoutRefund, null, null, null, null, at);
+
+    [Fact]
+    public void Xu_given_back_for_a_cancelled_order_keep_the_expiry_of_the_xu_that_were_spent()
+    {
+        // L124: the refund used to be a fresh credit that never expires, so soon-to-expire xu became permanent
+        var now = DateTimeOffset.UtcNow;
+        CoinEntry[] entries = [Credit(500, now.AddDays(5), now.AddDays(-2)), Spend(500, now.AddDays(-1)), Refund(500, now)];
+
+        CoinExpiryService.Spendable(entries, now).Should().Be(500);
+        CoinExpiryService.Expirable(entries, now.AddDays(6)).Should().Be(500, "the 500 xu given back still expire with the credit they came from");
+        CoinExpiryService.Spendable(entries, now.AddDays(6)).Should().Be(0);
+    }
+
+    [Fact]
+    public void Expired_xu_cannot_be_spent_before_the_expiry_job_writes_them_off()
+    {
+        // L126: the balance summed every row, so expired xu stayed spendable until the nightly job ran
+        var now = DateTimeOffset.UtcNow;
+        CoinEntry[] entries = [Credit(500, now.AddHours(-1), now.AddDays(-30)), Credit(200, null, now.AddDays(-3)), Spend(100, now.AddDays(-2))];
+
+        CoinExpiryService.Spendable(entries, now).Should().Be(200, "100 of the expired 500 were spent; the other 400 are gone");
+        var writtenOff = new CoinEntry(Guid.Empty, -400, CoinReason.Expired, null, null, null, null, now);
+        CoinExpiryService.Spendable([.. entries, writtenOff], now).Should().Be(200, "the job's write-off must not count twice");
+    }
+
     [Theory]
     [InlineData(10, 3, 2, 3)]      // 3.33 kept / 6.67 taken back → 3 / 7 (Math.Floor kept 4)
     [InlineData(100, 3, 1, 67)]

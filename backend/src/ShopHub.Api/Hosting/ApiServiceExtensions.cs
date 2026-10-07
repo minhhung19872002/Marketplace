@@ -74,6 +74,8 @@ public static class ApiServiceExtensions
             .AddJsonProtocol(o => o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
             .AddStackExchangeRedis(config["SH_REDIS_URL"] ?? "localhost:18379", o => o.Configuration.ChannelPrefix = RedisChannel.Literal("shophub:signalr"));
         services.AddSingleton<ShopHub.Application.Abstractions.IRealtime, Hubs.SignalRRealtime>();
+        services.AddSingleton<Hubs.HubConnections>();
+        services.AddSingleton<ShopHub.Application.Abstractions.ISessionEndListener>(sp => sp.GetRequiredService<Hubs.HubConnections>());
     }
 
     private static void AddJwt(IServiceCollection services, IConfiguration config)

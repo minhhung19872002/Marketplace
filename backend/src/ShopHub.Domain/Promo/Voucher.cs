@@ -103,6 +103,8 @@ public class Voucher : AuditableEntity
         if (totalQuota is { } q && q < UsedCount) throw new BusinessRuleException($"Tổng lượt không được nhỏ hơn số lượt đã dùng ({UsedCount}).");
         if (Owner == VoucherOwner.Shop && type == VoucherType.FreeShipping)
             throw new BusinessRuleException("Voucher miễn phí vận chuyển chỉ do sàn phát hành.");
+        if (Owner == VoucherOwner.Shop && type == VoucherType.CoinCashback)
+            throw new BusinessRuleException("Voucher hoàn xu chỉ do sàn phát hành.");
         if (Owner == VoucherOwner.Platform && audience == VoucherAudience.ShopFollowers)
             throw new BusinessRuleException("Voucher của sàn không dành riêng cho người theo dõi shop.");
         switch (type)

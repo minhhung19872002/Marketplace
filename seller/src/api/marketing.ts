@@ -24,7 +24,7 @@ export interface Promotion {
   state: string
   productIds: string[]
   productNames: string[]
-  skus: { skuId: string; productName: string; variant: string | null; price: number; basePrice: number }[]
+  skus: { skuId: string; productName: string; variant: string | null; price: number; basePrice: number; perUserLimit: number | null; quota: number | null; sold: number }[]
   minQuantity: number
   discountBp: number
   discountAmount: number
@@ -41,7 +41,8 @@ export interface PromotionInput {
   startAt: string
   endAt: string
   productIds: string[]
-  skus: { skuId: string; price: number }[]
+  /** perUserLimit / quota: discount programmes only (null = no limit) */
+  skus: { skuId: string; price: number; perUserLimit?: number | null; quota?: number | null }[]
   minQuantity: number
   discountBp: number
   discountAmount: number

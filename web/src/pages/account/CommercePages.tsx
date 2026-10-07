@@ -151,6 +151,11 @@ const OrderActions = ({ order }: { order: OrderDetail }) => {
       {asking && (
         <div className="order-cancel-box" data-testid="cancel-box">
           <strong>{asking === 'cancel' ? 'Chọn lý do huỷ' : 'Lý do yêu cầu huỷ (shop sẽ phản hồi trong 24 giờ)'}</strong>
+          {asking === 'cancel' && (order.cancelsWith?.length ?? 0) > 0 && (
+            <div className="order-detail-alert" data-testid="cancels-with">
+              Các đơn này được thanh toán chung một lần, nên huỷ đơn này sẽ huỷ luôn: {order.cancelsWith?.join(', ')}
+            </div>
+          )}
           {CANCEL_REASONS.map((r) => (
             <label key={r} className="account-radio">
               <input type="radio" name="cancel-reason" checked={reason === r} onChange={() => setReason(r)} /> {r}

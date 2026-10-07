@@ -11,6 +11,9 @@ public interface ICurrentUser
     string? IpAddress { get; }
     string? UserAgent { get; }
     bool HasPermission(string permission);
+
+    // Where the request comes from: "app" (the mobile app sends X-SH-Channel: app) or "web" — vouchers can be limited to one (L135)
+    string Channel => "web";
 }
 
 // Time source — always UTC; convert to Asia/Ho_Chi_Minh only for display/business days

@@ -173,6 +173,12 @@ public sealed class ProductWriter(
         var assetIds = input.Media.Select(m => m.AssetId)
             .Concat(input.Tiers.SelectMany(t => t.Options).Where(o => o.ImageAssetId is not null).Select(o => o.ImageAssetId!.Value));
         var assets = await LoadAssetsAsync(product, assetIds, uploaderId, ct);
+        // Ảnh bìa 1:1 (III.3, L144), 2% tolerance; only a newly chosen cover is checked, so products listed before still save
+        var cover = input.Media.FirstOrDefault(m => assets[m.AssetId].Kind == Domain.Media.MediaKind.Image);
+        var currentCover = product.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.SortOrder).FirstOrDefault()?.AssetId;
+        if (cover is not null && cover.AssetId != currentCover && assets[cover.AssetId] is { Width: { } w, Height: { } h }
+            && Math.Abs(w - h) * 100 > Math.Max(w, h) * 2)
+            throw new ValidationException([new ValidationFailure("media", "Ảnh bìa (ảnh đầu tiên) phải là ảnh vuông, tỉ lệ 1:1.")]);
         string UrlOf(Guid id) => assets[id].Kind == Domain.Media.MediaKind.Image
             ? storage.PublicUrl(assets[id].Bucket, ImageSizes.Key(assets[id].ObjectKey, ImageSizes.Large))
             : storage.PublicUrl(assets[id].Bucket, assets[id].ObjectKey);

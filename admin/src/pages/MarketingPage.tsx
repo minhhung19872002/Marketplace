@@ -6,6 +6,7 @@ import { POSITION_LABEL, SEGMENT_LABEL, marketingApi, type Broadcast, type Broad
 import { ApiError } from '../api/http'
 import { formatPrice } from '../lib/money'
 import { formatDateTime } from '../lib/datetime'
+import CategoryPicker from '../components/CategoryPicker'
 
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : fallback)
 
@@ -13,12 +14,14 @@ const FlashTab = () => {
   const { message, modal } = App.useApp()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [form] = Form.useForm<{ date: Dayjs; hour: number; minDiscount: number; minRating: number }>()
+  const [form] = Form.useForm<{ date: Dayjs; hour: number; minDiscount: number; minRating: number; categoryIds: string[] }>()
   const slots = useQuery({ queryKey: ['flash-slots'], queryFn: marketingApi.slots })
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['flash-slots'] })
   const create = useMutation({
-    mutationFn: (v: { date: Dayjs; hour: number; minDiscount: number; minRating: number }) => marketingApi.createSlot({
-      date: v.date.format('YYYY-MM-DD'), hour: v.hour, minDiscountBp: Math.round((v.minDiscount ?? 0) * 100), minRating: v.minRating ?? 0, categoryIds: [],
+    mutationFn: (v: { date: Dayjs; hour: number; minDiscount: number; minRating: number; categoryIds: string[] }) => marketingApi.createSlot({
+      date: v.date.format('YYYY-MM-DD'), hour: v.hour, minDiscountBp: Math.round((v.minDiscount ?? 0) * 100), minRating: v.minRating ?? 0,
+      // Ngành hàng tiêu chí (3.10, L138): a product of a sub-category of a chosen one qualifies
+      categoryIds: v.categoryIds ?? [],
     }),
     onSuccess: (r) => { message.success(r.message); setOpen(false); refresh() },
     onError: (e) => message.error(errorText(e, 'Không mở được khung.')),
@@ -65,12 +68,12 @@ const FlashTab = () => {
         }}
         columns={[
           { title: 'Khung giờ', render: (_, s) => `${formatDateTime(s.startAt)} – ${formatDateTime(s.endAt)}` },
-          { title: 'Tiêu chí', render: (_, s) => `Giảm ≥ ${s.minDiscountBp / 100}% · ≥ ${s.minRating}★` },
+          { title: 'Tiêu chí', render: (_, s) => `Giảm ≥ ${s.minDiscountBp / 100}% · ≥ ${s.minRating}★${s.categoryIds.length > 0 ? ` · ${s.categoryIds.length} ngành hàng` : ''}` },
           { title: 'Đăng ký', render: (_, s) => `${s.items.filter((i) => i.status === 'Pending').length} chờ / ${s.items.length}` },
           { title: 'Trạng thái', dataIndex: 'state' },
         ]} />
       <Modal title="Mở khung Flash Sale" open={open} onCancel={() => setOpen(false)} onOk={() => form.submit()} okText="Mở khung" confirmLoading={create.isPending} destroyOnClose>
-        <Form form={form} layout="vertical" onFinish={(v) => create.mutate(v)} initialValues={{ date: dayjs().add(1, 'day'), hour: 12, minDiscount: 10, minRating: 0 }}>
+        <Form form={form} layout="vertical" onFinish={(v) => create.mutate(v)} initialValues={{ date: dayjs().add(1, 'day'), hour: 12, minDiscount: 10, minRating: 0, categoryIds: [] }}>
           <Form.Item name="date" label="Ngày"><DatePicker format="DD/MM/YYYY" /></Form.Item>
           <Form.Item name="hour" label="Giờ bắt đầu (theo FLASH.SLOT_HOURS)">
             <Select options={[0, 9, 12, 15, 21].map((h) => ({ value: h, label: `${String(h).padStart(2, '0')}:00` }))} />
@@ -79,6 +82,7 @@ const FlashTab = () => {
             <Form.Item name="minDiscount" label="Giảm tối thiểu (%)"><InputNumber min={0} max={90} /></Form.Item>
             <Form.Item name="minRating" label="Đánh giá tối thiểu"><InputNumber min={0} max={5} step={0.5} /></Form.Item>
           </Space>
+          <Form.Item name="categoryIds" label="Ngành hàng" tooltip="Để trống: mọi ngành hàng"><CategoryPicker /></Form.Item>
         </Form>
       </Modal>
     </>

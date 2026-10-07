@@ -17,6 +17,8 @@ export interface Me {
   roles: string[];
   permissions: string[];
   createdAt: string;
+  /** Signs in with Google: an account it made has no password the person knows (L143) */
+  hasGoogle: boolean;
 }
 
 export interface Session {

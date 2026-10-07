@@ -73,7 +73,9 @@ public record OrderDetailDto(
     CancelRequestDto? CancelRequest,
     BuyerOrderActionsDto Actions,
     DateTimeOffset? AutoCompleteAt,
-    IReadOnlyList<OrderParcelDto>? Parcels = null);
+    IReadOnlyList<OrderParcelDto>? Parcels = null,
+    // Unpaid orders of the same checkout: one payment covers them all, so cancelling this one cancels them too (L127)
+    IReadOnlyList<string>? CancelsWith = null);
 
 /// <summary>Buyer's order tabs (spec II.8). Status groups map to the tabs; other buyers' orders never show (404).</summary>
 public enum BuyerOrderTab
@@ -184,6 +186,10 @@ internal static class OrderDetails
             .Where(s => s.OrderId == order.Id && s.Direction == ShipmentDirection.Outbound && s.Status != ShipmentStatus.Cancelled)
             .OrderBy(s => s.PackageNo).ThenByDescending(s => s.CreatedAt).ThenBy(s => s.Id).ToListAsync(ct);
         var shipment = shipments.FirstOrDefault();
+        var cancelsWith = order.Status == OrderStatus.PendingPayment
+            ? await db.Orders.AsNoTracking().Where(o => o.CheckoutId == order.CheckoutId && o.Id != order.Id && o.Status == OrderStatus.PendingPayment)
+                .OrderBy(o => o.Code).Select(o => o.Code).ToListAsync(ct)
+            : [];
         // Several parcels (đa kho): each with its warehouse and its own tracking
         List<OrderParcelDto>? parcels = null;
         var packages = await db.OrderPackages.AsNoTracking().Where(p => p.OrderId == order.Id).OrderBy(p => p.No).ToListAsync(ct);
@@ -222,6 +228,6 @@ internal static class OrderDetails
                 .Select(h => new OrderHistoryDto(h.FromStatus, h.ToStatus, OrderStateMachine.Label(h.ToStatus), h.ActorType, h.Reason, h.OccurredAt)).ToList(),
             shipment is null ? null : ShipmentDto.From(shipment, carrier),
             cancel is null ? null : new CancelRequestDto(cancel.Id, cancel.Reason, cancel.Status, cancel.CreatedAt, cancel.DueAt, cancel.RejectReason),
-            actions, order.AutoCompleteAt, parcels);
+            actions, order.AutoCompleteAt, parcels, cancelsWith);
     }
 }

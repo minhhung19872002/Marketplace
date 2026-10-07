@@ -559,6 +559,7 @@ public sealed class DecideDisputeHandler(
     IObjectStorage storage,
     ReturnRefunder refunder,
     IEnumerable<ICarrier> carriers,
+    Seller.ShopPenaltyService penalties,
     IOutbox outbox,
     ICurrentUser currentUser,
     IClock clock) : IRequestHandler<DecideDisputeCommand, ReturnDto>
@@ -586,6 +587,10 @@ public sealed class DecideDisputeHandler(
             var coins = r.RequestedAmount == 0 ? 0 : (long)((Int128)r.RequestedCoins * amount / r.RequestedAmount);
             await refunder.RefundAsync(r, amount, coins, ReturnParty.Admin, note, ct);
         }
+        // The shop lost the case: points by kind (L140) — a counterfeit weighs more than any other reason
+        if (request.Decision == DisputeDecision.FavorBuyer)
+            await penalties.AddAsync(r.ShopId, r.Reason == ReturnReason.Counterfeit ? Seller.PenaltyViolation.Counterfeit : Seller.PenaltyViolation.DisputeLost,
+                r.OrderId, ct);
         outbox.Enqueue(OutboxTypes.OrderEvent, new OrderEventPayload(r.OrderId, OrderEvents.DisputeDecided, request.Decision.ToString()));
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

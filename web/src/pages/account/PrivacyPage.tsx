@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { accountApi } from '../../api/account';
 import { ApiError } from '../../api/http';
 import { useAuth } from '../../context/AuthContext';
+import GooglePasswordHint from '../../components/GooglePasswordHint';
 import { formatDateTime } from '../../lib/datetime';
 
 const errorText = (err: unknown) => (err instanceof ApiError ? err.fieldErrors[0]?.message ?? err.message : 'Đã có lỗi xảy ra.');
@@ -86,6 +87,7 @@ const PrivacyPage = () => {
           </div>
         ) : (
           <form className="account-form" onSubmit={remove}>
+            <GooglePasswordHint />
             <label className="account-row">
               <span className="account-label">Mật khẩu</span>
               <input type="password" className="account-input" value={password} onChange={(e) => setPassword(e.target.value)}

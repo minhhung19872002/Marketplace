@@ -155,20 +155,36 @@ public class PromotionSku : Entity
 {
     private PromotionSku() { }
 
-    public PromotionSku(Guid promotionId, Guid skuId, long price, int? perUserLimit)
+    public PromotionSku(Guid promotionId, Guid skuId, long price, int? perUserLimit, int? quota = null)
     {
         if (price < 1_000) throw new BusinessRuleException("Giá khuyến mãi tối thiểu ₫1.000.");
         if (perUserLimit is < 1) throw new BusinessRuleException("Giới hạn mua mỗi người phải từ 1.");
+        if (quota is < 1) throw new BusinessRuleException("Số suất giá ưu đãi phải từ 1.");
         PromotionId = promotionId;
         SkuId = skuId;
         Price = price;
         PerUserLimit = perUserLimit;
+        Quota = quota;
     }
 
     public Guid PromotionId { get; private set; }
     public Guid SkuId { get; private set; }
     public long Price { get; private set; }
+    // Discount programmes (spec 4.6 promotion_skus): units each buyer may get at this price, and units in all (null = no limit)
     public int? PerUserLimit { get; private set; }
+    public int? Quota { get; private set; }
+    // Units sold at this price; taken with a conditional UPDATE (sold + n <= quota), given back when the order is cancelled
+    public int Sold { get; private set; }
+}
+
+/// <summary>Units of a discount SKU a buyer got at the programme price (the per-buyer limit, kept like flash_sale_buyers).</summary>
+public class PromotionSkuBuyer : Entity
+{
+    private PromotionSkuBuyer() { }
+
+    public Guid PromotionSkuId { get; private set; }
+    public Guid UserId { get; private set; }
+    public int Quantity { get; private set; }
 }
 
 public enum PriceProgramKind

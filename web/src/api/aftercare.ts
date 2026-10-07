@@ -82,6 +82,15 @@ export const reviewsApi = {
   report: (reviewId: string, reason: string) => apiCommand(`/reviews/${reviewId}/report`, { method: 'POST', body: { reason } }),
 };
 
+/** Why a review is reported (spec 3.11: báo cáo đánh giá vi phạm → quản trị ẩn) */
+export const REVIEW_REPORT_REASONS = [
+  'Ngôn từ thô tục, xúc phạm',
+  'Nội dung không liên quan đến sản phẩm',
+  'Quảng cáo, spam hoặc dẫn ra ngoài sàn',
+  'Lộ thông tin cá nhân',
+  'Hình ảnh / video không phù hợp',
+] as const;
+
 // ---------- returns ----------
 
 export type ReturnType = 'RefundOnly' | 'ReturnAndRefund';

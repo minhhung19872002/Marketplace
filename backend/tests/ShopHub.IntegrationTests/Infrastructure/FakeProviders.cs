@@ -52,6 +52,8 @@ public sealed class FakeProviders
     public ConcurrentDictionary<string, List<(string Status, DateTimeOffset At)>> GhnLogs { get; } = new();
     public ConcurrentDictionary<string, (int Status, DateTimeOffset At)> GhtkStatus { get; } = new();
     public volatile bool GhnDown;
+    // GHN refuses to book the parcel with this client_order_code (a mid-way failure of a several-parcel booking)
+    public volatile string? GhnRefuseOrderCode;
 
     /// <summary>Children of an administrative division (null = provinces): code + name, from the test database.</summary>
     public Func<string?, Task<IReadOnlyList<(string Code, string Name)>>>? Divisions { get; set; }
@@ -218,6 +220,8 @@ public sealed class FakeProviders
                 if (GhnDown) return new HttpResponseMessage(HttpStatusCode.BadGateway);
                 return Json(new { code = 200, message = "Success", data = new { total = 21_000 + r!["weight"]!.GetValue<int>() / 100 } });
             case "/v2/shipping-order/create":
+                if (GhnRefuseOrderCode is { } refused && r!["client_order_code"]?.GetValue<string>() == refused)
+                    return Json(new { code = 400, message = "Địa chỉ lấy hàng không hợp lệ", data = (object?)null }, HttpStatusCode.BadRequest);
                 var code = $"GHN{Interlocked.Increment(ref _seq):D6}";
                 GhnLogs[code] = [("ready_to_pick", DateTimeOffset.UtcNow)];
                 return Json(new { code = 200, message = "Success", data = new { order_code = code, total_fee = 21_000 } });

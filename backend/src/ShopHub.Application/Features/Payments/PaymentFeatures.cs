@@ -117,8 +117,8 @@ public sealed class PaymentProcessor(
 }
 
 /// <summary>Gives back everything an unpaid checkout was holding: stock, voucher uses, xu.</summary>
-public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vouchers, Marketing.FlashSaleQuota flash, InventoryWriter inventory, IOutbox outbox,
-    IClock clock)
+public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vouchers, Marketing.FlashSaleQuota flash, Marketing.DiscountQuota discounts,
+    InventoryWriter inventory, IOutbox outbox, IClock clock)
 {
     /// <summary>Must run inside a transaction holding the checkout lock.</summary>
     public async Task ExpireAsync(CheckoutSession checkout, string reason, CancellationToken ct) =>
@@ -163,6 +163,10 @@ public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vou
                                                 && i.PriceRefId is not null)
             .GroupBy(i => i.PriceRefId!.Value).Select(g => (g.Key, g.Sum(i => i.Quantity))).ToList();
         if (flashLines.Count > 0) await flash.ReleaseAsync(order.BuyerId, flashLines, ct);
+        // ... and units bought at a discount programme price (L139)
+        var discountLines = order.Items.Where(i => i.PriceSource == Domain.Promo.PriceProgramKind.Discount && i.PriceRefId is not null)
+            .GroupBy(i => (i.PriceRefId!.Value, i.SkuId)).Select(g => (g.Key.Value, g.Key.SkuId, g.Sum(i => i.Quantity))).ToList();
+        if (discountLines.Count > 0) await discounts.ReleaseAsync(order.BuyerId, discountLines, ct);
     }
 }
 

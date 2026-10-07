@@ -11,13 +11,16 @@ using ShopHub.Domain.Promo;
 
 namespace ShopHub.Application.Features.Marketing;
 
-public record PromotionSkuDto(Guid SkuId, Guid ProductId, string ProductName, string? Variant, long Price, long BasePrice);
+public record PromotionSkuDto(Guid SkuId, Guid ProductId, string ProductName, string? Variant, long Price, long BasePrice, int? PerUserLimit = null,
+    int? Quota = null, int Sold = 0);
 
 public record PromotionDto(Guid Id, PromotionType Type, string TypeLabel, string Name, DateTimeOffset StartAt, DateTimeOffset EndAt, PromotionStatus Status,
     string State, IReadOnlyList<Guid> ProductIds, IReadOnlyList<string> ProductNames, IReadOnlyList<PromotionSkuDto> Skus, int MinQuantity, int DiscountBp,
     long DiscountAmount, int MaxAddOnQuantity, long MinSpend, Guid? GiftSkuId, string? GiftName, int GiftQuantity);
 
-public record PromotionSkuInput(Guid SkuId, long Price);
+/// <param name="PerUserLimit">Discount only: units each buyer may get at this price (null = no limit)</param>
+/// <param name="Quota">Discount only: units at this price in all (null = no limit)</param>
+public record PromotionSkuInput(Guid SkuId, long Price, int? PerUserLimit = null, int? Quota = null);
 
 public record PromotionInput(PromotionType Type, string Name, DateTimeOffset StartAt, DateTimeOffset EndAt, IReadOnlyList<Guid>? ProductIds,
     IReadOnlyList<PromotionSkuInput>? Skus, int MinQuantity, int DiscountBp, long DiscountAmount, int MaxAddOnQuantity, long MinSpend, Guid? GiftSkuId,
@@ -67,7 +70,7 @@ public sealed class ShopPromotionsHandler(IApplicationDbContext db, SellerAccess
             MarketingViews.State(p.StartAt, p.EndAt, p.Status == PromotionStatus.Stopped, now),
             p.Products.Select(x => x.ProductId).ToList(), p.Products.Select(x => names.GetValueOrDefault(x.ProductId) ?? "").ToList(),
             p.Skus.Select(s => skus.TryGetValue(s.SkuId, out var k)
-                ? new PromotionSkuDto(s.SkuId, k.ProductId, k.Name, k.Variant, s.Price, k.Price)
+                ? new PromotionSkuDto(s.SkuId, k.ProductId, k.Name, k.Variant, s.Price, k.Price, s.PerUserLimit, s.Quota, s.Sold)
                 : new PromotionSkuDto(s.SkuId, Guid.Empty, "", null, s.Price, 0)).ToList(),
             p.MinQuantity, p.DiscountBp, p.DiscountAmount, p.MaxAddOnQuantity, p.MinSpend, p.GiftSkuId,
             p.GiftSkuId is { } g && skus.TryGetValue(g, out var gift) ? gift.Name : null, p.GiftQuantity)).ToList();
@@ -166,7 +169,10 @@ internal static class PromotionContent
             if (!skus.TryGetValue(s.SkuId, out var sku) || sku.ShopId != shopId) throw new NotFoundException("Có phân loại không thuộc shop của bạn.");
             if (s.Price >= sku.Price)
                 throw new BusinessRuleException($"Giá ưu đãi của \"{sku.Name}{(sku.Variant is null ? "" : $" - {sku.Variant}")}\" phải thấp hơn giá bán {Money.Vnd(sku.Price)}.");
-            promo.Skus.Add(new PromotionSku(promo.Id, s.SkuId, s.Price, null));
+            // Limit and quota belong to a discount programme; other types price add-ons, which the order already caps
+            promo.Skus.Add(input.Type == PromotionType.Discount
+                ? new PromotionSku(promo.Id, s.SkuId, s.Price, s.PerUserLimit, s.Quota)
+                : new PromotionSku(promo.Id, s.SkuId, s.Price, null));
         }
 
         switch (input.Type)

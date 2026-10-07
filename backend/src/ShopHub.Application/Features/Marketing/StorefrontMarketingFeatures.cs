@@ -55,7 +55,13 @@ public record SkuDealDto(Guid SkuId, long Price, long BasePrice, string? Label, 
 
 public record ProductFlashDto(Guid ItemId, DateTimeOffset StartAt, DateTimeOffset EndAt, int Quota, int Sold, int PerUserLimit, bool Platform);
 
-public record ProductOfferDto(Guid PromotionId, PromotionType Type, string Name, string Text);
+/// <summary>
+/// What an offer is about (L142): an add-on SKU at its deal price (added to the cart as is), a free gift (price 0), or a
+/// product of the combo (no SKU: the buyer picks the variant on its page).
+/// </summary>
+public record OfferItemDto(Guid ProductId, Guid? SkuId, string Name, string? Variant, string? ImageUrl, long Price, long BasePrice);
+
+public record ProductOfferDto(Guid PromotionId, PromotionType Type, string Name, string Text, IReadOnlyList<OfferItemDto>? Items = null);
 
 public record ProductDealsDto(DateTimeOffset ServerTime, IReadOnlyList<SkuDealDto> Skus, ProductFlashDto? Flash, IReadOnlyList<ProductOfferDto> Offers);
 
@@ -85,11 +91,33 @@ public sealed class ProductDealsHandler(IApplicationDbContext db, PriceBook pric
             flashDto = new ProductFlashDto(flash.ItemId, flash.StartAt, flash.EndAt, all.Quota, all.Sold, flash.PerUserLimit, platform);
         }
 
-        var offers = await db.Promotions.AsNoTracking().Include(p => p.Products)
+        var offers = await db.Promotions.AsNoTracking().Include(p => p.Products).Include(p => p.Skus)
             .Where(p => p.ShopId == product.ShopId && p.Status == PromotionStatus.Active && p.StartAt <= now && p.EndAt > now
                         && p.Type != PromotionType.Discount && p.Products.Any(x => x.ProductId == product.Id))
             .OrderBy(p => p.EndAt).Take(5).ToListAsync(ct);
-        return new ProductDealsDto(now, skus, flashDto, offers.Select(p => new ProductOfferDto(p.Id, p.Type, p.Name, OfferText(p))).ToList());
+
+        // The SKUs and products the offers name, with a picture each
+        var offerSkuIds = offers.SelectMany(p => p.Skus.Select(s => s.SkuId)).Concat(offers.Where(p => p.GiftSkuId is not null).Select(p => p.GiftSkuId!.Value))
+            .Distinct().ToList();
+        var offerSkus = await MarketingViews.SkusAsync(db, offerSkuIds, ct);
+        var comboProducts = offers.Where(p => p.Type == PromotionType.Combo).SelectMany(p => p.Products.Select(x => x.ProductId)).ToList();
+        var productIds = offerSkus.Values.Select(v => v.ProductId).Concat(comboProducts).Distinct().ToList();
+        var cards = await db.Products.AsNoTracking().Where(p => productIds.Contains(p.Id) && p.Status == Domain.Catalog.ProductStatus.Active)
+            .Select(p => new { p.Id, p.Name, p.MinPrice, Image = p.Media.Where(m => m.Type == Domain.Catalog.MediaType.Image).OrderBy(m => m.SortOrder).Select(m => m.Url).FirstOrDefault() })
+            .ToDictionaryAsync(p => p.Id, ct);
+        OfferItemDto? SkuItem(Guid skuId, long price) =>
+            offerSkus.TryGetValue(skuId, out var k) && cards.TryGetValue(k.ProductId, out var c)
+                ? new OfferItemDto(k.ProductId, skuId, k.Name, k.Variant, c.Image, price, k.Price) : null;
+        IReadOnlyList<OfferItemDto> Items(Promotion p) => p.Type switch
+        {
+            PromotionType.AddOn => p.Skus.Select(s => SkuItem(s.SkuId, s.Price)).OfType<OfferItemDto>().ToList(),
+            PromotionType.Gift when p.GiftSkuId is { } gift => SkuItem(gift, 0) is { } g ? [g] : [],
+            PromotionType.Combo => p.Products.Where(x => cards.ContainsKey(x.ProductId))
+                .Select(x => new OfferItemDto(x.ProductId, null, cards[x.ProductId].Name, null, cards[x.ProductId].Image, cards[x.ProductId].MinPrice, cards[x.ProductId].MinPrice))
+                .ToList(),
+            _ => [],
+        };
+        return new ProductDealsDto(now, skus, flashDto, offers.Select(p => new ProductOfferDto(p.Id, p.Type, p.Name, OfferText(p), Items(p))).ToList());
     }
 
     public static string OfferText(Promotion p) => p.Type switch

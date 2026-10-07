@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using ShopHub.Application.Abstractions;
@@ -12,15 +13,24 @@ namespace ShopHub.Api.Hubs;
 /// limit, storage).
 /// </summary>
 [Authorize]
-public sealed class RealtimeHub(ChatTyping typing) : Hub
+public sealed class RealtimeHub(ChatTyping typing, HubConnections connections) : Hub
 {
     public static string UserGroup(Guid userId) => $"user:{userId:N}";
 
     public override async Task OnConnectedAsync()
     {
         if (Guid.TryParse(Context.User?.FindFirst("sub")?.Value, out var userId))
+        {
             await Groups.AddToGroupAsync(Context.ConnectionId, UserGroup(userId));
+            if (Guid.TryParse(Context.User?.FindFirst("sid")?.Value, out var sessionId)) connections.Add(Context, userId, sessionId);
+        }
         await base.OnConnectedAsync();
+    }
+
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        connections.Remove(Context.ConnectionId);
+        return base.OnDisconnectedAsync(exception);
     }
 
     /// <summary>"Đang gõ…": relayed to the other side of the conversation if the caller takes part in it.</summary>
@@ -28,6 +38,43 @@ public sealed class RealtimeHub(ChatTyping typing) : Hub
     {
         if (Guid.TryParse(Context.User?.FindFirst("sub")?.Value, out var userId))
             await typing.RelayAsync(userId, conversationId, Context.ConnectionAborted);
+    }
+}
+
+/// <summary>
+/// The hub connections open on this instance with the session behind each. The token is only checked at the handshake,
+/// so when a session or a user is invalidated (lock, logout, password change — on any instance, through the
+/// "iam.sessions.changed" outbox message) the affected connections are re-checked and the ones no longer allowed are
+/// closed at once (L128).
+/// </summary>
+public sealed class HubConnections(IServiceProvider services, ILogger<HubConnections> logger) : ISessionEndListener
+{
+    private readonly ConcurrentDictionary<string, (Guid UserId, Guid SessionId, HubCallerContext Context)> _open = new();
+
+    public void Add(HubCallerContext context, Guid userId, Guid sessionId) => _open[context.ConnectionId] = (userId, sessionId, context);
+
+    public void Remove(string connectionId) => _open.TryRemove(connectionId, out _);
+
+    public void SessionsChanged(Guid? userId, Guid? sessionId)
+    {
+        var affected = _open.Values.Where(c => c.UserId == userId || c.SessionId == sessionId).ToList();
+        if (affected.Count == 0) return;
+        _ = Task.Run(async () =>
+        {
+            // Resolved here: the validator itself depends on this listener
+            var validator = services.GetRequiredService<ISessionValidator>();
+            foreach (var c in affected)
+            {
+                try
+                {
+                    if (!await validator.IsValidAsync(c.UserId, c.SessionId)) c.Context.Abort();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Could not re-check realtime connection {ConnectionId}", c.Context.ConnectionId);
+                }
+            }
+        });
     }
 }
 

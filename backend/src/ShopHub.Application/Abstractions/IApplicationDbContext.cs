@@ -108,6 +108,7 @@ public interface IApplicationDbContext
     DbSet<FlashSaleSlot> FlashSaleSlots { get; }
     DbSet<FlashSaleItem> FlashSaleItems { get; }
     DbSet<FlashSaleBuyer> FlashSaleBuyers { get; }
+    DbSet<PromotionSkuBuyer> PromotionSkuBuyers { get; }
     DbSet<Banner> Banners { get; }
     DbSet<Campaign> Campaigns { get; }
     DbSet<CheckIn> CheckIns { get; }

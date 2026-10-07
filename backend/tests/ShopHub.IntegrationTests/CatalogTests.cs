@@ -18,7 +18,7 @@ public class CatalogTests(ApiFactory factory)
 {
     // ---------- helpers ----------
 
-    private static byte[] Image(SKEncodedImageFormat format = SKEncodedImageFormat.Png, int w = 400, int h = 300)
+    private static byte[] Image(SKEncodedImageFormat format = SKEncodedImageFormat.Png, int w = 400, int h = 400)
     {
         using var bmp = new SKBitmap(w, h);
         using (var canvas = new SKCanvas(bmp)) canvas.Clear(new SKColor((byte)Random.Shared.Next(256), 120, 200));
@@ -85,11 +85,12 @@ public class CatalogTests(ApiFactory factory)
         return expected == HttpStatusCode.OK ? Guid.Parse((await res.ReadEnvelopeAsync()).Data.GetString()!) : Guid.Empty;
     }
 
-    private async Task<object> ShirtInputAsync(HttpClient client, string name = "Áo Thun Thử Nghiệm", string[]? sizes = null, string description = "<p>Mô tả</p>")
+    private async Task<object> ShirtInputAsync(HttpClient client, string name = "Áo Thun Thử Nghiệm", string[]? sizes = null, string description = "<p>Mô tả</p>",
+        byte[]? cover = null)
     {
         var leaf = await LeafAsync("Áo Thun");
         var attrs = await AttributesAsync(leaf);
-        var image = (await UploadAsync(client, "product", Image())).Str("id");
+        var image = (await UploadAsync(client, "product", cover ?? Image())).Str("id");
         sizes ??= ["S", "M", "L"];
         var colors = new[] { "Đen", "Trắng" };
         return new
@@ -252,6 +253,19 @@ public class CatalogTests(ApiFactory factory)
     }
 
     // ---------- products ----------
+
+    [Fact]
+    public async Task A_cover_image_that_is_not_square_is_refused()
+    {
+        // L144: the 1:1 cover (III.3) was never checked
+        var (owner, shopId) = await ApprovedShopAsync();
+        var wide = await owner.Client.PostAsJsonAsync($"/api/seller/shops/{shopId}/products", await ShirtInputAsync(owner.Client, cover: Image(w: 800, h: 450)));
+        wide.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await wide.ReadEnvelopeAsync()).Errors.Should().ContainSingle(e => e.Field == "media" && e.Message == "Ảnh bìa (ảnh đầu tiên) phải là ảnh vuông, tỉ lệ 1:1.");
+
+        var square = await owner.Client.PostAsJsonAsync($"/api/seller/shops/{shopId}/products", await ShirtInputAsync(owner.Client, cover: Image(w: 600, h: 600)));
+        square.StatusCode.Should().Be(HttpStatusCode.OK, await square.Content.ReadAsStringAsync());
+    }
 
     [Fact]
     public async Task Two_tier_product_lifecycle_from_draft_to_selling()

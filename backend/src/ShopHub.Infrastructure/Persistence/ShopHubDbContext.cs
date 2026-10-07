@@ -112,6 +112,7 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<FlashSaleSlot> FlashSaleSlots => Set<FlashSaleSlot>();
     public DbSet<FlashSaleItem> FlashSaleItems => Set<FlashSaleItem>();
     public DbSet<FlashSaleBuyer> FlashSaleBuyers => Set<FlashSaleBuyer>();
+    public DbSet<PromotionSkuBuyer> PromotionSkuBuyers => Set<PromotionSkuBuyer>();
     public DbSet<Banner> Banners => Set<Banner>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<CheckIn> CheckIns => Set<CheckIn>();

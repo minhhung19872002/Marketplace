@@ -43,11 +43,28 @@ internal sealed class PromotionSkuConfiguration : IEntityTypeConfiguration<Promo
 {
     public void Configure(EntityTypeBuilder<PromotionSku> b)
     {
-        b.ToTable("promotion_skus", "promo", t => t.HasCheckConstraint("ck_promotion_skus_price", "price > 0"));
+        b.ToTable("promotion_skus", "promo", t =>
+        {
+            t.HasCheckConstraint("ck_promotion_skus_price", "price > 0");
+            // The quota is never oversold (6.2): the conditional UPDATE decides, this is the backstop
+            t.HasCheckConstraint("ck_promotion_skus_sold", "sold >= 0 AND (quota IS NULL OR sold <= quota)");
+        });
         b.HasKey(p => p.Id);
         b.HasOne<Sku>().WithMany().HasForeignKey(p => p.SkuId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(p => new { p.PromotionId, p.SkuId }).IsUnique().HasDatabaseName("ux_promotion_skus");
         b.HasIndex(p => p.SkuId).HasDatabaseName("ix_promotion_skus_sku");
+    }
+}
+
+internal sealed class PromotionSkuBuyerConfiguration : IEntityTypeConfiguration<PromotionSkuBuyer>
+{
+    public void Configure(EntityTypeBuilder<PromotionSkuBuyer> b)
+    {
+        b.ToTable("promotion_sku_buyers", "promo", t => t.HasCheckConstraint("ck_promotion_sku_buyers_quantity", "quantity >= 0"));
+        b.HasKey(x => x.Id);
+        b.HasOne<PromotionSku>().WithMany().HasForeignKey(x => x.PromotionSkuId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => new { x.PromotionSkuId, x.UserId }).IsUnique().HasDatabaseName("ux_promotion_sku_buyers");
     }
 }
 

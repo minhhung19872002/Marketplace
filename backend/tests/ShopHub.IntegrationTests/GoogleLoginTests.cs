@@ -41,6 +41,32 @@ public class GoogleLoginTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_google_account_is_told_to_set_a_password_by_email_otp_and_can_then_delete_itself()
+    {
+        // L143: an account made by Google has a random password nobody knows, so "xoá tài khoản" (password) was a dead end
+        var sub = Guid.NewGuid().ToString("N");
+        var email = $"x{sub[..10]}@gmail.test";
+        var signedIn = (await (await SignInAsync(FakeGoogle.IdToken(sub, email), acceptTerms: true)).ReadEnvelopeAsync()).Data;
+        var client = factory.Authorized(signedIn.Str("accessToken"));
+        var me = (await (await client.GetAsync("/api/account/me")).ReadEnvelopeAsync()).Data;
+        me.GetProperty("hasGoogle").GetBoolean().Should().BeTrue("trang tài khoản dựa vào cờ này để chỉ lối đặt mật khẩu");
+
+        // The way the page points to: "Quên mật khẩu" with the account's e-mail
+        var anon = factory.CreateClient();
+        (await anon.PostAsJsonAsync("/api/auth/forgot-password", new { target = email })).EnsureSuccessStatusCode();
+        await factory.DispatchOutboxAsync();
+        var mail = factory.Emails.Sent.Last(m => m.To == email);
+        var code = System.Text.RegularExpressions.Regex.Match(mail.Html, @"\b\d{6}\b").Value;
+        var ticket = (await (await anon.PostAsJsonAsync("/api/auth/otp/verify", new { target = email, purpose = "ResetPassword", code }))
+            .ReadEnvelopeAsync()).Data.Str("ticket");
+        (await anon.PostAsJsonAsync("/api/auth/reset-password", new { target = email, ticket, newPassword = "GoogleDat2026" })).EnsureSuccessStatusCode();
+
+        var login = (await (await anon.PostAsJsonAsync("/api/auth/login", new { identifier = email, password = "GoogleDat2026" })).ReadEnvelopeAsync()).Data;
+        var again = factory.Authorized(login.Str("accessToken"));
+        (await again.PostAsJsonAsync("/api/account/delete", new { password = "GoogleDat2026" })).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task An_existing_account_with_the_verified_email_is_linked_not_duplicated_and_a_locked_one_stays_out()
     {
         var email = $"co-san-{Guid.NewGuid():N}"[..20] + "@gmail.test";

@@ -262,6 +262,9 @@ internal sealed class CoinEntryConfiguration : IEntityTypeConfiguration<CoinEntr
         // The expiry job's work list: expired credits not accounted for yet
         b.HasIndex(c => new { c.UserId, c.ExpiresAt }).HasFilter("delta > 0 AND expires_at IS NOT NULL AND expiry_checked_at IS NULL")
             .HasDatabaseName("ix_coin_ledger_expiry_todo");
+        // ... and xu given back since the last run, which can revive an expired credit (L124)
+        b.HasIndex(c => c.UserId).HasFilter("reason = 'CheckoutRefund' AND expiry_checked_at IS NULL")
+            .HasDatabaseName("ix_coin_ledger_refund_todo");
     }
 }
 

@@ -13,7 +13,14 @@ public record FlashInfo(Guid ItemId, Guid SlotId, int Quota, int Sold, int PerUs
 }
 
 /// <summary>The price a SKU sells at right now and where it comes from (normal price when no programme runs).</summary>
-public record EffectivePrice(Guid SkuId, long Price, long BasePrice, PriceProgramKind? Kind, Guid? RefId, FlashInfo? Flash, DateTimeOffset? EndsAt)
+/// <summary>A discount programme SKU with a per-buyer limit and / or a quota (L139).</summary>
+public record DiscountInfo(Guid PromotionSkuId, int? Quota, int Sold, int? PerUserLimit)
+{
+    public int? Left => Quota is { } q ? Math.Max(0, q - Sold) : null;
+}
+
+public record EffectivePrice(Guid SkuId, long Price, long BasePrice, PriceProgramKind? Kind, Guid? RefId, FlashInfo? Flash, DateTimeOffset? EndsAt,
+    DiscountInfo? Discount = null)
 {
     public bool IsPromo => Kind is not null;
 }
@@ -37,6 +44,10 @@ public sealed class PriceBook(IApplicationDbContext db)
                            where flashIds.Contains(i.Id) && i.Status == FlashItemStatus.Approved && s.Status == FlashSlotStatus.Open
                            select new FlashInfo(i.Id, s.Id, i.Quota, i.Sold, i.PerUserLimit, s.StartAt, s.EndAt)).ToDictionaryAsync(f => f.ItemId, ct);
 
+        var discountIds = programs.Where(p => p.Kind == PriceProgramKind.Discount).Select(p => p.RefId).ToList();
+        var discounts = await db.PromotionSkus.AsNoTracking().Where(s => discountIds.Contains(s.PromotionId) && ids.Contains(s.SkuId))
+            .ToDictionaryAsync(s => (s.PromotionId, s.SkuId), s => new DiscountInfo(s.Id, s.Quota, s.Sold, s.PerUserLimit), ct);
+
         var result = new Dictionary<Guid, EffectivePrice>();
         foreach (var skuId in ids)
         {
@@ -49,7 +60,11 @@ public sealed class PriceBook(IApplicationDbContext db)
             }
             if (program.Kind == PriceProgramKind.Discount)
             {
-                result[skuId] = new EffectivePrice(skuId, program.Price, basePrice, program.Kind, program.RefId, null, program.EndAt);
+                var discount = discounts.GetValueOrDefault((program.RefId, skuId));
+                // Every unit at the discount price is gone: the normal price applies again, as for a sold-out flash item
+                result[skuId] = discount is { Left: 0 }
+                    ? new EffectivePrice(skuId, basePrice, basePrice, null, null, null, null)
+                    : new EffectivePrice(skuId, program.Price, basePrice, program.Kind, program.RefId, null, program.EndAt, discount);
                 continue;
             }
             var info = flash.GetValueOrDefault(program.RefId);
@@ -175,6 +190,58 @@ public sealed class FlashSaleQuota(IApplicationDbContext db, IFlashSaleCounter c
         var buyers = await db.FlashSaleBuyers.AsNoTracking().Where(b => b.ItemId == itemId && b.Quantity > 0).ToDictionaryAsync(b => b.UserId, b => b.Quantity, ct);
         await counter.LoadAsync(itemId, Math.Max(0, item.Quota - item.Sold), buyers, ct);
     }
+}
+
+/// <summary>
+/// Units of a discount programme SKU (L139): <c>sold + n &lt;= quota</c> and the buyer's own counter
+/// <c>quantity + n &lt;= per_user_limit</c>, both conditional UPDATEs inside the order transaction (spec 6.2); a
+/// cancelled order gives its units back.
+/// </summary>
+public sealed class DiscountQuota(IApplicationDbContext db, IOutbox outbox)
+{
+    /// <summary>Must run inside the order transaction.</summary>
+    public async Task TakeAsync(DiscountInfo discount, Guid userId, int quantity, string productName, CancellationToken ct)
+    {
+        var sold = await db.ExecuteSqlAsync($"""
+            UPDATE promo.promotion_skus SET sold = sold + {quantity}
+            WHERE id = {discount.PromotionSkuId} AND (quota IS NULL OR sold + {quantity} <= quota)
+            """, ct);
+        if (sold == 0) throw new ConflictException($"\"{productName}\" đã hết suất giá ưu đãi.", "DISCOUNT_SOLD_OUT");
+        if (discount.PerUserLimit is { } limit)
+        {
+            var mine = await db.ExecuteSqlAsync($"""
+                INSERT INTO promo.promotion_sku_buyers (id, promotion_sku_id, user_id, quantity) VALUES ({Guid.NewGuid()}, {discount.PromotionSkuId}, {userId}, {quantity})
+                ON CONFLICT (promotion_sku_id, user_id) DO UPDATE SET quantity = promotion_sku_buyers.quantity + {quantity}
+                WHERE promotion_sku_buyers.quantity + {quantity} <= {limit}
+                """, ct);
+            if (mine == 0 || quantity > limit)
+                throw new ConflictException($"Mỗi người chỉ mua tối đa {limit} sản phẩm giá ưu đãi \"{productName}\".", "DISCOUNT_USER_LIMIT");
+        }
+        // The last unit: the SKU sells at its normal price from now on — the search index follows (same transaction)
+        if (discount.Quota is { } quota && await db.PromotionSkus.AnyAsync(s => s.Id == discount.PromotionSkuId && s.Sold >= quota, ct))
+            outbox.Enqueue(OutboxTypes.SearchSyncSkus, new SearchSyncSkusPayload([await SkuOfAsync(discount.PromotionSkuId, ct)]));
+    }
+
+    /// <summary>An order with discount lines was cancelled / its checkout expired: the units go back.</summary>
+    public async Task ReleaseAsync(Guid userId, IEnumerable<(Guid PromotionId, Guid SkuId, int Quantity)> lines, CancellationToken ct)
+    {
+        foreach (var (promotionId, skuId, quantity) in lines)
+        {
+            var row = await db.PromotionSkus.AsNoTracking().Where(s => s.PromotionId == promotionId && s.SkuId == skuId)
+                .Select(s => new { s.Id, s.Quota }).FirstOrDefaultAsync(ct);
+            if (row is null) continue;
+            await db.ExecuteSqlAsync($"UPDATE promo.promotion_skus SET sold = sold - {quantity} WHERE id = {row.Id} AND sold >= {quantity}", ct);
+            await db.ExecuteSqlAsync($"""
+                UPDATE promo.promotion_sku_buyers SET quantity = quantity - {quantity}
+                WHERE promotion_sku_id = {row.Id} AND user_id = {userId} AND quantity >= {quantity}
+                """, ct);
+            // Units back on a sold-out SKU bring the discount price back
+            if (row.Quota is not null) outbox.Enqueue(OutboxTypes.SearchSyncSkus, new SearchSyncSkusPayload([skuId]));
+        }
+    }
+
+    private Task<Guid> SkuOfAsync(Guid promotionSkuId, CancellationToken ct) =>
+        db.PromotionSkus.AsNoTracking().Where(s => s.Id == promotionSkuId).Select(s => s.SkuId).FirstAsync(ct);
 }
 
 /// <summary>Flash counters follow the database (spec 3.10 "đối chiếu"): items of slots running now or starting within the hour.</summary>

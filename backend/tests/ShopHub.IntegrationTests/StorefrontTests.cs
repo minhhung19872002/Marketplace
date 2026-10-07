@@ -209,6 +209,30 @@ public class StorefrontTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_vacation_that_has_ended_reopens_the_shop_without_its_owner()
+    {
+        // L141: VacationUntil was stored but nothing compared it with the clock, so the shop stayed closed
+        var s = await StoreAsync(products: [new("Mũ Hết Nghỉ", "Áo Khoác", 150_000, 5, "Việt Nam", "Cotton")]);
+        await factory.WithDbAsync(async db =>
+        {
+            var shop = await db.Shops.SingleAsync(x => x.Id == s.ShopId);
+            shop.StartVacation(DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        });
+        await factory.WithDbAsync(db => db.Shops.Where(x => x.Id == s.ShopId)
+            .ExecuteUpdateAsync(u => u.SetProperty(x => x.VacationUntil, DateTimeOffset.UtcNow.AddMinutes(-1))));
+
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<ShopHub.Infrastructure.Jobs.OrderAutomationJob>().RunJobAsync();
+
+        var shop = await factory.WithDbAsync(db => db.Shops.AsNoTracking().SingleAsync(x => x.Id == s.ShopId));
+        shop.Status.Should().Be(ShopStatus.Active, "hết ngày tạm nghỉ thì shop tự mở lại");
+        shop.VacationUntil.Should().BeNull();
+        var buyer = await factory.CreateUserAsync();
+        (await buyer.Client.PostAsJsonAsync("/api/cart/items", new { skuId = await factory.WithDbAsync(db => db.Skus.Where(k => k.ProductId == s.Products["Mũ Hết Nghỉ"]).Select(k => k.Id).FirstAsync()), quantity = 1 })).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task Views_are_counted_once_per_viewer_within_the_window()
     {
         var s = await StoreAsync(products: [new("Gối Ngủ Êm", "Gối", 200_000, 5, "Việt Nam")]);

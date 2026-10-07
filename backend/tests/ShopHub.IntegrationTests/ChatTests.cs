@@ -69,6 +69,23 @@ public class ChatTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Locking_an_account_closes_its_open_realtime_connection_at_once()
+    {
+        // L128: the token is only checked at the handshake, so a locked account kept receiving chat and notifications
+        var buyer = await factory.CreateUserAsync();
+        var admin = await factory.CreateUserAsync(Permissions.UserLock);
+        var (hub, _) = await ConnectAsync(buyer);
+        var closed = new TaskCompletionSource();
+        hub.Closed += _ => { closed.TrySetResult(); return Task.CompletedTask; };
+
+        (await admin.Client.PostAsJsonAsync($"/api/admin/users/{buyer.Id}/lock", new { reason = "Gian lận" })).EnsureSuccessStatusCode();
+
+        (await Task.WhenAny(closed.Task, Task.Delay(TimeSpan.FromSeconds(10)))).Should().Be(closed.Task, "kết nối của tài khoản bị khoá phải bị cắt ngay");
+        hub.State.Should().Be(HubConnectionState.Disconnected);
+        await hub.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Buyer_and_shop_talk_live_with_read_receipts_typing_and_unread_counters()
     {
         var store = await StoreAsync();

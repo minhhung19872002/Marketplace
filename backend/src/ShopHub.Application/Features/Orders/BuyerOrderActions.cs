@@ -175,7 +175,7 @@ public sealed class BuyAgainHandler(IApplicationDbContext db, CartStore carts, I
                 skipped.Add(item.NameSnapshot);
                 continue;
             }
-            cart.Add(item.SkuId, quantity, s.Price, maxLines, clock.UtcNow);
+            cart.Add(item.SkuId, quantity, await carts.UnitPriceAsync(item.SkuId, s.Price, ct), maxLines, clock.UtcNow);
             added++;
         }
         await db.SaveChangesAsync(ct);

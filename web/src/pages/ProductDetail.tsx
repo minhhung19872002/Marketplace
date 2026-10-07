@@ -116,6 +116,15 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     }
   };
 
+  /** An add-on of a "Mua kèm deal sốc" offer (L142): its deal price applies at checkout when this product is in the cart too. */
+  const addOffer = async (skuId: string) => {
+    try {
+      await addToCart(skuId, 1);
+    } catch (e) {
+      if (!(e instanceof ApiError)) toast.error('Không thêm được vào giỏ, vui lòng thử lại.');
+    }
+  };
+
   /** "Mua ngay" (II.4, E4): straight to checkout with only this line ticked — the other cart lines stay, unticked. */
   const buyNow = async () => {
     if (!(await add()) || !sku) return;
@@ -243,7 +252,25 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               <div className="product-detail-row" data-testid="pd-offers">
                 <span className="row-label">Ưu Đãi Shop</span>
                 <span className="pd-offers">
-                  {deals.data!.offers.map((o) => <span key={o.promotionId} className="pd-offer">{o.text}</span>)}
+                  {deals.data!.offers.map((o) => (
+                    <span key={o.promotionId} className="pd-offer-block">
+                      <span className="pd-offer">{o.text}</span>
+                      {/* L142: the items of the offer — add-ons go to the cart at their deal price, combo products open their page */}
+                      {(o.items ?? []).map((it) => (
+                        <span key={`${o.promotionId}-${it.skuId ?? it.productId}`} className="pd-offer-item" data-testid="pd-offer-item">
+                          {it.imageUrl && <img src={it.imageUrl} alt="" onError={handleImgError} />}
+                          <Link to={`/san-pham/${it.productId}`} className="pd-offer-name">{it.name}{it.variant ? ` (${it.variant})` : ''}</Link>
+                          <span className="pd-offer-price">
+                            {o.type === 'Gift' ? 'Quà tặng' : formatPrice(it.price)}
+                            {it.basePrice > it.price && <s>{formatPrice(it.basePrice)}</s>}
+                          </span>
+                          {o.type === 'AddOn' && it.skuId && (
+                            <button type="button" className="pd-offer-add" data-testid="pd-offer-add" onClick={() => void addOffer(it.skuId!)}>Thêm vào giỏ</button>
+                          )}
+                        </span>
+                      ))}
+                    </span>
+                  ))}
                 </span>
               </div>
             )}

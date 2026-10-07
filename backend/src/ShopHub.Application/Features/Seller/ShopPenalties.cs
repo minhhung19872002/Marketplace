@@ -14,6 +14,13 @@ public enum PenaltyLevel
     Locked,        // + the shop is locked
 }
 
+public enum PenaltyViolation
+{
+    LatePreparation,
+    DisputeLost,
+    Counterfeit,
+}
+
 public record PenaltyStatus(int Points, PenaltyLevel Level, string Consequence, int RestrictAt, int CampaignBanAt, int LockAt);
 
 /// <summary>
@@ -37,6 +44,26 @@ public sealed class ShopPenaltyService(IApplicationDbContext db, ISystemParamete
             _ => "Không bị hạn chế.",
         };
         return new PenaltyStatus(points, level, text, (int)restrict, (int)ban, (int)lockAt);
+    }
+
+    /// <summary>
+    /// A violation the system records on its own (VI.3, L140): the points come from the parameter of its kind and expire
+    /// after SHOP.PENALTY_EXPIRY_DAYS; the shop's total and its consequences are recomputed at once.
+    /// </summary>
+    public async Task AddAsync(Guid shopId, PenaltyViolation violation, Guid? orderId, CancellationToken ct)
+    {
+        var (key, reason) = violation switch
+        {
+            PenaltyViolation.LatePreparation => (ParameterKeys.ShopPenaltyPointsLatePreparation, "Không chuẩn bị hàng đúng hạn"),
+            PenaltyViolation.DisputeLost => (ParameterKeys.ShopPenaltyPointsDisputeLost, "Thua khiếu nại trả hàng"),
+            _ => (ParameterKeys.ShopPenaltyPointsCounterfeit, "Hàng giả — thua khiếu nại"),
+        };
+        var points = (int)await parameters.GetIntAsync(key, ct);
+        if (points <= 0) return;
+        var now = clock.UtcNow;
+        var days = await parameters.GetIntAsync(ParameterKeys.ShopPenaltyExpiryDays, ct);
+        db.ShopPenalties.Add(new ShopPenalty(shopId, points, reason, orderId, now, now.AddDays(days)));
+        await RecomputeAsync(shopId, ct);
     }
 
     public async Task<PenaltyStatus> OfShopAsync(Guid shopId, CancellationToken ct) =>

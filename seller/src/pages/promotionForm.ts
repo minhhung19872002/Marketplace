@@ -13,7 +13,7 @@ export interface PromotionForm {
   name: string
   period: [Dayjs, Dayjs]
   productIds?: string[]
-  skus?: { skuId: string; price: number }[]
+  skus?: { skuId: string; price: number; perUserLimit?: number | null; quota?: number | null }[]
   minQuantity?: number
   discountPercent?: number
   maxAddOnQuantity?: number
@@ -27,7 +27,10 @@ export const promotionInput = (v: PromotionForm): PromotionInput => ({
   name: v.name.trim(),
   ...fromPeriod(v.period),
   productIds: v.productIds ?? [],
-  skus: (v.skus ?? []).filter((s) => s?.skuId),
+  // Limit and quota only mean something for a discount programme (L139)
+  skus: (v.skus ?? []).filter((s) => s?.skuId).map((s) => v.type === 'Discount'
+    ? { skuId: s.skuId, price: s.price, perUserLimit: s.perUserLimit ?? null, quota: s.quota ?? null }
+    : { skuId: s.skuId, price: s.price }),
   minQuantity: v.minQuantity ?? 0,
   discountBp: Math.round((v.discountPercent ?? 0) * 100),
   discountAmount: 0,
@@ -43,7 +46,7 @@ export const promotionFormValues = (p: Promotion): PromotionForm => ({
   name: p.name,
   period: toPeriod(p.startAt, p.endAt),
   productIds: p.productIds,
-  skus: p.skus.map((s) => ({ skuId: s.skuId, price: s.price })),
+  skus: p.skus.map((s) => ({ skuId: s.skuId, price: s.price, perUserLimit: s.perUserLimit, quota: s.quota })),
   minQuantity: p.minQuantity,
   discountPercent: p.discountBp / 100,
   maxAddOnQuantity: p.maxAddOnQuantity,

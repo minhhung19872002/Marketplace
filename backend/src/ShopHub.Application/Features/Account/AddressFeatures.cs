@@ -117,6 +117,9 @@ public sealed class CreateAddressHandler(IApplicationDbContext db, ICurrentUser 
         await AddressRules.EnsureHierarchyAsync(db, input, ct);
 
         var max = await parameters.GetIntAsync(ParameterKeys.AccountMaxAddresses, ct);
+        // One add at a time per user: the limit and "the first one is the default" are counted, not constrained (L134)
+        await using var tx = await db.BeginTransactionAsync(ct);
+        await db.LockAsync($"addresses:{userId}", ct);
         var count = await db.Addresses.CountAsync(a => a.UserId == userId, ct);
         if (count >= max) throw new ConflictException($"Bạn chỉ có thể lưu tối đa {max} địa chỉ.", "ADDRESS_LIMIT");
 
@@ -130,6 +133,7 @@ public sealed class CreateAddressHandler(IApplicationDbContext db, ICurrentUser 
         address.SetDefault(makeDefault);
         db.Addresses.Add(address);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         return await AddressRules.Project(db, db.Addresses.AsNoTracking().Where(a => a.Id == address.Id)).SingleAsync(ct);
     }

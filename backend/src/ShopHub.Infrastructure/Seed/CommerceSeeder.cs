@@ -23,6 +23,7 @@ public sealed class CommerceSeeder(ShopHubDbContext db, IClock clock, ShopHubSet
         await SeedCarriersAsync(ct);
         await SeedRealCarriersAsync(ct);
         if (sampleData) await SeedVouchersAsync(ct);
+        if (sampleData) await SeedTierVouchersAsync(ct);
     }
 
     /// <summary>
@@ -114,5 +115,20 @@ public sealed class CommerceSeeder(ShopHubDbContext db, IClock clock, ShopHubSet
         }
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Seeded {Count} sample voucher(s)", 3 + shops.Count * 2);
+    }
+
+    // Member tiers carry their own vouchers (spec VIII, L136); guarded on its own so older installs get them too
+    private async Task SeedTierVouchersAsync(CancellationToken ct)
+    {
+        if (await db.Vouchers.IgnoreQueryFilters().AnyAsync(v => v.Audience == VoucherAudience.MemberGold || v.Audience == VoucherAudience.MemberDiamond, ct))
+            return;
+        var now = clock.UtcNow;
+        var gold = new Voucher(VoucherOwner.Platform, null, "VANG30K", "Thành viên Vàng: giảm ₫30.000 cho đơn từ ₫200.000");
+        gold.Configure(VoucherType.Amount, 30_000, 0, null, 200_000, VoucherAudience.MemberGold, [], [], now.AddDays(-1), now.AddYears(1), null, 2, true, VoucherChannel.All);
+        var diamond = new Voucher(VoucherOwner.Platform, null, "KIMCUONG10", "Thành viên Kim cương: giảm 10% tối đa ₫150.000");
+        diamond.Configure(VoucherType.Percent, 0, 1_000, 150_000, 0, VoucherAudience.MemberDiamond, [], [], now.AddDays(-1), now.AddYears(1), null, 3, true, VoucherChannel.All);
+        db.Vouchers.AddRange(gold, diamond);
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Seeded 2 member tier voucher(s)");
     }
 }

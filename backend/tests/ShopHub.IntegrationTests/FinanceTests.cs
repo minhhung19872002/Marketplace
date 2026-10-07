@@ -725,6 +725,53 @@ public class FinanceTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_fixed_fee_scheduled_ahead_shows_on_the_category_once_it_starts_and_the_category_form_stops_at_50_percent()
+    {
+        // L145: the category kept the rate typed on its form, so a rate starting later never showed; the form took up
+        // to 100% while the fee schedule allows 50% (a vague 409 instead of a clear 400)
+        var store = await StoreAsync();
+        var admin = await factory.ClientWithPermissionsAsync(Permissions.FinanceFeeManage, Permissions.CategoryManage);
+        // A category of its own (a sibling of the shared test leaf), so other tests' fee rules are untouched
+        var parentId = await factory.WithDbAsync(db => db.Categories.Where(c => c.Id == store.LeafId).Select(c => c.ParentId).SingleAsync());
+        var made = await admin.PostAsJsonAsync("/api/admin/categories",
+            new { parentId, name = $"Ngành Phí Hẹn {Guid.NewGuid():N}"[..24], sortOrder = 99, commissionRateBp = 600, isActive = true });
+        made.StatusCode.Should().Be(HttpStatusCode.OK, await made.Content.ReadAsStringAsync());
+        var categoryId = Guid.Parse((await made.ReadEnvelopeAsync()).Data.GetString()!);
+        var later = await admin.PostAsJsonAsync("/api/admin/finance/fee-rules",
+            new { categoryId, feeType = "Fixed", rateBp = 777, validFrom = DateTimeOffset.UtcNow.AddDays(1), note = "Phí mới từ mai" });
+        later.StatusCode.Should().Be(HttpStatusCode.OK, await later.Content.ReadAsStringAsync());
+        // Tomorrow comes: the new rule starts now, the old one ends now
+        var now = DateTimeOffset.UtcNow;
+        await factory.WithDbAsync(async db =>
+        {
+            await db.FeeRules.Where(r => r.CategoryId == categoryId && r.FeeType == Domain.Finance.FeeType.Fixed && r.ValidTo != null && r.ValidTo > now)
+                .ExecuteUpdateAsync(u => u.SetProperty(r => r.ValidTo, now.AddMinutes(-1)));
+            return await db.FeeRules.Where(r => r.CategoryId == categoryId && r.RateBp == 777)
+                .ExecuteUpdateAsync(u => u.SetProperty(r => r.ValidFrom, now.AddMinutes(-1)));
+        });
+
+        static JsonElement? Find(JsonElement nodes, Guid id)
+        {
+            foreach (var n in nodes.EnumerateArray())
+            {
+                if (n.Str("id") == id.ToString()) return n;
+                if (Find(n.GetProperty("children"), id) is { } hit) return hit;
+            }
+            return null;
+        }
+        var tree = (await (await admin.GetAsync("/api/admin/categories")).ReadEnvelopeAsync()).Data;
+        Find(tree, categoryId)!.Value.GetProperty("commissionRateBp").GetInt32().Should().Be(777, "màn ngành hàng hiện phí đang áp dụng");
+
+        var leaf = Find(tree, categoryId)!.Value;
+        var tooHigh = await admin.PostAsJsonAsync("/api/admin/categories", new
+        {
+            id = categoryId, parentId = leaf.Str("parentId"), name = leaf.Str("name"), iconUrl = (string?)null, sortOrder = 0, commissionRateBp = 6_000, isActive = true,
+        });
+        tooHigh.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await tooHigh.ReadEnvelopeAsync()).Errors.Should().ContainSingle(e => e.Message == "Phí cố định phải từ 0% đến 50%.");
+    }
+
+    [Fact]
     public async Task A_shop_changes_its_default_bank_with_an_otp_and_removes_an_account_that_is_not_default_or_in_use()
     {
         var store = await StoreAsync();

@@ -100,7 +100,8 @@ app.MapHangfireDashboard(ShopHub.Api.Security.JobDashboardAccess.Path, new Dashb
 }).AllowAnonymous();
 
 app.MapControllers();
-app.MapHub<ShopHub.Api.Hubs.RealtimeHub>("/hubs/realtime");
+// A connection ends with its access token too (L128); the client reconnects with a fresh one
+app.MapHub<ShopHub.Api.Hubs.RealtimeHub>("/hubs/realtime", o => o.CloseOnAuthenticationExpiration = true);
 
 await DatabaseInitializer.InitializeAsync(app.Services);
 

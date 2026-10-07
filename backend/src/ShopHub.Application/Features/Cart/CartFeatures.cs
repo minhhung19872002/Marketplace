@@ -121,10 +121,17 @@ public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook pric
             var label = price?.Kind switch { null => null, Domain.Promo.PriceProgramKind.Discount => "Giảm giá", _ => "Flash Sale" };
             result.Add(new LineView(item, r.Shop, new CartLineDto(item.SkuId, r.Id, r.Name, r.OptionImage ?? r.Image,
                 variant.Length == 0 ? null : variant, unit, Math.Max(r.Sku.OriginalPrice, r.Sku.Price),
-                item.PriceAtAdd != r.Sku.Price ? item.PriceAtAdd : null, item.Quantity, available, item.IsSelected, problem is null, problem, item.AddedAt, label)));
+                item.PriceAtAdd != unit ? item.PriceAtAdd : null, item.Quantity, available, item.IsSelected, problem is null, problem, item.AddedAt, label)));
         }
         return result;
     }
+
+    /// <summary>
+    /// The unit price a line is added (or acknowledged) at: the programme price when one runs, so a Flash Sale or
+    /// discount starting or ending later shows as a price change (L133).
+    /// </summary>
+    public async Task<long> UnitPriceAsync(Guid skuId, long listPrice, CancellationToken ct) =>
+        (await prices.ForSkusAsync([skuId], clock.UtcNow, ct)).GetValueOrDefault(skuId)?.Price ?? listPrice;
 }
 
 internal static class CartRules
@@ -190,7 +197,7 @@ public sealed class AddCartItemHandler(IApplicationDbContext db, CartStore store
         CartRules.EnsureAvailable(sku, already + request.Quantity);
         await limits.EnsureAsync(request.Owner.UserId, product.Id, product.Name,
             await CartRules.ProductQuantityAsync(db, cart, product.Id, ct) + request.Quantity, ct);
-        cart.Add(sku.Id, request.Quantity, sku.Price, maxLines, clock.UtcNow);
+        cart.Add(sku.Id, request.Quantity, await store.UnitPriceAsync(sku.Id, sku.Price, ct), maxLines, clock.UtcNow);
         // The event behind the "thêm vào giỏ" step of the conversion funnel (the cart only keeps its current state)
         db.CartAdds.Add(new Domain.Engage.CartAdd(request.Owner.UserId, request.Owner.UserId is null ? request.Owner.GuestToken : null, sku.ProductId,
             sku.Id, request.Quantity, clock.UtcNow));
@@ -225,7 +232,7 @@ public sealed class UpdateCartItemHandler(IApplicationDbContext db, CartStore st
             var (target, product) = await CartRules.SellableSkuAsync(db, newSkuId, ct);
             if (product.Id != currentProduct) throw new ConflictException("Chỉ đổi được sang phân loại khác của cùng sản phẩm.", "OTHER_PRODUCT");
             CartRules.EnsureAvailable(target, request.Quantity ?? line.Quantity);
-            cart!.ChangeSku(request.SkuId, newSkuId, target.Price, now);
+            cart!.ChangeSku(request.SkuId, newSkuId, await store.UnitPriceAsync(newSkuId, target.Price, ct), now);
             line = cart.Find(newSkuId)!;
         }
         if (request.Quantity is { } quantity)
@@ -240,7 +247,7 @@ public sealed class UpdateCartItemHandler(IApplicationDbContext db, CartStore st
                     await CartRules.ProductQuantityAsync(db, cart!, sku.ProductId, ct) - line.Quantity + quantity, ct);
             }
             line.SetQuantity(quantity, now);
-            line.AcknowledgePrice(sku.Price);
+            line.AcknowledgePrice(await store.UnitPriceAsync(sku.Id, sku.Price, ct));
         }
         if (request.Selected is { } selected) line.SetSelected(selected);
         cart!.Touch(now);

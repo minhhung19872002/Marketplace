@@ -251,7 +251,7 @@ const ProductEditorPage = ({ shopId }: { shopId: string }) => {
 
       <Card title="Thông tin cơ bản">
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Typography.Text>Hình ảnh ({media.filter((m) => m.type === 'Image').length}/{MAX_IMAGES}) — ảnh đầu tiên là ảnh bìa</Typography.Text>
+          <Typography.Text>Hình ảnh ({media.filter((m) => m.type === 'Image').length}/{MAX_IMAGES}) — ảnh đầu tiên là ảnh bìa, phải vuông (tỉ lệ 1:1)</Typography.Text>
           <Space wrap>
             {media.map((m, i) => (
               <div key={m.assetId} className="media-tile">

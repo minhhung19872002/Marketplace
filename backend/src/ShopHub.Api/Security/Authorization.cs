@@ -81,4 +81,6 @@ public sealed class HttpCurrentUser(IHttpContextAccessor accessor, ActingUser ac
     public string? UserAgent => Context?.Request.Headers.UserAgent.ToString();
 
     public bool HasPermission(string permission) => Context is not null && PermissionClaims.Has(Context.User, permission);
+
+    public string Channel => string.Equals(Context?.Request.Headers["X-SH-Channel"].ToString(), "app", StringComparison.OrdinalIgnoreCase) ? "app" : "web";
 }

@@ -680,6 +680,18 @@
   margin-top: 6px;
 }
 
+.pd-review-report-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pd-review-report-form select {
+  max-width: 100%;
+  padding: 4px 6px;
+}
+
 .pd-flash {
   display: flex;
   flex-wrap: wrap;
@@ -712,6 +724,51 @@
   color: var(--sh-primary);
   padding: 2px 8px;
   font-size: 13px;
+}
+
+.pd-offer-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pd-offer-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.pd-offer-item img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.pd-offer-name {
+  color: inherit;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pd-offer-price {
+  color: var(--sh-primary);
+}
+
+.pd-offer-price s {
+  margin-left: 6px;
+  color: var(--sh-text-muted);
+}
+
+.pd-offer-add {
+  border: 1px solid var(--sh-primary);
+  background: none;
+  color: var(--sh-primary);
+  padding: 2px 8px;
+  cursor: pointer;
 }
 
 .pd-report {

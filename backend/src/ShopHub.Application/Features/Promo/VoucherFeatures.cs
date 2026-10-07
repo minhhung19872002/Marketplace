@@ -368,8 +368,7 @@ public sealed class MyCoinsHandler(IApplicationDbContext db, CoinWallet wallet, 
         var userId = UserGuard.Require(currentUser);
         var soon = clock.UtcNow.AddDays(30);
         var balance = await wallet.BalanceAsync(userId, ct);
-        var expiring = await db.CoinLedger.Where(c => c.UserId == userId && c.Delta > 0 && c.ExpiresAt != null && c.ExpiresAt <= soon)
-            .SumAsync(c => (long?)c.Delta, ct) ?? 0;
+        var expiring = await wallet.ExpiringAsync(userId, soon, ct);
         var history = await db.CoinLedger.AsNoTracking().Where(c => c.UserId == userId)
             .OrderByDescending(c => c.CreatedAt).ThenBy(c => c.Id)
             .ToPagedResultAsync(c => new CoinEntryDto(c.Id, c.Delta, c.Reason, c.Note, c.CreatedAt, c.ExpiresAt), request, ct);

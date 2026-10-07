@@ -35,15 +35,16 @@ public record BrandDto(Guid Id, string Name, string Slug, string? LogoUrl, bool 
 
 internal static class CategoryTree
 {
-    public static IReadOnlyList<CategoryNodeDto> Build(IReadOnlyList<Category> all, Guid? parentId)
+    /// <param name="rates">Fixed fee in force per category (the fee schedule is the source; the column is a copy)</param>
+    public static IReadOnlyList<CategoryNodeDto> Build(IReadOnlyList<Category> all, Guid? parentId, IReadOnlyDictionary<Guid, int> rates)
     {
         return all.Where(c => c.ParentId == parentId)
             .OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ThenBy(c => c.Id)
             .Select(c =>
             {
-                var children = Build(all, c.Id);
+                var children = Build(all, c.Id, rates);
                 return new CategoryNodeDto(c.Id, c.ParentId, c.Name, c.Slug, c.IconUrl, c.Level, c.SortOrder, c.IsActive,
-                    c.CommissionRateBp, children.Count == 0, children);
+                    rates.GetValueOrDefault(c.Id, c.CommissionRateBp), children.Count == 0, children);
             })
             .ToList();
     }
@@ -56,12 +57,17 @@ internal static class CategoryTree
 
 public record GetCategoryTreeQuery(bool IncludeInactive = false) : IRequest<IReadOnlyList<CategoryNodeDto>>;
 
-public sealed class GetCategoryTreeHandler(IApplicationDbContext db) : IRequestHandler<GetCategoryTreeQuery, IReadOnlyList<CategoryNodeDto>>
+public sealed class GetCategoryTreeHandler(IApplicationDbContext db, IClock clock) : IRequestHandler<GetCategoryTreeQuery, IReadOnlyList<CategoryNodeDto>>
 {
     public async Task<IReadOnlyList<CategoryNodeDto>> Handle(GetCategoryTreeQuery request, CancellationToken ct)
     {
         var all = await db.Categories.AsNoTracking().Where(c => request.IncludeInactive || c.IsActive).ToListAsync(ct);
-        return CategoryTree.Build(all, null);
+        // A rate scheduled ahead shows once it starts (L145): read the schedule, not the copy saved with the form
+        var schedule = new Finance.FeeSchedule(db);
+        var now = clock.UtcNow;
+        var rates = new Dictionary<Guid, int>();
+        foreach (var c in all) rates[c.Id] = await schedule.RateAsync(Domain.Finance.FeeType.Fixed, c.Id, now, ct);
+        return CategoryTree.Build(all, null, rates);
     }
 }
 
@@ -106,7 +112,8 @@ public sealed class SaveCategoryValidator : AbstractValidator<SaveCategoryComman
     public SaveCategoryValidator()
     {
         RuleFor(x => x.Name).NotEmpty().WithMessage("Vui lòng nhập tên danh mục.").MaximumLength(100).WithMessage("Tên tối đa 100 ký tự.");
-        RuleFor(x => x.CommissionRateBp).InclusiveBetween(0, 10_000).WithMessage("Phí cố định phải từ 0% đến 100%.");
+        // Same bound as the fee schedule (ck_fee_rules_rate), which every change of this rate goes through (L145)
+        RuleFor(x => x.CommissionRateBp).InclusiveBetween(0, 5_000).WithMessage("Phí cố định phải từ 0% đến 50%.");
     }
 }
 
@@ -139,7 +146,8 @@ public sealed class SaveCategoryHandler(IApplicationDbContext db, IClock clock) 
             category.Rename(request.Name, slug);
             category.SetIcon(request.IconUrl);
             category.SetSortOrder(request.SortOrder);
-            if (category.CommissionRateBp != request.CommissionRateBp) await StartFixedFeeAsync(category.Id, request.CommissionRateBp, ct);
+            var inForce = await new Finance.FeeSchedule(db).RateAsync(Domain.Finance.FeeType.Fixed, category.Id, clock.UtcNow, ct);
+            if (inForce != request.CommissionRateBp) await StartFixedFeeAsync(category.Id, request.CommissionRateBp, ct);
             category.SetCommission(request.CommissionRateBp);
             category.SetActive(request.IsActive);
             if (request.ParentId != category.ParentId) category.MoveTo(request.ParentId, level);

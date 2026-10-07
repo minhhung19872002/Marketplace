@@ -350,6 +350,8 @@ export interface OrderDetail {
   cancelRequest: CancelRequestInfo | null;
   actions: { pay: boolean; cancel: boolean; requestCancel: boolean; confirmReceived: boolean; buyAgain: boolean; review: boolean; return: boolean };
   autoCompleteAt: string | null;
+  /** Other unpaid orders of the same payment: cancelling this one cancels them too */
+  cancelsWith: string[] | null;
 }
 
 export const ordersApi = {

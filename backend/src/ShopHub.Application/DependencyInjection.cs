@@ -69,10 +69,12 @@ public static class DependencyInjection
         services.AddScoped<Features.Storefront.CardPricing>();
         services.AddScoped<Features.Marketing.DealsBook>();
         services.AddScoped<Features.Marketing.FlashSaleQuota>();
+        services.AddScoped<Features.Marketing.DiscountQuota>();
         services.AddScoped<Features.Marketing.FlashSaleReconciler>();
         services.AddScoped<Features.Marketing.Membership>();
         services.AddScoped<Features.Marketing.CashbackService>();
         services.AddScoped<Features.Marketing.CoinExpiryService>();
+        services.AddScoped<Features.Seller.VacationService>();
         services.AddScoped<Features.Chat.ContactFilter>();
         services.AddScoped<Features.Chat.ChatAccess>();
         services.AddScoped<Features.Chat.ChatTyping>();

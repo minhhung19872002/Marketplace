@@ -1,6 +1,8 @@
 import { apiCommand, apiRequest } from './http'
 
 export type VoucherType = 'Amount' | 'Percent' | 'FreeShipping' | 'CoinCashback'
+export type VoucherAudience = 'Everyone' | 'NewBuyer' | 'MemberGold' | 'MemberDiamond'
+export type VoucherChannel = 'All' | 'Web' | 'App'
 
 export interface PlatformVoucherInput {
   code: string
@@ -10,7 +12,7 @@ export interface PlatformVoucherInput {
   discountPercentBp: number
   maxDiscount: number | null
   minOrder: number
-  audience: 'Everyone' | 'NewBuyer'
+  audience: VoucherAudience
   categoryIds: string[]
   productIds: string[]
   startAt: string
@@ -18,7 +20,7 @@ export interface PlatformVoucherInput {
   totalQuota: number | null
   perUserLimit: number
   isPublic: boolean
-  channel: 'All'
+  channel: VoucherChannel
   /** Only shops in Freeship Xtra (free shipping) / Voucher Xtra (other types) */
   xtraOnly: boolean
 }

@@ -218,6 +218,60 @@ public class CheckoutTests(ApiFactory factory)
         tooMany.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
+    [Fact]
+    public async Task Cart_reports_a_price_change_when_a_discount_starts_or_ends_after_the_line_was_added()
+    {
+        // L133: the cart compared the price at add with the list price, so a programme starting or ending went unnoticed
+        var store = await factory.CreateStoreAsync(products: [new("Ấm Giảm Giá Sau", "Nồi & Chảo", 250_000, 5, "Việt Nam")]);
+        var (buyer, _) = await BuyerAsync();
+        var sku = store.Skus["Ấm Giảm Giá Sau"];
+        await AddAsync(buyer.Client, sku, 1);
+        async Task<JsonElement> LineAsync() =>
+            (await (await buyer.Client.GetAsync("/api/cart")).ReadEnvelopeAsync()).Data.GetProperty("shops")[0].GetProperty("lines")[0];
+
+        var now = DateTimeOffset.UtcNow;
+        var programme = new Domain.Promo.PriceProgram(sku, store.ShopId, Domain.Promo.PriceProgramKind.Discount, Guid.NewGuid(), 200_000, now.AddMinutes(-1), now.AddDays(1));
+        await factory.WithDbAsync(async db =>
+        {
+            db.PricePrograms.Add(programme);
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        var started = await LineAsync();
+        started.GetProperty("price").GetInt64().Should().Be(200_000);
+        started.GetProperty("previousPrice").GetInt64().Should().Be(250_000, "giá đã đổi kể từ lúc thêm vào giỏ");
+
+        // Touching the line acknowledges the new price; the programme ending is a change again
+        (await buyer.Client.PutAsJsonAsync($"/api/cart/items/{sku}", new { quantity = 2 })).EnsureSuccessStatusCode();
+        (await LineAsync()).GetProperty("previousPrice").ValueKind.Should().Be(JsonValueKind.Null);
+        await factory.WithDbAsync(db => db.PricePrograms.Where(p => p.Id == programme.Id).ExecuteUpdateAsync(u => u.SetProperty(p => p.EndAt, DateTimeOffset.UtcNow)));
+        var ended = await LineAsync();
+        ended.GetProperty("price").GetInt64().Should().Be(250_000);
+        ended.GetProperty("previousPrice").GetInt64().Should().Be(200_000, "chương trình kết thúc, giá trở lại giá niêm yết");
+    }
+
+    [Fact]
+    public async Task An_app_only_voucher_is_refused_on_the_website_and_works_in_the_app()
+    {
+        // L135: the voucher channel was stored but nothing read it
+        var store = await factory.CreateStoreAsync(products: [new("Ấm Kênh App", "Nồi & Chảo", 300_000, 5, "Việt Nam")]);
+        var voucher = await factory.CreateVoucherAsync(VoucherOwner.Platform, null, VoucherType.Amount, value: 20_000);
+        await factory.WithDbAsync(db => db.Vouchers.Where(v => v.Id == voucher.Id).ExecuteUpdateAsync(u => u.SetProperty(v => v.Channel, VoucherChannel.App)));
+        var (buyer, address) = await BuyerAsync();
+        await AddAsync(buyer.Client, store.Skus["Ấm Kênh App"]);
+        var request = Request(address, platform: voucher.Code, shops: Shop(store.ShopId));
+
+        var web = await QuoteAsync(buyer.Client, request);
+        web.GetProperty("platformDiscount").GetInt64().Should().Be(0);
+        web.GetProperty("platformVouchers").EnumerateArray().Single(v => v.Str("code") == voucher.Code).Str("problem")
+            .Should().Be("Mã chỉ dùng trên ứng dụng di động.");
+
+        var msg = new HttpRequestMessage(HttpMethod.Post, "/api/checkout/quote") { Content = JsonContent.Create(request) };
+        msg.Headers.Add("X-SH-Channel", "app");
+        var app = (await (await buyer.Client.SendAsync(msg)).ReadEnvelopeAsync()).Data;
+        app.GetProperty("platformDiscount").GetInt64().Should().Be(20_000);
+    }
+
     // ---------- pricing end to end ----------
 
     [Fact]
@@ -379,6 +433,29 @@ public class CheckoutTests(ApiFactory factory)
     }
 
     // ---------- online payment ----------
+
+    [Fact]
+    public async Task An_unpaid_order_says_which_other_orders_its_cancellation_also_cancels()
+    {
+        // L127: one online payment covers every shop's order, so cancelling one unpaid order ends them all —
+        // the order page must say so before the buyer confirms
+        var a = await factory.CreateStoreAsync(products: [new("Chuột Không Dây Huỷ Chung", "Bàn Phím", 190_000, 5, "Trung Quốc")]);
+        var b = await factory.CreateStoreAsync(products: [new("Lót Chuột Huỷ Chung", "Áo Thun", 60_000, 5, "Việt Nam")]);
+        var (buyer, addressId) = await BuyerAsync();
+        await AddAsync(buyer.Client, a.Skus["Chuột Không Dây Huỷ Chung"]);
+        await AddAsync(buyer.Client, b.Skus["Lót Chuột Huỷ Chung"]);
+        var placed = await QuoteAndPlaceAsync(buyer.Client, Request(addressId, "Simulated", shops: [Shop(a.ShopId), Shop(b.ShopId)]));
+        var codes = placed.GetProperty("orders").EnumerateArray().Select(o => o.Str("code")).ToList();
+        codes.Should().HaveCount(2);
+
+        var detail = (await (await buyer.Client.GetAsync($"/api/orders/{codes[0]}")).ReadEnvelopeAsync()).Data;
+        detail.GetProperty("cancelsWith").EnumerateArray().Select(c => c.GetString()).Should().Equal(codes[1]);
+
+        (await buyer.Client.PostAsJsonAsync($"/api/orders/{codes[0]}/cancel", new { reason = "Đổi ý" })).EnsureSuccessStatusCode();
+        var other = (await (await buyer.Client.GetAsync($"/api/orders/{codes[1]}")).ReadEnvelopeAsync()).Data;
+        other.Str("status").Should().Be("Cancelled", "đúng như trang đơn đã báo trước");
+        other.GetProperty("cancelsWith").GetArrayLength().Should().Be(0);
+    }
 
     [Fact]
     public async Task Paying_on_the_simulated_gateway_moves_the_orders_to_pending_confirmation()

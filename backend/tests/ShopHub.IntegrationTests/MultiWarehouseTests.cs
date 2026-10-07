@@ -85,12 +85,12 @@ public class MultiWarehouseTests(ApiFactory factory)
     private static async Task<JsonElement> QuoteAsync(Setup s, string method = "Cod", string? carrier = null) =>
         (await (await s.Buyer.Client.PostAsJsonAsync("/api/checkout/quote", Request(s, method, carrier))).ReadEnvelopeAsync()).Data;
 
-    private async Task<(Guid OrderId, string Code)> PlaceAsync(Setup s, string method = "Cod")
+    private async Task<(Guid OrderId, string Code)> PlaceAsync(Setup s, string method = "Cod", string? carrier = null)
     {
-        var quote = await QuoteAsync(s, method);
+        var quote = await QuoteAsync(s, method, carrier);
         var msg = new HttpRequestMessage(HttpMethod.Post, "/api/checkout")
         {
-            Content = JsonContent.Create(new { checkout = Request(s, method), expectedGrandTotal = quote.GetProperty("grandTotal").GetInt64() }),
+            Content = JsonContent.Create(new { checkout = Request(s, method, carrier), expectedGrandTotal = quote.GetProperty("grandTotal").GetInt64() }),
         };
         msg.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
         var res = await s.Buyer.Client.SendAsync(msg);
@@ -136,6 +136,40 @@ public class MultiWarehouseTests(ApiFactory factory)
     private async Task<Order> OrderAsync(Guid id) =>
         await factory.WithDbAsync(db => db.Orders.AsNoTracking().Include(o => o.Items).ThenInclude(i => i.Discounts).Include(o => o.Packages)
             .AsSplitQuery().SingleAsync(o => o.Id == id));
+
+    [Fact]
+    public async Task A_parcel_the_carrier_refuses_cancels_the_parcels_already_booked_and_leaves_the_order_to_confirm()
+    {
+        // L130: parcel 1 was booked at the carrier, parcel 2 refused: the order rolls back, so parcel 1 must not stay
+        // booked at the carrier with no shipment behind it
+        await factory.SetCarrierActiveAsync("GHN_STD", true);
+        var fakes = factory.Providers;
+        try
+        {
+            var s = await SetupAsync();
+            var (orderId, code) = await PlaceAsync(s, carrier: "GHN_STD");
+            var cancelsBefore = fakes.CallsTo(FakeProviders.GhnHost, "/shiip/public-api/v2/switch-status/cancel").Count();
+            fakes.GhnRefuseOrderCode = $"{code}-2";
+
+            var res = await s.Seller.PostAsJsonAsync($"/api/seller/shops/{s.Store.ShopId}/orders/prepare",
+                new { orderIds = new[] { orderId }, pickupMethod = "Pickup", pickupSlot = "08:00 - 12:00" });
+            res.StatusCode.Should().Be(HttpStatusCode.OK, await res.Content.ReadAsStringAsync());
+            (await res.ReadEnvelopeAsync()).Data[0].GetProperty("ok").GetBoolean().Should().BeFalse();
+
+            var booked = fakes.CallsTo(FakeProviders.GhnHost, "/shiip/public-api/v2/shipping-order/create").Select(c => System.Text.Json.Nodes.JsonNode.Parse(c.Body)!)
+                .Count(b => b["client_order_code"]!.GetValue<string>() == $"{code}-1");
+            booked.Should().Be(1, "kiện 1 đã được đặt ở hãng trước khi kiện 2 bị từ chối");
+            fakes.CallsTo(FakeProviders.GhnHost, "/shiip/public-api/v2/switch-status/cancel").Count().Should().Be(cancelsBefore + 1,
+                "kiện đã đặt phải được huỷ ở hãng, không để vận đơn mồ côi");
+            (await ShipmentsAsync(orderId)).Should().BeEmpty();
+            (await OrderAsync(orderId)).Status.Should().Be(OrderStatus.PendingConfirmation, "shop xác nhận lại được");
+        }
+        finally
+        {
+            fakes.GhnRefuseOrderCode = null;
+            await factory.SetCarrierActiveAsync("GHN_STD", false);
+        }
+    }
 
     [Fact]
     public async Task Two_warehouses_make_one_order_in_two_parcels_quoted_shipped_and_stocked_each_on_its_own()

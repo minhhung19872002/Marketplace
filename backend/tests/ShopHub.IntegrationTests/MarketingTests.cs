@@ -109,6 +109,59 @@ public class MarketingTests(ApiFactory factory)
     // ---------- price programmes ----------
 
     [Fact]
+    public async Task A_discount_quota_and_per_buyer_limit_hold_when_six_buyers_order_at_once_and_a_cancel_gives_the_unit_back()
+    {
+        // L139: promotion_skus.per_user_limit was always null and there was no quota (spec 4.6)
+        var store = await StoreAsync();
+        var sku = store.Shop.Skus[Kettle];
+        var create = await store.Staff.Client.PostAsJsonAsync(Url(store, "promotions"), new
+        {
+            type = "Discount", name = "Ấm giá sốc 3 suất", startAt = DateTimeOffset.UtcNow.AddMinutes(-1), endAt = DateTimeOffset.UtcNow.AddDays(3),
+            skus = new[] { new { skuId = sku, price = 150_000, perUserLimit = 1, quota = 3 } },
+        });
+        create.StatusCode.Should().Be(HttpStatusCode.OK, await create.Content.ReadAsStringAsync());
+
+        var buyers = new List<Buyer>();
+        for (var i = 0; i < 6; i++)
+        {
+            var b = await BuyerAsync();
+            await AddAsync(b, sku, 1);
+            buyers.Add(b);
+        }
+        var quotes = await Task.WhenAll(buyers.Select(b => QuoteAsync(b, store.Shop.ShopId)));
+        quotes.Should().OnlyContain(q => q.GetProperty("subtotal").GetInt64() == 150_000, "trước khi đặt, cả 6 đều thấy giá ưu đãi");
+        var placed = await Task.WhenAll(buyers.Select((b, i) => Task.Run(() => PlaceAsync(b, store.Shop.ShopId, quotes[i].GetProperty("grandTotal").GetInt64()))));
+
+        placed.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(3, "chỉ có 3 suất giá ưu đãi");
+        placed.Where(r => r.StatusCode != HttpStatusCode.OK).Should().OnlyContain(r => r.StatusCode == HttpStatusCode.Conflict);
+        async Task<int> SoldAsync() => await factory.WithDbAsync(db => db.Database.SqlQuery<int>($"SELECT sold AS \"Value\" FROM promo.promotion_skus WHERE sku_id = {sku}").SingleAsync());
+        (await SoldAsync()).Should().Be(3);
+
+        // A buyer who got one cannot get a second at the discount price; someone new now sees the normal price
+        var winner = buyers[placed.Select((r, i) => (r, i)).First(x => x.r.StatusCode == HttpStatusCode.OK).i];
+        await AddAsync(winner, sku, 1);
+        var again = await QuoteAsync(winner, store.Shop.ShopId);
+        again.GetProperty("subtotal").GetInt64().Should().Be(200_000, "hết suất giá ưu đãi thì về giá thường");
+        var late = await BuyerAsync();
+        await AddAsync(late, sku, 1);
+        (await QuoteAsync(late, store.Shop.ShopId)).GetProperty("subtotal").GetInt64().Should().Be(200_000);
+
+        // Cancelling one of the three orders gives its unit back: the discount price is available again
+        var code = (await placed.First(r => r.StatusCode == HttpStatusCode.OK).ReadEnvelopeAsync()).Data.GetProperty("orders")[0].Str("code");
+        var owner = buyers[placed.Select((r, i) => (r, i)).First(x => x.r.StatusCode == HttpStatusCode.OK).i];
+        (await owner.User.Client.PostAsJsonAsync($"/api/orders/{code}/cancel", new { reason = "Đổi ý" })).EnsureSuccessStatusCode();
+        (await SoldAsync()).Should().Be(2);
+        (await QuoteAsync(late, store.Shop.ShopId)).GetProperty("subtotal").GetInt64().Should().Be(150_000);
+
+        // The per-buyer limit on its own: the winner still holding a unit is told before placing
+        var other = buyers.Where((b, i) => placed[i].StatusCode == HttpStatusCode.OK && b != owner).First();
+        await AddAsync(other, sku, 1);
+        var limited = await QuoteAsync(other, store.Shop.ShopId);
+        limited.GetProperty("problems").EnumerateArray().Select(x => x.GetString()).Should()
+            .Contain(m => m!.Contains("Mỗi người chỉ mua tối đa 1 sản phẩm giá ưu đãi"));
+    }
+
+    [Fact]
     public async Task A_discount_price_reaches_cart_checkout_and_order_and_a_sku_cannot_be_in_two_price_programmes_at_once()
     {
         var store = await StoreAsync();
@@ -257,6 +310,19 @@ public class MarketingTests(ApiFactory factory)
             type = "Gift", name = "Đơn ấm từ 200k tặng khăn", startAt = start, endAt = end, productIds = new[] { store.Shop.Products[Kettle] },
             minSpend = 200_000, giftSkuId = store.Shop.Skus[Gift], giftQuantity = 1,
         });
+
+        // L142: the product page lists what each offer is about — the add-on with its deal price (addable as is), the gift
+        var deals = (await (await factory.CreateClient().GetAsync($"/api/products/{store.Shop.Products[Kettle]}/deals")).ReadEnvelopeAsync()).Data;
+        var addOn = deals.GetProperty("offers").EnumerateArray().Single(o => o.Str("type") == "AddOn");
+        var item = addOn.GetProperty("items").EnumerateArray().Single();
+        item.Str("skuId").Should().Be(store.Shop.Skus[Gift].ToString());
+        item.GetProperty("price").GetInt64().Should().Be(5_000);
+        item.GetProperty("basePrice").GetInt64().Should().BeGreaterThan(5_000);
+        deals.GetProperty("offers").EnumerateArray().Single(o => o.Str("type") == "Gift").GetProperty("items")[0].Str("skuId")
+            .Should().Be(store.Shop.Skus[Gift].ToString());
+        var combo = (await (await factory.CreateClient().GetAsync($"/api/products/{store.Shop.Products[Cup]}/deals")).ReadEnvelopeAsync()).Data
+            .GetProperty("offers").EnumerateArray().Single(o => o.Str("type") == "Combo");
+        combo.GetProperty("items").EnumerateArray().Select(i => i.Str("productId")).Should().Contain(store.Shop.Products[Cup].ToString());
 
         var b = await BuyerAsync();
         await AddAsync(b, store.Shop.Skus[Cup], 3);
@@ -476,6 +542,42 @@ public class MarketingTests(ApiFactory factory)
         using (var scope = factory.Services.CreateScope())
             (await scope.ServiceProvider.GetRequiredService<Application.Features.Marketing.CoinExpiryService>().RunAsync(CancellationToken.None))
                 .Should().Be(0, "lần chạy sau không xử lý lại người đã xong");
+    }
+
+    [Fact]
+    public async Task Xu_given_back_after_their_credit_expired_are_not_spendable_and_the_next_run_writes_them_off()
+    {
+        // L124 / L126: 500 xu (expired yesterday) were spent on an order; the order is cancelled today
+        var buyer = await factory.CreateUserAsync();
+        var now = DateTimeOffset.UtcNow;
+        await factory.WithDbAsync(async db =>
+        {
+            db.CoinLedger.Add(new CoinEntry(buyer.Id, 500, CoinReason.CheckIn, null, null, now.AddDays(-1), "Điểm danh", now.AddDays(-10)));
+            db.CoinLedger.Add(new CoinEntry(buyer.Id, -500, CoinReason.CheckoutSpend, "checkout", Guid.NewGuid(), null, "Dùng xu", now.AddDays(-5)));
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        async Task RunJobAsync()
+        {
+            using var scope = factory.Services.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<Application.Features.Marketing.CoinExpiryService>().RunAsync(CancellationToken.None);
+        }
+        await RunJobAsync();   // nothing left to write off: the credit was fully spent
+
+        await factory.WithDbAsync(async db =>
+        {
+            db.CoinLedger.Add(new CoinEntry(buyer.Id, 500, CoinReason.CheckoutRefund, "order", Guid.NewGuid(), null, "Hoàn xu đơn huỷ", DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        async Task<long> BalanceAsync() =>
+            (await (await buyer.Client.GetAsync("/api/account/coins")).ReadEnvelopeAsync()).Data.GetProperty("balance").GetInt64();
+
+        (await BalanceAsync()).Should().Be(0, "xu trả lại vẫn mang hạn của khoản đã tiêu, khoản ấy hết hạn từ hôm qua");
+        await RunJobAsync();
+        var ledger = await factory.WithDbAsync(db => db.CoinLedger.Where(c => c.UserId == buyer.Id).SumAsync(c => c.Delta));
+        ledger.Should().Be(0, "lượt chạy kế tiếp ghi xoá 500 xu ấy, sổ xu khớp số dư");
+        (await BalanceAsync()).Should().Be(0);
     }
 
     [Fact]

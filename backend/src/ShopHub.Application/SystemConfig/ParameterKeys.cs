@@ -47,6 +47,10 @@ public static class ParameterKeys
     public const string ShopPenaltyCampaignBanPoints = "SHOP.PENALTY_CAMPAIGN_BAN_POINTS";
     public const string ShopPenaltyLockPoints = "SHOP.PENALTY_LOCK_POINTS";
     public const string ShopPenaltyExpiryDays = "SHOP.PENALTY_EXPIRY_DAYS";
+    // Points per kind of violation (VI.3, L140)
+    public const string ShopPenaltyPointsLatePreparation = "SHOP.PENALTY_POINTS_LATE_PREP";
+    public const string ShopPenaltyPointsDisputeLost = "SHOP.PENALTY_POINTS_DISPUTE_LOST";
+    public const string ShopPenaltyPointsCounterfeit = "SHOP.PENALTY_POINTS_COUNTERFEIT";
     public const string MediaMaxImageMb = "MEDIA.MAX_IMAGE_MB";
     public const string MediaMaxVideoMb = "MEDIA.MAX_VIDEO_MB";
     public const string MediaMaxVideoSeconds = "MEDIA.MAX_VIDEO_SECONDS";
@@ -214,6 +218,12 @@ public static class ParameterCatalog
             "Điểm phạt: khoá shop", "Đạt số điểm này shop bị khoá tự động."),
         new(ParameterKeys.ShopPenaltyExpiryDays, "90", ParameterDataType.Int, ParameterGroups.Shop,
             "Hạn của điểm phạt tự động (ngày)", "Điểm phạt hệ thống tự ghi (giao trễ…) hết tính sau số ngày này."),
+        new(ParameterKeys.ShopPenaltyPointsLatePreparation, "1", ParameterDataType.Int, ParameterGroups.Shop,
+            "Điểm phạt: chuẩn bị hàng trễ", "Cộng cho shop khi đơn bị tự huỷ vì shop không chuẩn bị hàng đúng hạn. 0 = không cộng."),
+        new(ParameterKeys.ShopPenaltyPointsDisputeLost, "2", ParameterDataType.Int, ParameterGroups.Shop,
+            "Điểm phạt: thua khiếu nại", "Cộng cho shop khi sàn phân xử khiếu nại trả hàng nghiêng về người mua. 0 = không cộng."),
+        new(ParameterKeys.ShopPenaltyPointsCounterfeit, "5", ParameterDataType.Int, ParameterGroups.Shop,
+            "Điểm phạt: hàng giả", "Cộng thay cho \"thua khiếu nại\" khi khiếu nại với lý do hàng giả được phân xử nghiêng về người mua."),
         new(ParameterKeys.ShopLowStockThreshold, "10", ParameterDataType.Int, ParameterGroups.Shop,
             "Ngưỡng sắp hết hàng", "Tồn kho khả dụng từ ngưỡng này trở xuống được cảnh báo sắp hết hàng."),
         new(ParameterKeys.SiteSocialFacebook, "", ParameterDataType.String, ParameterGroups.Site,

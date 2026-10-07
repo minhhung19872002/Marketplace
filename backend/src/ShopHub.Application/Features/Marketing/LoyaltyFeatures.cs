@@ -214,7 +214,8 @@ public sealed class CoinExpiryService(IApplicationDbContext db, IClock clock, IL
         while (true)
         {
             var users = await db.CoinLedger.AsNoTracking()
-                .Where(c => c.Delta > 0 && c.ExpiresAt != null && c.ExpiresAt <= now && c.ExpiryCheckedAt == null)
+                .Where(c => c.Delta > 0 && c.ExpiryCheckedAt == null
+                    && ((c.ExpiresAt != null && c.ExpiresAt <= now) || c.Reason == CoinReason.CheckoutRefund))
                 .Select(c => c.UserId).Distinct().OrderBy(id => id).Take(BatchSize).ToListAsync(ct);
             if (users.Count == 0) break;
             await using var tx = await db.BeginTransactionAsync(ct);
@@ -231,7 +232,8 @@ public sealed class CoinExpiryService(IApplicationDbContext db, IClock clock, IL
             await db.SaveChangesAsync(ct);
             await db.ExecuteSqlAsync($"""
                 UPDATE promo.coin_ledger SET expiry_checked_at = {now}
-                WHERE user_id = ANY({users.ToArray()}) AND delta > 0 AND expires_at <= {now} AND expiry_checked_at IS NULL
+                WHERE user_id = ANY({users.ToArray()}) AND delta > 0 AND expiry_checked_at IS NULL
+                  AND (expires_at <= {now} OR reason = {CoinReason.CheckoutRefund.ToString()})
                 """, ct);
             await tx.CommitAsync(ct);
             db.ClearTracking();
@@ -240,12 +242,27 @@ public sealed class CoinExpiryService(IApplicationDbContext db, IClock clock, IL
         return touched;
     }
 
-    /// <summary>Unspent amount of the credits that expired (FIFO by expiry, never-expiring credits last).</summary>
+    /// <summary>
+    /// What the user can spend now: the ledger sum less the expired credits the job has not written off yet (L126), so
+    /// expired xu never stay spendable until the next run.
+    /// </summary>
+    public static long Spendable(IReadOnlyList<CoinEntry> entries, DateTimeOffset now)
+    {
+        var writtenOff = -entries.Where(e => e.Reason == CoinReason.Expired).Sum(e => e.Delta);
+        return Math.Max(0, entries.Sum(e => e.Delta) - Math.Max(0, Expirable(entries, now) - writtenOff));
+    }
+
+    /// <summary>
+    /// Unspent amount of the credits that expired (FIFO by expiry, never-expiring credits last). Xu given back for a
+    /// cancelled order or a return undo the spend instead of being a new credit, so they keep the expiry of the credits
+    /// they were taken from (L124).
+    /// </summary>
     public static long Expirable(IReadOnlyList<CoinEntry> entries, DateTimeOffset now)
     {
-        var spent = -entries.Where(e => e.Delta < 0 && e.Reason != CoinReason.Expired).Sum(e => e.Delta);
+        var spent = Math.Max(0, -entries.Where(e => e.Delta < 0 && e.Reason != CoinReason.Expired).Sum(e => e.Delta)
+            - entries.Where(e => e.Reason == CoinReason.CheckoutRefund && e.Delta > 0).Sum(e => e.Delta));
         long expired = 0;
-        foreach (var credit in entries.Where(e => e.Delta > 0).OrderBy(e => e.ExpiresAt ?? DateTimeOffset.MaxValue).ThenBy(e => e.CreatedAt))
+        foreach (var credit in entries.Where(e => e.Delta > 0 && e.Reason != CoinReason.CheckoutRefund).OrderBy(e => e.ExpiresAt ?? DateTimeOffset.MaxValue).ThenBy(e => e.CreatedAt))
         {
             var used = Math.Min(spent, credit.Delta);
             spent -= used;

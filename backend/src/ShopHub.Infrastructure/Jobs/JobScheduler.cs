@@ -46,13 +46,15 @@ public static class JobIds
 }
 
 /// <summary>Hangfire entry for <see cref="Application.Features.Orders.OrderAutomationService"/>.</summary>
-public sealed class OrderAutomationJob(Application.Features.Orders.OrderAutomationService orders, Application.Features.Returns.ReturnAutomationService returns)
+public sealed class OrderAutomationJob(Application.Features.Orders.OrderAutomationService orders, Application.Features.Returns.ReturnAutomationService returns,
+    Application.Features.Seller.VacationService vacations)
 {
     [DisableConcurrentExecution(timeoutInSeconds: 600)]
     public async Task RunJobAsync()
     {
         await orders.RunAsync(CancellationToken.None);
         await returns.RunAsync(CancellationToken.None);
+        await vacations.RunAsync(CancellationToken.None);
     }
 }
 

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { accountApi } from '../../api/account';
 import { ApiError } from '../../api/http';
+import GooglePasswordHint from '../../components/GooglePasswordHint';
 
 const PasswordPage = () => {
   const [current, setCurrent] = useState('');
@@ -35,6 +36,7 @@ const PasswordPage = () => {
         <p className="account-card-sub">Để bảo mật tài khoản, vui lòng không chia sẻ mật khẩu cho người khác. Các thiết bị khác sẽ bị đăng xuất.</p>
       </div>
       {notice && <div className="account-notice" role="status">{notice}</div>}
+      <GooglePasswordHint />
       <form className="account-form" onSubmit={onSubmit}>
         <label className="account-row">
           <span className="account-label">Mật khẩu hiện tại</span>

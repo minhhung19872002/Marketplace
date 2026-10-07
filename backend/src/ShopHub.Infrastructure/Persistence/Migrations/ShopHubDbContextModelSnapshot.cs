@@ -3536,6 +3536,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_coin_ledger");
 
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_coin_ledger_refund_todo")
+                        .HasFilter("reason = 'CheckoutRefund' AND expiry_checked_at IS NULL");
+
                     b.HasIndex("UserId", "CreatedAt")
                         .HasDatabaseName("ix_coin_ledger_user");
 
@@ -3925,9 +3929,17 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("promotion_id");
 
+                    b.Property<int?>("Quota")
+                        .HasColumnType("integer")
+                        .HasColumnName("quota");
+
                     b.Property<Guid>("SkuId")
                         .HasColumnType("uuid")
                         .HasColumnName("sku_id");
+
+                    b.Property<int>("Sold")
+                        .HasColumnType("integer")
+                        .HasColumnName("sold");
 
                     b.HasKey("Id")
                         .HasName("pk_promotion_skus");
@@ -3942,6 +3954,43 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.ToTable("promotion_skus", "promo", t =>
                         {
                             t.HasCheckConstraint("ck_promotion_skus_price", "price > 0");
+
+                            t.HasCheckConstraint("ck_promotion_skus_sold", "sold >= 0 AND (quota IS NULL OR sold <= quota)");
+                        });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.PromotionSkuBuyer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("PromotionSkuId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("promotion_sku_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_promotion_sku_buyers");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_promotion_sku_buyers_user_id");
+
+                    b.HasIndex("PromotionSkuId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_promotion_sku_buyers");
+
+                    b.ToTable("promotion_sku_buyers", "promo", t =>
+                        {
+                            t.HasCheckConstraint("ck_promotion_sku_buyers_quantity", "quantity >= 0");
                         });
                 });
 
@@ -7307,6 +7356,23 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_promotion_skus_skus_sku_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Promo.PromotionSkuBuyer", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Promo.PromotionSku", null)
+                        .WithMany()
+                        .HasForeignKey("PromotionSkuId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_promotion_sku_buyers_promotion_skus_promotion_sku_id");
+
+                    b.HasOne("ShopHub.Domain.Iam.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_promotion_sku_buyers_users_user_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Promo.Voucher", b =>

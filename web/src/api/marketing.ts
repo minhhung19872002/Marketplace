@@ -47,11 +47,22 @@ export interface FlashBoard {
   items: FlashBoardItem[];
 }
 
+/** What an offer is about: an add-on SKU at its deal price, a free gift (price 0) or a product of the combo (skuId null) */
+export interface OfferItem {
+  productId: string;
+  skuId: string | null;
+  name: string;
+  variant: string | null;
+  imageUrl: string | null;
+  price: number;
+  basePrice: number;
+}
+
 export interface ProductDeals {
   serverTime: string;
   skus: { skuId: string; price: number; basePrice: number; label: string | null; endsAt: string | null }[];
   flash: { itemId: string; startAt: string; endAt: string; quota: number; sold: number; perUserLimit: number; platform: boolean } | null;
-  offers: { promotionId: string; type: 'Combo' | 'AddOn' | 'Gift'; name: string; text: string }[];
+  offers: { promotionId: string; type: 'Combo' | 'AddOn' | 'Gift'; name: string; text: string; items: OfferItem[] | null }[];
 }
 
 export interface CampaignVoucher {

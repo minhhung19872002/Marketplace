@@ -87,7 +87,8 @@ const PromotionsTab = ({ shopId }: { shopId: string }) => {
           { title: 'Tên', dataIndex: 'name' },
           { title: 'Thời gian', render: (_, p) => `${formatDateTime(p.startAt)} – ${formatDateTime(p.endAt)}` },
           {
-            title: 'Nội dung', render: (_, p) => p.type === 'Discount' ? p.skus.map((s) => `${s.productName}${s.variant ? ` (${s.variant})` : ''}: ${formatPrice(s.price)}`).join('; ')
+            title: 'Nội dung', render: (_, p) => p.type === 'Discount' ? p.skus.map((s) => `${s.productName}${s.variant ? ` (${s.variant})` : ''}: ${formatPrice(s.price)}`
+              + `${s.perUserLimit ? ` · tối đa ${s.perUserLimit}/người` : ''}${s.quota ? ` · đã bán ${s.sold}/${s.quota} suất` : ''}`).join('; ')
               : p.type === 'Combo' ? `Mua ${p.minQuantity} giảm ${p.discountBp / 100}% — ${p.productNames.join(', ')}`
                 : p.type === 'AddOn' ? `Kèm ${p.productNames.join(', ')}: ${p.skus.map((s) => `${s.productName} ${formatPrice(s.price)}`).join('; ')} (tối đa ${p.maxAddOnQuantity})`
                   : `Đơn từ ${formatPrice(p.minSpend)} tặng ${p.giftQuantity} × ${p.giftName}`,
@@ -135,6 +136,16 @@ const PromotionsTab = ({ shopId }: { shopId: string }) => {
                               <Form.Item name={[f.name, 'price']} rules={[{ required: true, message: 'Nhập giá.' }]}>
                                 <InputNumber min={1000} step={1000} placeholder={type === 'AddOn' ? 'Giá mua kèm' : 'Giá giảm'} style={{ width: 150 }} />
                               </Form.Item>
+                              {type === 'Discount' && (
+                                <>
+                                  <Form.Item name={[f.name, 'perUserLimit']} tooltip="Để trống: không giới hạn">
+                                    <InputNumber min={1} max={100} placeholder="Tối đa/người" style={{ width: 120 }} data-testid="promo-sku-limit" />
+                                  </Form.Item>
+                                  <Form.Item name={[f.name, 'quota']} tooltip="Để trống: không giới hạn">
+                                    <InputNumber min={1} placeholder="Số suất" style={{ width: 110 }} data-testid="promo-sku-quota" />
+                                  </Form.Item>
+                                </>
+                              )}
                               <Button onClick={() => remove(f.name)} data-confirm="local">Xoá</Button>
                             </Space>
                           ))}

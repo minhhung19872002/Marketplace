@@ -43,6 +43,15 @@ public interface ISessionValidator
     void InvalidateSession(Guid sessionId);
 }
 
+/// <summary>
+/// Told whenever a user's or a session's access may have ended (lock, logout, password change…) on this instance, so
+/// long-lived connections — the realtime hub — re-check and close instead of waiting for their token to expire (L128).
+/// </summary>
+public interface ISessionEndListener
+{
+    void SessionsChanged(Guid? userId, Guid? sessionId);
+}
+
 // Wakes the outbox dispatcher right after commit for latency-sensitive messages (OTP SMS/email)
 public interface IOutboxSignal
 {

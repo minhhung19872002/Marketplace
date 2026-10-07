@@ -10,6 +10,7 @@ public sealed class ProviderSettings
 {
     public VnPayOptions? VnPay { get; init; }
     public MoMoOptions? MoMo { get; init; }
+    public ZaloPayOptions? ZaloPay { get; init; }
     public GhnOptions? Ghn { get; init; }
     public GhtkOptions? Ghtk { get; init; }
 
@@ -31,6 +32,10 @@ public sealed class ProviderSettings
                    && Value(c, "SH_MOMO_SECRET_KEY") is { } momoSecret
                 ? new MoMoOptions(partner, access, momoSecret, Value(c, "SH_MOMO_ENDPOINT") ?? "https://test-payment.momo.vn")
                 : null,
+            ZaloPay = Value(c, "SH_ZALOPAY_APP_ID") is { } appId && Value(c, "SH_ZALOPAY_KEY1") is { } key1 && Value(c, "SH_ZALOPAY_KEY2") is { } key2
+                ? new ZaloPayOptions(appId, key1, key2, Value(c, "SH_ZALOPAY_ENDPOINT") ?? "https://sb-openapi.zalopay.vn",
+                    Value(c, "SH_ZALOPAY_INSTALLMENT_METHOD"), Value(c, "SH_ZALOPAY_PAYLATER_METHOD"))
+                : null,
             Ghn = Value(c, "SH_GHN_TOKEN") is { } ghnToken && int.TryParse(Value(c, "SH_GHN_SHOP_ID"), out var shopId)
                 ? new GhnOptions(ghnToken, shopId, Value(c, "SH_GHN_ENDPOINT") ?? "https://dev-online-gateway.ghn.vn/shiip/public-api",
                     Value(c, "SH_GHN_WEBHOOK_TOKEN") ?? throw new InvalidOperationException("Bật GHN cần SH_GHN_WEBHOOK_TOKEN (chuỗi bí mật trong URL webhook)."))
@@ -47,6 +52,10 @@ public sealed class ProviderSettings
 public sealed record VnPayOptions(string TmnCode, string HashSecret, string PayUrl, string ApiUrl);
 
 public sealed record MoMoOptions(string PartnerCode, string AccessKey, string SecretKey, string Endpoint);
+
+// InstallmentMethod / PayLaterMethod: the "preferred_payment_method" codes ZaloPay gives the merchant for trả góp / mua trước trả sau
+// (only in the contract, not public) — set → those ways are offered at checkout
+public sealed record ZaloPayOptions(string AppId, string Key1, string Key2, string Endpoint, string? InstallmentMethod = null, string? PayLaterMethod = null);
 
 public sealed record GhnOptions(string Token, int ShopId, string Endpoint, string WebhookToken);
 

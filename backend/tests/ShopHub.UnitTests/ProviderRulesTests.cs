@@ -3,13 +3,14 @@ using System.Text;
 using FluentAssertions;
 using ShopHub.Application.Abstractions;
 using ShopHub.Domain.Logistics;
+using ShopHub.Domain.Sales;
 using ShopHub.Infrastructure.Commerce.Providers;
 using ShopHub.Infrastructure.Configuration;
 using Xunit;
 
 namespace ShopHub.UnitTests;
 
-/// <summary>Phase 11: the documented signing rules of VNPay / MoMo and the status / place-name mapping of GHN / GHTK.</summary>
+/// <summary>Phase 11: the documented signing rules of VNPay / MoMo / ZaloPay and the status / place-name mapping of GHN / GHTK.</summary>
 public class ProviderRulesTests
 {
     private const string VnPaySecret = "UNITTESTSECRET";
@@ -114,6 +115,54 @@ public class ProviderRulesTests
     [Fact]
     public void Gateway_descriptions_are_plain_ascii() =>
         ProviderText.Ascii("Thanh toán đơn hàng ĐƠN-01 — ưu đãi").Should().Be("Thanh toan don hang DON-01  uu dai");
+
+    private static ZaloPayGateway ZaloPay(string? installment = null) =>
+        new(null!, new ZaloPayOptions("2553", "k1", "k2", "https://zp.test", installment), null!, null!, null!, null!);
+
+    [Fact]
+    public void Zalopay_trans_id_uses_the_vietnam_date_and_finds_the_payment_again()
+    {
+        var id = Guid.NewGuid();
+        // 17:30 UTC on 6 Oct is already 7 Oct in Vietnam
+        var transId = ZaloPayGateway.TransId(id, new DateTimeOffset(2026, 10, 6, 17, 30, 0, TimeSpan.Zero));
+        transId.Should().Be($"261007_{id:N}");
+        ZaloPayGateway.PaymentIdOf(transId).Should().Be(id);
+        ZaloPayGateway.PaymentIdOf("261007-" + id.ToString("N")).Should().BeNull();
+    }
+
+    [Fact]
+    public void Zalopay_callback_is_taken_only_with_key2_mac_and_its_own_app_id()
+    {
+        var gateway = ZaloPay();
+        var id = Guid.NewGuid();
+        string Data(long appId) => $$"""{"app_id":{{appId}},"app_trans_id":"261007_{{id:N}}","app_time":1,"amount":150000,"zp_trans_id":42,"server_time":2,"channel":38,"user_fee_amount":0,"discount_amount":0}""";
+        string Body(string data, string key) =>
+            System.Text.Json.JsonSerializer.Serialize(new { data, mac = ProviderText.HmacSha256Hex(key, data), type = 1 });
+        InboundWebhook Hook(string body) => new(new Dictionary<string, string>(), new Dictionary<string, string>(), body);
+
+        var cb = gateway.VerifyCallback(Hook(Body(Data(2553), "k2")));
+        cb.Should().NotBeNull();
+        cb!.PaymentId.Should().Be(id);
+        cb.Amount.Should().Be(150_000);
+        cb.EventId.Should().Be($"261007_{id:N}:42");
+        gateway.VerifyCallback(Hook(Body(Data(2553), "k1"))).Should().BeNull("mac của callback ký bằng key2");
+        gateway.VerifyCallback(Hook(Body(Data(9999), "k2"))).Should().BeNull("app_id của cửa hàng khác");
+        gateway.Acknowledge(false).Should().Contain("\"return_code\":-1");
+        gateway.AcknowledgeStatus(false).Should().Be(200);
+    }
+
+    [Fact]
+    public void Instalments_are_offered_only_where_the_contract_code_is_configured()
+    {
+        ZaloPay().Options.Should().NotContain([PaymentOption.Installment, PaymentOption.PayLater]);
+        ZaloPay("inst").Options.Should().Contain(PaymentOption.Installment);
+        ZaloPay("inst").PreferredMethods(PaymentOption.Installment).Should().Equal("inst");
+        FluentActions.Invoking(() => ZaloPay().PreferredMethods(PaymentOption.Installment)).Should().Throw<GatewayUnavailableException>();
+        VnPay().Options.Should().NotContain(PaymentOption.Installment);
+        VnPayGateway.BankCode(PaymentOption.InternationalCard).Should().Be("INTCARD");
+        FluentActions.Invoking(() => VnPayGateway.BankCode(PaymentOption.PayLater)).Should().Throw<GatewayUnavailableException>();
+        MoMoGateway.RequestTypeOf(PaymentOption.DomesticCard).Should().Be("payWithATM");
+    }
 }
 
 public class GhtkWebhookTests

@@ -231,7 +231,7 @@ giỏ khách gộp vào giỏ tài khoản (cùng SKU cộng số lượng).
 
 | Phương thức | Đường dẫn | Mô tả |
 |---|---|---|
-| POST | `/api/checkout/quote` | Báo giá các dòng **đã chọn** trong giỏ: mỗi shop có `shippingOptions` (phí, ngày nhận dự kiến), `shopVoucherOptions`; toàn đơn có `platformVouchers`, `freeshipVouchers` — **cả mã không dùng được** kèm `problem` ("Mua thêm ₫35.000 để dùng mã này.", "Mã đã hết lượt sử dụng."…); `coins { balance, max, used }`; `paymentMethods` (COD ẩn khi vượt `PAYMENT.COD_MAX_AMOUNT`); các khoản tiền; `problems`; `canPlace` |
+| POST | `/api/checkout/quote` | Báo giá các dòng **đã chọn** trong giỏ: mỗi shop có `shippingOptions` (phí, ngày nhận dự kiến), `shopVoucherOptions`; toàn đơn có `platformVouchers`, `freeshipVouchers` — **cả mã không dùng được** kèm `problem` ("Mua thêm ₫35.000 để dùng mã này.", "Mã đã hết lượt sử dụng."…); `coins { balance, max, used }`; `paymentMethods` (COD ẩn khi vượt `PAYMENT.COD_MAX_AMOUNT`; mỗi cổng có `options[{ code: Default\|DomesticCard\|InternationalCard\|QrCode\|Installment\|PayLater, name, available, reason }]` — trả góp không dùng được dưới `PAYMENT.INSTALLMENT_MIN_AMOUNT`; yêu cầu gửi `paymentOption`, cổng không hỗ trợ → `problems`); các khoản tiền; `problems`; `canPlace` |
 | POST | `/api/checkout` | Header **`Idempotency-Key`** (bắt buộc) + `{ checkout: CheckoutRequest, expectedGrandTotal }`. Tạo **mỗi shop một đơn**. Cùng khoá → trả đúng checkout cũ. 409 `PRICE_CHANGED` (data = báo giá mới), 409 hết hàng / hết lượt voucher. Giới hạn 30 lần/phút/người |
 | GET | `/api/checkout/{id}` | `{ status: AwaitingPayment / Placed / Expired, orders[{ code, shopName, status, grandTotal }], payment{ paymentId, status, redirectUrl, expiresAt } }` |
 | POST | `/api/checkout/{id}/pay` | "Thanh toán lại" (lần thử mới) khi còn hạn |
@@ -487,6 +487,7 @@ Việc nền chạy ngay được: `engage.reminders`.
 |---|---|---|
 | GET · POST | `/api/payments/webhooks/vnpay` | IPN của VNPay (GET, chữ ký trên query) → `{ "RspCode": "00" \| "01" \| "02" \| "04" \| "97", "Message" }` |
 | POST | `/api/payments/webhooks/momo` | IPN của MoMo (JSON ký HMAC-SHA256) → 204 khi nhận, 400 khi sai chữ ký |
+| POST | `/api/payments/webhooks/zalopay` | Callback của ZaloPay `{ data, mac, type }` (mac = HMAC-SHA256(key2, data)) → luôn HTTP 200, thân `{ return_code: 1 \| 2 (đã nhận trước đó) \| -1 (sai mac), return_message }` |
 | POST | `/api/logistics/webhooks/GHN?token=…` | Trạng thái vận đơn GHN (JSON `{ OrderCode, Status, Time, Reason }`) |
 | POST | `/api/logistics/webhooks/GHTK?token=…` | Trạng thái vận đơn GHTK (form hoặc JSON `label_id, status_id, action_time, reason`) |
 | GET | `/api/wallet/topup-gateways` | Cổng đang bật để nạp ví: `[{ method: VnPay\|MoMo\|Simulated, name }]`; `POST /api/wallet/topups` nhận thêm `method` |

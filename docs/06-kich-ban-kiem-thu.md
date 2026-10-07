@@ -81,6 +81,8 @@ Lần chạy gần nhất: **2026-10-07**, 69 kịch bản, 69 đạt (trên d�
 | KB57 | Xuất Excel chạy nền | Đơn hàng → Xuất Excel (`shop-design.spec.cjs`) | Việc nền chạy, trình duyệt tải tệp .xlsx | Như mong đợi | ✔ |
 | KB58 | Chiến dịch của sàn | Shop chọn sản phẩm đăng ký; sàn duyệt; mở `/su-kien/…` (`shop-design.spec.cjs`) | *Chờ duyệt* → sản phẩm hiện trên trang chiến dịch | Như mong đợi | ✔ |
 | KB59 | Địa chỉ tại trang thanh toán | Người mua chưa có địa chỉ → *Thêm địa chỉ mới* (`storefront-extras.spec.cjs`) | Địa chỉ mới hiện, nút đặt hàng bật | Như mong đợi | ✔ |
+| KB60 | ZaloPay | Đặt đơn ZaloPay (thẻ ATM) → callback ký key2 hai lần → huỷ đơn (`ProviderTests`) | Đơn đã trả một lần (lần hai `return_code` 2), huỷ → gọi `/v2/refund`, đơn *Đã hoàn tiền* | Như mong đợi | ✔ |
+| KB61 | Trả góp | Đơn ₫150.000 chọn ZaloPay → Trả góp; đơn ₫3.500.000 chọn lại (`ProviderTests`) | Đơn nhỏ: mờ, lý do "Trả góp áp dụng cho đơn từ ₫3.000.000"; VNPay / MoMo không có trả góp; đơn lớn: ZaloPay nhận mã trả góp của hợp đồng, thanh toán lại giữ hình thức | Như mong đợi | ✔ |
 
 ## D. Kiểm bằng công cụ khác / tay
 

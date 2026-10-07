@@ -19,7 +19,9 @@ public record CheckoutRequest(
     string? PlatformVoucherCode,
     string? FreeshipVoucherCode,
     bool UseCoins,
-    PaymentMethod PaymentMethod);
+    PaymentMethod PaymentMethod,
+    // The way of paying at the gateway (cards, QR, instalments, pay later); Default = the gateway's own page
+    PaymentOption PaymentOption = PaymentOption.Default);
 
 // PriceLabel: "Flash Sale" / "Giảm giá" / "Mua kèm" when the unit price comes from a programme
 public record QuoteLineDto(Guid SkuId, Guid ProductId, string Name, string? ImageUrl, string? Variant, long UnitPrice, long OriginalPrice,
@@ -54,7 +56,9 @@ public record QuoteShopDto(
 // A parcel of the shop's order (đa kho): where it leaves from and what is in it
 public record QuoteParcelDto(int No, string WarehouseName, string ProvinceCode, long ShippingFee, IReadOnlyList<Guid> ProductIds);
 
-public record PaymentMethodDto(PaymentMethod Code, string Name, bool Available, string? Reason);
+public record PaymentMethodDto(PaymentMethod Code, string Name, bool Available, string? Reason, IReadOnlyList<PaymentOptionDto>? Options = null);
+
+public record PaymentOptionDto(PaymentOption Code, string Name, bool Available, string? Reason);
 
 public record CoinInfoDto(long Balance, long Max, long Used, bool Applied);
 
@@ -78,7 +82,8 @@ public record CheckoutQuoteDto(
     long CoinCashback,
     IReadOnlyList<string> Problems,
     bool CanPlace,
-    long ComboDiscount = 0);
+    long ComboDiscount = 0,
+    PaymentOption PaymentOption = PaymentOption.Default);
 
 /// <summary>Everything needed to place the orders exactly as quoted.</summary>
 public sealed record CheckoutPlan(
@@ -384,13 +389,26 @@ public sealed class CheckoutBuilder(
         var methods = new List<PaymentMethodDto> { new(PaymentMethod.Cod, "Thanh toán khi nhận hàng", codProblem is null, codProblem) };
         // Real gateways (VNPay, MoMo) appear only when their keys are configured and an admin has not switched them off
         var enabled = await gateways.EnabledAsync(ct);
-        methods.AddRange(enabled.Where(g => g.Method != PaymentMethod.Simulated).Select(g => new PaymentMethodDto(g.Method, g.DisplayName, true, null)));
-        var simulatedOn = enabled.Any(g => g.Method == PaymentMethod.Simulated);
-        methods.Add(new(PaymentMethod.Simulated, "Thẻ / Ví điện tử (cổng thanh toán giả lập)", simulatedOn, simulatedOn ? null : "Cổng thanh toán giả lập đang tắt."));
+        // Ways of paying each gateway offers (spec IV): instalments only from PAYMENT.INSTALLMENT_MIN_AMOUNT, never credit of our own
+        var installmentMin = await parameters.GetIntAsync(ParameterKeys.PaymentInstallmentMinAmount, ct);
+        List<PaymentOptionDto> OptionsOf(IPaymentGateway g) => g.Options.Select(o => o == PaymentOption.Installment && grand < installmentMin
+            ? new PaymentOptionDto(o, o.Label(), false, $"Trả góp áp dụng cho đơn từ {Domain.Common.Money.Vnd(installmentMin)}.")
+            : new PaymentOptionDto(o, o.Label(), true, null)).ToList();
+        methods.AddRange(enabled.Where(g => g.Method != PaymentMethod.Simulated)
+            .Select(g => new PaymentMethodDto(g.Method, g.DisplayName, true, null, OptionsOf(g))));
+        var simulated = enabled.FirstOrDefault(g => g.Method == PaymentMethod.Simulated);
+        methods.Add(new(PaymentMethod.Simulated, "Thẻ / Ví điện tử (cổng thanh toán giả lập)", simulated is not null,
+            simulated is not null ? null : "Cổng thanh toán giả lập đang tắt.", simulated is null ? null : OptionsOf(simulated)));
         methods.Add(new(PaymentMethod.Wallet, $"Ví ShopHub (số dư {Domain.Common.Money.Vnd(walletBalance)})", walletProblem is null, walletProblem));
         var method = methods.FirstOrDefault(m => m.Code == request.PaymentMethod);
         if (method is null) problems.Add("Phương thức thanh toán này hiện không khả dụng.");
         else if (!method.Available) problems.Add(method.Reason!);
+        else if (request.PaymentOption != PaymentOption.Default)
+        {
+            var option = method.Options?.FirstOrDefault(o => o.Code == request.PaymentOption);
+            if (option is null) problems.Add($"{method.Name} không hỗ trợ hình thức \"{request.PaymentOption.Label()}\".");
+            else if (!option.Available) problems.Add(option.Reason!);
+        }
         if (grand == 0 && request.PaymentMethod != PaymentMethod.Cod && lines.Count > 0)
             problems.Add("Đơn hàng 0₫ vui lòng chọn thanh toán khi nhận hàng.");
 
@@ -399,7 +417,7 @@ public sealed class CheckoutBuilder(
             methods, request.PaymentMethod,
             pricing?.Subtotal ?? 0, pricing?.ShopDiscount ?? 0, pricing?.ShippingFee ?? 0, pricing?.ShippingDiscount ?? 0,
             pricing?.PlatformDiscount ?? 0, pricing?.CoinUsed ?? 0, grand, pricing?.CoinCashback ?? 0,
-            problems.Distinct().ToList(), problems.Count == 0 && pricing is not null, pricing?.ComboDiscount ?? 0);
+            problems.Distinct().ToList(), problems.Count == 0 && pricing is not null, pricing?.ComboDiscount ?? 0, request.PaymentOption);
 
         var planLines = buyable.ToDictionary(l => l.Sku.Id, l => new PlanLine(l.Sku.Id, l.Product.Id, l.Shop.Id, l.Product.CategoryId, l.Product.Name,
             l.Variant, l.Image, UnitPrice(l), Math.Max(l.Sku.OriginalPrice, l.Sku.Price), l.Item.Quantity, offers.Prices.GetValueOrDefault(l.Sku.Id)));

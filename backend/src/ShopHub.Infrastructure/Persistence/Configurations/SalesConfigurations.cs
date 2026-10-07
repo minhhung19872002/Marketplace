@@ -49,6 +49,7 @@ internal sealed class CheckoutSessionConfiguration : IEntityTypeConfiguration<Ch
         b.Property(c => c.IdempotencyKey).HasMaxLength(100).IsRequired();
         b.Property(c => c.AddressSnapshot).HasColumnType("jsonb").IsRequired();
         b.Property(c => c.PaymentMethod).HasConversion<string>().HasMaxLength(20);
+        b.Property(c => c.PaymentOption).HasConversion<string>().HasMaxLength(20).HasDefaultValue(Domain.Sales.PaymentOption.Default);
         b.Property(c => c.Status).HasConversion<string>().HasMaxLength(20);
         b.Property(c => c.Version).IsRowVersion();
         b.HasOne<User>().WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Restrict);
@@ -155,6 +156,7 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         b.ToTable("payments", "sales", t => t.HasCheckConstraint("ck_payments_amount", "amount > 0"));
         b.HasKey(p => p.Id);
         b.Property(p => p.Method).HasConversion<string>().HasMaxLength(20);
+        b.Property(p => p.Option).HasConversion<string>().HasMaxLength(20).HasDefaultValue(Domain.Sales.PaymentOption.Default);
         b.Property(p => p.Status).HasConversion<string>().HasMaxLength(20);
         b.Property(p => p.ProviderTxnId).HasMaxLength(100);
         b.Property(p => p.Raw).HasColumnType("jsonb");

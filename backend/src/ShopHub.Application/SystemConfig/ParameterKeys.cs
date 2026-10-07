@@ -52,6 +52,7 @@ public static class ParameterKeys
     public const string CartGuestRetentionDays = "CART.GUEST_RETENTION_DAYS";
     public const string PaymentTimeoutMinutes = "PAYMENT.TIMEOUT_MINUTES";
     public const string PaymentCodMaxAmount = "PAYMENT.COD_MAX_AMOUNT";
+    public const string PaymentInstallmentMinAmount = "PAYMENT.INSTALLMENT_MIN_AMOUNT";
     public const string CoinMaxPercentBp = "COIN.MAX_PERCENT_BP";
     public const string CoinExpiryDays = "COIN.EXPIRY_DAYS";
     public const string LogisticsHolidays = "LOGISTICS.HOLIDAYS";
@@ -226,6 +227,8 @@ public static class ParameterCatalog
             "Số dòng tối đa trong giỏ", "Giỏ hàng có nhiều nhất bấy nhiêu sản phẩm (phân loại) khác nhau."),
         new(ParameterKeys.PaymentTimeoutMinutes, "15", ParameterDataType.Int, ParameterGroups.Payment,
             "Hạn thanh toán online (phút)", "Quá thời gian này chưa trả tiền thì đơn tự huỷ, hàng giữ và voucher, xu được trả lại."),
+        new(ParameterKeys.PaymentInstallmentMinAmount, "3000000", ParameterDataType.Int, ParameterGroups.Payment,
+            "Đơn tối thiểu để trả góp (₫)", "Hình thức trả góp của cổng thanh toán chỉ hiện cho đơn từ mức này (cổng và đối tác tài chính duyệt khoản vay, ShopHub không cấp tín dụng)."),
         new(ParameterKeys.PaymentCodMaxAmount, "20000000", ParameterDataType.Int, ParameterGroups.Payment,
             "Ngưỡng tối đa COD (₫)", "Đơn có tổng thanh toán lớn hơn ngưỡng này không được chọn thanh toán khi nhận hàng."),
         new(ParameterKeys.CoinMaxPercentBp, "5000", ParameterDataType.Int, ParameterGroups.Coin,

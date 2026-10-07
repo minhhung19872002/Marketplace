@@ -63,7 +63,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <summary>Mails "sent" by the API during the tests (no SMTP server in the suite).</summary>
     public RecordingEmailSender Emails { get; } = new();
 
-    /// <summary>VNPay / MoMo / GHN / GHTK sandboxes, in process.</summary>
+    /// <summary>VNPay / MoMo / ZaloPay / GHN / GHTK sandboxes, in process.</summary>
     public FakeProviders Providers { get; } = new();
 
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder) =>
@@ -71,7 +71,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.RemoveAll<ShopHub.Infrastructure.Notifications.IEmailSender>();
             services.AddSingleton<ShopHub.Infrastructure.Notifications.IEmailSender>(Emails);
-            foreach (var name in new[] { "vnpay", "momo", "ghn", "ghtk" })
+            foreach (var name in new[] { "vnpay", "momo", "zalopay", "ghn", "ghtk" })
                 services.AddHttpClient(name).ConfigurePrimaryHttpMessageHandler(() => new FakeProvidersHandler(Providers));
             // Image links of Excel imports: https://img.test/… serves a PNG, https://big.test/… is over the size limit
             services.AddHttpClient(ShopHub.Infrastructure.Media.RemoteImageFetcher.HttpClientName)
@@ -125,6 +125,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("SH_MOMO_ACCESS_KEY", FakeProviders.MoMoAccess);
         Environment.SetEnvironmentVariable("SH_MOMO_SECRET_KEY", FakeProviders.MoMoSecret);
         Environment.SetEnvironmentVariable("SH_MOMO_ENDPOINT", $"https://{FakeProviders.MoMoHost}");
+        Environment.SetEnvironmentVariable("SH_ZALOPAY_APP_ID", FakeProviders.ZaloPayAppId);
+        Environment.SetEnvironmentVariable("SH_ZALOPAY_KEY1", FakeProviders.ZaloPayKey1);
+        Environment.SetEnvironmentVariable("SH_ZALOPAY_KEY2", FakeProviders.ZaloPayKey2);
+        Environment.SetEnvironmentVariable("SH_ZALOPAY_ENDPOINT", $"https://{FakeProviders.ZaloPayHost}");
+        Environment.SetEnvironmentVariable("SH_ZALOPAY_INSTALLMENT_METHOD", FakeProviders.ZaloPayInstallment);
         Environment.SetEnvironmentVariable("SH_GHN_TOKEN", FakeProviders.GhnToken);
         Environment.SetEnvironmentVariable("SH_GHN_SHOP_ID", FakeProviders.GhnShopId.ToString());
         Environment.SetEnvironmentVariable("SH_GHN_ENDPOINT", $"https://{FakeProviders.GhnHost}/shiip/public-api");

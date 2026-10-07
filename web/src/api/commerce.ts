@@ -50,7 +50,9 @@ export const cartApi = {
 
 // ---------- checkout ----------
 
-export type PaymentMethod = 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo';
+export type PaymentMethod = 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo' | 'ZaloPay';
+// The way of paying at the gateway; instalments / pay later are run by the gateway, never by ShopHub
+export type PaymentOption = 'Default' | 'DomesticCard' | 'InternationalCard' | 'QrCode' | 'Installment' | 'PayLater';
 export type VoucherType = 'Amount' | 'Percent' | 'FreeShipping' | 'CoinCashback';
 
 export interface CheckoutShopChoice {
@@ -67,6 +69,7 @@ export interface CheckoutRequest {
   freeshipVoucherCode: string | null;
   useCoins: boolean;
   paymentMethod: PaymentMethod;
+  paymentOption?: PaymentOption;
 }
 
 export interface ShippingOption {
@@ -157,8 +160,15 @@ export interface CheckoutQuote {
   platformVouchers: VoucherOption[];
   freeshipVouchers: VoucherOption[];
   coins: { balance: number; max: number; used: number; applied: boolean };
-  paymentMethods: { code: PaymentMethod; name: string; available: boolean; reason: string | null }[];
+  paymentMethods: {
+    code: PaymentMethod;
+    name: string;
+    available: boolean;
+    reason: string | null;
+    options: { code: PaymentOption; name: string; available: boolean; reason: string | null }[] | null;
+  }[];
   paymentMethod: PaymentMethod;
+  paymentOption: PaymentOption;
   subtotal: number;
   shopDiscount: number;
   shippingFee: number;
@@ -225,6 +235,8 @@ export interface SimulatedPayment {
   checkoutId: string;
   // Order result page, or the wallet for a top-up
   returnPath: string;
+  // The way chosen at checkout (thẻ, QR, trả góp…); null = the gateway's own page
+  way: string | null;
 }
 
 export const gatewayApi = {

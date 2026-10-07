@@ -11,7 +11,7 @@ namespace ShopHub.IntegrationTests.Infrastructure;
 public record RecordedCall(string Host, string Method, string PathAndQuery, string Body, IReadOnlyDictionary<string, string> Headers);
 
 /// <summary>
-/// In-process stand-ins for the VNPay, MoMo, GHN and GHTK sandboxes. They check what the documentation requires
+/// In-process stand-ins for the VNPay, MoMo, ZaloPay, GHN and GHTK sandboxes. They check what the documentation requires
 /// (credentials headers, signatures computed here from the documented formulas — not with ShopHub's code), answer in
 /// each provider's format and keep the state a test steers (paid transactions, parcel history, outages).
 /// </summary>
@@ -22,6 +22,11 @@ public sealed class FakeProviders
     public const string MoMoPartner = "MOMOSHTEST";
     public const string MoMoAccess = "momo-access-key";
     public const string MoMoSecret = "momo-secret-key-0123456789";
+    public const string ZaloPayAppId = "2553";
+    public const string ZaloPayKey1 = "zalopay-key1-0123456789";
+    public const string ZaloPayKey2 = "zalopay-key2-9876543210";
+    // The contract code ZaloPay would give the merchant for trả góp
+    public const string ZaloPayInstallment = "installment_credit_card";
     public const string GhnToken = "ghn-test-token";
     public const int GhnShopId = 885123;
     public const string GhnWebhookToken = "ghn-webhook-secret";
@@ -30,6 +35,7 @@ public sealed class FakeProviders
 
     public const string VnPayHost = "vnpay.test";
     public const string MoMoHost = "momo.test";
+    public const string ZaloPayHost = "zalopay.test";
     public const string GhnHost = "ghn.test";
     public const string GhtkHost = "ghtk.test";
 
@@ -41,6 +47,8 @@ public sealed class FakeProviders
     public ConcurrentDictionary<string, (string TxnNo, long Amount)> VnPayPaid { get; } = new();
     // MoMo orderId → (transId, amount)
     public ConcurrentDictionary<string, (long TransId, long Amount)> MoMoPaid { get; } = new();
+    // ZaloPay app_trans_id → (zp_trans_id, amount)
+    public ConcurrentDictionary<string, (long ZpTransId, long Amount)> ZaloPayPaid { get; } = new();
     public ConcurrentDictionary<string, List<(string Status, DateTimeOffset At)>> GhnLogs { get; } = new();
     public ConcurrentDictionary<string, (int Status, DateTimeOffset At)> GhtkStatus { get; } = new();
     public volatile bool GhnDown;
@@ -57,6 +65,9 @@ public sealed class FakeProviders
     public static string Hmac256(string data) =>
         Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(MoMoSecret), Encoding.UTF8.GetBytes(data))).ToLowerInvariant();
 
+    public static string ZaloPayMac(string key, string data) =>
+        Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(key), Encoding.UTF8.GetBytes(data))).ToLowerInvariant();
+
     /// <summary>VNPay "hashData": vnp_* fields sorted by key, URL-encoded with spaces as '+', joined by '&amp;'.</summary>
     public static string VnPayHashData(IEnumerable<KeyValuePair<string, string>> fields) =>
         string.Join('&', fields.Where(f => f.Value.Length > 0).OrderBy(f => f.Key, StringComparer.Ordinal)
@@ -72,6 +83,7 @@ public sealed class FakeProviders
         {
             VnPayHost => VnPay(body),
             MoMoHost => MoMo(uri.AbsolutePath, body),
+            ZaloPayHost => ZaloPay(uri.AbsolutePath, body),
             GhnHost => await GhnAsync(uri, headers, body),
             GhtkHost => Ghtk(uri, headers),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
@@ -142,6 +154,36 @@ public sealed class FakeProviders
                 ? Json(new { resultCode = 0, message = "Thành công.", transId = p.TransId, amount = p.Amount })
                 : Json(new { resultCode = 1000, message = "Giao dịch đã được khởi tạo, chờ người dùng xác nhận thanh toán.", transId = 0, amount = 0 }),
             _ => Json(new { resultCode = 0, message = "Thành công.", transId = 9_000_000 + Interlocked.Increment(ref _seq) }),
+        };
+    }
+
+    // ---------- ZaloPay v2 (form posts, mac with key1) ----------
+
+    private HttpResponseMessage ZaloPay(string path, string body)
+    {
+        var f = QueryHelpers.ParseQuery(body).ToDictionary(q => q.Key, q => q.Value.ToString());
+        string V(string k) => f.GetValueOrDefault(k) ?? "";
+        var raw = path switch
+        {
+            "/v2/create" => $"{V("app_id")}|{V("app_trans_id")}|{V("app_user")}|{V("amount")}|{V("app_time")}|{V("embed_data")}|{V("item")}",
+            "/v2/query" => $"{V("app_id")}|{V("app_trans_id")}|{ZaloPayKey1}",
+            "/v2/refund" => $"{V("app_id")}|{V("zp_trans_id")}|{V("amount")}|{V("description")}|{V("timestamp")}",
+            _ => null,
+        };
+        if (raw is null) return new HttpResponseMessage(HttpStatusCode.NotFound);
+        if (V("app_id") != ZaloPayAppId || V("mac") != ZaloPayMac(ZaloPayKey1, raw))
+            return Json(new { return_code = 2, return_message = "Giao dịch thất bại", sub_return_code = -402, sub_return_message = "Mac không hợp lệ" });
+        return path switch
+        {
+            "/v2/create" => Json(new
+            {
+                return_code = 1, return_message = "Giao dịch thành công", sub_return_code = 1, sub_return_message = "Giao dịch thành công",
+                order_url = $"https://qcgateway.zalopay.vn/openinapp?order={V("app_trans_id")}", zp_trans_token = "AC" + V("app_trans_id"),
+            }),
+            "/v2/query" => ZaloPayPaid.TryGetValue(V("app_trans_id"), out var p)
+                ? Json(new { return_code = 1, return_message = "Giao dịch thành công", zp_trans_id = p.ZpTransId, amount = p.Amount, is_processing = false })
+                : Json(new { return_code = 3, return_message = "Giao dịch chưa thực hiện", zp_trans_id = 0, amount = 0, is_processing = true }),
+            _ => Json(new { return_code = 3, return_message = "Đang hoàn tiền", refund_id = 7_000_000 + Interlocked.Increment(ref _seq) }),
         };
     }
 

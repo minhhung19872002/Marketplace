@@ -107,6 +107,7 @@ public sealed class PlaceOrderHandler(
         await using (var tx = await db.BeginTransactionAsync(ct))
         {
             checkout = new CheckoutSession(userId, key, plan.AddressSnapshot, method, now);
+            checkout.ChooseOption(method.IsOnline() ? request.Request.PaymentOption : PaymentOption.Default);
             db.CheckoutSessions.Add(checkout);
             try
             {
@@ -372,10 +373,12 @@ public sealed class PaymentStarter(IApplicationDbContext db, IPaymentGatewayRegi
 {
     public async Task<Payment> StartAsync(CheckoutSession checkout, IEnumerable<string> orderCodes, CancellationToken ct)
     {
-        var payment = new Payment(checkout.Id, checkout.PaymentMethod, checkout.GrandTotal, checkout.PaymentExpiresAt!.Value, clock.UtcNow);
+        var payment = new Payment(checkout.Id, checkout.PaymentMethod, checkout.GrandTotal, checkout.PaymentExpiresAt!.Value, clock.UtcNow,
+            option: checkout.PaymentOption);
         db.Payments.Add(payment);
         var start = await gateways.For(payment.Method).CreatePaymentAsync(new GatewayPaymentRequest(payment.Id, checkout.Id, payment.Amount,
-            $"Thanh toán đơn hàng {string.Join(", ", orderCodes)}", payment.ExpiresAt, $"/thanh-toan/ket-qua/{checkout.Id}", currentUser.IpAddress, payment.CreatedAt), ct);
+            $"Thanh toán đơn hàng {string.Join(", ", orderCodes)}", payment.ExpiresAt, $"/thanh-toan/ket-qua/{checkout.Id}", currentUser.IpAddress, payment.CreatedAt,
+            payment.Option), ct);
         payment.SetRedirect(start.RedirectUrl);
         return payment;
     }

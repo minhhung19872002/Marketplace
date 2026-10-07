@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { checkoutApi, type CheckoutRequest, type PaymentMethod, type VoucherOption } from '../api/commerce';
+import { checkoutApi, type CheckoutRequest, type PaymentMethod, type PaymentOption, type VoucherOption } from '../api/commerce';
 import { accountApi } from '../api/account';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
@@ -85,6 +85,7 @@ const Checkout = () => {
   const [freeshipCode, setFreeshipCode] = useState<string | null>(null);
   const [useCoins, setUseCoins] = useState(false);
   const [method, setMethod] = useState<PaymentMethod>('Cod');
+  const [option, setOption] = useState<PaymentOption>('Default');
   const [walletPin, setWalletPin] = useState('');
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
@@ -103,8 +104,9 @@ const Checkout = () => {
       freeshipVoucherCode: freeshipCode,
       useCoins,
       paymentMethod: method,
+      paymentOption: option,
     }),
-    [addressId, carriers, shopVouchers, platformCode, freeshipCode, useCoins, method],
+    [addressId, carriers, shopVouchers, platformCode, freeshipCode, useCoins, method, option],
   );
 
   const quoteQuery = useQuery({
@@ -304,12 +306,31 @@ const Checkout = () => {
           <div className="checkout-methods">
             {quote.paymentMethods.map((m) => (
               <label key={m.code} className={`checkout-method ${method === m.code ? 'active' : ''} ${m.available ? '' : 'disabled'}`} data-testid={`method-${m.code}`}>
-                <input type="radio" name="payment" checked={method === m.code} disabled={!m.available} onChange={() => setMethod(m.code)} />
+                <input type="radio" name="payment" checked={method === m.code} disabled={!m.available} onChange={() => { setMethod(m.code); setOption('Default'); }} />
                 {m.name}
                 {!m.available && m.reason && <small> — {m.reason}</small>}
               </label>
             ))}
           </div>
+          {(() => {
+            const options = quote.paymentMethods.find((m) => m.code === method)?.options;
+            if (!options || options.length < 2) return null;
+            return (
+              <div className="checkout-options" data-testid="payment-options">
+                <span className="checkout-options-title">Hình thức tại cổng:</span>
+                {options.map((o) => (
+                  <label key={o.code} className={`checkout-method ${option === o.code ? 'active' : ''} ${o.available ? '' : 'disabled'}`} data-testid={`option-${o.code}`}>
+                    <input type="radio" name="payment-option" checked={option === o.code} disabled={!o.available} onChange={() => setOption(o.code)} />
+                    {o.name}
+                    {!o.available && o.reason && <small> — {o.reason}</small>}
+                  </label>
+                ))}
+                {(option === 'Installment' || option === 'PayLater') && (
+                  <small className="checkout-options-note">Kỳ hạn, lãi suất và việc duyệt khoản do cổng thanh toán và đối tác tài chính quyết định; ShopHub không cấp tín dụng.</small>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="checkout-box checkout-summary" data-testid="checkout-summary">

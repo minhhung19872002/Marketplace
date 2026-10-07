@@ -11,7 +11,7 @@ export interface ShopOrderRow {
   createdAt: string
   status: OrderStatus
   statusLabel: string
-  paymentMethod: 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo'
+  paymentMethod: 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo' | 'ZaloPay'
   paymentStatus: 'Unpaid' | 'Paid' | 'Refunded'
   buyerName: string
   itemCount: number
@@ -33,7 +33,7 @@ export interface OrderDetail {
   code: string
   status: OrderStatus
   statusLabel: string
-  paymentMethod: 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo'
+  paymentMethod: 'Cod' | 'Simulated' | 'Wallet' | 'VnPay' | 'MoMo' | 'ZaloPay'
   paymentStatus: string
   carrierCode: string
   carrierName: string | null

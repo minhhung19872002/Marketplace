@@ -179,7 +179,7 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>VNPay / MoMo / GHN / GHTK (sandbox or production endpoints), each only when its keys are configured.</summary>
+    /// <summary>VNPay / MoMo / ZaloPay / GHN / GHTK (sandbox or production endpoints), each only when its keys are configured.</summary>
     private static void AddRealProviders(IServiceCollection services, ProviderSettings p)
     {
         services.AddSingleton(p);
@@ -196,6 +196,12 @@ public static class DependencyInjection
             services.AddSingleton(momo);
             services.AddHttpClient(Commerce.Providers.MoMoGateway.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(30));
             services.AddScoped<IPaymentGateway, Commerce.Providers.MoMoGateway>();
+        }
+        if (p.ZaloPay is { } zalopay)
+        {
+            services.AddSingleton(zalopay);
+            services.AddHttpClient(Commerce.Providers.ZaloPayGateway.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(30));
+            services.AddScoped<IPaymentGateway, Commerce.Providers.ZaloPayGateway>();
         }
         if (p.Ghn is { } ghn)
         {

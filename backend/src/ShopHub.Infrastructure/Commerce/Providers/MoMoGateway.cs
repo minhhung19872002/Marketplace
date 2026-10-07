@@ -23,7 +23,16 @@ public sealed class MoMoGateway(
 {
     public const string ProviderName = "momo";
     public const string HttpClientName = "momo";
-    private const string RequestType = "captureWallet";
+    public IReadOnlyList<PaymentOption> Options => [PaymentOption.Default, PaymentOption.DomesticCard, PaymentOption.InternationalCard];
+
+    /// <summary>requestType: captureWallet (ví MoMo), payWithATM (thẻ ATM nội địa), payWithCC (thẻ quốc tế).</summary>
+    public static string RequestTypeOf(PaymentOption option) => option switch
+    {
+        PaymentOption.Default => "captureWallet",
+        PaymentOption.DomesticCard => "payWithATM",
+        PaymentOption.InternationalCard => "payWithCC",
+        _ => throw new GatewayUnavailableException("MoMo không hỗ trợ hình thức thanh toán này."),
+    };
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { NumberHandling = JsonNumberHandling.AllowReadingFromString };
 
@@ -40,12 +49,13 @@ public sealed class MoMoGateway(
         var info = ProviderText.Ascii(request.Description);
         var redirect = site + request.ReturnPath;
         const string extra = "";
+        var requestType = RequestTypeOf(request.Option);
         var signature = Sign($"accessKey={options.AccessKey}&amount={request.Amount}&extraData={extra}&ipnUrl={ipnUrl}&orderId={orderId}" +
-                             $"&orderInfo={info}&partnerCode={options.PartnerCode}&redirectUrl={redirect}&requestId={requestId}&requestType={RequestType}");
+                             $"&orderInfo={info}&partnerCode={options.PartnerCode}&redirectUrl={redirect}&requestId={requestId}&requestType={requestType}");
         var reply = await PostAsync("/v2/gateway/api/create", new
         {
             partnerCode = options.PartnerCode, requestId, amount = request.Amount, orderId, orderInfo = info, redirectUrl = redirect, ipnUrl,
-            requestType = RequestType, extraData = extra, lang = "vi", autoCapture = true, signature,
+            requestType, extraData = extra, lang = "vi", autoCapture = true, signature,
         }, ct);
         if (reply is null) throw new GatewayUnavailableException("Không kết nối được MoMo, vui lòng thử lại hoặc chọn phương thức khác.");
         if (reply.ResultCode != 0 || string.IsNullOrEmpty(reply.PayUrl))

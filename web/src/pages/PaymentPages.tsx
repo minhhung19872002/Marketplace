@@ -54,6 +54,7 @@ export const SimulatedGatewayPage = () => {
         <p className="gateway-note">Trang thử nghiệm thay cho cổng thật (VNPay / MoMo). Không có tiền thật được chuyển.</p>
         <div className="gateway-amount" data-testid="gateway-amount">{formatPrice(data.amount)}</div>
         <div className="gateway-desc">{data.description}</div>
+        {data.way && <div className="gateway-desc" data-testid="gateway-way">Hình thức: {data.way}</div>}
         <div className="gateway-timer">Giao dịch hết hạn sau <strong>{mmss(left)}</strong></div>
         {error && <div className="gateway-error" role="alert">{error}</div>}
         {data.status === 'Initiated' && left > 0 ? (

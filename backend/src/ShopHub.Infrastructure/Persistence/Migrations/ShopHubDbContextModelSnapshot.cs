@@ -4330,6 +4330,14 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("payment_method");
 
+                    b.Property<string>("PaymentOption")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Default")
+                        .HasColumnName("payment_option");
+
                     b.Property<Guid?>("PlatformVoucherId")
                         .HasColumnType("uuid")
                         .HasColumnName("platform_voucher_id");
@@ -4929,6 +4937,14 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("method");
+
+                    b.Property<string>("Option")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Default")
+                        .HasColumnName("option");
 
                     b.Property<DateTimeOffset?>("PaidAt")
                         .HasColumnType("timestamp with time zone")

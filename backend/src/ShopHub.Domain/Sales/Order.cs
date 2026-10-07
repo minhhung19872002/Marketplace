@@ -12,12 +12,38 @@ public enum PaymentMethod
     // Real gateways (sandbox or production), switched on by their keys in .env
     VnPay,
     MoMo,
+    ZaloPay,
+}
+
+/// <summary>
+/// How the buyer pays at the gateway (spec IV): its default page, or one of the ways the gateway offers — cards, QR,
+/// instalments, pay later. ShopHub only asks the gateway for it; the gateway (and its lending partner) runs the credit.
+/// </summary>
+public enum PaymentOption
+{
+    Default,
+    DomesticCard,       // thẻ ATM / tài khoản ngân hàng nội địa
+    InternationalCard,  // thẻ quốc tế Visa / Master / JCB
+    QrCode,             // quét mã QR ngân hàng
+    Installment,        // trả góp qua thẻ tín dụng / công ty tài chính của cổng
+    PayLater,           // mua trước trả sau của cổng
 }
 
 public static class PaymentMethods
 {
     /// <summary>Paid through a payment gateway (redirect + IPN), as opposed to COD or Ví ShopHub.</summary>
-    public static bool IsOnline(this PaymentMethod method) => method is PaymentMethod.Simulated or PaymentMethod.VnPay or PaymentMethod.MoMo;
+    public static bool IsOnline(this PaymentMethod method) =>
+        method is PaymentMethod.Simulated or PaymentMethod.VnPay or PaymentMethod.MoMo or PaymentMethod.ZaloPay;
+
+    public static string Label(this PaymentOption option) => option switch
+    {
+        PaymentOption.DomesticCard => "Thẻ ATM / tài khoản ngân hàng",
+        PaymentOption.InternationalCard => "Thẻ quốc tế (Visa, Mastercard, JCB)",
+        PaymentOption.QrCode => "Quét mã QR",
+        PaymentOption.Installment => "Trả góp",
+        PaymentOption.PayLater => "Mua trước trả sau",
+        _ => "Thanh toán qua cổng",
+    };
 }
 
 public enum CheckoutStatus
@@ -50,6 +76,10 @@ public class CheckoutSession : Entity
     // jsonb: receiver, phone, full address text and codes at the time of ordering
     public string AddressSnapshot { get; private set; } = "{}";
     public PaymentMethod PaymentMethod { get; private set; }
+    // The way chosen at the gateway (cards, instalments…); "Thanh toán lại" asks for the same
+    public PaymentOption PaymentOption { get; private set; }
+
+    public void ChooseOption(PaymentOption option) => PaymentOption = option;
     public long Subtotal { get; private set; }
     public long ShippingFee { get; private set; }
     public long ShippingDiscount { get; private set; }

@@ -7,7 +7,7 @@ Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** 
 [`docs/07-bang-doi-chieu-chuc-nang.md`](docs/07-bang-doi-chieu-chuc-nang.md).
 
 > **Trạng thái hiện tại: xong Phase 0–13.** Ba phía người mua / Kênh Người Bán / quản trị sàn chạy trên dữ liệu thật: tìm kiếm không dấu có facet,
-> giỏ theo shop, PricingEngine, voucher sàn / shop, xu, Flash Sale, checkout tách đơn có idempotency, COD + cổng giả lập (VNPay / MoMo,
+> giỏ theo shop, PricingEngine, voucher sàn / shop, xu, Flash Sale, checkout tách đơn có idempotency, COD + cổng giả lập (VNPay / MoMo / ZaloPay, có trả góp khi cổng hỗ trợ,
 > GHN / GHTK bật bằng khoá), máy trạng thái đơn, vận đơn giả lập, đánh giá, trả hàng & khiếu nại, sổ cái kép, giải ngân, Ví ShopHub,
 > chat thời gian thực, thông báo đa kênh, quản trị & báo cáo; tài khoản phụ, trang trí & danh mục shop, Excel hàng loạt, Freeship / Voucher
 > Xtra, đăng nhập Google (tuỳ chọn); đa kho (mỗi kho gửi một kiện), kênh vận chuyển / COD theo shop, facet vận chuyển & dịch vụ, đăng ký chiến dịch

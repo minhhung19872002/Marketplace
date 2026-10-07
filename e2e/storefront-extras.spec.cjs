@@ -128,4 +128,29 @@ test.describe('Trang người mua — phần bổ sung', () => {
     await expect(page.getByTestId('checkout-address')).toContainText('Người Nhận Tại Trang');
     await expect(page.getByTestId('place-order')).toBeEnabled();
   });
+
+  test('Thanh toán: chọn hình thức tại cổng; trả góp mờ dưới mức tối thiểu, hình thức đã chọn tới được cổng', async ({ page, request }) => {
+    const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
+    const shop = await shopWithProduct(request, admin);
+    const buyer = await registerViaApi(request, 'Người Mua Chọn Hình Thức');
+    await addAddressViaApi(request, buyer);
+    const login = await apiLogin(request, buyer.phone, buyer.password);
+    const detail = await apiAs(request, login.accessToken, 'GET', `/products/${shop.productId}`);
+    await apiAs(request, login.accessToken, 'POST', '/cart/items', { skuId: detail.skus[0].id, quantity: 1 });
+    await loginInBrowser(page, buyer);
+    await page.goto(`${BASE}/thanh-toan`);
+    await expect(page.getByTestId('payment-options')).toHaveCount(0);
+    await page.locator('[data-testid="method-Simulated"] input').click();
+    const options = page.getByTestId('payment-options');
+    await expect(options).toBeVisible();
+    // The test shop's product is far below the instalment minimum
+    await expect(options.locator('[data-testid="option-Installment"] input')).toBeDisabled();
+    await expect(options.getByTestId('option-Installment')).toContainText('Trả góp áp dụng cho đơn từ');
+    await options.locator('[data-testid="option-QrCode"] input').click();
+    await expect(options.locator('[data-testid="option-QrCode"] input')).toBeChecked();
+    await expect(page.getByTestId('place-order')).toBeEnabled();
+    await page.getByTestId('place-order').click();
+    await page.waitForURL(/\/cong-thanh-toan\//);
+    await expect(page.getByTestId('gateway-way')).toHaveText('Hình thức: Quét mã QR');
+  });
 });

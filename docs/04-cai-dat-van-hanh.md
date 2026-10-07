@@ -57,21 +57,28 @@ nhưng tốn tài nguyên hơn). Dev server Vite của `web/` và `seller/` đã
 
 Email thông báo đi qua Mailpit ở stack dev; push FCM là bản giả lập (ghi log, không gửi).
 
-## Cổng / hãng thật (VNPay, MoMo, GHN, GHTK)
+## Cổng / hãng thật (VNPay, MoMo, ZaloPay, GHN, GHTK)
 
 1. Đăng ký tài khoản thử: VNPay sandbox (sandbox.vnpayment.vn — `TmnCode`, `HashSecret`), MoMo (developers.momo.vn —
-   `partnerCode`, `accessKey`, `secretKey`), GHN (khachhang-dev / 5sao.ghn.dev — `Token`, `ShopId`), GHTK
+   `partnerCode`, `accessKey`, `secretKey`), ZaloPay (docs.zalopay.vn — `app_id`, `key1`, `key2`; sandbox
+   `sb-openapi.zalopay.vn`), GHN (khachhang-dev / 5sao.ghn.dev — `Token`, `ShopId`), GHTK
    (khachhang.ghtklab.com — `Token`, mã đối tác).
 2. Điền khoá vào `.env` (mẫu trong `.env.example`) và `SH_CALLBACK_BASE_URL` = địa chỉ công khai mà nhà cung cấp gọi
    được (máy dev: một đường hầm như ngrok trỏ vào gateway `:18000`). Đặt tham số `SITE.PUBLIC_URL` đúng địa chỉ người
    mua mở (trang "quay về" sau cổng).
 3. Khai URL gọi lại ở cổng quản trị của nhà cung cấp: VNPay IPN `…/api/payments/webhooks/vnpay`; GHN / GHTK
-   `…/api/logistics/webhooks/GHN?token=<SH_GHN_WEBHOOK_TOKEN>` (GHTK tương tự). MoMo nhận `ipnUrl` theo từng giao dịch.
-4. `docker compose up -d api` → log `Seeded … real carrier channel(s)`; trang thanh toán có VNPay / MoMo, báo giá có
+   `…/api/logistics/webhooks/GHN?token=<SH_GHN_WEBHOOK_TOKEN>` (GHTK tương tự). MoMo nhận `ipnUrl`, ZaloPay nhận `callback_url` theo từng giao dịch.
+4. `docker compose up -d api` → log `Seeded … real carrier channel(s)`; trang thanh toán có VNPay / MoMo / ZaloPay, báo giá có
    "Giao Hàng Nhanh" / "Giao Hàng Tiết Kiệm". Tắt một nhà cung cấp: xoá khoá rồi khởi động lại (kênh vẫn còn trong
    bảng nhưng không được đề xuất).
 5. Kiểm tay: đặt đơn VNPay bằng thẻ NCB thử của sandbox, xem đơn chuyển "Chờ xác nhận" sau IPN; chuẩn bị hàng với
    GHN → mã vận đơn GHN; đổi trạng thái trên trang thử của hãng → đơn đổi theo (hoặc chờ `logistics.carrier-sync`).
+6. **Hình thức tại cổng** (thẻ ATM, thẻ quốc tế, QR, trả góp, mua trước trả sau): VNPay gửi `vnp_BankCode`
+   (VNPAYQR / VNBANK / INTCARD), MoMo đổi `requestType` (captureWallet / payWithATM / payWithCC), ZaloPay gửi
+   `preferred_payment_method` trong `embed_data`. **Trả góp / mua trước trả sau chỉ hiện khi** đặt
+   `SH_ZALOPAY_INSTALLMENT_METHOD` / `SH_ZALOPAY_PAYLATER_METHOD` bằng mã ZaloPay cấp theo hợp đồng, và trả góp chỉ
+   bật cho đơn từ tham số `PAYMENT.INSTALLMENT_MIN_AMOUNT` (mặc định ₫3.000.000). Cổng và đối tác tài chính duyệt khoản
+   vay — ShopHub không cấp tín dụng.
 
 ## Đăng nhập Google (tuỳ chọn)
 

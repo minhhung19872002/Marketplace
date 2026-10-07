@@ -23,8 +23,9 @@ public class Payment : Entity
     private Payment() { }
 
     public Payment(Guid checkoutId, PaymentMethod method, long amount, DateTimeOffset expiresAt, DateTimeOffset now,
-        PaymentPurpose purpose = PaymentPurpose.Checkout)
+        PaymentPurpose purpose = PaymentPurpose.Checkout, PaymentOption option = PaymentOption.Default)
     {
+        Option = option;
         if (amount <= 0) throw new BusinessRuleException("Số tiền thanh toán phải lớn hơn 0.");
         CheckoutId = checkoutId;
         Purpose = purpose;
@@ -39,6 +40,7 @@ public class Payment : Entity
     public Guid CheckoutId { get; private set; }
     public PaymentPurpose Purpose { get; private set; }
     public PaymentMethod Method { get; private set; }
+    public PaymentOption Option { get; private set; }
     public string? ProviderTxnId { get; private set; }
     public long Amount { get; private set; }
     public PaymentStatus Status { get; private set; }

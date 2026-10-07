@@ -49,9 +49,22 @@ public sealed class VnPayGateway(
             ["vnp_CreateDate"] = ProviderText.VnStamp(request.CreatedAt ?? clock.UtcNow),
             ["vnp_ExpireDate"] = ProviderText.VnStamp(request.ExpiresAt),
         };
+        if (BankCode(request.Option) is { } bank) fields["vnp_BankCode"] = bank;
         var query = ProviderText.VnPayCanonical(fields);
         return new GatewayPaymentStart($"{options.PayUrl}?{query}&vnp_SecureHash={ProviderText.HmacSha512Hex(options.HashSecret, query)}");
     }
+
+    public IReadOnlyList<PaymentOption> Options => [PaymentOption.Default, PaymentOption.QrCode, PaymentOption.DomesticCard, PaymentOption.InternationalCard];
+
+    /// <summary>vnp_BankCode: VNPAYQR (QR), VNBANK (thẻ / tài khoản nội địa), INTCARD (thẻ quốc tế); none = VNPay's own choice page.</summary>
+    public static string? BankCode(PaymentOption option) => option switch
+    {
+        PaymentOption.QrCode => "VNPAYQR",
+        PaymentOption.DomesticCard => "VNBANK",
+        PaymentOption.InternationalCard => "INTCARD",
+        PaymentOption.Default => null,
+        _ => throw new GatewayUnavailableException("VNPay không hỗ trợ hình thức thanh toán này."),
+    };
 
     public GatewayCallback? VerifyCallback(InboundWebhook webhook)
     {

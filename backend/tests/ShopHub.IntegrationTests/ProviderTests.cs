@@ -15,7 +15,7 @@ using ShopHub.IntegrationTests.Infrastructure;
 
 namespace ShopHub.IntegrationTests;
 
-/// <summary>Phase 11: VNPay, MoMo, GHN and GHTK through their documented contracts (sandboxes faked in process).</summary>
+/// <summary>Phase 11: VNPay, MoMo, ZaloPay, GHN and GHTK through their documented contracts (sandboxes faked in process).</summary>
 [Collection(ApiCollection.Name)]
 public class ProviderTests(ApiFactory factory)
 {
@@ -24,7 +24,7 @@ public class ProviderTests(ApiFactory factory)
 
     private sealed record Placed(TestUser Buyer, TestStore Store, Guid CheckoutId, Guid OrderId, string Code, long Total, JsonElement Payment);
 
-    private async Task<Placed> PlaceAsync(string method, string? carrier = null, TestStore? store = null)
+    private async Task<Placed> PlaceAsync(string method, string? carrier = null, TestStore? store = null, string option = "Default")
     {
         store ??= await factory.CreateStoreAsync("79", products: [new(Product, "Đèn Bàn", 150_000, 20, "Việt Nam")]);
         var buyer = await factory.CreateUserAsync();
@@ -35,6 +35,7 @@ public class ProviderTests(ApiFactory factory)
             addressId,
             shops = new[] { new { shopId = store.ShopId, voucherCode = (string?)null, carrierCode = carrier, note = (string?)null } },
             platformVoucherCode = (string?)null, freeshipVoucherCode = (string?)null, useCoins = false, paymentMethod = method,
+            paymentOption = option,
         };
         var quote = (await (await buyer.Client.PostAsJsonAsync("/api/checkout/quote", request)).ReadEnvelopeAsync()).Data;
         quote.GetProperty("canPlace").GetBoolean().Should().BeTrue(quote.GetProperty("problems").ToString());
@@ -184,6 +185,130 @@ public class ProviderTests(ApiFactory factory)
         var wallet = (await (await user.Client.GetAsync("/api/wallet")).ReadEnvelopeAsync()).Data;
         wallet.GetProperty("balance").GetInt64().Should().Be(200_000, "IPN lặp lại không cộng tiền hai lần");
         (await (await user.Client.GetAsync($"/api/wallet/topups/{started.Str("topupId")}")).ReadEnvelopeAsync()).Data.Str("status").Should().Be("Succeeded");
+    }
+
+    /// <summary>A ZaloPay callback: {data, mac = HMAC-SHA256(key2, data), type = 1}.</summary>
+    private static object ZaloPayCallback(string appTransId, long amount, long zpTransId, string? mac = null)
+    {
+        var data = JsonSerializer.Serialize(new
+        {
+            app_id = long.Parse(FakeProviders.ZaloPayAppId), app_trans_id = appTransId, app_time = 1_791_000_000_000L, app_user = "ShopHub", amount,
+            embed_data = "{}", item = "[]", zp_trans_id = zpTransId, server_time = 1_791_000_060_000L, channel = 38, merchant_user_id = "",
+            user_fee_amount = 0, discount_amount = 0,
+        });
+        return new { data, mac = mac ?? FakeProviders.ZaloPayMac(FakeProviders.ZaloPayKey2, data), type = 1 };
+    }
+
+    private static async Task<int> ZaloPayCodeAsync(HttpResponseMessage res)
+    {
+        res.StatusCode.Should().Be(HttpStatusCode.OK, "ZaloPay đọc return_code trong thân, không đọc mã HTTP");
+        return JsonNode.Parse(await res.Content.ReadAsStringAsync())!["return_code"]!.GetValue<int>();
+    }
+
+    private static Dictionary<string, string> FormOf(string body) =>
+        QueryHelpers.ParseQuery(body).ToDictionary(q => q.Key, q => q.Value.ToString());
+
+    [Fact]
+    public async Task Zalopay_pays_through_a_signed_order_and_callback_once_and_refunds_on_cancel()
+    {
+        var p = await PlaceAsync("ZaloPay", option: "DomesticCard");
+        var paymentId = Guid.Parse(p.Payment.Str("paymentId"));
+        var create = FormOf(Fakes.CallsTo(FakeProviders.ZaloPayHost, "/v2/create").Last(c => c.Body.Contains(paymentId.ToString("N"))).Body);
+        var appTransId = create["app_trans_id"];
+        appTransId.Should().MatchRegex(@"^\d{6}_[0-9a-f]{32}$", "app_trans_id = yyMMdd + mã giao dịch");
+        p.Payment.Str("redirectUrl").Should().Be($"https://qcgateway.zalopay.vn/openinapp?order={appTransId}");
+        create["amount"].Should().Be(p.Total.ToString());
+        create["callback_url"].Should().Be("https://callback.shophub.test/api/payments/webhooks/zalopay");
+        var embed = JsonNode.Parse(create["embed_data"])!;
+        embed["redirecturl"]!.GetValue<string>().Should().EndWith($"/thanh-toan/ket-qua/{p.CheckoutId}");
+        embed["preferred_payment_method"]!.AsArray().Select(m => m!.GetValue<string>()).Should().Equal("domestic_card", "account");
+        (await factory.WithDbAsync(db => db.Payments.AsNoTracking().SingleAsync(x => x.Id == paymentId))).Option.Should().Be(PaymentOption.DomesticCard);
+
+        var client = factory.CreateClient();
+        (await ZaloPayCodeAsync(await client.PostAsJsonAsync("/api/payments/webhooks/zalopay", ZaloPayCallback(appTransId, p.Total, 261007000001, new string('0', 64)))))
+            .Should().Be(-1, "mac sai bị từ chối");
+        (await ZaloPayCodeAsync(await client.PostAsJsonAsync("/api/payments/webhooks/zalopay", ZaloPayCallback(appTransId, p.Total, 261007000001)))).Should().Be(1);
+        (await ZaloPayCodeAsync(await client.PostAsJsonAsync("/api/payments/webhooks/zalopay", ZaloPayCallback(appTransId, p.Total, 261007000001))))
+            .Should().Be(2, "callback lặp lại chỉ được áp dụng một lần");
+        var order = await factory.WithDbAsync(db => db.Orders.AsNoTracking().SingleAsync(o => o.Id == p.OrderId));
+        order.PaymentStatus.Should().Be(OrderPaymentStatus.Paid);
+        (await factory.WithDbAsync(db => db.Payments.AsNoTracking().SingleAsync(x => x.Id == paymentId))).ProviderTxnId.Should().Be("261007000001");
+
+        (await p.Buyer.Client.PostAsJsonAsync($"/api/orders/{p.Code}/cancel", new { reason = "Đổi ý" })).EnsureSuccessStatusCode();
+        var refund = FormOf(Fakes.CallsTo(FakeProviders.ZaloPayHost, "/v2/refund").Last(c => c.Body.Contains("261007000001")).Body);
+        refund["amount"].Should().Be(p.Total.ToString());
+        refund["m_refund_id"].Should().MatchRegex($@"^\d{{6}}_{FakeProviders.ZaloPayAppId}_[0-9a-f]+$");
+        (await factory.WithDbAsync(db => db.Orders.AsNoTracking().SingleAsync(o => o.Id == p.OrderId))).PaymentStatus.Should().Be(OrderPaymentStatus.Refunded);
+    }
+
+    [Fact]
+    public async Task A_zalopay_payment_whose_callback_never_came_is_found_by_querying_before_the_order_expires()
+    {
+        var p = await PlaceAsync("ZaloPay");
+        var paymentId = Guid.Parse(p.Payment.Str("paymentId"));
+        var appTransId = FormOf(Fakes.CallsTo(FakeProviders.ZaloPayHost, "/v2/create").Last(c => c.Body.Contains(paymentId.ToString("N"))).Body)["app_trans_id"];
+        Fakes.ZaloPayPaid[appTransId] = (261007009999, p.Total);
+        await factory.WithDbAsync(db => db.CheckoutSessions.Where(c => c.Id == p.CheckoutId)
+            .ExecuteUpdateAsync(u => u.SetProperty(c => c.PaymentExpiresAt, DateTimeOffset.UtcNow.AddMinutes(-1))));
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<PaymentExpiryService>().RunAsync(CancellationToken.None);
+
+        var order = await factory.WithDbAsync(db => db.Orders.AsNoTracking().SingleAsync(o => o.Id == p.OrderId));
+        order.PaymentStatus.Should().Be(OrderPaymentStatus.Paid, "query cho biết đã trả tiền nên đơn không bị huỷ");
+        (await factory.WithDbAsync(db => db.Payments.AsNoTracking().SingleAsync(x => x.Id == paymentId))).ProviderTxnId.Should().Be("261007009999");
+    }
+
+    [Fact]
+    public async Task Ways_of_paying_reach_each_gateway_and_instalments_only_where_offered_and_above_the_minimum()
+    {
+        // Cheap order: the instalment way is listed for ZaloPay (contract code configured) but not usable; VNPay / MoMo never list it
+        var cheap = await PlaceAsync("VnPay", option: "QrCode");
+        QueryOf(cheap.Payment.Str("redirectUrl"))["vnp_BankCode"].Should().Be("VNPAYQR");
+        var buyer = cheap.Buyer;
+        var addressId = await factory.AddAddressAsync(buyer.Id, "01");
+        (await buyer.Client.PostAsJsonAsync("/api/cart/items", new { skuId = cheap.Store.Skus[Product], quantity = 1 })).EnsureSuccessStatusCode();
+        object Request(string method, string option) => new
+        {
+            addressId, shops = new[] { new { shopId = cheap.Store.ShopId } }, platformVoucherCode = (string?)null, freeshipVoucherCode = (string?)null,
+            useCoins = false, paymentMethod = method, paymentOption = option,
+        };
+        var quote = (await (await buyer.Client.PostAsJsonAsync("/api/checkout/quote", Request("ZaloPay", "Installment"))).ReadEnvelopeAsync()).Data;
+        quote.GetProperty("canPlace").GetBoolean().Should().BeFalse();
+        quote.GetProperty("problems").EnumerateArray().Select(x => x.GetString()).Should().Contain(m => m!.StartsWith("Trả góp áp dụng cho đơn từ "));
+        var methods = quote.GetProperty("paymentMethods").EnumerateArray().ToDictionary(m => m.Str("code"));
+        var zaloInstallment = methods["ZaloPay"].GetProperty("options").EnumerateArray().Single(o => o.Str("code") == "Installment");
+        zaloInstallment.GetProperty("available").GetBoolean().Should().BeFalse();
+        methods["ZaloPay"].GetProperty("options").EnumerateArray().Select(o => o.Str("code")).Should().NotContain("PayLater", "chưa có mã hợp đồng mua trước trả sau");
+        foreach (var gateway in new[] { "VnPay", "MoMo" })
+            methods[gateway].GetProperty("options").EnumerateArray().Select(o => o.Str("code")).Should().NotContain(["Installment", "PayLater"]);
+        quote = (await (await buyer.Client.PostAsJsonAsync("/api/checkout/quote", Request("VnPay", "Installment"))).ReadEnvelopeAsync()).Data;
+        quote.GetProperty("problems").EnumerateArray().Select(x => x.GetString()).Should().Contain(m => m!.StartsWith("VNPay") && m.EndsWith("không hỗ trợ hình thức \"Trả góp\"."));
+        // COD has no ways: an option sent with it is refused rather than silently kept
+        quote = (await (await buyer.Client.PostAsJsonAsync("/api/checkout/quote", Request("Cod", "Installment"))).ReadEnvelopeAsync()).Data;
+        quote.GetProperty("canPlace").GetBoolean().Should().BeFalse();
+
+        // MoMo international card → requestType payWithCC (inside the signature the fake checked)
+        var momo = await PlaceAsync("MoMo", option: "InternationalCard");
+        var momoOrder = Guid.Parse(momo.Payment.Str("paymentId")).ToString("N");
+        JsonNode.Parse(Fakes.CallsTo(FakeProviders.MoMoHost, "/v2/gateway/api/create").Last(c => c.Body.Contains(momoOrder)).Body)!["requestType"]!
+            .GetValue<string>().Should().Be("payWithCC");
+
+        // An order above the minimum pays by instalments through ZaloPay with the contract's method code
+        var dear = await factory.CreateStoreAsync("79", products: [new(Product, "Đèn Bàn", 3_500_000, 5, "Việt Nam")]);
+        var big = await PlaceAsync("ZaloPay", store: dear, option: "Installment");
+        var bigPayment = Guid.Parse(big.Payment.Str("paymentId"));
+        var create = FormOf(Fakes.CallsTo(FakeProviders.ZaloPayHost, "/v2/create").Last(c => c.Body.Contains(bigPayment.ToString("N"))).Body);
+        JsonNode.Parse(create["embed_data"])!["preferred_payment_method"]!.AsArray().Select(m => m!.GetValue<string>())
+            .Should().Equal(FakeProviders.ZaloPayInstallment);
+        (await factory.WithDbAsync(db => db.CheckoutSessions.AsNoTracking().SingleAsync(c => c.Id == big.CheckoutId))).PaymentOption.Should().Be(PaymentOption.Installment);
+
+        // "Thanh toán lại" (after the first attempt failed) asks the gateway for the same way
+        await factory.WithDbAsync(db => db.Payments.Where(x => x.Id == bigPayment).ExecuteUpdateAsync(u => u.SetProperty(x => x.Status, PaymentStatus.Failed)));
+        (await big.Buyer.Client.PostAsync($"/api/checkout/{big.CheckoutId}/pay", null)).EnsureSuccessStatusCode();
+        var retry = Fakes.CallsTo(FakeProviders.ZaloPayHost, "/v2/create").Select(c => FormOf(c.Body))
+            .Last(f => f["embed_data"].Contains($"/thanh-toan/ket-qua/{big.CheckoutId}"));
+        retry["app_trans_id"].Should().NotEndWith(bigPayment.ToString("N"), "lần trả lại là giao dịch mới");
+        JsonNode.Parse(retry["embed_data"])!["preferred_payment_method"]![0]!.GetValue<string>().Should().Be(FakeProviders.ZaloPayInstallment);
     }
 
     [Fact]

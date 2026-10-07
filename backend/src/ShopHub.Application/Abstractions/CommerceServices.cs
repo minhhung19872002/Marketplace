@@ -126,7 +126,7 @@ public interface IShippingDocuments
 
 // ReturnPath: the page the buyer comes back to (display only — never proof of payment); ClientIp: required by some gateways
 public record GatewayPaymentRequest(Guid PaymentId, Guid CheckoutId, long Amount, string Description, DateTimeOffset ExpiresAt, string ReturnPath = "/",
-    string? ClientIp = null, DateTimeOffset? CreatedAt = null);
+    string? ClientIp = null, DateTimeOffset? CreatedAt = null, PaymentOption Option = PaymentOption.Default);
 
 public record GatewayPaymentStart(string RedirectUrl);
 
@@ -151,6 +151,12 @@ public interface IPaymentGateway
 
     // Shown at checkout / wallet top-up
     string DisplayName { get; }
+
+    /// <summary>
+    /// Ways of paying this gateway can be asked for (its default page always). Instalments / pay later appear only when
+    /// the merchant contract's code for them is configured — ShopHub never builds credit itself (spec IV).
+    /// </summary>
+    IReadOnlyList<PaymentOption> Options => [PaymentOption.Default];
 
     Task<GatewayPaymentStart> CreatePaymentAsync(GatewayPaymentRequest request, CancellationToken ct);
 

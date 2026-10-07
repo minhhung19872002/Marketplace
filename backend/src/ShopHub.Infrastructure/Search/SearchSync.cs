@@ -36,12 +36,19 @@ public sealed class SearchSyncInterceptor(IClock clock) : SaveChangesInterceptor
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
+    private static bool VoucherOfferChanged(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry e, Domain.Promo.Voucher v) =>
+        e.State != EntityState.Modified
+        || new[] { nameof(v.IsActive), nameof(v.IsPublic), nameof(v.StartAt), nameof(v.EndAt), nameof(v.TotalQuota) }.Any(n => e.Property(n).IsModified)
+        || (e.Property(nameof(v.UsedCount)).IsModified && v.TotalQuota is { } quota
+            && (v.UsedCount >= quota || (int)e.Property(nameof(v.UsedCount)).OriginalValue! >= quota));
+
     private void Collect(DbContext context)
     {
         var changed = context.ChangeTracker.Entries().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToList();
         var products = new HashSet<Guid>();
         var shops = new HashSet<Guid>();
         var skus = new HashSet<Guid>();
+        var reindexAll = false;
         foreach (var e in changed)
         {
             switch (e.Entity)
@@ -53,9 +60,15 @@ public sealed class SearchSyncInterceptor(IClock clock) : SaveChangesInterceptor
                 case Shop s when e.State != EntityState.Added: shops.Add(s.Id); break;
                 // The index carries the price in force: a programme added or stopped changes it
                 case Domain.Promo.PriceProgram pp: skus.Add(pp.SkuId); break;
+                // Facets: the shop's carriers / COD, its warehouses (nơi bán), its running vouchers
+                case ShopShippingChannel ch: shops.Add(ch.ShopId); break;
+                case ShopWarehouse w when e.State != EntityState.Added: shops.Add(w.ShopId); break;
+                // (not on every use: only when it starts / stops being offered — on, public, period, quota used up)
+                case Domain.Promo.Voucher { ShopId: { } voucherShop } v when VoucherOfferChanged(e, v): shops.Add(voucherShop); break;
+                case Domain.Logistics.Carrier when e.State == EntityState.Modified: reindexAll = true; break;
             }
         }
-        if (products.Count == 0 && shops.Count == 0 && skus.Count == 0) return;
+        if (products.Count == 0 && shops.Count == 0 && skus.Count == 0 && !reindexAll) return;
 
         var outbox = context.Set<OutboxMessage>();
         if (products.Count > 0)
@@ -64,7 +77,15 @@ public sealed class SearchSyncInterceptor(IClock clock) : SaveChangesInterceptor
             outbox.Add(new OutboxMessage(OutboxTypes.SearchSyncShop, JsonSerializer.Serialize(new SearchSyncShopPayload(shopId), Json), clock.UtcNow));
         if (skus.Count > 0)
             outbox.Add(new OutboxMessage(OutboxTypes.SearchSyncSkus, JsonSerializer.Serialize(new SearchSyncSkusPayload(skus.ToList()), Json), clock.UtcNow));
+        if (reindexAll) outbox.Add(new OutboxMessage(OutboxTypes.SearchReindexAll, "{}", clock.UtcNow));
     }
+}
+
+public sealed class SearchReindexAllHandler(ISearchIndexer indexer) : IOutboxHandler
+{
+    public string Type => OutboxTypes.SearchReindexAll;
+
+    public Task HandleAsync(string payload, CancellationToken ct) => indexer.ReindexAllAsync(ct);
 }
 
 public sealed class SearchSyncSkusHandler(ShopHubDbContext db, ISearchIndexer indexer) : IOutboxHandler
@@ -98,10 +119,16 @@ public sealed class PriceIndexJob(ShopHubDbContext db, IClock clock)
         var skus = await db.PricePrograms.AsNoTracking()
             .Where(p => (p.StartAt > since && p.StartAt <= now) || (p.EndAt > since && p.EndAt <= now))
             .Select(p => p.SkuId).Distinct().ToListAsync(ct);
-        if (skus.Count == 0) return 0;
-        db.OutboxMessages.Add(new OutboxMessage(OutboxTypes.SearchSyncSkus, JsonSerializer.Serialize(new SearchSyncSkusPayload(skus), Json), now));
+        var shops = await db.Vouchers.AsNoTracking()
+            .Where(v => v.ShopId != null && ((v.StartAt > since && v.StartAt <= now) || (v.EndAt > since && v.EndAt <= now)))
+            .Select(v => v.ShopId!.Value).Distinct().ToListAsync(ct);
+        if (skus.Count == 0 && shops.Count == 0) return 0;
+        if (skus.Count > 0)
+            db.OutboxMessages.Add(new OutboxMessage(OutboxTypes.SearchSyncSkus, JsonSerializer.Serialize(new SearchSyncSkusPayload(skus), Json), now));
+        foreach (var shopId in shops)
+            db.OutboxMessages.Add(new OutboxMessage(OutboxTypes.SearchSyncShop, JsonSerializer.Serialize(new SearchSyncShopPayload(shopId), Json), now));
         await db.SaveChangesAsync(ct);
-        return skus.Count;
+        return skus.Count + shops.Count;
     }
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ShopHub.Application.Abstractions;
+using ShopHub.Application.SystemConfig;
 using ShopHub.Application.Common;
 using ShopHub.Domain.Promo;
 using ShopHub.Domain.Sales;
@@ -44,7 +45,7 @@ public sealed class VoucherEvaluator(IApplicationDbContext db, Marketing.Members
 }
 
 /// <summary>Consumes and gives back voucher uses with conditional writes (never "read, then write").</summary>
-public sealed class VoucherLedger(IApplicationDbContext db, IClock clock)
+public sealed class VoucherLedger(IApplicationDbContext db, IOutbox outbox, IClock clock)
 {
     /// <summary>Takes one use of the voucher for the user, or throws 409 when the quota / per-user limit is gone.</summary>
     public async Task ConsumeAsync(Voucher v, Guid userId, Guid checkoutId, Guid? orderId, long amount, CancellationToken ct)
@@ -66,6 +67,10 @@ public sealed class VoucherLedger(IApplicationDbContext db, IClock clock)
         if (counted == 0) throw new ConflictException($"Bạn đã dùng hết lượt của mã {v.Code}.", "VOUCHER_USER_LIMIT");
 
         db.VoucherUsages.Add(new VoucherUsage(v.Id, userId, checkoutId, orderId, amount, now));
+        // The last use of a shop voucher: the shop's products leave the "Có voucher" filter (same transaction)
+        if (v.ShopId is { } shopId && v.TotalQuota is { } quota
+            && await db.Vouchers.AnyAsync(x => x.Id == v.Id && x.UsedCount >= quota, ct))
+            outbox.Enqueue(OutboxTypes.SearchSyncShop, new SearchSyncShopPayload(shopId));
     }
 
     /// <summary>Give the uses back (order cancelled / payment expired) — only while the voucher is still valid (spec 3.6).</summary>
@@ -77,7 +82,11 @@ public sealed class VoucherLedger(IApplicationDbContext db, IClock clock)
             usage.Revert(now);
             var stillValid = await db.Vouchers.AnyAsync(v => v.Id == usage.VoucherId && v.IsActive && v.EndAt > now, ct);
             if (!stillValid) continue;
+            var full = await db.Vouchers.AsNoTracking().Where(v => v.Id == usage.VoucherId && v.TotalQuota != null && v.UsedCount >= v.TotalQuota)
+                .Select(v => v.ShopId).FirstOrDefaultAsync(ct);
             await db.ExecuteSqlAsync($"UPDATE promo.vouchers SET used_count = used_count - 1 WHERE id = {usage.VoucherId} AND used_count > 0", ct);
+            // A use back on a used-up shop voucher offers it again
+            if (full is { } shopId) outbox.Enqueue(OutboxTypes.SearchSyncShop, new SearchSyncShopPayload(shopId));
             await db.ExecuteSqlAsync($"""
                 UPDATE promo.voucher_user_counters SET used_count = used_count - 1
                 WHERE voucher_id = {usage.VoucherId} AND user_id = {usage.UserId} AND used_count > 0

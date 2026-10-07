@@ -36,6 +36,10 @@ function readParams(sp: URLSearchParams, categoryId?: string): SearchParams {
     inStock: sp.get('inStock') === 'true',
     condition: sp.get('condition') ?? undefined,
     attrs: sp.getAll('attrs'),
+    carriers: sp.getAll('carriers'),
+    freeship: sp.get('freeship') === 'true',
+    voucher: sp.get('voucher') === 'true',
+    cod: sp.get('cod') === 'true',
     sort: (SORT_KEYS.has(sort) ? sort : 'Relevance') as ProductSort,
     page: num(sp.get('page')) ?? 1,
   };
@@ -141,7 +145,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
 
   const clearFilters = () =>
     update((n) => {
-      for (const key of ['categoryId', 'provinces', 'brands', 'minPrice', 'maxPrice', 'minRating', 'mall', 'preferred', 'inStock', 'condition', 'attrs'])
+      for (const key of ['categoryId', 'provinces', 'brands', 'minPrice', 'maxPrice', 'minRating', 'mall', 'preferred', 'inStock', 'condition', 'attrs', 'carriers', 'freeship', 'voucher', 'cod'])
         n.delete(key);
     });
 
@@ -233,6 +237,22 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
               <span>Còn hàng</span>
             </label>
           </div>
+
+          {facets && (facets.carriers?.length ?? 0) > 0 && (
+            <FacetList title="Đơn Vị Vận Chuyển" values={facets.carriers!} selected={params.carriers ?? []} onToggle={(v) => toggleMulti('carriers', v)}
+              testId="carriers" />
+          )}
+          {facets && (
+            <div className="filter-group" data-testid="facet-services">
+              <h4 className="filter-group-title">Dịch Vụ & Khuyến Mãi</h4>
+              {([['freeship', 'Freeship Xtra'], ['voucher', 'Có voucher của shop'], ['cod', 'Thanh toán khi nhận hàng']] as const).map(([key, label]) => (
+                <label key={key} className="filter-cat">
+                  <input type="checkbox" checked={!!params[key]} onChange={(e) => setFlag(key, e.target.checked)} data-testid={`filter-${key}`} />
+                  <span>{label} <span className="filter-count">({facets.services?.find((s) => s.value === key)?.count ?? 0})</span></span>
+                </label>
+              ))}
+            </div>
+          )}
 
           {facets && facets.conditions.length > 1 && (
             <FacetList

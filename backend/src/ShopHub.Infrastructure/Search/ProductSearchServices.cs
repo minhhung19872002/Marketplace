@@ -25,8 +25,10 @@ internal sealed class FacetLabeler(ShopHubDbContext db)
 {
     public async Task<ProductSearchFacets> LabelAsync(
         Dictionary<string, int> categories, Dictionary<string, int> provinces, Dictionary<string, int> brands, Dictionary<int, int> ratingFloors,
-        int mall, int preferred, Dictionary<string, int> conditions, Dictionary<string, Dictionary<string, int>> attributes, CancellationToken ct)
+        int mall, int preferred, Dictionary<string, int> conditions, Dictionary<string, Dictionary<string, int>> attributes, CancellationToken ct,
+        Dictionary<string, int>? carrierCounts = null, int freeship = 0, int withVoucher = 0, int cod = 0)
     {
+        var carrierNames = await db.Carriers.AsNoTracking().ToDictionaryAsync(c => c.Code, c => c.Name, ct);
         var categoryIds = categories.Keys.Select(Guid.Parse).ToList();
         var categoryNames = await db.Categories.AsNoTracking().Where(c => categoryIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id.ToString(), c => c.Name, ct);
         var provinceCodes = provinces.Keys.ToList();
@@ -49,7 +51,13 @@ internal sealed class FacetLabeler(ShopHubDbContext db)
             Sorted(conditions.Select(kv => new FacetValue(kv.Key, kv.Key == "New" ? "Mới" : "Đã sử dụng", kv.Value))),
             attributes.Where(kv => kv.Value.Count > 1 || kv.Value.Values.Sum() > 0)
                 .OrderBy(kv => kv.Key)
-                .ToDictionary(kv => kv.Key, kv => (IReadOnlyList<FacetValue>)Sorted(kv.Value.Select(v => new FacetValue($"{kv.Key}={v.Key}", v.Key, v.Value)))));
+                .ToDictionary(kv => kv.Key, kv => (IReadOnlyList<FacetValue>)Sorted(kv.Value.Select(v => new FacetValue($"{kv.Key}={v.Key}", v.Key, v.Value)))),
+            Sorted((carrierCounts ?? []).Where(kv => carrierNames.ContainsKey(kv.Key)).Select(kv => new FacetValue(kv.Key, carrierNames[kv.Key], kv.Value))),
+            new[]
+            {
+                new FacetValue("freeship", "Freeship Xtra", freeship), new FacetValue("voucher", "Có voucher của shop", withVoucher),
+                new FacetValue("cod", "Thanh toán khi nhận hàng", cod),
+            }.Where(f => f.Count > 0).ToList());
     }
 }
 
@@ -59,7 +67,8 @@ internal sealed class FacetLabeler(ShopHubDbContext db)
 
 public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
 {
-    private static readonly string[] Facets = ["categoryIds", "provinceCode", "brandId", "ratingFloor", "isMall", "isPreferred", "condition", "attributes"];
+    private static readonly string[] Facets =
+        ["categoryIds", "provinceCode", "brandId", "ratingFloor", "isMall", "isPreferred", "condition", "attributes", "carriers", "freeship", "hasVoucher", "cod"];
 
     public async Task<ProductSearchResult> SearchAsync(ProductSearchRequest r, CancellationToken ct)
     {
@@ -104,7 +113,8 @@ public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
 
         var facets = await new FacetLabeler(db).LabelAsync(Facet("categoryIds"), Facet("provinceCode"), Facet("brandId"),
             Facet("ratingFloor").ToDictionary(kv => int.Parse(kv.Key), kv => kv.Value),
-            Facet("isMall").GetValueOrDefault("true"), Facet("isPreferred").GetValueOrDefault("true"), Facet("condition"), attributes, ct);
+            Facet("isMall").GetValueOrDefault("true"), Facet("isPreferred").GetValueOrDefault("true"), Facet("condition"), attributes, ct,
+            Facet("carriers"), Facet("freeship").GetValueOrDefault("true"), Facet("hasVoucher").GetValueOrDefault("true"), Facet("cod").GetValueOrDefault("true"));
 
         return new ProductSearchResult(items, res["totalHits"]?.GetValue<int>() ?? items.Count, r.Page, r.PageSize, facets, "meilisearch");
     }
@@ -125,6 +135,10 @@ public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
         if (r.PreferredOnly) filter.Add("isPreferred = true");
         if (r.InStockOnly) filter.Add("inStock = true");
         if (!string.IsNullOrWhiteSpace(r.Condition)) filter.Add($"condition = {Q(r.Condition)}");
+        if (r.CarrierCodes is { Count: > 0 } codes) filter.Add($"carriers IN [{string.Join(", ", codes.Select(Q))}]");
+        if (r.FreeshipOnly) filter.Add("freeship = true");
+        if (r.WithVoucherOnly) filter.Add("hasVoucher = true");
+        if (r.CodOnly) filter.Add("cod = true");
         // Same attribute: any of the values (OR); different attributes: all (AND)
         foreach (var group in r.Attributes.Where(a => a.Contains('=')).GroupBy(a => a[..a.IndexOf('=')]))
             filter.Add(group.Select(v => $"attributes = {Q(v)}").ToList());
@@ -137,7 +151,7 @@ public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
         filterableAttributes = new[]
         {
             "categoryIds", "shopId", "provinceCode", "brandId", "minPrice", "maxPrice", "ratingFloor", "isMall", "isPreferred", "inStock",
-            "condition", "attributes",
+            "condition", "attributes", "carriers", "freeship", "hasVoucher", "cod",
         },
         sortableAttributes = new[] { "publishedAt", "soldCount", "minPrice", "ratingAvg", "id", "restricted" },
         // An explicit sort (price, newest…) wins over relevance — the buyer asked for that order; without one the
@@ -185,9 +199,10 @@ public sealed class PostgresProductSearch(ShopHubDbContext db, IClock clock)
             for (Guid? cur = row.Key; cur is { } id; cur = parents.GetValueOrDefault(id))
                 categories[id.ToString()] = categories.GetValueOrDefault(id.ToString()) + row.Count;
 
+        // Nơi bán = the ship-from warehouse's province (the product's own one with đa kho), as in the index
         var provinces = await (from p in filtered
                                join w in db.ShopWarehouses on p.ShopId equals w.ShopId
-                               where w.IsPickupDefault
+                               where (db.Shops.Any(s => s.Id == p.ShopId && s.MultiWarehouse) && p.WarehouseId != null && db.ShopWarehouses.Any(x => x.Id == p.WarehouseId && x.ShopId == p.ShopId) ? w.Id == p.WarehouseId : w.IsPickupDefault)
                                group p by w.ProvinceCode into g
                                select new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
         var brands = await filtered.Where(p => p.BrandId != null).GroupBy(p => p.BrandId!.Value)
@@ -209,7 +224,16 @@ public sealed class PostgresProductSearch(ShopHubDbContext db, IClock clock)
             .GroupBy(x => x.Name)
             .ToDictionary(g => g.Key, g => g.GroupBy(x => x.Value).ToDictionary(v => v.Key, v => v.Select(x => x.Id).Distinct().Count()));
 
-        var facets = await new FacetLabeler(db).LabelAsync(categories, provinces, brands, ratings, mall, preferred, conditions, attributes, ct);
+        var carrierCounts = new Dictionary<string, int>();
+        foreach (var code in await db.Carriers.AsNoTracking().Where(c => c.IsActive).Select(c => c.Code).ToListAsync(ct))
+        {
+            var n = await filtered.CountAsync(p => !db.ShopShippingChannels.Any(ch => ch.ShopId == p.ShopId && ch.CarrierCode == code && !ch.IsEnabled)
+                                                   && (p.CarrierCodes.Count == 0 || p.CarrierCodes.Contains(code)), ct);
+            if (n > 0) carrierCounts[code] = n;
+        }
+        var facets = await new FacetLabeler(db).LabelAsync(categories, provinces, brands, ratings, mall, preferred, conditions, attributes, ct,
+            carrierCounts, await filtered.CountAsync(Freeship(db), ct), await filtered.CountAsync(WithVoucher(db, clock.UtcNow), ct),
+            await filtered.CountAsync(Cod(db), ct));
         return new ProductSearchResult(page.Items.Select(ProductCards.ToDto).ToList(), page.TotalCount, r.Page, r.PageSize, facets, "postgres");
     }
 
@@ -273,7 +297,8 @@ public sealed class PostgresProductSearch(ShopHubDbContext db, IClock clock)
         }
         if (r.ShopId is { } shopId) q = q.Where(p => p.ShopId == shopId);
         if (r.ProvinceCodes.Count > 0)
-            q = q.Where(p => db.ShopWarehouses.Any(w => w.ShopId == p.ShopId && w.IsPickupDefault && r.ProvinceCodes.Contains(w.ProvinceCode)));
+            q = q.Where(p => db.ShopWarehouses.Any(w => w.ShopId == p.ShopId && r.ProvinceCodes.Contains(w.ProvinceCode)
+                && (db.Shops.Any(s => s.Id == p.ShopId && s.MultiWarehouse) && p.WarehouseId != null && db.ShopWarehouses.Any(x => x.Id == p.WarehouseId && x.ShopId == p.ShopId) ? w.Id == p.WarehouseId : w.IsPickupDefault)));
         if (r.BrandIds.Count > 0) q = q.Where(p => p.BrandId != null && r.BrandIds.Contains(p.BrandId.Value));
         if (r.MinPrice is { } min) q = q.Where(Compare(maxPrice, Expression.GreaterThanOrEqual, min));
         if (r.MaxPrice is { } max) q = q.Where(Compare(minPrice, Expression.LessThanOrEqual, max));
@@ -282,6 +307,12 @@ public sealed class PostgresProductSearch(ShopHubDbContext db, IClock clock)
         if (r.PreferredOnly) q = q.Where(p => db.Shops.Any(s => s.Id == p.ShopId && s.IsPreferred));
         if (r.InStockOnly) q = q.Where(p => p.Skus.Any(s => s.IsActive && s.Stock - s.Reserved > 0));
         if (Enum.TryParse<ProductCondition>(r.Condition, out var condition)) q = q.Where(p => p.Condition == condition);
+        if (r.CarrierCodes is { Count: > 0 } codes) q = q.Where(p => db.Carriers.Any(c => codes.Contains(c.Code) && c.IsActive
+            && !db.ShopShippingChannels.Any(ch => ch.ShopId == p.ShopId && ch.CarrierCode == c.Code && !ch.IsEnabled)
+            && (p.CarrierCodes.Count == 0 || p.CarrierCodes.Contains(c.Code))));
+        if (r.FreeshipOnly) q = q.Where(Freeship(db));
+        if (r.WithVoucherOnly) q = q.Where(WithVoucher(db, clock.UtcNow));
+        if (r.CodOnly) q = q.Where(Cod(db));
         foreach (var group in r.Attributes.Where(a => a.Contains('=')).GroupBy(a => a[..a.IndexOf('=')]))
         {
             var name = group.Key;
@@ -293,6 +324,19 @@ public sealed class PostgresProductSearch(ShopHubDbContext db, IClock clock)
     }
 
     private sealed record Paging(int Page, int PageSize) : IPagedRequest;
+
+    // Same rules as the index (ProductSearchProjection)
+    private static Expression<Func<Product, bool>> Freeship(ShopHubDbContext db) =>
+        p => db.Shops.Any(s => s.Id == p.ShopId && s.FreeshipXtraSince != null);
+
+    private static Expression<Func<Product, bool>> WithVoucher(ShopHubDbContext db, DateTimeOffset now) =>
+        p => db.Vouchers.Any(v => v.ShopId == p.ShopId && v.Owner == VoucherOwner.Shop && v.IsActive && v.IsPublic && v.StartAt <= now && v.EndAt > now
+                                  && (v.TotalQuota == null || v.UsedCount < v.TotalQuota));
+
+    private static Expression<Func<Product, bool>> Cod(ShopHubDbContext db) =>
+        p => db.Carriers.Any(c => c.IsActive && c.SupportsCod
+                                  && !db.ShopShippingChannels.Any(ch => ch.ShopId == p.ShopId && ch.CarrierCode == c.Code && (!ch.IsEnabled || !ch.CodEnabled))
+                                  && (p.CarrierCodes.Count == 0 || p.CarrierCodes.Contains(c.Code)));
 }
 
 /// <summary>Meilisearch first; on any engine failure the PostgreSQL path answers instead.</summary>
@@ -357,6 +401,12 @@ public sealed class MeiliSearchIndexer(MeiliClient meili, ShopHubDbContext db, I
         return ids.Count;
     }
 
+    private async Task<bool> HasCurrentFieldsAsync(CancellationToken ct)
+    {
+        var res = await meili.SearchAsync(MeiliClient.ProductsIndex, new { q = "", limit = 1, attributesToRetrieve = new[] { "id", "carriers" } }, ct);
+        return res["hits"]?.AsArray().FirstOrDefault()?.AsObject().ContainsKey("carriers") ?? true;
+    }
+
     /// <summary>At startup: configure, and rebuild when the index and the database disagree on the number of products.</summary>
     public async Task EnsureFreshAsync(CancellationToken ct)
     {
@@ -365,7 +415,8 @@ public sealed class MeiliSearchIndexer(MeiliClient meili, ShopHubDbContext db, I
         await meili.WaitIdleAsync(MeiliClient.ProductsIndex, TimeSpan.FromMinutes(30), ct);
         var indexed = await meili.CountAsync(MeiliClient.ProductsIndex, ct);
         var expected = await ProductCards.Visible(db).CountAsync(ct);
-        if (indexed != expected)
+        // A document from before the current fields (carriers / services, II.3) means an upgrade: rebuild once
+        if (indexed != expected || (indexed > 0 && !await HasCurrentFieldsAsync(ct)))
         {
             await ReindexAllAsync(ct);
             return;

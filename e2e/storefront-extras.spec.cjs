@@ -84,4 +84,27 @@ test.describe('Trang người mua — phần bổ sung', () => {
     ]);
     await expect(brand).toHaveClass(/active/);
   });
+  test('Facet đơn vị vận chuyển và dịch vụ: số đếm khớp số kết quả sau khi lọc', async ({ page }) => {
+    await page.goto(`${BASE}/tim-kiem?q=ao`);
+    await page.waitForLoadState('networkidle');
+    const count = async (locator) => Number(((await locator.locator('.filter-count').textContent()) ?? '').replace(/[^\d]/g, ''));
+    const results = async () => Number(((await page.getByTestId('search-count').textContent()) ?? '').replace(/[^\d]/g, ''));
+
+    const cod = page.getByTestId('facet-services').locator('label', { has: page.getByTestId('filter-cod') });
+    const expected = await count(cod);
+    expect(expected).toBeGreaterThan(0);
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/search/products') && r.url().includes('cod=true') && r.ok()),
+      page.getByTestId('filter-cod').click(),
+    ]);
+    await expect.poll(results).toBe(expected);
+
+    const carrier = page.getByTestId('facet-carriers').locator('label').first();
+    const perCarrier = await count(carrier);
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/search/products') && r.url().includes('carriers=') && r.ok()),
+      carrier.locator('input').click(),
+    ]);
+    await expect.poll(results).toBe(perCarrier);
+  });
 });

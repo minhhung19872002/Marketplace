@@ -29,7 +29,9 @@ public static class ProductCards
         db.Shops.Where(s => s.Id == p.ShopId).Select(s => s.Name).FirstOrDefault() ?? "",
         db.Shops.Where(s => s.Id == p.ShopId).Select(s => s.Type == ShopType.Mall).FirstOrDefault(),
         db.Shops.Where(s => s.Id == p.ShopId).Select(s => s.IsPreferred).FirstOrDefault(),
-        db.ShopWarehouses.Where(w => w.ShopId == p.ShopId && w.IsPickupDefault)
+        // Nơi bán: the warehouse the product ships from (its own one when the shop runs đa kho)
+        db.ShopWarehouses.Where(w => w.ShopId == p.ShopId
+                                     && (db.Shops.Any(s => s.Id == p.ShopId && s.MultiWarehouse) && p.WarehouseId != null && db.ShopWarehouses.Any(x => x.Id == p.WarehouseId && x.ShopId == p.ShopId) ? w.Id == p.WarehouseId : w.IsPickupDefault))
             .Select(w => db.AdminDivisions.Where(d => d.Code == w.ProvinceCode).Select(d => d.Name).FirstOrDefault())
             .FirstOrDefault());
 

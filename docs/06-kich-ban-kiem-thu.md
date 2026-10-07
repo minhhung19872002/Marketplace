@@ -10,8 +10,8 @@ cd e2e && SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=… SH_E2E_AD
 
 (gateway e2e nên nâng giới hạn: `SH_GATEWAY_RATE=100r/s SH_GATEWAY_BURST=200`, mọi trình duyệt cùng một IP.)
 
-Lần chạy gần nhất: **2026-10-07**, 64 kịch bản, 64 đạt (trên dữ liệu mẫu đầy đủ: ~600 đơn, 800 đánh giá). Phần phụ trợ: backend
-`dotnet test` 157 unit + 185 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
+Lần chạy gần nhất: **2026-10-07**, 65 kịch bản, 65 đạt (trên dữ liệu mẫu đầy đủ: ~600 đơn, 800 đánh giá). Phần phụ trợ: backend
+`dotnet test` 157 unit + 187 tích hợp đạt; vitest web 10, seller 8, admin 8 đạt.
 
 ## A. Mục 9 của đặc tả (bắt buộc)
 
@@ -76,6 +76,7 @@ Lần chạy gần nhất: **2026-10-07**, 64 kịch bản, 64 đạt (trên d�
 | KB52 | Đa kho | Shop thêm kho Hà Nội, bật đa kho; người mua mua 2 sản phẩm ở 2 kho (`shop-design.spec.cjs`) | Trang thanh toán báo 2 kiện; một đơn, 2 vận đơn; chi tiết đơn hiện 2 kiện | Như mong đợi | ✔ |
 | KB53 | Trang sản phẩm & shop | Lưu voucher shop; đổi tỉnh nhận; tìm trong shop; theo dõi; đã xem; giỏ (`storefront-extras.spec.cjs`) | Voucher "Đã lưu"; phí đổi theo tỉnh; kết quả trong shop; shop ở "Shop theo dõi"; sản phẩm ở "Đã xem"; giỏ có gợi ý | Lần đầu đỏ (L059), sau sửa đạt | ✔ |
 | KB54 | Shop liên quan, thương hiệu ngành | Tìm "techzone"; trang ngành bấm thương hiệu (`storefront-extras.spec.cjs`) | Khối shop dẫn tới shop; thương hiệu lọc kết quả | Như mong đợi | ✔ |
+| KB55 | Facet vận chuyển & dịch vụ | Tìm "ao", bấm *Thanh toán khi nhận hàng*, rồi một đơn vị vận chuyển (`storefront-extras.spec.cjs`) | Số kết quả đúng bằng số đếm của facet | Như mong đợi | ✔ |
 
 ## D. Kiểm bằng công cụ khác / tay
 

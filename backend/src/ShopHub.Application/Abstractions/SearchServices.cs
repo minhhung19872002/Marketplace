@@ -26,7 +26,12 @@ public record ProductSearchRequest(
     IReadOnlyList<string> Attributes,
     ProductSort Sort,
     int Page,
-    int PageSize);
+    int PageSize,
+    // Đơn vị vận chuyển (any of) and dịch vụ: Freeship Xtra shop, shop voucher running, COD possible
+    IReadOnlyList<string>? CarrierCodes = null,
+    bool FreeshipOnly = false,
+    bool WithVoucherOnly = false,
+    bool CodOnly = false);
 
 public record ProductCardDto(
     Guid Id,
@@ -58,7 +63,10 @@ public record ProductSearchFacets(
     IReadOnlyList<FacetValue> Ratings,
     IReadOnlyList<FacetValue> ShopTypes,
     IReadOnlyList<FacetValue> Conditions,
-    IReadOnlyDictionary<string, IReadOnlyList<FacetValue>> Attributes);
+    IReadOnlyDictionary<string, IReadOnlyList<FacetValue>> Attributes,
+    IReadOnlyList<FacetValue>? Carriers = null,
+    // "freeship", "voucher", "cod"
+    IReadOnlyList<FacetValue>? Services = null);
 
 /// <param name="Engine">"meilisearch" or "postgres" (fallback while the search engine is down).</param>
 public record ProductSearchResult(

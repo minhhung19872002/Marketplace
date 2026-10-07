@@ -37,6 +37,10 @@ export function searchQueryString(p: SearchParams): string {
   set('inStock', p.inStock);
   set('condition', p.condition);
   p.attrs?.forEach((v) => qs.append('attrs', v));
+  p.carriers?.forEach((v) => qs.append('carriers', v));
+  set('freeship', p.freeship);
+  set('voucher', p.voucher);
+  set('cod', p.cod);
   set('sort', p.sort && p.sort !== 'Relevance' ? p.sort : undefined);
   set('page', p.page && p.page > 1 ? p.page : undefined);
   set('pageSize', p.pageSize);

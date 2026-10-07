@@ -39,7 +39,12 @@ public sealed record ProductSearchDocument(
     IReadOnlyList<string> Attributes,
     long PublishedAt,
     // 1 when the shop is "hạn chế hiển thị" by penalty points: ranked after everything else
-    int Restricted = 0);
+    int Restricted = 0,
+    // Carriers that can take it (active, on for the shop, allowed for the product) and the services (II.3)
+    IReadOnlyList<string>? Carriers = null,
+    bool Freeship = false,
+    bool HasVoucher = false,
+    bool Cod = false);
 
 public static class ProductSearchProjection
 {
@@ -59,10 +64,17 @@ public static class ProductSearchProjection
         var restrictRaw = await db.SystemParameters.AsNoTracking().Where(x => x.Key == Application.SystemConfig.ParameterKeys.ShopPenaltyRestrictPoints)
             .Select(x => x.Value).FirstOrDefaultAsync(ct);
         var restrictAt = int.TryParse(restrictRaw, out var r) ? r : int.MaxValue;
-        var provinces = await (from w in db.ShopWarehouses
-                               join d in db.AdminDivisions on w.ProvinceCode equals d.Code
-                               where shopIds.Contains(w.ShopId) && w.IsPickupDefault
-                               select new { w.ShopId, d.Code, d.Name }).AsNoTracking().ToListAsync(ct);
+        // Nơi bán = the province the product ships from (its own warehouse when the shop runs several)
+        var warehouses = await (from w in db.ShopWarehouses
+                                join d in db.AdminDivisions on w.ProvinceCode equals d.Code
+                                where shopIds.Contains(w.ShopId)
+                                select new { w.Id, w.ShopId, w.IsPickupDefault, d.Code, d.Name }).AsNoTracking().ToListAsync(ct);
+        var carriers = await db.Carriers.AsNoTracking().Where(c => c.IsActive).Select(c => new { c.Code, c.SupportsCod }).ToListAsync(ct);
+        var channels = await db.ShopShippingChannels.AsNoTracking().Where(c => shopIds.Contains(c.ShopId)).ToListAsync(ct);
+        var withVoucher = (await db.Vouchers.AsNoTracking()
+            .Where(v => v.ShopId != null && shopIds.Contains(v.ShopId.Value) && v.Owner == Domain.Promo.VoucherOwner.Shop && v.IsActive && v.IsPublic
+                        && v.StartAt <= now && v.EndAt > now && (v.TotalQuota == null || v.UsedCount < v.TotalQuota))
+            .Select(v => v.ShopId!.Value).Distinct().ToListAsync(ct)).ToHashSet();
         var brandIds = products.Where(p => p.BrandId != null).Select(p => p.BrandId!.Value).Distinct().ToList();
         var brands = await db.Brands.AsNoTracking().Where(b => brandIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id, b => b.Name, ct);
         var attributeIds = products.SelectMany(p => p.Attributes.Select(a => a.AttributeId)).Distinct().ToList();
@@ -75,7 +87,12 @@ public static class ProductSearchProjection
         foreach (var p in products)
         {
             var shop = shops[p.ShopId];
-            var province = provinces.FirstOrDefault(x => x.ShopId == p.ShopId);
+            var province = (shop.MultiWarehouse && p.WarehouseId is { } wid ? warehouses.FirstOrDefault(x => x.Id == wid && x.ShopId == p.ShopId) : null)
+                           ?? warehouses.FirstOrDefault(x => x.ShopId == p.ShopId && x.IsPickupDefault);
+            var shopChannels = channels.Where(c => c.ShopId == p.ShopId).ToDictionary(c => c.CarrierCode);
+            var allowed = carriers.Where(c => (!shopChannels.TryGetValue(c.Code, out var ch) || ch.IsEnabled)
+                                              && (p.CarrierCodes.Count == 0 || p.CarrierCodes.Contains(c.Code))).ToList();
+            var cod = allowed.Any(c => c.SupportsCod && (!shopChannels.TryGetValue(c.Code, out var ch) || ch.CodEnabled));
             var chain = new List<(Guid Id, string Name)>();
             for (var cur = categories.GetValueOrDefault(p.CategoryId); cur is not null; cur = cur.ParentId is { } pid ? categories.GetValueOrDefault(pid) : null)
                 chain.Add((cur.Id, cur.Name));
@@ -100,7 +117,8 @@ public static class ProductSearchProjection
                 p.Attributes.Where(a => attributeNames.ContainsKey(a.AttributeId))
                     .SelectMany(a => a.Values.Select(v => $"{attributeNames[a.AttributeId]}={v}")).ToList(),
                 (p.PublishedAt ?? p.CreatedAt).ToUnixTimeSeconds(),
-                shop.PenaltyPoints >= restrictAt ? 1 : 0));
+                shop.PenaltyPoints >= restrictAt ? 1 : 0,
+                allowed.Select(c => c.Code).ToList(), shop.FreeshipXtraSince is not null, withVoucher.Contains(shop.Id), cod));
         }
 
         var removed = ids.Except(products.Select(p => p.Id)).ToList();

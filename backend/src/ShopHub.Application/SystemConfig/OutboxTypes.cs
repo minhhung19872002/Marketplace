@@ -21,6 +21,8 @@ public static class OutboxTypes
     public const string SearchSyncShop = "search.sync.shop";
     // A SKU's price in force changed (programme added / stopped / started / ended, flash quota used up): its product's document
     public const string SearchSyncSkus = "search.sync.skus";
+    // A carrier switched on / off by the platform: every document's carriers and COD change
+    public const string SearchReindexAll = "search.reindex.all";
 
     // Order lifecycle (placed, paid, confirmed, shipped, delivered, completed, cancelled, cancel request…) → notifications
     public const string OrderEvent = "sales.order.event";

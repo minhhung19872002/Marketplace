@@ -25,7 +25,11 @@ public record SearchProductsQuery(
     string[]? Attrs = null,
     ProductSort Sort = ProductSort.Relevance,
     int Page = 1,
-    int PageSize = 60) : IRequest<ProductSearchResult>, IPagedRequest;
+    int PageSize = 60,
+    string[]? Carriers = null,
+    bool Freeship = false,
+    bool Voucher = false,
+    bool Cod = false) : IRequest<ProductSearchResult>, IPagedRequest;
 
 public sealed class SearchProductsValidator : AbstractValidator<SearchProductsQuery>
 {
@@ -47,7 +51,8 @@ public sealed class SearchProductsHandler(IProductSearch search, IApplicationDbC
     {
         var result = await search.SearchAsync(new ProductSearchRequest(
             string.IsNullOrWhiteSpace(r.Q) ? null : r.Q.Trim(), r.CategoryId, r.ShopId, r.Provinces ?? [], r.Brands ?? [], r.MinPrice, r.MaxPrice,
-            r.MinRating, r.Mall, r.Preferred, r.InStock, r.Condition, r.Attrs ?? [], r.Sort, r.Page, r.PageSize), ct);
+            r.MinRating, r.Mall, r.Preferred, r.InStock, r.Condition, r.Attrs ?? [], r.Sort, r.Page, r.PageSize,
+            r.Carriers ?? [], r.Freeship, r.Voucher, r.Cod), ct);
 
         // First page of a keyword search feeds "từ khoá hot" and suggestions
         if (!string.IsNullOrWhiteSpace(r.Q) && r.Page == 1 && r.ShopId is null)

@@ -78,6 +78,10 @@ export interface SearchParams {
   condition?: string;
   /** "Attribute name=value" pairs */
   attrs?: string[];
+  carriers?: string[];
+  freeship?: boolean;
+  voucher?: boolean;
+  cod?: boolean;
   sort?: ProductSort;
   page?: number;
   pageSize?: number;
@@ -97,6 +101,9 @@ export interface SearchFacets {
   shopTypes: FacetValue[];
   conditions: FacetValue[];
   attributes: Record<string, FacetValue[]>;
+  carriers: FacetValue[] | null;
+  // "freeship", "voucher", "cod"
+  services: FacetValue[] | null;
 }
 
 export interface SearchResult extends PagedResult<ProductCard> {

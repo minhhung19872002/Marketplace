@@ -1,0 +1,4 @@
+Mã giao dịch ZaloPay,Mã giao dịch merchant,Số tiền,Phí,Loại,Đã hoàn
+261007000001,261007_0a1b,450000,4950,Thanh toán,0
+261007000002,261007_2c3d,90000,990,Thanh toán,90000
+không phải số,261007_xx,abc,0,Thanh toán,0

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { App, Button, Card, Descriptions, Drawer, Input, Modal, Select, Space, Table, Tag, Timeline, Typography } from 'antd'
+import { App, Button, Card, Checkbox, Descriptions, Drawer, Input, InputNumber, Modal, Select, Space, Table, Tag, Timeline, Typography } from 'antd'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../api/http'
 import { platformApi, type AdminOrderRow } from '../api/platform'
@@ -26,6 +26,8 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
   const [code, setCode] = useState<string | null>(null)
   const [cancelReason, setCancelReason] = useState<string | null>(null)
   const [refund, setRefund] = useState<{ id: string; toWallet: boolean; reason: string } | null>(null)
+  // Manual refund (VI.5): units per line, amount, who bears it, reason
+  const [manual, setManual] = useState<{ units: Record<string, number>; amount: number; platformBorne: boolean; reason: string } | null>(null)
   const intervene = can(permissions, P.OrderIntervene)
 
   const list = useQuery({ queryKey: ['admin-orders', q, status, page], queryFn: () => platformApi.orders({ q, status, page }), placeholderData: keepPreviousData })
@@ -44,7 +46,19 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
     onSuccess: (r) => { message.success(r.message); setRefund(null); refresh() },
     onError: (e) => message.error(errorText(e, 'Không xử lý được hoàn tiền.')),
   })
+  const manualRefund = useMutation({
+    mutationFn: () => platformApi.manualRefund(code!, {
+      lines: Object.entries(manual!.units).filter(([, n]) => n > 0).map(([orderItemId, quantity]) => ({ orderItemId, quantity })),
+      amount: manual!.amount, platformBorne: manual!.platformBorne, reason: manual!.reason,
+    }),
+    onSuccess: (r) => { message.success(r.message); setManual(null); refresh() },
+    onError: (e) => message.error(errorText(e, 'Không hoàn tiền được.')),
+  })
   const d = detail.data
+  // About the most that can be refunded for the chosen units (rounded up; the server checks it to the đồng)
+  const manualCeiling = d && manual
+    ? d.lines.reduce((sum, l) => sum + Math.ceil((l.paid * Math.min(manual.units[l.id] ?? 0, l.refundable)) / Math.max(l.quantity, 1)), 0)
+    : 0
 
   return (
     <Card title="Đơn hàng toàn sàn">
@@ -68,8 +82,17 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
         ]} />
 
       <Drawer open={!!code} onClose={() => setCode(null)} width={760} title={`Đơn ${code ?? ''}`} destroyOnClose
-        extra={intervene && d && ['PendingConfirmation', 'ReadyToShip'].includes(d.order.status) && (
-          <Button danger onClick={() => setCancelReason('')} data-testid="admin-cancel-order">Huỷ đơn (can thiệp)</Button>
+        extra={intervene && d && (
+          <Space>
+            {['PendingConfirmation', 'ReadyToShip'].includes(d.order.status) && (
+              <Button danger onClick={() => setCancelReason('')} data-testid="admin-cancel-order">Huỷ đơn (can thiệp)</Button>
+            )}
+            {['Delivered', 'Completed'].includes(d.order.status) && d.lines.some((l) => l.refundable > 0) && (
+              <Button onClick={() => setManual({ units: {}, amount: 0, platformBorne: false, reason: '' })} data-testid="admin-manual-refund">
+                Hoàn tiền thủ công
+              </Button>
+            )}
+          </Space>
         )}>
         {d && (
           <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -141,6 +164,36 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
         <Typography.Paragraph type="secondary">Kho được nhả và tiền đã trả được hoàn về nguồn. Thao tác được ghi vào lịch sử đơn với tên bạn.</Typography.Paragraph>
         <Input.TextArea rows={3} value={cancelReason ?? ''} onChange={(e) => setCancelReason(e.target.value)} placeholder="Lý do can thiệp (ít nhất 10 ký tự)"
           data-testid="admin-cancel-reason" />
+      </Modal>
+      <Modal open={!!manual} title={`Hoàn tiền thủ công — đơn ${code}`} okText="Hoàn tiền" width={640}
+        okButtonProps={{ disabled: !manual || manual.amount <= 0 || manual.amount > manualCeiling || manual.reason.trim().length < 10 }}
+        confirmLoading={manualRefund.isPending} onCancel={() => setManual(null)} onOk={() => manualRefund.mutate()}>
+        {manual && d && (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Table size="small" rowKey="id" pagination={false} dataSource={d.lines.filter((l) => l.refundable > 0)}
+              columns={[
+                { title: 'Sản phẩm', render: (_, l) => `${l.name}${l.variant ? ` (${l.variant})` : ''}` },
+                { title: 'Đã trả', dataIndex: 'paid', align: 'right', render: (v: number) => formatPrice(v) },
+                {
+                  title: 'Số lượng hoàn', render: (_, l) => (
+                    <InputNumber min={0} max={l.refundable} value={manual.units[l.id] ?? 0} data-testid={`manual-units-${l.id}`}
+                      onChange={(v) => setManual({ ...manual, units: { ...manual.units, [l.id]: Number(v ?? 0) } })} />
+                  ),
+                },
+              ]} />
+            <Space>
+              Số tiền hoàn
+              <InputNumber min={0} max={manualCeiling} value={manual.amount} style={{ width: 180 }} data-testid="manual-amount"
+                onChange={(v) => setManual({ ...manual, amount: Number(v ?? 0) })} />
+              <Typography.Text type="secondary">tối đa {formatPrice(manualCeiling)}</Typography.Text>
+            </Space>
+            <Checkbox checked={manual.platformBorne} onChange={(e) => setManual({ ...manual, platformBorne: e.target.checked })} data-testid="manual-platform">
+              Sàn chịu khoản hoàn này (không trừ vào doanh thu của shop)
+            </Checkbox>
+            <Input.TextArea rows={3} value={manual.reason} onChange={(e) => setManual({ ...manual, reason: e.target.value })}
+              placeholder="Lý do (ít nhất 10 ký tự) — ghi vào nhật ký và lịch sử yêu cầu" data-testid="manual-reason" />
+          </Space>
+        )}
       </Modal>
       <Modal open={!!refund} title={refund?.toWallet ? 'Hoàn về Ví ShopHub' : 'Thử hoàn lại qua cổng'} okText="Xác nhận"
         okButtonProps={{ disabled: !refund?.reason.trim() }} confirmLoading={resolve.isPending} onCancel={() => setRefund(null)} onOk={() => resolve.mutate()}>

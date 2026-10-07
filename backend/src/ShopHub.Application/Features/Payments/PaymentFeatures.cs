@@ -117,7 +117,8 @@ public sealed class PaymentProcessor(
 }
 
 /// <summary>Gives back everything an unpaid checkout was holding: stock, voucher uses, xu.</summary>
-public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vouchers, Marketing.FlashSaleQuota flash, IOutbox outbox, IClock clock)
+public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vouchers, Marketing.FlashSaleQuota flash, InventoryWriter inventory, IOutbox outbox,
+    IClock clock)
 {
     /// <summary>Must run inside a transaction holding the checkout lock.</summary>
     public async Task ExpireAsync(CheckoutSession checkout, string reason, CancellationToken ct) =>
@@ -153,11 +154,9 @@ public sealed class CheckoutReleaser(IApplicationDbContext db, VoucherLedger vou
     {
         foreach (var item in order.Items.OrderBy(i => i.SkuId))
         {
-            var released = await db.ExecuteSqlAsync(
-                $"UPDATE catalog.skus SET reserved = reserved - {item.Quantity} WHERE id = {item.SkuId} AND reserved >= {item.Quantity}", ct);
-            if (released == 0) throw new InvalidOperationException($"Reserved quantity of SKU {item.SkuId} is lower than order {order.Code} holds.");
-            db.InventoryMovements.Add(new InventoryMovement(item.SkuId, 0, -item.Quantity, InventoryReason.OrderRelease, "order", order.Id, null,
-                order.CancelReason, now));
+            var released = await inventory.TryMoveAsync(new InventoryMove(item.SkuId, 0, -item.Quantity, InventoryReason.OrderRelease, "order", order.Id, null,
+                order.CancelReason), ct);
+            if (!released) throw new InvalidOperationException($"Reserved quantity of SKU {item.SkuId} is lower than order {order.Code} holds.");
         }
         // Flash Sale units bought by this order go back to the slot
         var flashLines = order.Items.Where(i => i.PriceSource is Domain.Promo.PriceProgramKind.ShopFlash or Domain.Promo.PriceProgramKind.PlatformFlash

@@ -93,6 +93,8 @@ internal sealed class NotificationConfiguration : IEntityTypeConfiguration<Notif
         b.Property(n => n.RefType).HasMaxLength(30);
         b.Property(n => n.DedupeKey).HasMaxLength(120);
         b.HasIndex(n => new { n.UserId, n.DedupeKey }).IsUnique().HasFilter("dedupe_key IS NOT NULL").HasDatabaseName("ux_notifications_dedupe");
+        // One promotion a day per person (spec VII): the database keeps it, not a read-then-write
+        b.HasIndex(n => new { n.UserId, n.PromoDay }).IsUnique().HasFilter("promo_day IS NOT NULL").HasDatabaseName("ux_notifications_promo_day");
         b.HasOne<User>().WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(n => new { n.UserId, n.CreatedAt }).IsDescending(false, true).HasDatabaseName("ix_notifications_user");
         b.HasIndex(n => new { n.UserId, n.IsRead }).HasDatabaseName("ix_notifications_unread");

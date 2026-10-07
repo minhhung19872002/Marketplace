@@ -39,6 +39,7 @@ public class Conversation : Entity
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset LastMessageAt { get; private set; }
     public string? LastMessagePreview { get; private set; }
+    // Unread messages of the other side — recomputed from the messages after every send / read, never counted up
     public int BuyerUnread { get; private set; }
     public int ShopUnread { get; private set; }
     // Staff member the conversation is assigned to (null = any staff with CHAT.MANAGE)
@@ -48,32 +49,6 @@ public class Conversation : Entity
     // First buyer message still waiting for a shop answer (response rate / time of the shop)
     public DateTimeOffset? AwaitingReplySince { get; private set; }
     public uint Version { get; private set; }
-
-    public void Posted(ChatRole by, string preview, DateTimeOffset at)
-    {
-        LastMessageAt = at;
-        LastMessagePreview = preview.Length > 120 ? preview[..120] : preview;
-        switch (by)
-        {
-            case ChatRole.Buyer:
-                ShopUnread++;
-                AwaitingReplySince ??= at;
-                break;
-            case ChatRole.Shop:
-                BuyerUnread++;
-                AwaitingReplySince = null;
-                break;
-            case ChatRole.System:
-                BuyerUnread++;
-                break;
-        }
-    }
-
-    public void ReadBy(ChatRole side)
-    {
-        if (side == ChatRole.Buyer) BuyerUnread = 0;
-        else ShopUnread = 0;
-    }
 
     public void AssignTo(Guid? staffUserId) => AssignedTo = staffUserId;
 
@@ -271,8 +246,8 @@ public class DeviceToken : Entity
 public enum BroadcastSegment
 {
     Everyone,       // every buyer account
-    MemberGold,     // members of the Gold tier or above (spend over MEMBER.WINDOW_DAYS)
-    MemberDiamond,
+    MemberGold,     // members of exactly the Gold tier (not Diamond) — spend over MEMBER.WINDOW_DAYS
+    MemberDiamond,  // members of the Diamond tier
     NoOrderYet,     // signed up but never ordered
 }
 

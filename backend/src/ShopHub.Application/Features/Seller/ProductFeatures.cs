@@ -605,9 +605,10 @@ public sealed class AdjustStockValidator : AbstractValidator<AdjustStockCommand>
 
 /// <summary>
 /// +N (goods received) or −N (damage, loss). One conditional UPDATE: parallel adjustments can never push stock
-/// below what is reserved for orders, and no read-then-write race exists.
+/// below what is reserved for orders, and no read-then-write race exists. The change and its movement row commit
+/// together (L068): a failed save leaves the stock as it was.
 /// </summary>
-public sealed class AdjustStockHandler(IApplicationDbContext db, SellerAccess access, ICurrentUser currentUser, IOutbox outbox, IClock clock)
+public sealed class AdjustStockHandler(IApplicationDbContext db, SellerAccess access, ICurrentUser currentUser, IOutbox outbox, InventoryWriter inventory)
     : IRequestHandler<AdjustStockCommand, int>
 {
     public async Task<int> Handle(AdjustStockCommand request, CancellationToken ct)
@@ -617,18 +618,18 @@ public sealed class AdjustStockHandler(IApplicationDbContext db, SellerAccess ac
             && p.Status != ProductStatus.Deleted && p.Status != ProductStatus.Banned), ct);
         if (!owned) throw new NotFoundException("Không tìm thấy SKU.");
 
-        var updated = await db.Skus
-            .Where(s => s.Id == request.SkuId && s.Stock + request.Delta >= s.Reserved)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Stock, x => x.Stock + request.Delta), ct);
-        if (updated == 0) throw new ConflictException("Không thể giảm tồn kho xuống dưới số đang giữ cho đơn.", "STOCK_BELOW_RESERVED");
+        await using var tx = await db.BeginTransactionAsync(ct);
+        var updated = await inventory.TryMoveAsync(new InventoryMove(request.SkuId, request.Delta, 0, InventoryReason.SellerAdjust, "sku", request.SkuId,
+            currentUser.UserId, request.Note), ct);
+        if (!updated) throw new ConflictException("Không thể giảm tồn kho xuống dưới số đang giữ cho đơn.", "STOCK_BELOW_RESERVED");
 
-        db.InventoryMovements.Add(new InventoryMovement(request.SkuId, request.Delta, 0, InventoryReason.SellerAdjust, "sku", request.SkuId,
-            currentUser.UserId, request.Note, clock.UtcNow));
         // Set-based update bypassed the change tracker: tell the search index explicitly ("còn hàng" may have changed)
         var productId = await db.Skus.Where(s => s.Id == request.SkuId).Select(s => s.ProductId).SingleAsync(ct);
         outbox.Enqueue(OutboxTypes.SearchSyncProducts, new SearchSyncProductsPayload([productId]));
         await db.SaveChangesAsync(ct);
-        return await db.Skus.Where(s => s.Id == request.SkuId).Select(s => s.Stock).SingleAsync(ct);
+        var stock = await db.Skus.Where(s => s.Id == request.SkuId).Select(s => s.Stock).SingleAsync(ct);
+        await tx.CommitAsync(ct);
+        return stock;
     }
 }
 

@@ -80,4 +80,29 @@ public class MarketingRulesTests
         CoinExpiryService.Expirable(entries, now.AddDays(11)).Should().Be(150 + 300);
         CoinExpiryService.Expirable([.. entries, Spend(700, now)], now.AddDays(11)).Should().Be(0);
     }
+
+    [Theory]
+    [InlineData(10, 3, 2, 3)]      // 3.33 kept / 6.67 taken back → 3 / 7 (Math.Floor kept 4)
+    [InlineData(100, 3, 1, 67)]
+    [InlineData(10, 4, 1, 8)]
+    [InlineData(500, 200_000, 0, 500)]
+    [InlineData(500, 200_000, 250_000, 0)]
+    public void Cash_back_kept_after_a_refund_is_split_by_the_largest_remainder(long share, long goods, long refunded, long kept)
+    {
+        var k = CashbackService.Kept(share, goods, refunded);
+        k.Should().Be(kept);
+        (share - k).Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
+    public void Member_segments_are_exact_tiers_of_active_accounts()
+    {
+        Guid a = Guid.NewGuid(), b = Guid.NewGuid(), c = Guid.NewGuid(), locked = Guid.NewGuid();
+        var spend = new Dictionary<Guid, long> { [a] = 2_500_000, [b] = 12_000_000, [c] = 900_000, [locked] = 3_000_000 };
+        var active = new HashSet<Guid> { a, b, c };
+        ShopHub.Application.Features.Chat.SendBroadcastHandler.MemberSegment(ShopHub.Domain.Engage.BroadcastSegment.MemberGold, spend, active, 2_000_000, 10_000_000)
+            .Should().Equal(a);
+        ShopHub.Application.Features.Chat.SendBroadcastHandler.MemberSegment(ShopHub.Domain.Engage.BroadcastSegment.MemberDiamond, spend, active, 2_000_000, 10_000_000)
+            .Should().Equal(b);
+    }
 }

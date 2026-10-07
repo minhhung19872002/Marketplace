@@ -12,7 +12,8 @@ public record ShippingOption(string Code, string Name, string? Description, long
 public record ParcelItem(int WeightG, int LengthMm, int WidthMm, int HeightMm, int Quantity);
 
 /// <summary>Shipping options for one shop's parcel to the buyer's province (spec V).</summary>
-public sealed class ShippingCalculator(IApplicationDbContext db, IEnumerable<ICarrier> carriers, ISystemParameters parameters, IClock clock)
+public sealed class ShippingCalculator(IApplicationDbContext db, IEnumerable<ICarrier> carriers, IClock clock,
+    IWorkingCalendar calendar)
 {
     /// <summary>
     /// Region by the province code (Tổng cục Thống kê numbering): 01–37 Bắc, 38–68 Trung &amp; Tây Nguyên, 70+ Nam.
@@ -42,7 +43,6 @@ public sealed class ShippingCalculator(IApplicationDbContext db, IEnumerable<ICa
     {
         var zone = ZoneOf(from.ProvinceCode, to.ProvinceCode);
         var quote = new CarrierQuote(zone, chargeableWeightG, from, to, parcelValue);
-        var holidays = await HolidaysAsync(ct);
         var today = VietnamTime.Today(clock.UtcNow);
         var options = new List<ShippingOption>();
         foreach (var carrier in await db.Carriers.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.SortOrder).ThenBy(c => c.Id).ToListAsync(ct))
@@ -63,23 +63,8 @@ public sealed class ShippingCalculator(IApplicationDbContext db, IEnumerable<ICa
             if (fee is null) continue;
             var days = carrier.DaysFor(zone);
             options.Add(new ShippingOption(carrier.Code, carrier.Name, carrier.Description, fee.Value, days,
-                VietnamTime.AddWorkingDays(today, days, holidays), carrier.SupportsCod));
+                await calendar.AddWorkingDaysAsync(today, days, ct), carrier.SupportsCod));
         }
         return options;
-    }
-
-    private async Task<IReadOnlySet<DateOnly>> HolidaysAsync(CancellationToken ct)
-    {
-        try
-        {
-            var raw = await parameters.GetStringAsync(ParameterKeys.LogisticsHolidays, ct);
-            return (JsonSerializer.Deserialize<List<string>>(raw) ?? [])
-                .Select(d => DateOnly.TryParse(d, out var date) ? date : (DateOnly?)null)
-                .Where(d => d is not null).Select(d => d!.Value).ToHashSet();
-        }
-        catch (JsonException)
-        {
-            return new HashSet<DateOnly>();
-        }
     }
 }

@@ -17,6 +17,7 @@ public enum ReturnReason
     Counterfeit,      // hàng giả
     UndeliveredParcel, // a parcel of the order came back undelivered while the others arrived (system)
     Other,
+    ManualRefund,     // hoàn tiền thủ công của sàn (spec VI.5)
 }
 
 public enum ReturnStatus
@@ -126,6 +127,23 @@ public class ReturnRequest : Entity
             PackageNo = packageNo, ShippingRefund = shippingFee - shippingDiscount, ShippingDiscountBack = shippingDiscount,
         };
         r.History.Add(new ReturnHistory(r.Id, null, r.Status, ReturnParty.System, r.Description, now));
+        return r;
+    }
+
+    // Who pays for the refund: false = the shop (its earnings shrink), true = the platform (subsidy; shop's earnings untouched)
+    public bool PlatformBorne { get; private set; }
+
+    /// <summary>A platform admin's manual refund of some units (spec VI.5): refunded at once, no goods come back.</summary>
+    public static ReturnRequest ManualByPlatform(Guid orderId, Guid buyerId, Guid shopId, string code, string reason, bool platformBorne,
+        DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length < 10) throw new BusinessRuleException("Hoàn tiền thủ công phải ghi lý do (ít nhất 10 ký tự).");
+        var r = new ReturnRequest
+        {
+            OrderId = orderId, BuyerId = buyerId, ShopId = shopId, Code = code, Type = ReturnType.RefundOnly, Reason = ReturnReason.ManualRefund,
+            Description = reason.Trim(), CreatedAt = now, UpdatedAt = now, Status = ReturnStatus.Requested, Restock = false, PlatformBorne = platformBorne,
+        };
+        r.History.Add(new ReturnHistory(r.Id, null, r.Status, ReturnParty.Admin, $"Sàn hoàn tiền thủ công ({(platformBorne ? "sàn chịu" : "shop chịu")})", now));
         return r;
     }
 

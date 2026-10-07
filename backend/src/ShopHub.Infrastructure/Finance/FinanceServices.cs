@@ -66,7 +66,7 @@ public sealed class SettlementJob(SettlementService service)
 public sealed class LedgerCheckJob(LedgerCheckService service)
 {
     [DisableConcurrentExecution(timeoutInSeconds: 1800)]
-    public Task RunJobAsync() => service.RunAsync(CancellationToken.None);
+    public Task RunJobAsync() => service.RepairAsync(CancellationToken.None);
 }
 
 /// <summary>
@@ -85,10 +85,11 @@ public sealed class SimulatedProviderStatements(Persistence.ShopHubDbContext db)
         return sb.ToString();
     }
 
-    public async Task<string> CarrierCodStatementCsvAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    public async Task<string> CarrierCodStatementCsvAsync(string carrierCode, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
+        var simulated = db.Carriers.Where(c => c.Code == carrierCode && c.Provider == Commerce.SimulatedCarrier.ProviderName).Select(c => c.Code);
         var rows = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
-            db.Shipments.Where(s => s.Direction == Domain.Logistics.ShipmentDirection.Outbound && s.Status == Domain.Logistics.ShipmentStatus.Delivered
+            db.Shipments.Where(s => simulated.Contains(s.CarrierCode) && s.Direction == Domain.Logistics.ShipmentDirection.Outbound && s.Status == Domain.Logistics.ShipmentStatus.Delivered
                                     && s.CodAmount > 0 && s.LastEventAt >= from && s.LastEventAt < to).OrderBy(s => s.LastEventAt), ct);
         var sb = new System.Text.StringBuilder("tracking_no,cod_amount,shipping_fee,delivered_at\n");
         foreach (var s in rows) sb.Append($"{s.TrackingNo},{s.CodAmount},{s.Fee},{s.LastEventAt:O}\n");

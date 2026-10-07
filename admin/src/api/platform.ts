@@ -72,6 +72,8 @@ export interface Overview {
   gmvSeries: ChartPoint[]
   orderSeries: ChartPoint[]
   pending: { shopsToReview: number; productsToReview: number; openDisputes: number; pendingWithdrawals: number; openProductReports: number; openReviewReports: number }
+  // Configuration that needs an admin soon (e.g. no holidays for next year)
+  warnings: string[] | null
 }
 
 export interface Range { from?: string; to?: string; granularity: Granularity }
@@ -146,7 +148,8 @@ export interface AdminOrderDetail {
   shippingDiscount: number
   coinUsed: number
   cancelReason: string | null
-  lines: { name: string; variant: string | null; unitPrice: number; quantity: number; lineTotal: number }[]
+  // paid: after every allocated discount; refundable: units not refunded and not in an open return
+  lines: { id: string; name: string; variant: string | null; unitPrice: number; quantity: number; lineTotal: number; paid: number; refundable: number }[]
   history: { from: string | null; to: string; actor: string; actorName: string | null; reason: string | null; at: string }[]
   payments: { id: string; method: string; status: string; amount: number; providerTxnId: string | null; createdAt: string; paidAt: string | null; failureReason: string | null }[]
   refunds: { id: string; amount: number; destination: string; status: string; reason: string; providerRef: string | null; createdAt: string }[]
@@ -255,6 +258,8 @@ export const platformApi = {
   orders: (p: { q?: string; status?: string; page: number }) => apiRequest<PagedResult<AdminOrderRow>>(`/admin/orders${query({ ...p, pageSize: 20 })}`),
   order: (code: string) => apiRequest<AdminOrderDetail>(`/admin/orders/${encodeURIComponent(code)}`),
   cancelOrder: (code: string, reason: string) => apiCommand(`/admin/orders/${encodeURIComponent(code)}/cancel`, { method: 'POST', body: { reason } }),
+  manualRefund: (code: string, body: { lines: { orderItemId: string; quantity: number }[]; amount: number; platformBorne: boolean; reason: string }) =>
+    apiCommand(`/admin/orders/${encodeURIComponent(code)}/manual-refund`, { method: 'POST', body }),
   resolveRefund: (id: string, toWallet: boolean, reason: string) =>
     apiCommand<string>(`/admin/refunds/${id}/resolve`, { method: 'POST', body: { toWallet, reason } }),
 

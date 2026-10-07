@@ -258,6 +258,9 @@ internal sealed class CoinEntryConfiguration : IEntityTypeConfiguration<CoinEntr
         b.Property(c => c.Note).HasMaxLength(300);
         b.HasOne<User>().WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(c => new { c.UserId, c.CreatedAt }).HasDatabaseName("ix_coin_ledger_user");
+        // The expiry job's work list: expired credits not accounted for yet
+        b.HasIndex(c => new { c.UserId, c.ExpiresAt }).HasFilter("delta > 0 AND expires_at IS NOT NULL AND expiry_checked_at IS NULL")
+            .HasDatabaseName("ix_coin_ledger_expiry_todo");
     }
 }
 

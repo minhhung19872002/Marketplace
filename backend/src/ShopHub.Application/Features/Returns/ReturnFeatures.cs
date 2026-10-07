@@ -105,6 +105,8 @@ internal static class EvidenceResolver
 /// and the review reward of a refunded line is taken back. Runs inside the caller's transaction and return lock.
 /// </summary>
 public sealed class ReturnRefunder(
+    IWorkingCalendar calendar,
+    InventoryWriter inventory,
     IApplicationDbContext db,
     IPaymentGatewayRegistry gateways,
     ReviewRewards rewards,
@@ -148,9 +150,8 @@ public sealed class ReturnRefunder(
             foreach (var item in r.Items.OrderBy(i => i.OrderItemId))
             {
                 var line = order.Items.Single(i => i.Id == item.OrderItemId);
-                await db.ExecuteSqlAsync($"UPDATE catalog.skus SET stock = stock + {item.Quantity} WHERE id = {line.SkuId}", ct);
-                db.InventoryMovements.Add(new InventoryMovement(line.SkuId, item.Quantity, 0, InventoryReason.ReturnRestock, "return", r.Id, null,
-                    $"Hàng trả {r.Code}", now));
+                await inventory.TryMoveAsync(new InventoryMove(line.SkuId, item.Quantity, 0, InventoryReason.ReturnRestock, "return", r.Id, null,
+                    $"Hàng trả {r.Code}"), ct);
             }
 
         var lineIds = r.Items.Select(i => i.OrderItemId).ToList();
@@ -191,7 +192,7 @@ public sealed class ReturnRefunder(
             new CarrierParcel(order.Id, $"{order.Code}-{r.Code}", fromProvince, toProvince, weight, 0, PickupMethod.DropOff, null,
                 buyer, CarrierParties.FromWarehouse(warehouse), r.Items.Sum(i => order.Items.First(o => o.Id == i.OrderItemId).UnitPrice * i.Quantity),
                 items, $"Hàng trả của đơn {order.Code}"), ct);
-        var expected = VietnamTime.AddWorkingDays(VietnamTime.Today(now), carrier.DaysFor(ShippingCalculator.ZoneOf(fromProvince, toProvince)) + 1, new HashSet<DateOnly>());
+        var expected = await calendar.AddWorkingDaysAsync(VietnamTime.Today(now), carrier.DaysFor(ShippingCalculator.ZoneOf(fromProvince, toProvince)) + 1, ct);
         var shipment = new Shipment(order.Id, carrier.Code, tracking, ShipmentDirection.Return, 0, 0, weight, PickupMethod.DropOff, null,
             new DateTimeOffset(expected.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(7)).ToUniversalTime(), now);
         shipment.LinkReturn(r.Id);

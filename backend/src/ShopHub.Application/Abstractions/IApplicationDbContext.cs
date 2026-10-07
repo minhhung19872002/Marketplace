@@ -130,6 +130,9 @@ public interface IApplicationDbContext
     /// <summary>Explicit transaction for multi-step writes (checkout, payment callbacks, expiry).</summary>
     Task<IAppTransaction> BeginTransactionAsync(CancellationToken ct);
 
+    /// <summary>True while an explicit transaction is open on this context.</summary>
+    bool InTransaction { get; }
+
     /// <summary>Transaction-scoped PostgreSQL advisory lock — must be called inside a transaction.</summary>
     Task LockAsync(string lockKey, CancellationToken ct);
 

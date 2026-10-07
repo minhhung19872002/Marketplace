@@ -13,7 +13,7 @@ public record SettlementReturnItem(Guid OrderItemId, int Quantity, long RefundAm
 /// free-shipping share on it; the carrier is owed nothing for it.
 /// </summary>
 public record SettlementReturn(Guid ReturnId, DateTimeOffset RefundedAt, long RequestedAmount, long RequestedCoins, long RefundAmount, long RefundCoins,
-    IReadOnlyList<SettlementReturnItem> Items, long ShippingRefund = 0, long ShippingDiscountBack = 0)
+    IReadOnlyList<SettlementReturnItem> Items, long ShippingRefund = 0, long ShippingDiscountBack = 0, bool PlatformBorne = false)
 {
     public long ShippingFeeBack => ShippingRefund + ShippingDiscountBack;
 }
@@ -64,10 +64,19 @@ public static class SettlementCalculator
         var lines = input.Lines.ToDictionary(l => l.OrderItemId);
         var borne = input.Lines.ToDictionary(l => l.OrderItemId, _ => 0L);
         var returned = input.Lines.ToDictionary(l => l.OrderItemId, _ => 0);
-        long moneyRefunded = 0, subsidyCancelled = 0, shippingBack = 0;
+        long moneyRefunded = 0, subsidyCancelled = 0, shippingBack = 0, platformRefunds = 0;
 
         foreach (var r in input.Returns.OrderBy(r => r.RefundedAt).ThenBy(r => r.ReturnId))
         {
+            if (r.PlatformBorne)
+            {
+                // The platform pays the refund out of its subsidy: the shop's earnings and fees stay as they were; the
+                // xu given back were already the platform's subsidy, so only the money moves
+                moneyRefunded += r.RefundAmount;
+                subsidyCancelled -= r.RefundAmount;
+                platformRefunds += r.RefundAmount;
+                continue;
+            }
             moneyRefunded += r.RefundAmount;
             subsidyCancelled += r.RefundCoins + r.ShippingDiscountBack;
             shippingBack += r.ShippingFeeBack;
@@ -105,7 +114,8 @@ public static class SettlementCalculator
         var refundsBorne = results.Sum(r => r.RefundsBorne);
         var fixedFee = results.Sum(r => r.FixedFee);
         var serviceFee = results.Sum(r => r.ServiceFee);
-        var paymentFee = Money.Vnd(moneyKept).PercentBp(input.PaymentFeeBp).Value;
+        // A refund the platform pays itself does not lower the shop's payment fee either
+        var paymentFee = Money.Vnd(moneyKept + platformRefunds).PercentBp(input.PaymentFeeBp).Value;
         // Fees never take more than what the shop keeps
         var fees = fixedFee + serviceFee + paymentFee;
         var gross = goods - shopDiscount - refundsBorne;

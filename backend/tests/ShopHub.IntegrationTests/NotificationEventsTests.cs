@@ -86,6 +86,40 @@ public class NotificationEventsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_voucher_about_to_expire_is_reminded_even_after_todays_promotion_and_promotions_can_be_turned_off_in_the_app()
+    {
+        var buyer = await factory.CreateUserAsync();
+        var voucher = await factory.CreateVoucherAsync(Domain.Promo.VoucherOwner.Platform, null, Domain.Promo.VoucherType.Amount, value: 5_000);
+        await factory.WithDbAsync(db => db.Vouchers.Where(v => v.Id == voucher.Id).ExecuteUpdateAsync(u => u.SetProperty(v => v.EndAt, DateTimeOffset.UtcNow.AddHours(5))));
+        (await buyer.Client.PostAsync($"/api/account/vouchers/{voucher.Id}/claim", null)).EnsureSuccessStatusCode();
+        await factory.WithDbAsync(async db =>
+        {
+            db.Notifications.Add(new Notification(buyer.Id, NotificationCategory.Promotion, "Ngày hội", "Giảm giá", "/", "broadcast", Guid.NewGuid(),
+                DateTimeOffset.UtcNow, $"broadcast:{Guid.NewGuid()}", Application.Common.VietnamTime.Today(DateTimeOffset.UtcNow)));
+            await db.SaveChangesAsync();
+        });
+        await RemindersAsync();
+        var reminder = await factory.WithDbAsync(db => db.Notifications.AsNoTracking()
+            .SingleOrDefaultAsync(n => n.UserId == buyer.Id && n.DedupeKey == $"voucher-expiring:{voucher.Id}"));
+        reminder.Should().NotBeNull("nhắc việc không chung hạn mức với tin quảng cáo");
+        reminder!.Category.Should().Be(NotificationCategory.Wallet);
+
+        // Promotions in the app can be turned off; orders / wallet / account cannot
+        var prefs = (await (await buyer.Client.GetAsync("/api/notifications/prefs")).ReadEnvelopeAsync()).Data.GetProperty("prefs").EnumerateArray()
+            .Where(p => p.Str("channel") == "InApp").ToDictionary(p => p.Str("category"), p => p.GetProperty("locked").GetBoolean());
+        prefs["Promotion"].Should().BeFalse();
+        prefs["Order"].Should().BeTrue();
+        (await buyer.Client.PutAsJsonAsync("/api/notifications/prefs", new
+        {
+            prefs = new[] { new { category = "Promotion", channel = "InApp", enabled = false }, new { category = "Order", channel = "InApp", enabled = false } },
+        })).EnsureSuccessStatusCode();
+        var after = (await (await buyer.Client.GetAsync("/api/notifications/prefs")).ReadEnvelopeAsync()).Data.GetProperty("prefs").EnumerateArray()
+            .Where(p => p.Str("channel") == "InApp").ToDictionary(p => p.Str("category"), p => p.GetProperty("enabled").GetBoolean());
+        after["Promotion"].Should().BeFalse();
+        after["Order"].Should().BeTrue("đơn hàng luôn hiện trong ứng dụng");
+    }
+
+    [Fact]
     public async Task A_wishlisted_product_back_in_stock_is_told_once_and_promotions_are_capped_at_one_a_day()
     {
         var store = await factory.CreateStoreAsync("01", products: [new("Gối Hết Hàng", "Đèn Bàn", 80_000, 0, "Việt Nam")]);
@@ -98,7 +132,7 @@ public class NotificationEventsTests(ApiFactory factory)
         await factory.WithDbAsync(async db =>
         {
             db.Notifications.Add(new Notification(busy.Id, NotificationCategory.Promotion, "Ngày hội", "Giảm giá", "/", "broadcast", Guid.NewGuid(), DateTimeOffset.UtcNow,
-                $"broadcast:{Guid.NewGuid()}"));
+                $"broadcast:{Guid.NewGuid()}", Application.Common.VietnamTime.Today(DateTimeOffset.UtcNow)));
             await db.SaveChangesAsync();
         });
 

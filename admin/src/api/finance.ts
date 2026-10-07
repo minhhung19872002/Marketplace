@@ -64,6 +64,15 @@ export interface ReconcileResult {
   issues: { reference: string; issue: string; providerAmount: number | null; systemAmount: number | null; note: string }[]
   statementTotal: number
   systemTotal: number
+  // Fees the gateway charged, as written in its file
+  statementFees: number
+}
+
+export interface ReconcileSource {
+  code: string
+  name: string
+  // Simulated providers can generate their own statement file
+  simulated: boolean
 }
 
 export const FEE_TYPE_LABEL: Record<FeeType, string> = {
@@ -80,6 +89,7 @@ export const ISSUE_LABEL: Record<string, string> = {
   RefundMismatch: 'Lệch tiền hoàn',
   FeeMismatch: 'Lệch phí vận chuyển',
   BadLine: 'Dòng lỗi',
+  DuplicateInStatement: 'Lặp trong tệp',
 }
 
 const range = (from: string, to: string) => `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
@@ -101,15 +111,17 @@ export const financeApi = {
   reject: (id: string, reason: string) => apiCommand(`/admin/finance/withdrawals/${id}/reject`, { method: 'POST', body: { reason } }),
   ledger: () => apiRequest<LedgerOverview>('/admin/finance/ledger'),
   entries: (page: number) => apiRequest<PagedResult<LedgerEntry>>(`/admin/finance/ledger/entries?page=${page}&pageSize=50`),
-  statement: async (provider: 'gateway' | 'carrier', from: string, to: string) => {
-    const res = await raw(`/admin/finance/statements/${provider}?${range(from, to)}`)
+  sources: () => apiRequest<{ gateways: ReconcileSource[]; carriers: ReconcileSource[] }>('/admin/finance/reconcile/sources'),
+  statement: async (provider: 'gateway' | 'carrier', source: string, from: string, to: string) => {
+    const res = await raw(`/admin/finance/statements/${provider}?${range(from, to)}&carrier=${encodeURIComponent(source)}`)
     if (!res.ok) throw new ApiError(res.status, 'Không tải được sao kê.')
     return res.blob()
   },
-  reconcile: async (provider: 'gateway' | 'carrier', from: string, to: string, file: File) => {
+  reconcile: async (provider: 'gateway' | 'carrier', source: string, from: string, to: string, file: File) => {
     const form = new FormData()
     form.append('from', from)
     form.append('to', to)
+    form.append('source', source)
     form.append('file', file)
     const res = await raw(`/admin/finance/reconcile/${provider}`, { method: 'POST', body: form })
     const body = (await res.json().catch(() => null)) as { success: boolean; data: ReconcileResult; message: string } | null

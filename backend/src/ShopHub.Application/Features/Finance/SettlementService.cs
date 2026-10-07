@@ -108,14 +108,49 @@ public sealed class SettlementService(
 
 public record LedgerMismatch(Guid AccountId, LedgerOwnerType OwnerType, Guid OwnerId, LedgerAccountType Type, long Cached, long FromEntries);
 
-public record LedgerCheckResult(int Accounts, IReadOnlyList<LedgerMismatch> Mismatches, long TotalDebits, long TotalCredits, int UnbalancedTransactions);
+public record LedgerCheckResult(int Accounts, IReadOnlyList<LedgerMismatch> Mismatches, long TotalDebits, long TotalCredits, int UnbalancedTransactions,
+    int Repaired = 0);
 
 /// <summary>
-/// The ledger's own audit (spec 3.9, section 8 rule 2): every cached balance recomputed from the entries, Σ debits =
-/// Σ credits overall and per transaction.
+/// The ledger's own audit (spec 3.9, section 8 rule 2): every cached balance compared with the sum of its entries, Σ debits =
+/// Σ credits overall and per transaction. The scheduled run (<see cref="RepairAsync"/>) overwrites a cached balance that
+/// drifted with the sum of the entries — the entries are the truth — and alerts the finance admins.
 /// </summary>
-public sealed class LedgerCheckService(IApplicationDbContext db, ILogger<LedgerCheckService> logger)
+public sealed class LedgerCheckService(IApplicationDbContext db, AdminAlerts alerts, IClock clock, ILogger<LedgerCheckService> logger)
 {
+    /// <summary>Recompute every drifted cached balance from the entries, then alert finance admins about what was found.</summary>
+    public async Task<LedgerCheckResult> RepairAsync(CancellationToken ct)
+    {
+        var found = await RunAsync(ct);
+        var repaired = 0;
+        foreach (var m in found.Mismatches)
+        {
+            await using var tx = await db.BeginTransactionAsync(ct);
+            // Take the row lock first: a posting in flight holds it until its entries are committed, and the UPDATE
+            // below then runs as a new statement whose snapshot sees those entries (READ COMMITTED)
+            await db.ExecuteSqlAsync($"SELECT 1 FROM finance.ledger_accounts WHERE id = {m.AccountId} FOR UPDATE", ct);
+            var debitNormal = LedgerAccount.IsDebitNormal(m.Type);
+            repaired += await db.ExecuteSqlAsync($"""
+                UPDATE finance.ledger_accounts a SET balance = s.total
+                FROM (SELECT COALESCE(SUM(CASE WHEN (direction = 'Debit') = {debitNormal} THEN amount ELSE -amount END), 0) AS total
+                      FROM finance.ledger_entries WHERE account_id = {m.AccountId}) s
+                WHERE a.id = {m.AccountId} AND a.balance <> s.total
+                """, ct);
+            await tx.CommitAsync(ct);
+        }
+        if (found.Mismatches.Count > 0 || found.UnbalancedTransactions > 0 || found.TotalDebits != found.TotalCredits)
+        {
+            var day = VietnamTime.ToLocal(clock.UtcNow).ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
+            var body = $"{found.Mismatches.Count} tài khoản có số dư chép sẵn lệch tổng bút toán (đã tính lại {repaired}); "
+                       + $"{found.UnbalancedTransactions} giao dịch không cân; tổng nợ {Domain.Common.Money.Vnd(found.TotalDebits)}, "
+                       + $"tổng có {Domain.Common.Money.Vnd(found.TotalCredits)}.";
+            await alerts.RaiseAsync(Security.Permissions.FinanceLedgerView, "Kiểm tra sổ cái phát hiện chênh lệch", body, "/admin/tai-chinh",
+                $"ledger-check:{day}", ct);
+            await db.SaveChangesAsync(ct);
+        }
+        return found with { Repaired = repaired };
+    }
+
     public async Task<LedgerCheckResult> RunAsync(CancellationToken ct)
     {
         var sums = await db.LedgerEntries.AsNoTracking().GroupBy(e => e.AccountId).Select(g => new

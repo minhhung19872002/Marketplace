@@ -380,6 +380,28 @@ public class MarketingTests(ApiFactory factory)
         (await QuoteAsync(b, store.Shop.ShopId, gold.Code)).GetProperty("platformDiscount").GetInt64().Should().Be(10_000);
     }
 
+    [Fact]
+    public async Task Member_spending_counts_the_goods_paid_without_shipping_and_less_what_was_refunded()
+    {
+        var store = await StoreAsync();
+        var b = await BuyerAsync();
+        await AddAsync(b, store.Shop.Skus[Kettle], 1);
+        var code = await CompleteOrderAsync(store, b);
+        var order = await factory.WithDbAsync(db => db.Orders.AsNoTracking().Include(o => o.Items).SingleAsync(o => o.Code == code));
+        order.ShippingFee.Should().BeGreaterThan(order.ShippingDiscount, "đơn có trả phí vận chuyển");
+        var goodsPaid = order.GrandTotal - (order.ShippingFee - order.ShippingDiscount);
+        async Task<long> SpendAsync() => (await (await b.User.Client.GetAsync("/api/account/membership")).ReadEnvelopeAsync()).Data.GetProperty("spend").GetInt64();
+        (await SpendAsync()).Should().Be(goodsPaid, "phí vận chuyển không phải chi tiêu mua hàng");
+
+        var admin = await factory.ClientWithPermissionsAsync(Permissions.OrderIntervene);
+        (await admin.PostAsJsonAsync($"/api/admin/orders/{code}/manual-refund", new
+        {
+            lines = new[] { new { orderItemId = order.Items[0].Id, quantity = 1 } }, amount = 50_000, platformBorne = true,
+            reason = "Hàng giao thiếu phụ kiện, sàn bồi hoàn",
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await SpendAsync()).Should().Be(goodsPaid - 50_000, "phần đã hoàn không còn là chi tiêu");
+    }
+
     // ---------- banners & campaigns ----------
 
     [Fact]
@@ -418,5 +440,41 @@ public class MarketingTests(ApiFactory factory)
         var page = (await (await factory.CreateClient().GetAsync($"/api/campaigns/{slug}")).ReadEnvelopeAsync()).Data;
         page.GetProperty("blocks").GetArrayLength().Should().Be(3);
         (await factory.CreateClient().GetAsync("/api/campaigns/khong-ton-tai")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Expired_xu_of_twelve_thousand_users_are_all_written_off_in_one_run_and_never_twice()
+    {
+        // 12 000 buyers (cloned from one test user, phones 08…) each with 100 xu that expired yesterday
+        var template = await factory.CreateUserAsync();
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        await factory.WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO iam.users
+            SELECT (jsonb_populate_record(NULL::iam.users, to_jsonb(u) || jsonb_build_object(
+                'id', gen_random_uuid(), 'phone', '08' || lpad((g + {Random.Shared.Next(0, 80_000_000)})::text, 8, '0'),
+                'email', NULL, 'username', NULL, 'full_name', 'Xu hết hạn ' || {marker}))).*
+            FROM iam.users u CROSS JOIN generate_series(1, 12000) g WHERE u.id = {template.Id}
+            """));
+        var at = DateTimeOffset.UtcNow.AddDays(-40);
+        var expired = DateTimeOffset.UtcNow.AddDays(-1);
+        var inserted = await factory.WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO promo.coin_ledger (id, user_id, delta, reason, ref_type, ref_id, expires_at, note, created_at)
+            SELECT gen_random_uuid(), u.id, 100, 'CheckIn', NULL, NULL, {expired}, 'Điểm danh', {at}
+            FROM iam.users u WHERE u.full_name = {"Xu hết hạn " + marker}
+            """));
+        inserted.Should().Be(12_000);
+
+        using (var scope = factory.Services.CreateScope())
+            (await scope.ServiceProvider.GetRequiredService<Application.Features.Marketing.CoinExpiryService>().RunAsync(CancellationToken.None))
+                .Should().BeGreaterThanOrEqualTo(12_000, "mọi người có xu hết hạn đều được xử lý, không dừng ở 5.000");
+        var written = await factory.WithDbAsync(db => (from c in db.CoinLedger
+                                                       join u in db.Users on c.UserId equals u.Id
+                                                       where u.FullName == "Xu hết hạn " + marker && c.Reason == CoinReason.Expired
+                                                       select c.Delta).ToListAsync());
+        written.Should().HaveCount(12_000).And.OnlyContain(d => d == -100);
+
+        using (var scope = factory.Services.CreateScope())
+            (await scope.ServiceProvider.GetRequiredService<Application.Features.Marketing.CoinExpiryService>().RunAsync(CancellationToken.None))
+                .Should().Be(0, "lần chạy sau không xử lý lại người đã xong");
     }
 }

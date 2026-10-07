@@ -205,7 +205,8 @@ public sealed class AdminOrdersHandler(IApplicationDbContext db) : IRequestHandl
     }
 }
 
-public record AdminOrderLineDto(string Name, string? Variant, long UnitPrice, int Quantity, long LineTotal);
+// Paid = what the buyer paid for the line after every allocated discount; Refundable = units not refunded and not in an open return
+public record AdminOrderLineDto(string Name, string? Variant, long UnitPrice, int Quantity, long LineTotal, Guid Id = default, long Paid = 0, int Refundable = 0);
 
 public record AdminOrderHistoryDto(OrderStatus? From, OrderStatus To, OrderActor Actor, string? ActorName, string? Reason, DateTimeOffset At);
 
@@ -229,7 +230,8 @@ public sealed class AdminOrderDetailHandler(IApplicationDbContext db) : IRequest
     public async Task<AdminOrderDetailDto> Handle(AdminOrderDetailQuery request, CancellationToken ct)
     {
         var code = request.Code.Trim().ToUpperInvariant();
-        var o = await db.Orders.AsNoTracking().Include(x => x.Items).Include(x => x.History).FirstOrDefaultAsync(x => x.Code == code, ct)
+        var o = await db.Orders.AsNoTracking().Include(x => x.Items).ThenInclude(i => i.Discounts).Include(x => x.History).AsSplitQuery()
+                    .FirstOrDefaultAsync(x => x.Code == code, ct)
                 ?? throw new NotFoundException("Không tìm thấy đơn hàng.");
         var shop = await db.Shops.IgnoreQueryFilters().Where(s => s.Id == o.ShopId).Select(s => s.Name).SingleAsync(ct);
         var buyer = await db.Users.IgnoreQueryFilters().Where(u => u.Id == o.BuyerId).Select(u => u.FullName).SingleAsync(ct);
@@ -241,10 +243,12 @@ public sealed class AdminOrderDetailHandler(IApplicationDbContext db) : IRequest
             .Select(r => new AdminRefundDto(r.Id, r.Amount, r.Destination, r.Status, r.Reason, r.ProviderRef, r.CreatedAt)).ToListAsync(ct);
         var shipments = await db.Shipments.AsNoTracking().Include(s => s.Events).Where(s => s.OrderId == o.Id).OrderBy(s => s.CreatedAt).ToListAsync(ct);
         var returns = await db.ReturnRequests.AsNoTracking().Where(r => r.OrderId == o.Id).OrderBy(r => r.CreatedAt).Select(r => r.Code).ToListAsync(ct);
+        var used = await Returns.Returnability.UsedQuantitiesAsync(db, o.Items.Select(i => i.Id).ToList(), ct);
         return new AdminOrderDetailDto(
             new AdminOrderRowDto(o.Id, o.Code, shop, buyer, o.Status, o.PaymentStatus, o.PaymentMethod, o.GrandTotal, o.CreatedAt),
             o.Subtotal, o.ShopDiscount, o.PlatformDiscount, o.ShippingFee, o.ShippingDiscount, o.CoinUsed, o.CancelReason,
-            o.Items.Select(i => new AdminOrderLineDto(i.NameSnapshot, i.VariantSnapshot, i.UnitPrice, i.Quantity, i.LineTotal)).ToList(),
+            o.Items.Select(i => new AdminOrderLineDto(i.NameSnapshot, i.VariantSnapshot, i.UnitPrice, i.Quantity, i.LineTotal, i.Id,
+                Returns.Returnability.PaidMoney(i), i.Quantity - used.GetValueOrDefault(i.Id))).ToList(),
             o.History.OrderBy(h => h.OccurredAt).Select(h => new AdminOrderHistoryDto(h.FromStatus, h.ToStatus, h.ActorType,
                 h.ActorId is { } a ? actors.GetValueOrDefault(a) : null, h.Reason, h.OccurredAt)).ToList(),
             payments, refunds,

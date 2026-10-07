@@ -108,8 +108,8 @@ export type BroadcastSegment = 'Everyone' | 'MemberGold' | 'MemberDiamond' | 'No
 
 export const SEGMENT_LABEL: Record<BroadcastSegment, string> = {
   Everyone: 'Tất cả người mua',
-  MemberGold: 'Thành viên Vàng trở lên',
-  MemberDiamond: 'Thành viên Kim cương',
+  MemberGold: 'Thành viên hạng Vàng (đúng hạng, không gồm Kim cương)',
+  MemberDiamond: 'Thành viên hạng Kim cương',
   NoOrderYet: 'Chưa từng đặt hàng',
 }
 

@@ -105,6 +105,16 @@ public sealed class PlatformAdminController : ApiControllerBase
         return OkData<object?>(null, "Đã huỷ đơn và hoàn tiền về nguồn thanh toán (nếu đã trả).");
     }
 
+    public record ManualRefundBody(IReadOnlyList<Application.Features.Returns.ManualRefundLineInput> Lines, long Amount, bool PlatformBorne, string Reason);
+
+    /// <summary>Hoàn tiền thủ công cho đơn đã giao / hoàn thành: chọn dòng, số lượng, số tiền (≤ phần đã trả), ai chịu; bắt buộc lý do.</summary>
+    [HttpPost("orders/{code}/manual-refund")]
+    [RequirePermission(Permissions.OrderIntervene)]
+    [ProducesResponseType<ApiResponse<Application.Features.Returns.ReturnDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ManualRefund(string code, [FromBody] ManualRefundBody body, CancellationToken ct) =>
+        OkData(await Sender.Send(new Application.Features.Returns.AdminManualRefundCommand(code, body.Lines ?? [], body.Amount, body.PlatformBorne,
+            body.Reason ?? ""), ct), "Đã hoàn tiền về nguồn thanh toán của người mua.");
+
     public record RefundBody(bool ToWallet, string Reason);
 
     /// <summary>A failed gateway refund: retry at the gateway, or send it to the buyer's Ví ShopHub.</summary>

@@ -20,6 +20,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 11 | Cổng thật | **Xong** (chưa chạy với sandbox thật — cần tài khoản thử, xem cuối bảng) | Xem bảng Phase 11 dưới đây |
 | 12 | Quản trị & báo cáo | **Xong** | Xem bảng Phase 12 dưới đây |
 | 13 | Hoàn thiện | **Xong** (cổng / hãng thật chờ tài khoản sandbox) | Xem bảng Phase 13 dưới đây |
+| 14 | Vá sau đợt rà soát độc lập (`PROMPT-PHASE-14-RA-SOAT.md`) | **Đang làm** — nhóm A xong; B–F đang làm; G chờ tài khoản | Xem bảng Phase 14 cuối tệp |
 
 ## Phase 0 — Chuyển đổi repo
 
@@ -295,3 +296,59 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | I.1 Đăng nhập Google (tuỳ chọn, cấu hình) (Phase 2 dời lại) | 00 #134, `GoogleLoginHandler`, `GoogleTokenVerifier`, `iam.user_identities`, nút Google ở Đăng nhập / Đăng ký | `A_new_google_account_needs_consent_then_signs_in_to_the_same_account_every_time`, `An_existing_account_with_the_verified_email_is_linked_not_duplicated_and_a_locked_one_stays_out`, `Forged_expired_foreign_or_unverified_tokens_are_refused` |
 | 3.5 Đa kho (một kiện mỗi kho) | **không bật** — 00 #135 | — |
 
+## Phase 14 — Vá sau đợt rà soát độc lập
+
+Mỗi mục là một lỗi trong `08-so-loi.md` (L063…), kèm phép thử đỏ trước / xanh sau. Trạng thái ghi thật: mục chưa làm là **Chưa**.
+
+| Mục | Nội dung | Trạng thái | Hiện thực | Bằng chứng |
+|---|---|---|---|---|
+| A1 | Số dư sổ cái tính lại từ bút toán, lệch thì báo quản trị | **Xong** | 08 L063, `LedgerCheckService.RepairAsync`, `AdminAlerts`, `Ledger.PostAsync` bắt buộc trong transaction | `A_drifted_cached_balance_is_overwritten_with_the_sum_of_its_entries_and_finance_admins_are_alerted` |
+| A2 | Ngày lễ ở mọi hạn (chuẩn bị hàng, giao dự kiến, hàng trả), ngày nghỉ trong tuần, ngày lễ 2026–2028, cảnh báo năm sau | **Xong** | 08 L064, 00 #157, `IWorkingCalendar`, `LOGISTICS.WEEKLY_OFF_DAYS`, migration `HolidayCalendar2026To2028`, luật quét | `Holidays_extend_the_shops_preparation_deadline_so_no_order_is_cancelled_or_penalised_over_tet`, `The_overview_warns_when_no_holiday_of_next_year_is_configured`, `Working_days_are_only_added_through_the_working_calendar` |
+| A3 | Đối soát hãng vận chuyển theo hãng, dòng trùng | **Xong** | 08 L065, `ReconcileCarrierHandler`, `reconcile/sources` | `Each_reconciliation_only_compares_the_chosen_carrier_or_gateway_and_reports_a_repeated_line_once` |
+| A4 | Đối soát VNPay / MoMo / ZaloPay / giả lập, bộ đọc tệp từng cổng | **Một phần** — bộ đọc theo cột tệp xuất giao dịch, tệp mẫu tự dựng; **tệp đối soát thật chờ nhóm G** | 08 L066, 00 #158, `GatewayStatementFormats`, `backend/tests/fixtures/statements/` | `StatementFormatTests` (4) |
+| A5 | Hoàn tiền thủ công của sàn (dòng, số tiền ≤ phần đã trả, sàn/shop chịu, lý do, quyền) | **Xong** | 08 L067, 00 #156, `AdminManualRefundHandler`, admin → Đơn hàng → "Hoàn tiền thủ công" | `Manual_refunds_never_exceed_what_was_paid_even_in_parallel_and_the_shop_bears_them_before_release`, `After_release_a_manual_refund_is_only_possible_on_the_platform_and_leaves_the_shops_money_untouched` |
+| A6 | Tồn kho và dòng lịch sử cùng giao dịch | **Xong** | 08 L068, `InventoryWriter`, luật quét | `A_stock_change_whose_history_row_cannot_be_saved_leaves_the_stock_unchanged`, `Stock_and_reserved_are_only_changed_through_the_inventory_writer` |
+| A7 | Xu hết hạn theo lô tới hết; thu hồi xu hoàn theo dư lớn nhất | **Xong** | 08 L069, `coin_ledger.expiry_checked_at`, `CashbackService.Kept` | `Expired_xu_of_twelve_thousand_users_are_all_written_off_in_one_run_and_never_twice`, `Cash_back_kept_after_a_refund_is_split_by_the_largest_remainder` |
+| A8 | Chi tiêu hạng thành viên = tiền hàng đã trả − đã hoàn | **Xong** | 08 L070, 00 #154 | `Member_spending_counts_the_goods_paid_without_shipping_and_less_what_was_refunded` |
+| A9 | Bộ đếm chưa đọc của chat đếm lại từ tin nhắn | **Xong** | 08 L071, `ConversationState` | `Unread_counters_are_counted_from_the_messages_when_both_sides_write_and_read_at_the_same_time` |
+| A10 | Thông báo hàng loạt: ràng buộc 1 tin/ngày & 1 tin/chiến dịch ở CSDL, phân khúc đúng hạng & tài khoản hoạt động, nhắc voucher tách hạn mức, tắt khuyến mãi trong app | **Xong** | 08 L072, 00 #155, `PromoNotifications`, `ux_notifications_promo_day` | `Two_broadcasts_sent_at_the_same_moment_reach_a_person_once_and_never_whoever_turned_promotions_off`, `A_voucher_about_to_expire_is_reminded_even_after_todays_promotion_and_promotions_can_be_turned_off_in_the_app`, `Member_segments_are_exact_tiers_of_active_accounts` |
+| A11 | Phễu chuyển đổi theo một nhóm; biểu đồ trong PDF | **Xong** | 08 L073, `AdminReports.FunnelAsync`, `ReportDocuments.Chart` | `The_funnel_follows_one_cohort_so_no_step_is_larger_than_the_one_before_and_the_pdf_draws_its_chart` |
+| B1 | Xoá tài khoản (liên kết Google, tài khoản ngân hàng ví, thiết bị) trong một giao dịch; tải dữ liệu của tôi | **Chưa** | — | — |
+| B2 | Gỡ siêu dữ liệu video, bằng chứng trả hàng ở bucket riêng tư, cache tệp riêng tư | **Chưa** | — | — |
+| B3 | Tiêu đề bảo mật ở mọi `location` có `add_header` | **Chưa** | — | — |
+| B4 | `/health/ready` công khai chỉ trả trạng thái tổng | **Chưa** | — | — |
+| B5 | Bảng điều khiển Hangfire mở được bằng trình duyệt; màn "Việc nền" | **Chưa** | — | — |
+| B6 | Giới hạn tốc độ theo SĐT/email | **Chưa** | — | — |
+| B7 | Quyền nhỏ (OTP tài khoản ngân hàng, `DeclaredOnly`, `img src`, `upper(code)`, U+0000 trong form) | **Chưa** | — | — |
+| C1 | CI GitHub Actions | **Chưa** | — | — |
+| C2 | Cron theo giờ Việt Nam | **Chưa** | — | — |
+| C3 | Sao lưu trong Hangfire + màn quản trị | **Chưa** | — | — |
+| C4 | Không viết cứng ngày trong bộ gieo | **Chưa** | — | — |
+| C5 | Nâng luật quét tiền / trạng thái đơn | **Chưa** | — | — |
+| C6 | Phép thử song song còn thiếu + gom phép thử IDOR | **Chưa** | — | — |
+| D1 | Tab sản phẩm theo URL | **Chưa** | — | — |
+| D2 | Một luật "sắp hết hàng" | **Chưa** | — | — |
+| D3 | Shop bị từ chối: lý do + gửi lại | **Chưa** | — | — |
+| D4 | "Thông báo của sàn" chỉ tin của sàn | **Chưa** | — | — |
+| D5 | Ngày báo cáo tài chính theo giờ VN | **Chưa** | — | — |
+| D6 | Bộ lọc / tuỳ chọn còn thiếu ở Kênh Người Bán | **Chưa** | — | — |
+| E1 | Đăng ký bằng email | **Chưa** | — | — |
+| E2 | Header (Hỗ trợ, Tải ứng dụng, số dòng giỏ, 5 dòng mới nhất) | **Chưa** | — | — |
+| E3 | Trang chủ (lối tắt, banner Freeship, lưới Mall) | **Chưa** | — | — |
+| E4 | Chi tiết sản phẩm (lightbox, điểm shop, Zalo, Mua ngay) | **Chưa** | — | — |
+| E5 | Trang shop (chương trình đang chạy, băng tạm nghỉ) | **Chưa** | — | — |
+| E6 | Voucher shop trong giỏ | **Chưa** | — | — |
+| E7 | Ghim bản đồ địa chỉ | **Chưa** | — | — |
+| E8 | Footer mạng xã hội, Flash Sale | **Chưa** | — | — |
+| E9 | Banner danh mục không tải lại trang | **Chưa** | — | — |
+| F1 | Phông Be Vietnam Pro | **Chưa** | — | — |
+| F2 | Hộp xác nhận xoá / huỷ | **Chưa** | — | — |
+| F3 | Trạng thái lỗi của danh sách | **Chưa** | — | — |
+| F4 | Toast chung | **Chưa** | — | — |
+| F5 | Trang 404 | **Chưa** | — | — |
+| F6 | Tiêu đề tab theo trang | **Chưa** | — | — |
+| F7 | Mẫu nội dung thông báo | **Chưa** | — | — |
+| F8 | Từ khoá hot cho Marketing | **Chưa** | — | — |
+| G1 | Chạy với sandbox thật VNPay / MoMo / ZaloPay / GHN / GHTK | **Chờ tài khoản** | — | — |
+| G2 | Push FCM thật | **Chờ tài khoản** | — | — |
+| G3 | Nhà cung cấp SMS thật | **Chờ tài khoản** | — | — |

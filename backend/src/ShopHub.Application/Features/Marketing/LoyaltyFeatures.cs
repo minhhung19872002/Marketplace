@@ -21,8 +21,12 @@ public enum MemberTier
 
 public record MembershipDto(MemberTier Tier, string TierLabel, long Spend, int WindowDays, MemberTier? NextTier, long? NextTierSpend);
 
-/// <summary>Hạng thành viên (spec VIII): spending on completed orders over MEMBER.WINDOW_DAYS, recomputed from the orders every time.</summary>
-public sealed class Membership(IApplicationDbContext db, ISystemParameters parameters, IClock clock)
+/// <summary>
+/// Hạng thành viên (spec VIII): spending on completed orders over MEMBER.WINDOW_DAYS, recomputed from the orders every
+/// time. Spending = the money paid for the goods (grand total less the shipping the buyer paid) less the goods money
+/// refunded by returns / manual refunds (decision 00 #154).
+/// </summary>
+public sealed partial class Membership(IApplicationDbContext db, ISystemParameters parameters, IClock clock)
 {
     public static string Label(MemberTier tier) => tier switch { MemberTier.Gold => "Vàng", MemberTier.Diamond => "Kim cương", _ => "Bạc" };
 
@@ -32,8 +36,11 @@ public sealed class Membership(IApplicationDbContext db, ISystemParameters param
         var gold = await parameters.GetIntAsync(ParameterKeys.MemberGoldMinSpend, ct);
         var diamond = await parameters.GetIntAsync(ParameterKeys.MemberDiamondMinSpend, ct);
         var since = clock.UtcNow.AddDays(-days);
-        var spend = await db.Orders.Where(o => o.BuyerId == userId && o.Status == OrderStatus.Completed && o.CompletedAt >= since)
-            .SumAsync(o => (long?)o.GrandTotal, ct) ?? 0;
+        var orders = db.Orders.Where(o => o.BuyerId == userId && o.Status == OrderStatus.Completed && o.CompletedAt >= since);
+        var paidForGoods = await orders.SumAsync(o => (long?)(o.GrandTotal - (o.ShippingFee - o.ShippingDiscount)), ct) ?? 0;
+        var refunded = await db.ReturnRequests.Where(r => r.Status == ReturnStatus.Refunded && orders.Any(o => o.Id == r.OrderId))
+            .SumAsync(r => (long?)((r.RefundAmount ?? 0) - r.ShippingRefund), ct) ?? 0;
+        var spend = Math.Max(0, paidForGoods - refunded);
         var tier = spend >= diamond ? MemberTier.Diamond : spend >= gold ? MemberTier.Gold : MemberTier.Silver;
         var (next, need) = tier switch
         {
@@ -46,6 +53,23 @@ public sealed class Membership(IApplicationDbContext db, ISystemParameters param
 }
 
 public record MembershipQuery : IRequest<MembershipDto>;
+
+public sealed partial class Membership
+{
+    /// <summary>The same spending as <see cref="OfAsync"/> for every buyer with a completed order since <paramref name="since"/>.</summary>
+    public static async Task<Dictionary<Guid, long>> SpendByBuyerAsync(IApplicationDbContext db, DateTimeOffset since, CancellationToken ct)
+    {
+        var orders = db.Orders.Where(o => o.Status == OrderStatus.Completed && o.CompletedAt >= since);
+        var paid = await orders.GroupBy(o => o.BuyerId)
+            .Select(g => new { g.Key, Paid = g.Sum(o => o.GrandTotal - (o.ShippingFee - o.ShippingDiscount)) }).ToListAsync(ct);
+        var refunded = await (from r in db.ReturnRequests
+                              join o in orders on r.OrderId equals o.Id
+                              where r.Status == ReturnStatus.Refunded
+                              group r by o.BuyerId into g
+                              select new { g.Key, Refunded = g.Sum(r => (r.RefundAmount ?? 0) - r.ShippingRefund) }).ToDictionaryAsync(x => x.Key, x => x.Refunded, ct);
+        return paid.ToDictionary(p => p.Key, p => Math.Max(0, p.Paid - refunded.GetValueOrDefault(p.Key)));
+    }
+}
 
 public sealed class MembershipHandler(Membership membership, ICurrentUser currentUser) : IRequestHandler<MembershipQuery, MembershipDto>
 {
@@ -148,7 +172,7 @@ public sealed class CashbackService(IApplicationDbContext db, ISystemParameters 
             var goods = siblings.Single(s => s.Id == order.Id).Goods;
             var refunded = await db.ReturnRequests.AsNoTracking().Where(r => r.OrderId == order.Id && r.Status == ReturnStatus.Refunded)
                 .SumAsync(r => (long?)(r.RefundAmount ?? 0) + (r.RefundCoins ?? 0), ct) ?? 0;
-            target = goods <= 0 ? 0 : share - (long)Math.Floor((decimal)share * Math.Min(refunded, goods) / goods);
+            target = Kept(share, goods, refunded);
         }
         var paid = await db.CoinLedger.Where(c => c.UserId == order.BuyerId && c.Reason == CoinReason.VoucherCashback && c.RefType == "order" && c.RefId == order.Id)
             .SumAsync(c => (long?)c.Delta, ct) ?? 0;
@@ -160,32 +184,55 @@ public sealed class CashbackService(IApplicationDbContext db, ISystemParameters 
             diff > 0 ? $"Hoàn xu từ voucher, đơn {order.Code}" : $"Thu hồi xu hoàn từ voucher, đơn {order.Code} đã được hoàn tiền", now));
         await db.SaveChangesAsync(ct);
     }
+
+    /// <summary>
+    /// The cash-back an order keeps after refunds: the share split between the goods kept and the goods refunded by the
+    /// largest remainder (spec 3.1), so kept + taken back is exactly the share.
+    /// </summary>
+    public static long Kept(long share, long goods, long refunded)
+    {
+        if (share <= 0 || goods <= 0) return 0;
+        var back = Math.Clamp(refunded, 0, goods);
+        return Money.Vnd(share).Allocate([goods - back, back])[0].Value;
+    }
 }
 
 /// <summary>
 /// Xu hết hạn (spec VIII): spends are taken from the credits that expire first; whatever is left of an expired credit is
-/// written off once (an "Expired" entry for the difference with what was already written off).
+/// written off once (an "Expired" entry for the difference with what was already written off). Works through every
+/// user in batches until none is left: an expired credit is marked once accounted for (<c>expiry_checked_at</c>), so
+/// a batch never revisits users already done.
 /// </summary>
 public sealed class CoinExpiryService(IApplicationDbContext db, IClock clock, ILogger<CoinExpiryService> logger)
 {
+    public const int BatchSize = 1_000;
+
     public async Task<int> RunAsync(CancellationToken ct)
     {
         var now = clock.UtcNow;
-        var users = await db.CoinLedger.AsNoTracking().Where(c => c.Delta > 0 && c.ExpiresAt != null && c.ExpiresAt <= now)
-            .Select(c => c.UserId).Distinct().Take(5_000).ToListAsync(ct);
         var touched = 0;
-        foreach (var userId in users)
+        while (true)
         {
+            var users = await db.CoinLedger.AsNoTracking()
+                .Where(c => c.Delta > 0 && c.ExpiresAt != null && c.ExpiresAt <= now && c.ExpiryCheckedAt == null)
+                .Select(c => c.UserId).Distinct().OrderBy(id => id).Take(BatchSize).ToListAsync(ct);
+            if (users.Count == 0) break;
             await using var tx = await db.BeginTransactionAsync(ct);
-            await db.LockAsync($"coins:{userId}", ct);
-            var entries = await db.CoinLedger.AsNoTracking().Where(c => c.UserId == userId).ToListAsync(ct);
-            var toExpire = Expirable(entries, now) - -entries.Where(e => e.Reason == CoinReason.Expired).Sum(e => e.Delta);
-            if (toExpire > 0)
+            foreach (var userId in users) await db.LockAsync($"coins:{userId}", ct);
+            var byUser = (await db.CoinLedger.AsNoTracking().Where(c => users.Contains(c.UserId)).ToListAsync(ct)).ToLookup(c => c.UserId);
+            foreach (var userId in users)
             {
+                var entries = byUser[userId].ToList();
+                var toExpire = Expirable(entries, now) - -entries.Where(e => e.Reason == CoinReason.Expired).Sum(e => e.Delta);
+                if (toExpire <= 0) continue;
                 db.CoinLedger.Add(new CoinEntry(userId, -toExpire, CoinReason.Expired, null, null, null, "Xu hết hạn", now));
-                await db.SaveChangesAsync(ct);
                 touched++;
             }
+            await db.SaveChangesAsync(ct);
+            await db.ExecuteSqlAsync($"""
+                UPDATE promo.coin_ledger SET expiry_checked_at = {now}
+                WHERE user_id = ANY({users.ToArray()}) AND delta > 0 AND expires_at <= {now} AND expiry_checked_at IS NULL
+                """, ct);
             await tx.CommitAsync(ct);
             db.ClearTracking();
         }

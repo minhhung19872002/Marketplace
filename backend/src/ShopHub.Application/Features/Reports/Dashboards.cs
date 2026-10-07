@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ShopHub.Application.Abstractions;
+using ShopHub.Application.Common;
 using ShopHub.Application.Features.Chat;
 using ShopHub.Application.Features.Seller;
 using ShopHub.Application.Security;
@@ -20,12 +21,12 @@ public record KpiDto(long Gmv, long Orders, long NewBuyers, long NewShops, long 
 public record PendingTasksDto(int ShopsToReview, int ProductsToReview, int OpenDisputes, int PendingWithdrawals, int OpenProductReports, int OpenReviewReports);
 
 public record AdminOverviewDto(string Period, KpiDto Current, KpiDto Previous, IReadOnlyList<ChartPoint> GmvSeries, IReadOnlyList<ChartPoint> OrderSeries,
-    PendingTasksDto Pending);
+    PendingTasksDto Pending, IReadOnlyList<string>? Warnings = null);
 
 public record AdminOverviewQuery(DateOnly? From, DateOnly? To, Granularity Granularity) : IRequest<AdminOverviewDto>;
 
 /// <summary>Tổng quan (spec VI.1): the period's KPIs next to the previous period's, series per day / week / month, and the work queue.</summary>
-public sealed class AdminOverviewHandler(IApplicationDbContext db, IClock clock) : IRequestHandler<AdminOverviewQuery, AdminOverviewDto>
+public sealed class AdminOverviewHandler(IApplicationDbContext db, IClock clock, IWorkingCalendar calendar) : IRequestHandler<AdminOverviewQuery, AdminOverviewDto>
 {
     private static readonly LedgerAccountType[] FeeAccounts = [LedgerAccountType.FeeFixed, LedgerAccountType.FeePayment, LedgerAccountType.FeeService];
 
@@ -49,7 +50,12 @@ public sealed class AdminOverviewHandler(IApplicationDbContext db, IClock clock)
             await db.Withdrawals.CountAsync(w => w.Status == WithdrawalStatus.Pending, ct),
             await db.ProductReports.CountAsync(r => r.Status == ProductReportStatus.Open, ct),
             await db.ReviewReports.CountAsync(r => r.ResolvedAt == null, ct));
-        return new AdminOverviewDto(range.Describe(), current, previous, gmv, orders, pending);
+        // Configuration that will go wrong soon: deadlines next year would ignore Tết if the list stops this year
+        var warnings = new List<string>();
+        var nextYear = VietnamTime.Today(clock.UtcNow).Year + 1;
+        if (!(await calendar.HolidaysAsync(ct)).Any(d => d.Year == nextYear))
+            warnings.Add($"Danh sách ngày nghỉ lễ (LOGISTICS.HOLIDAYS) chưa có ngày nào của năm {nextYear}: hạn chuẩn bị hàng và ngày giao dự kiến năm sau sẽ tính cả ngày lễ. Bổ sung ở Tham số hệ thống → Vận chuyển.");
+        return new AdminOverviewDto(range.Describe(), current, previous, gmv, orders, pending, warnings);
     }
 
     private async Task<KpiDto> KpisAsync(ReportRange r, CancellationToken ct)

@@ -233,4 +233,6 @@ public class CoinEntry : Entity
     public DateTimeOffset? ExpiresAt { get; private set; }
     public string? Note { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    // Set on an expired credit once the expiry job has accounted for it, so the job never visits it again
+    public DateTimeOffset? ExpiryCheckedAt { get; private set; }
 }

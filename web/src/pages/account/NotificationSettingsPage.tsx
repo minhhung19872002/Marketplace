@@ -41,7 +41,7 @@ const NotificationSettingsPage = () => {
     <div className="account-card">
       <div className="account-card-head">
         <h1 className="account-card-title">Cài Đặt Thông Báo</h1>
-        <p className="account-card-sub">Chọn kênh nhận thông báo cho từng loại. Thông báo trong app luôn bật.</p>
+        <p className="account-card-sub">Chọn kênh nhận thông báo cho từng loại. Thông báo đơn hàng, ví và tài khoản luôn hiện trong app; khuyến mãi có thể tắt.</p>
       </div>
       {prefs.isPending && <div className="account-skeleton" aria-busy="true" />}
       {prefs.isError && <div className="account-error">Không tải được cài đặt thông báo.</div>}

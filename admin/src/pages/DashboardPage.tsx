@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, Col, Descriptions, Row, Space, Statistic, Tag, Typography } from 'antd'
+import { Alert, Card, Col, Descriptions, Row, Space, Statistic, Tag, Typography } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { adminApi } from '../api/admin'
@@ -54,6 +54,10 @@ const DashboardPage = ({ permissions }: { permissions: string[] }) => {
       </Space>
       {canReports && (
         <>
+          {o?.warnings?.map((w) => (
+            <Alert key={w} type="warning" showIcon message={w} data-testid="overview-warning"
+              action={<a onClick={() => navigate('/tham-so')}>Mở tham số</a>} />
+          ))}
           <Row gutter={[12, 12]}>
             {KPI.map((k) => (
               <Col key={k.key} xs={12} md={8} xl={6} xxl={3}>

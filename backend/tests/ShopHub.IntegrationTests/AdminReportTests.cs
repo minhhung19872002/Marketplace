@@ -115,6 +115,31 @@ public class AdminReportTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_overview_warns_when_no_holiday_of_next_year_is_configured()
+    {
+        var admin = await factory.ClientWithPermissionsAsync(Permissions.ReportView);
+        var key = Application.SystemConfig.ParameterKeys.LogisticsHolidays;
+        var parameters = factory.Services.GetRequiredService<Application.Abstractions.ISystemParameters>();
+        var old = await factory.WithDbAsync(db => db.SystemParameters.Where(p => p.Key == key).Select(p => p.Value).SingleAsync());
+        var nextYear = Application.Common.VietnamTime.Today(DateTimeOffset.UtcNow).Year + 1;
+        try
+        {
+            (await (await admin.GetAsync("/api/admin/reports/overview")).ReadEnvelopeAsync()).Data.GetProperty("warnings").GetArrayLength()
+                .Should().Be(0, "danh sách gieo sẵn có ngày lễ của năm sau");
+            await factory.WithDbAsync(db => db.SystemParameters.Where(p => p.Key == key)
+                .ExecuteUpdateAsync(u => u.SetProperty(p => p.Value, $"[\"{nextYear - 1}-09-02\"]")));
+            parameters.Invalidate(key);
+            var warnings = (await (await admin.GetAsync("/api/admin/reports/overview")).ReadEnvelopeAsync()).Data.GetProperty("warnings");
+            warnings.EnumerateArray().Select(w => w.GetString()).Should().ContainSingle(w => w!.Contains($"năm {nextYear}"));
+        }
+        finally
+        {
+            await factory.WithDbAsync(db => db.SystemParameters.Where(p => p.Key == key).ExecuteUpdateAsync(u => u.SetProperty(p => p.Value, old)));
+            parameters.Invalidate(key);
+        }
+    }
+
+    [Fact]
     public async Task Funnel_and_seller_analytics_follow_views_cart_adds_and_orders()
     {
         var store = await factory.CreateStoreAsync("79", products: [new(Product, "Đèn Bàn", 99_000, 20, "Việt Nam")]);
@@ -127,7 +152,6 @@ public class AdminReportTests(ApiFactory factory)
         var funnel = (await (await admin.GetAsync($"/api/admin/reports/Funnel?from={Today}&to={Today}")).ReadEnvelopeAsync()).Data;
         var rows = funnel.GetProperty("table").GetProperty("rows").EnumerateArray().Select(r => r[1].GetInt64()).ToList();
         rows[0].Should().Be(await SqlAsync($"SELECT COUNT(DISTINCT user_id) FROM engage.product_views WHERE user_id IS NOT NULL AND viewed_at >= now() - interval '2 days' AND {TodaySql.Replace("created_at", "viewed_at")}"));
-        rows[1].Should().Be(await SqlAsync($"SELECT COUNT(DISTINCT user_id) FROM engage.cart_adds WHERE user_id IS NOT NULL AND {TodaySql.Replace("created_at", "added_at")}"));
         rows[1].Should().BeGreaterThan(0);
 
         var seller = await SellerAsync(store);
@@ -145,6 +169,35 @@ public class AdminReportTests(ApiFactory factory)
         // Another shop's numbers are not reachable
         var stranger = await factory.CreateUserAsync();
         (await stranger.Client.GetAsync($"/api/seller/shops/{store.ShopId}/analytics")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task The_funnel_follows_one_cohort_so_no_step_is_larger_than_the_one_before_and_the_pdf_draws_its_chart()
+    {
+        // Someone who never viewed a product page in the period but added to cart and ordered (e.g. "Mua lại")
+        var store = await factory.CreateStoreAsync("79", products: [new(Product, "Đèn Bàn", 99_000, 20, "Việt Nam")]);
+        await PlaceAsync(store: store, buyer: await factory.CreateUserAsync());
+        var viewer = await factory.CreateUserAsync();
+        (await viewer.Client.PostAsync($"/api/products/{store.Products[Product]}/views?source=Search", null)).EnsureSuccessStatusCode();
+
+        var admin = await factory.ClientWithPermissionsAsync(Permissions.ReportView);
+        var funnel = (await (await admin.GetAsync($"/api/admin/reports/Funnel?from={Today}&to={Today}")).ReadEnvelopeAsync()).Data;
+        var rows = funnel.GetProperty("table").GetProperty("rows").EnumerateArray().Select(r => (Count: r[1].GetInt64(), Rate: r[2].GetInt64())).ToList();
+        rows.Should().OnlyContain(r => r.Rate <= 10_000, "không bước nào vượt 100% bước trước");
+        string Day(string col) => TodaySql.Replace("created_at", col);
+        // Independent SQL: the same cohort, nested step by step
+        var viewed = $"SELECT DISTINCT user_id FROM engage.product_views WHERE user_id IS NOT NULL AND {Day("viewed_at")}";
+        var carted = $"SELECT DISTINCT user_id FROM engage.cart_adds WHERE user_id IN ({viewed}) AND {Day("added_at")}";
+        var ordered = $"SELECT DISTINCT user_id FROM sales.checkout_sessions WHERE user_id IN ({carted}) AND {Day("created_at")}";
+        var paid = $"SELECT DISTINCT buyer_id FROM sales.orders WHERE buyer_id IN ({ordered}) AND {Day("created_at")} AND (payment_status <> 'Unpaid' OR (payment_method = 'Cod' AND delivered_at IS NOT NULL))";
+        rows.Select(r => r.Count).Should().Equal(
+            await SqlAsync($"SELECT COUNT(*) FROM ({viewed}) x"), await SqlAsync($"SELECT COUNT(*) FROM ({carted}) x"),
+            await SqlAsync($"SELECT COUNT(*) FROM ({ordered}) x"), await SqlAsync($"SELECT COUNT(*) FROM ({paid}) x"));
+
+        var pdf = await admin.GetAsync($"/api/admin/reports/Funnel/export?from={Today}&to={Today}&format=Pdf");
+        using var doc = PdfDocument.Open(await pdf.Content.ReadAsByteArrayAsync());
+        var text = string.Join(" ", doc.GetPages().Select(p => p.Text));
+        text.Should().Contain("Biểu đồ: Số người", "bản PDF có cả biểu đồ, không chỉ bảng");
     }
 
     private async Task<HttpClient> SellerAsync(TestStore store)

@@ -206,22 +206,35 @@ public sealed class FinanceAdminController : ApiControllerBase
         CancellationToken ct = default) =>
         OkData(await Sender.Send(new LedgerEntriesQuery(accountType, ownerId, refType, refId, page, pageSize), ct));
 
-    /// <summary>The provider's statement file (the simulated gateway / carrier generate theirs): <c>gateway</c> or <c>carrier</c>.</summary>
+    /// <summary>Gateways and carriers a statement can be reconciled against.</summary>
+    [HttpGet("reconcile/sources")]
+    [RequirePermission(Permissions.FinanceReconcile)]
+    [ProducesResponseType<ApiResponse<ReconcileSourcesDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ReconcileSources(CancellationToken ct) => OkData(await Sender.Send(new ReconcileSourcesQuery(), ct));
+
+    /// <summary>
+    /// The statement file the simulated providers write (<c>gateway</c>: the simulated gateway's transactions;
+    /// <c>carrier</c>: COD parcels of the simulated carrier <paramref name="carrier"/>). Real gateways / carriers send theirs.
+    /// </summary>
     [HttpGet("statements/{provider}")]
     [RequirePermission(Permissions.FinanceReconcile)]
-    public async Task<IActionResult> Statement(string provider, [FromQuery] DateTimeOffset from, [FromQuery] DateTimeOffset to, CancellationToken ct)
+    public async Task<IActionResult> Statement(string provider, [FromQuery] DateTimeOffset from, [FromQuery] DateTimeOffset to,
+        [FromQuery] string? carrier, CancellationToken ct)
     {
-        var file = await Sender.Send(new ProviderStatementQuery(provider, from, to), ct);
+        var file = await Sender.Send(new ProviderStatementQuery(provider, from, to, carrier), ct);
         return File(file.Content, file.ContentType, file.FileName);
     }
 
-    /// <summary>Upload the provider's statement (CSV) → every line matched with ShopHub's records, differences listed.</summary>
+    /// <summary>
+    /// Upload one provider's statement (CSV) → every line matched with ShopHub's records of that provider, differences
+    /// listed. <c>source</c>: the gateway (<c>Simulated</c> | <c>VnPay</c> | <c>MoMo</c> | <c>ZaloPay</c>) or the carrier code.
+    /// </summary>
     [HttpPost("reconcile/{provider}")]
     [RequirePermission(Permissions.FinanceReconcile)]
     [RequestSizeLimit(MaxStatementBytes + 64 * 1024)]
     [ProducesResponseType<ApiResponse<ReconcileResult>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Reconcile(string provider, [FromForm] DateTimeOffset from, [FromForm] DateTimeOffset to, IFormFile? file,
-        CancellationToken ct)
+    public async Task<IActionResult> Reconcile(string provider, [FromForm] DateTimeOffset from, [FromForm] DateTimeOffset to, [FromForm] string? source,
+        IFormFile? file, CancellationToken ct)
     {
         if (file is null || file.Length == 0) throw new BusinessRuleException("Vui lòng chọn tệp sao kê (CSV).");
         if (file.Length > MaxStatementBytes) throw new BusinessRuleException("Tệp sao kê tối đa 5 MB.");
@@ -229,8 +242,11 @@ public sealed class FinanceAdminController : ApiControllerBase
         var csv = await reader.ReadToEndAsync(ct);
         IRequest<ReconcileResult> command = provider switch
         {
-            "gateway" => new ReconcileGatewayCommand(from, to, csv),
-            "carrier" => new ReconcileCarrierCommand(from, to, csv),
+            "gateway" => new ReconcileGatewayCommand(from, to, csv,
+                Enum.TryParse<ShopHub.Domain.Sales.PaymentMethod>(source, true, out var method) && ShopHub.Domain.Sales.PaymentMethods.IsOnline(method)
+                    ? method
+                    : throw new BusinessRuleException("Chọn cổng thanh toán của tệp đối soát (VNPay, MoMo, ZaloPay hoặc cổng giả lập).")),
+            "carrier" => new ReconcileCarrierCommand(from, to, csv, source ?? ""),
             _ => throw new NotFoundException("Không tìm thấy nhà cung cấp."),
         };
         return OkData(await Sender.Send(command, ct));

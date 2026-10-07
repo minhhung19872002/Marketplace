@@ -53,8 +53,9 @@ public class LedgerAccount : Entity
     public LedgerAccountType Type { get; private set; }
     /// <summary>
     /// Cached sum of the entries on the normal side (debits − credits for debit-normal accounts, the reverse for
-    /// the others). Updated in the same statement as each posting; CHECK (allow_negative OR balance &gt;= 0) is the
-    /// database backstop against overdrawing; the ledger check job recomputes it from the entries.
+    /// the others). Moved by a conditional UPDATE in the posting's transaction; CHECK (allow_negative OR balance &gt;= 0)
+    /// is the database backstop against overdrawing. The scheduled ledger check overwrites it with the sum of the
+    /// entries when the two differ.
     /// </summary>
     public long Balance { get; private set; }
     public bool AllowNegative { get; private set; }

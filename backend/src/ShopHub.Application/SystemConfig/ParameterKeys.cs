@@ -56,6 +56,7 @@ public static class ParameterKeys
     public const string CoinMaxPercentBp = "COIN.MAX_PERCENT_BP";
     public const string CoinExpiryDays = "COIN.EXPIRY_DAYS";
     public const string LogisticsHolidays = "LOGISTICS.HOLIDAYS";
+    public const string LogisticsWeeklyOffDays = "LOGISTICS.WEEKLY_OFF_DAYS";
     public const string JobPaymentExpiryCron = "JOB.PAYMENT_EXPIRY_CRON";
 
     public const string OrderAutoCompleteDays = "ORDER.AUTO_COMPLETE_DAYS";
@@ -235,9 +236,12 @@ public static class ParameterCatalog
             "Xu dùng tối đa (phần vạn)", "Xu trừ tối đa bấy nhiêu phần vạn giá trị hàng sau giảm giá (5000 = 50%). 1 xu = ₫1."),
         new(ParameterKeys.CoinExpiryDays, "180", ParameterDataType.Int, ParameterGroups.Coin,
             "Hạn dùng xu (ngày)", "Xu được cộng có hạn dùng bấy nhiêu ngày."),
-        new(ParameterKeys.LogisticsHolidays, "[\"2026-01-01\",\"2026-02-16\",\"2026-02-17\",\"2026-02-18\",\"2026-02-19\",\"2026-02-20\",\"2026-04-26\",\"2026-04-30\",\"2026-05-01\",\"2026-09-02\"]",
+        // Tết / Giỗ Tổ of 2027–2028 come from the lunar calendar; check them against the yearly official schedule
+        new(ParameterKeys.LogisticsHolidays, "[\"2026-01-01\",\"2026-02-16\",\"2026-02-17\",\"2026-02-18\",\"2026-02-19\",\"2026-02-20\",\"2026-04-26\",\"2026-04-27\",\"2026-04-30\",\"2026-05-01\",\"2026-09-01\",\"2026-09-02\",\"2027-01-01\",\"2027-02-05\",\"2027-02-06\",\"2027-02-07\",\"2027-02-08\",\"2027-02-09\",\"2027-04-16\",\"2027-04-30\",\"2027-05-01\",\"2027-09-02\",\"2027-09-03\",\"2028-01-01\",\"2028-01-25\",\"2028-01-26\",\"2028-01-27\",\"2028-01-28\",\"2028-01-29\",\"2028-04-04\",\"2028-04-30\",\"2028-05-01\",\"2028-05-02\",\"2028-09-01\",\"2028-09-02\"]",
             ParameterDataType.Json, ParameterGroups.Logistics,
-            "Ngày nghỉ lễ", "Ngày (yyyy-MM-dd, giờ Việt Nam) không tính vào thời gian giao dự kiến; Chủ nhật luôn được bỏ qua."),
+            "Ngày nghỉ lễ", "Ngày (yyyy-MM-dd, giờ Việt Nam) không tính là ngày làm việc: ngày giao dự kiến, hạn chuẩn bị hàng (tự huỷ + điểm phạt), hàng trả về. Tết và Giỗ Tổ năm sau tính theo âm lịch — đối chiếu lịch nghỉ chính thức mỗi năm."),
+        new(ParameterKeys.LogisticsWeeklyOffDays, "[0]", ParameterDataType.Json, ParameterGroups.Logistics,
+            "Ngày nghỉ trong tuần", "Các thứ không tính là ngày làm việc (0 = Chủ nhật, 1 = Thứ hai … 6 = Thứ bảy), dạng [0] hoặc [0,6]."),
         new(ParameterKeys.JobPaymentExpiryCron, "* * * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch xử lý đơn quá hạn thanh toán", "Cron đối chiếu giao dịch treo với cổng và huỷ đơn quá hạn, nhả kho."),
 
@@ -290,7 +294,7 @@ public static class ParameterCatalog
         new(ParameterKeys.JobSettlementCron, "0 * * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch giải ngân", "Cron giải ngân các đơn đã đủ điều kiện vào số dư khả dụng của shop."),
         new(ParameterKeys.JobLedgerCheckCron, "30 19 * * *", ParameterDataType.Cron, ParameterGroups.Job,
-            "Lịch kiểm tra sổ cái", "Cron (giờ UTC) tính lại số dư từ bút toán và kiểm Σ nợ = Σ có; lệch thì ghi lỗi."),
+            "Lịch kiểm tra sổ cái", "Cron (giờ UTC) so số dư chép sẵn với tổng bút toán và kiểm Σ nợ = Σ có; số dư lệch được ghi đè bằng tổng bút toán và quản trị tài chính nhận thông báo."),
 
         new(ParameterKeys.FlashSlotHours, "0,9,12,15,21", ParameterDataType.String, ParameterGroups.Marketing,
             "Giờ mở khung Flash Sale", "Các giờ (giờ Việt Nam, cách nhau bằng dấu phẩy) quản trị được mở khung Flash Sale của sàn."),

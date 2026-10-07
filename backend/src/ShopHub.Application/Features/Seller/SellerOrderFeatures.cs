@@ -133,7 +133,7 @@ public sealed class ListShopOrdersHandler(IApplicationDbContext db, SellerAccess
 
 public record GetShopOrderQuery(Guid ShopId, Guid OrderId) : IRequest<ShopOrderDetailDto>;
 
-public sealed class GetShopOrderHandler(IApplicationDbContext db, SellerAccess access, ISystemParameters parameters, IClock clock)
+public sealed class GetShopOrderHandler(IApplicationDbContext db, SellerAccess access, ISystemParameters parameters, IClock clock, IWorkingCalendar calendar)
     : IRequestHandler<GetShopOrderQuery, ShopOrderDetailDto>
 {
     public async Task<ShopOrderDetailDto> Handle(GetShopOrderQuery request, CancellationToken ct)
@@ -143,8 +143,8 @@ public sealed class GetShopOrderHandler(IApplicationDbContext db, SellerAccess a
         var detail = await OrderDetails.BuildAsync(db, parameters, clock, order, ct);
         var buyer = await db.Users.Where(u => u.Id == order.BuyerId).Select(u => u.FullName).FirstAsync(ct);
         DateOnly? deadline = order.Status is OrderStatus.PendingConfirmation or OrderStatus.ReadyToShip
-            ? VietnamTime.AddWorkingDays(VietnamTime.Today(order.PaidAt ?? order.CreatedAt), (int)await parameters.GetIntAsync(ParameterKeys.OrderShipDeadlineDays, ct),
-                new HashSet<DateOnly>())
+            ? await calendar.AddWorkingDaysAsync(VietnamTime.Today(order.PaidAt ?? order.CreatedAt),
+                (int)await parameters.GetIntAsync(ParameterKeys.OrderShipDeadlineDays, ct), ct)
             : null;
         return new ShopOrderDetailDto(detail, buyer, order.SellerNote, deadline);
     }
@@ -167,6 +167,7 @@ public sealed class PrepareOrdersValidator : AbstractValidator<PrepareOrdersComm
 }
 
 public sealed class PrepareOrdersHandler(
+    IWorkingCalendar calendar,
     IApplicationDbContext db,
     SellerAccess access,
     OrderLocks locks,
@@ -257,7 +258,7 @@ public sealed class PrepareOrdersHandler(
                     request.PickupMethod, request.PickupSlot, CarrierParties.FromWarehouse(p.Warehouse), receiver, p.Items.Sum(i => i.LineTotal),
                     p.Items.Select(i => new CarrierItem(i.NameSnapshot, i.Quantity, WeightOf(i))).ToList(), order.BuyerNote), ct);
             var days = carrier.DaysFor(ShippingCalculator.ZoneOf(fromProvince, toProvince));
-            var expected = VietnamTime.AddWorkingDays(VietnamTime.Today(now), days, new HashSet<DateOnly>());
+            var expected = await calendar.AddWorkingDaysAsync(VietnamTime.Today(now), days, ct);
             var expectedAt = new DateTimeOffset(expected.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(7)).ToUniversalTime();
             var shipment = new Shipment(order.Id, carrier.Code, tracking, ShipmentDirection.Outbound, p.ShippingFee, cod, weight, request.PickupMethod,
                 request.PickupMethod == PickupMethod.Pickup ? request.PickupSlot : null, expectedAt, now);

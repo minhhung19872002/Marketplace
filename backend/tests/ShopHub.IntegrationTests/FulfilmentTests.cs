@@ -377,6 +377,27 @@ public class FulfilmentTests(ApiFactory factory)
         (await factory.WithDbAsync(db => db.Shops.Where(s => s.Id == late.Store.ShopId).Select(s => s.PenaltyPoints).SingleAsync())).Should().Be(1);
     }
 
+    [Fact]
+    public async Task Holidays_extend_the_shops_preparation_deadline_so_no_order_is_cancelled_or_penalised_over_tet()
+    {
+        var p = await PlaceAsync();
+        var created = DateTimeOffset.UtcNow.AddDays(-5);
+        await factory.WithDbAsync(db => db.Orders.Where(o => o.Id == p.OrderId).ExecuteUpdateAsync(u => u.SetProperty(o => o.CreatedAt, created)));
+        // Every day from the order up to tomorrow is a public holiday (a Tết week): 2 working days have not passed yet
+        var start = Application.Common.VietnamTime.Today(created);
+        var holidays = Enumerable.Range(1, 7).Select(d => start.AddDays(d).ToString("yyyy-MM-dd")).ToList();
+        await WithParameterAsync(ParameterKeys.LogisticsHolidays, System.Text.Json.JsonSerializer.Serialize(holidays), async () =>
+        {
+            await RunAutomationAsync();
+            var order = await OrderAsync(p.OrderId);
+            order.Status.Should().Be(OrderStatus.PendingConfirmation, "ngày lễ không tính vào hạn chuẩn bị hàng");
+            (await factory.WithDbAsync(db => db.ShopPenalties.CountAsync(x => x.OrderId == p.OrderId))).Should().Be(0);
+            var detail = (await (await p.Seller.GetAsync($"/api/seller/shops/{p.Store.ShopId}/orders/{p.OrderId}")).ReadEnvelopeAsync()).Data;
+            DateOnly.Parse(detail.Str("shipDeadline")).Should().Be(Application.Common.WorkingCalendar.Add(start, 2,
+                holidays.Select(DateOnly.Parse).ToHashSet(), new HashSet<DayOfWeek> { DayOfWeek.Sunday }), "hạn hiện cho shop cũng bỏ qua ngày lễ");
+        });
+    }
+
     // ---------- carrier webhook & ownership ----------
 
     [Fact]

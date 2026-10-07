@@ -17,9 +17,10 @@ public class Notification : Entity
     private Notification() { }
 
     public Notification(Guid userId, NotificationCategory category, string title, string body, string? link, string? refType, Guid? refId,
-        DateTimeOffset now, string? dedupeKey = null)
+        DateTimeOffset now, string? dedupeKey = null, DateOnly? promoDay = null)
     {
         DedupeKey = dedupeKey;
+        PromoDay = promoDay;
         UserId = userId;
         Category = category;
         Title = title;
@@ -40,6 +41,8 @@ public class Notification : Entity
     public Guid? RefId { get; private set; }
     // The same event delivered twice by the outbox creates one notification (unique per user)
     public string? DedupeKey { get; private set; }
+    // Vietnam day of a promotion that counts towards "one a day per person" (unique with the user); null for everything else
+    public DateOnly? PromoDay { get; private set; }
     public bool IsRead { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? ReadAt { get; private set; }

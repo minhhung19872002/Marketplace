@@ -59,6 +59,7 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
 /// and finally the payment attempt for online methods.
 /// </summary>
 public sealed class PlaceOrderHandler(
+    InventoryWriter inventory,
     IApplicationDbContext db,
     CheckoutBuilder builder,
     VoucherLedger voucherLedger,
@@ -152,17 +153,13 @@ public sealed class PlaceOrderHandler(
                 .GroupBy(h => h.SkuId).Select(g => (SkuId: g.Key, Quantity: g.Sum(x => x.Quantity), g.First().Name)).OrderBy(h => h.SkuId);
             foreach (var line in holds)
             {
-                var held = await db.ExecuteSqlAsync($"""
-                    UPDATE catalog.skus SET reserved = reserved + {line.Quantity}
-                    WHERE id = {line.SkuId} AND is_active AND stock - reserved >= {line.Quantity}
-                    """, ct);
-                if (held == 0)
+                var held = await inventory.TryMoveAsync(new InventoryMove(line.SkuId, 0, line.Quantity, InventoryReason.OrderReserve, "checkout", checkout.Id,
+                    userId, null, RequireActive: true), ct);
+                if (!held)
                 {
                     var left = await db.Skus.Where(s => s.Id == line.SkuId).Select(s => s.Stock - s.Reserved).FirstOrDefaultAsync(ct);
                     throw new ConflictException(left <= 0 ? $"\"{line.Name}\" vừa hết hàng." : $"\"{line.Name}\" chỉ còn {left} sản phẩm.", "OUT_OF_STOCK");
                 }
-                db.InventoryMovements.Add(new InventoryMovement(line.SkuId, 0, line.Quantity, InventoryReason.OrderReserve, "checkout", checkout.Id,
-                    userId, null, now));
             }
 
             // ----- orders (one per shop) -----

@@ -67,7 +67,9 @@ public sealed class ReportDocuments : IReportDocuments
         return ms.ToArray();
     }
 
-    public byte[] Pdf(ReportTable table) =>
+    public const int MaxChartPoints = 62;
+
+    public byte[] Pdf(ReportTable table, ReportChart? chart = null) =>
         Document.Create(doc => doc.Page(page =>
         {
             page.Size(PageSizes.A4.Landscape());
@@ -78,7 +80,10 @@ public sealed class ReportDocuments : IReportDocuments
                 h.Item().Text(table.Title).FontSize(14).Bold();
                 h.Item().Text(table.Subtitle).FontSize(9);
             });
-            page.Content().PaddingTop(8).Table(t =>
+            page.Content().PaddingTop(8).Column(content =>
+            {
+                if (chart is { Points.Count: > 0 }) content.Item().PaddingBottom(10).Element(e => Chart(e, chart));
+                content.Item().Table(t =>
             {
                 t.ColumnsDefinition(c =>
                 {
@@ -104,6 +109,7 @@ public sealed class ReportDocuments : IReportDocuments
                 foreach (var r in table.Rows) Row(r, false);
                 if (table.Totals is { } totals) Row(totals, true);
             });
+            });
             page.Footer().AlignRight().Text(x =>
             {
                 x.Span("Trang ");
@@ -112,4 +118,38 @@ public sealed class ReportDocuments : IReportDocuments
                 x.TotalPages();
             });
         })).GeneratePdf();
+
+    /// <summary>Horizontal bars (one per point, a second thinner bar for the second series), scaled to the largest value.</summary>
+    private static void Chart(IContainer container, ReportChart chart)
+    {
+        var points = chart.Points.Take(MaxChartPoints).ToList();
+        var max = Math.Max(1, points.Max(p => Math.Max(p.Value, p.Value2 ?? 0)));
+        container.Border(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(6).Column(col =>
+        {
+            col.Item().Text(chart.Series2 is null ? $"Biểu đồ: {chart.Series}" : $"Biểu đồ: {chart.Series} / {chart.Series2}").Bold();
+            foreach (var p in points)
+                col.Item().PaddingTop(2).Row(row =>
+                {
+                    row.ConstantItem(120).Text(p.Label).FontSize(7);
+                    row.RelativeItem().Column(bars =>
+                    {
+                        Bar(bars, p.Value, max, Colors.Orange.Medium, 7);
+                        if (chart.Series2 is not null) Bar(bars, p.Value2 ?? 0, max, Colors.Blue.Medium, 4);
+                    });
+                    row.ConstantItem(110).AlignRight().Text(chart.Series2 is null
+                        ? p.Value.ToString("N0", Vi)
+                        : $"{p.Value.ToString("N0", Vi)} / {(p.Value2 ?? 0).ToString("N0", Vi)}").FontSize(7);
+                });
+        });
+    }
+
+    private static void Bar(ColumnDescriptor bars, long value, long max, string color, float height)
+    {
+        var share = (float)Math.Clamp((double)value / max, 0, 1);
+        bars.Item().Height(height).Row(r =>
+        {
+            if (share > 0) r.RelativeItem(share).Background(color);
+            if (share < 1) r.RelativeItem(1 - share);
+        });
+    }
 }

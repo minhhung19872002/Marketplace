@@ -37,7 +37,9 @@ public record LedgerLine(AccountKey Account, LedgerDirection Direction, long Amo
 /// Double-entry ledger (spec 3.9). Every posting is balanced (Σ debits = Σ credits); the balance shown anywhere is the
 /// sum of the entries, kept as a cached column updated by a conditional UPDATE in the same transaction so an account
 /// that may not go negative (shop balances, wallets) cannot be overdrawn even by parallel requests — the CHECK
-/// constraint is the backstop and <see cref="LedgerCheckService"/> recomputes the cache from the entries.
+/// constraint is the backstop. The cache is only a copy: <see cref="LedgerCheckService.RepairAsync"/> overwrites it
+/// with the sum of the entries whenever they differ. A posting must run inside a transaction, so the balance and its
+/// entries are committed together.
 /// </summary>
 public sealed class Ledger(IApplicationDbContext db, IClock clock)
 {
@@ -86,6 +88,8 @@ public sealed class Ledger(IApplicationDbContext db, IClock clock)
         var credits = lines.Where(l => l.Direction == LedgerDirection.Credit).Sum(l => l.Amount);
         if (debits != credits) throw new InvalidOperationException($"Unbalanced posting {kind} {refType}:{refId}: debits {debits} ≠ credits {credits}.");
 
+        // Balance UPDATE and entry INSERT must commit together, or the cache drifts from the entries
+        if (!db.InTransaction) throw new InvalidOperationException($"Ledger posting {kind} {refType}:{refId} outside a transaction.");
         var now = clock.UtcNow;
         var tx = new LedgerTransaction(kind, refType, refId, description, dedupeKey, now);
         var deltas = new Dictionary<Guid, long>();

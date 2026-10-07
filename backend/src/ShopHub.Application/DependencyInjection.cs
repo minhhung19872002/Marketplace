@@ -59,6 +59,9 @@ public static class DependencyInjection
         services.AddScoped<Features.Finance.OrderLedger>();
         services.AddScoped<Features.Finance.SettlementService>();
         services.AddScoped<Features.Finance.LedgerCheckService>();
+        services.AddScoped<Common.AdminAlerts>();
+        services.AddScoped<Common.InventoryWriter>();
+        services.AddScoped<Common.IWorkingCalendar, Common.WorkingCalendar>();
         services.AddScoped<Features.Finance.WithdrawalService>();
         services.AddScoped<Features.Finance.WalletPins>();
         services.AddScoped<Features.Finance.TopupProcessor>();

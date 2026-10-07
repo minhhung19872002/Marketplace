@@ -209,6 +209,8 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
 
     public async Task<IAppTransaction> BeginTransactionAsync(CancellationToken ct) => new AppTransaction(await Database.BeginTransactionAsync(ct));
 
+    public bool InTransaction => Database.CurrentTransaction is not null;
+
     public Task LockAsync(string lockKey, CancellationToken ct) =>
         Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", ct);
 

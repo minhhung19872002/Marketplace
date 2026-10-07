@@ -110,6 +110,7 @@ public sealed class OrderCanceller(
 /// and the money goes back. Replayed or out-of-order events are ignored.
 /// </summary>
 public sealed class ShipmentEventProcessor(
+    InventoryWriter inventory,
     IApplicationDbContext db,
     OrderLocks locks,
     OrderCanceller canceller,
@@ -274,13 +275,9 @@ public sealed class ShipmentEventProcessor(
     {
         foreach (var item in items.OrderBy(i => i.SkuId))
         {
-            var done = await db.ExecuteSqlAsync($"""
-                UPDATE catalog.skus SET stock = stock - {item.Quantity}, reserved = reserved - {item.Quantity}
-                WHERE id = {item.SkuId} AND reserved >= {item.Quantity} AND stock >= {item.Quantity}
-                """, ct);
-            if (done == 0) throw new InvalidOperationException($"SKU {item.SkuId} holds less than order {order.Code} reserved.");
-            db.InventoryMovements.Add(new InventoryMovement(item.SkuId, -item.Quantity, -item.Quantity, InventoryReason.OrderShip, "order", order.Id, null,
-                "Giao cho đơn vị vận chuyển", now));
+            var done = await inventory.TryMoveAsync(new InventoryMove(item.SkuId, -item.Quantity, -item.Quantity, InventoryReason.OrderShip, "order", order.Id,
+                null, "Giao cho đơn vị vận chuyển"), ct);
+            if (!done) throw new InvalidOperationException($"SKU {item.SkuId} holds less than order {order.Code} reserved.");
         }
     }
 
@@ -288,9 +285,8 @@ public sealed class ShipmentEventProcessor(
     {
         foreach (var item in items.OrderBy(i => i.SkuId))
         {
-            await db.ExecuteSqlAsync($"UPDATE catalog.skus SET stock = stock + {item.Quantity} WHERE id = {item.SkuId}", ct);
-            db.InventoryMovements.Add(new InventoryMovement(item.SkuId, item.Quantity, 0, InventoryReason.ReturnRestock, "order", order.Id, null,
-                "Hàng hoàn về kho", now));
+            await inventory.TryMoveAsync(new InventoryMove(item.SkuId, item.Quantity, 0, InventoryReason.ReturnRestock, "order", order.Id, null,
+                "Hàng hoàn về kho"), ct);
         }
     }
 }
@@ -313,6 +309,7 @@ public sealed class CarrierWebhookIntake(IEnumerable<ICarrier> carriers, Shipmen
 /// unanswered, and cancels orders a shop did not prepare in time (with a penalty point).
 /// </summary>
 public sealed class OrderAutomationService(
+    IWorkingCalendar calendar,
     IApplicationDbContext db,
     OrderLocks locks,
     OrderCanceller canceller,
@@ -366,7 +363,7 @@ public sealed class OrderAutomationService(
                 {
                     if (order.Status is not (OrderStatus.PendingConfirmation or OrderStatus.ReadyToShip)) return false;
                     var start = VietnamTime.Today(order.PaidAt ?? order.CreatedAt);
-                    var deadline = VietnamTime.AddWorkingDays(start, days, new HashSet<DateOnly>());
+                    var deadline = await calendar.AddWorkingDaysAsync(start, days, ct);
                     if (VietnamTime.Today(now) <= deadline) return false;
                     await canceller.CancelAsync(order, OrderActor.System, null, "Shop không chuẩn bị hàng đúng hạn", ct);
                     db.ShopPenalties.Add(new ShopPenalty(order.ShopId, 1, "Không chuẩn bị hàng đúng hạn", order.Id, now, now.AddDays(penaltyDays)));

@@ -112,6 +112,39 @@ public class ChatTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Unread_counters_are_counted_from_the_messages_when_both_sides_write_and_read_at_the_same_time()
+    {
+        var store = await StoreAsync();
+        var buyer = await factory.CreateUserAsync();
+        var c = await SendAsync(buyer.Client, "/api/chat/conversations", new { shopId = store.Shop.ShopId });
+        var id = Guid.Parse(c.Str("id"));
+        var buyerUrl = $"/api/chat/conversations/{id}/messages";
+        var shopUrl = $"/api/seller/shops/{store.Shop.ShopId}/chat/conversations/{id}";
+
+        // 15 buyer messages and 10 shop answers at once, while both sides keep pressing "read"
+        var sends = Enumerable.Range(0, 15).Select(i => Task.Run(() => buyer.Client.PostAsJsonAsync(buyerUrl, new { type = "Text", text = $"Câu hỏi {i}" })))
+            .Concat(Enumerable.Range(0, 10).Select(i => Task.Run(() => store.Staff.Client.PostAsJsonAsync($"{shopUrl}/messages", new { type = "Text", text = $"Trả lời {i}" }))))
+            .Concat(Enumerable.Range(0, 5).Select(_ => Task.Run(() => buyer.Client.PostAsync($"/api/chat/conversations/{id}/read", null))))
+            .ToList();
+        var results = await Task.WhenAll(sends);
+        results.Should().OnlyContain(r => r.IsSuccessStatusCode, "gửi song song không được lỗi xung đột");
+
+        var (shopUnread, buyerUnread, counted) = await factory.WithDbAsync(async db =>
+        {
+            var conv = await db.Conversations.AsNoTracking().SingleAsync(x => x.Id == id);
+            var fromBuyer = await db.ChatMessages.CountAsync(m => m.ConversationId == id && m.ReadAt == null && m.SenderRole == Domain.Engage.ChatRole.Buyer);
+            var toBuyer = await db.ChatMessages.CountAsync(m => m.ConversationId == id && m.ReadAt == null && m.SenderRole != Domain.Engage.ChatRole.Buyer);
+            return (conv.ShopUnread, conv.BuyerUnread, (fromBuyer, toBuyer));
+        });
+        shopUnread.Should().Be(15, "shop chưa đọc tin nào");
+        shopUnread.Should().Be(counted.fromBuyer);
+        buyerUnread.Should().Be(counted.toBuyer, "bộ đếm của người mua bằng đúng số tin chưa đọc của shop");
+
+        (await store.Staff.Client.PostAsync($"{shopUrl}/read", null)).EnsureSuccessStatusCode();
+        (await factory.WithDbAsync(db => db.Conversations.AsNoTracking().Where(x => x.Id == id).Select(x => x.ShopUnread).SingleAsync())).Should().Be(0);
+    }
+
+    [Fact]
     public async Task Contact_details_are_flagged_not_blocked_and_cards_only_show_what_the_sender_may_share()
     {
         var store = await StoreAsync();
@@ -214,6 +247,24 @@ public class ChatTests(ApiFactory factory)
 
         (await admin.PostAsJsonAsync("/api/admin/marketing/broadcasts", new { title = "X", body = "Y", link = "javascript:alert(1)", segment = "Everyone" }))
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task Two_broadcasts_sent_at_the_same_moment_reach_a_person_once_and_never_whoever_turned_promotions_off()
+    {
+        var admin = await factory.ClientWithPermissionsAsync(Permissions.MarketingManage);
+        var fresh = await factory.CreateUserAsync();
+        var quiet = await factory.CreateUserAsync();
+        (await quiet.Client.PutAsJsonAsync("/api/notifications/prefs",
+            new { prefs = new[] { new { category = "Promotion", channel = "InApp", enabled = false } } })).EnsureSuccessStatusCode();
+
+        var sends = await Task.WhenAll(Enumerable.Range(0, 4).Select(i => Task.Run(() => admin.PostAsJsonAsync("/api/admin/marketing/broadcasts",
+            new { title = $"Ưu đãi {i}", body = "Giảm giá", link = (string?)null, segment = "NoOrderYet" }))));
+        sends.Should().OnlyContain(r => r.IsSuccessStatusCode);
+        (await factory.WithDbAsync(db => db.Notifications.CountAsync(n => n.UserId == fresh.Id && n.Category == NotificationCategory.Promotion)))
+            .Should().Be(1, "bốn đợt gửi cùng lúc vẫn chỉ một tin khuyến mãi mỗi ngày");
+        (await factory.WithDbAsync(db => db.Notifications.CountAsync(n => n.UserId == quiet.Id && n.Category == NotificationCategory.Promotion)))
+            .Should().Be(0, "người đã tắt khuyến mãi trong ứng dụng không nhận");
     }
 
     [Fact]

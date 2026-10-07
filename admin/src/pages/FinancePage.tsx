@@ -7,7 +7,7 @@ import { catalogApi, type CategoryNode } from '../api/catalog'
 import { ApiError } from '../api/http'
 import { P, can } from '../permissions'
 import { formatPercentBp, formatPrice } from '../lib/money'
-import { formatDateTime } from '../lib/datetime'
+import { addDaysIso, formatDateTime, vnDayBoundsIso } from '../lib/datetime'
 
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : fallback)
 
@@ -160,13 +160,19 @@ const LedgerTab = () => {
 const ReconcileTab = () => {
   const { message } = App.useApp()
   const [provider, setProvider] = useState<'gateway' | 'carrier'>('gateway')
-  const [period, setPeriod] = useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs()])
+  const [source, setSource] = useState<string | null>(null)
+  const [period, setPeriod] = useState<[Dayjs, Dayjs]>([dayjs(), dayjs()])
   const [result, setResult] = useState<ReconcileResult | null>(null)
-  const from = period[0].startOf('day').toISOString()
-  const to = period[1].add(1, 'day').startOf('day').toISOString()
+  const sources = useQuery({ queryKey: ['reconcile-sources'], queryFn: financeApi.sources })
+  const choices = (provider === 'gateway' ? sources.data?.gateways : sources.data?.carriers) ?? []
+  const chosen = choices.find((c) => c.code === source)
+  // [from, to) in Vietnam days, whatever the browser's time zone
+  const from = vnDayBoundsIso(period[0].format('YYYY-MM-DD')).from!
+  const to = vnDayBoundsIso(addDaysIso(period[1].format('YYYY-MM-DD'), 1)).from!
   const download = async () => {
+    if (!source) return
     try {
-      const blob = await financeApi.statement(provider, from, to)
+      const blob = await financeApi.statement(provider, source, from, to)
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
       a.download = `sao-ke-${provider}.csv`
@@ -178,25 +184,29 @@ const ReconcileTab = () => {
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
       <Space wrap>
-        <Select value={provider} onChange={(v) => { setProvider(v); setResult(null) }} style={{ width: 260 }}
-          options={[{ value: 'gateway', label: 'Cổng thanh toán (giả lập)' }, { value: 'carrier', label: 'Đơn vị vận chuyển — tiền thu hộ COD' }]} />
+        <Select value={provider} onChange={(v) => { setProvider(v); setSource(null); setResult(null) }} style={{ width: 260 }}
+          options={[{ value: 'gateway', label: 'Cổng thanh toán' }, { value: 'carrier', label: 'Đơn vị vận chuyển — tiền thu hộ COD' }]} />
+        <Select value={source} onChange={(v) => { setSource(v); setResult(null) }} style={{ width: 240 }} data-testid="reconcile-source"
+          placeholder={provider === 'gateway' ? 'Chọn cổng thanh toán' : 'Chọn đơn vị vận chuyển'} loading={sources.isLoading}
+          options={choices.map((c) => ({ value: c.code, label: c.simulated ? `${c.name} (giả lập)` : c.name }))} />
         <DatePicker.RangePicker value={period} onChange={(v) => v?.[0] && v[1] && setPeriod([v[0], v[1]])} format="DD/MM/YYYY" allowClear={false} />
-        <Button onClick={download}>Tải sao kê của nhà cung cấp</Button>
-        <Upload accept=".csv,text/csv" showUploadList={false} beforeUpload={async (file) => {
+        {chosen?.simulated && <Button onClick={download}>Tải sao kê của nhà cung cấp giả lập</Button>}
+        <Upload accept=".csv,text/csv" showUploadList={false} disabled={!source} beforeUpload={async (file) => {
+          if (!source) return false
           try {
-            setResult(await financeApi.reconcile(provider, from, to, file))
+            setResult(await financeApi.reconcile(provider, source, from, to, file))
           } catch (e) {
             message.error(errorText(e, 'Đối soát không thành công.'))
           }
           return false
         }}>
-          <Button type="primary">Tải tệp lên & đối soát</Button>
+          <Button type="primary" disabled={!source}>Tải tệp lên & đối soát</Button>
         </Upload>
       </Space>
       {result && (
         <>
           <Alert type={result.issues.length === 0 ? 'success' : 'warning'} showIcon
-            message={`${result.statementLines} dòng trong tệp, khớp ${result.matched}; ${result.issues.length} chênh lệch. Tổng tệp ${formatPrice(result.statementTotal)} · tổng ShopHub ${formatPrice(result.systemTotal)}.`} />
+            message={`${result.statementLines} dòng trong tệp, khớp ${result.matched}; ${result.issues.length} chênh lệch. Tổng tệp ${formatPrice(result.statementTotal)} · tổng ShopHub ${formatPrice(result.systemTotal)}${result.statementFees > 0 ? ` · phí cổng ${formatPrice(result.statementFees)}` : ''}.`} />
           <Table rowKey={(r) => `${r.reference}-${r.issue}`} size="small" dataSource={result.issues} pagination={{ pageSize: 50 }}
             columns={[
               { title: 'Mã giao dịch / vận đơn', dataIndex: 'reference' },

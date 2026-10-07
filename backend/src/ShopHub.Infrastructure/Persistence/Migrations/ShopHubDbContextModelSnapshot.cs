@@ -1197,6 +1197,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(300)")
                         .HasColumnName("link");
 
+                    b.Property<DateOnly?>("PromoDay")
+                        .HasColumnType("date")
+                        .HasColumnName("promo_day");
+
                     b.Property<DateTimeOffset?>("ReadAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("read_at");
@@ -1234,6 +1238,11 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "IsRead")
                         .HasDatabaseName("ix_notifications_unread");
+
+                    b.HasIndex("UserId", "PromoDay")
+                        .IsUnique()
+                        .HasDatabaseName("ux_notifications_promo_day")
+                        .HasFilter("promo_day IS NOT NULL");
 
                     b.ToTable("notifications", "engage");
                 });
@@ -3496,6 +3505,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
+                    b.Property<DateTimeOffset?>("ExpiryCheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expiry_checked_at");
+
                     b.Property<string>("Note")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")
@@ -3525,6 +3538,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "CreatedAt")
                         .HasDatabaseName("ix_coin_ledger_user");
+
+                    b.HasIndex("UserId", "ExpiresAt")
+                        .HasDatabaseName("ix_coin_ledger_expiry_todo")
+                        .HasFilter("delta > 0 AND expires_at IS NOT NULL AND expiry_checked_at IS NULL");
 
                     b.ToTable("coin_ledger", "promo", t =>
                         {
@@ -5300,6 +5317,12 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.Property<int?>("PackageNo")
                         .HasColumnType("integer")
                         .HasColumnName("package_no");
+
+                    b.Property<bool>("PlatformBorne")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("platform_borne");
 
                     b.Property<string>("Reason")
                         .IsRequired()

@@ -222,3 +222,41 @@ public class ValidatorNullTests
         offenders.Should().BeEmpty("Matches / EmailAddress / Length bỏ qua null — đặt NotEmpty (hoặc When) trước, kèm Cascade(CascadeMode.Stop)");
     }
 }
+
+public class WorkingDayTests
+{
+    // A2 / L064: every working-day sum reads the configured holidays and weekly days off — never an empty set
+    private static readonly Regex EmptyDateSet = new(@"HashSet<(System\.)?(DateOnly|DayOfWeek)>\s*(\(\s*\)|\{\s*\})|Array\.Empty<(System\.)?DateOnly>|ImmutableHashSet<(System\.)?DateOnly>\.Empty");
+    private static readonly Regex PureRule = new(@"WorkingCalendar\.Add\s*\(|VietnamTime\.AddWorkingDays\s*\(");
+
+    [Fact]
+    public void Working_days_are_only_added_through_the_working_calendar()
+    {
+        var offenders = RepoFiles.AllSourceFiles()
+            .Where(f => !f.EndsWith("WorkingCalendar.cs", StringComparison.Ordinal))
+            .Where(f => RepoFiles.WithoutComments(File.ReadAllText(f)) is var code && (EmptyDateSet.IsMatch(code) || PureRule.IsMatch(code)))
+            .Select(RepoFiles.Relative)
+            .ToList();
+
+        offenders.Should().BeEmpty("ngày làm việc chỉ được cộng qua IWorkingCalendar (đọc LOGISTICS.HOLIDAYS và LOGISTICS.WEEKLY_OFF_DAYS)");
+    }
+}
+
+public class InventoryWriteTests
+{
+    // A6 / L068: stock and reserved change only through InventoryWriter (one conditional UPDATE + its movement row, in a transaction)
+    private static readonly Regex RawStockWrite = new(
+        @"skus\s+SET[^;""]*\b(stock|reserved)\s*=|SetProperty\(\s*\w+\s*=>\s*\w+\.(Stock|Reserved)\b", RegexOptions.IgnoreCase);
+
+    [Fact]
+    public void Stock_and_reserved_are_only_changed_through_the_inventory_writer()
+    {
+        var offenders = RepoFiles.AllSourceFiles()
+            .Where(f => !f.EndsWith("InventoryWriter.cs", StringComparison.Ordinal) && !f.Contains("Migrations", StringComparison.Ordinal))
+            .Where(f => RawStockWrite.IsMatch(RepoFiles.WithoutComments(File.ReadAllText(f))))
+            .Select(RepoFiles.Relative)
+            .ToList();
+
+        offenders.Should().BeEmpty("tồn kho chỉ đổi qua InventoryWriter: UPDATE có điều kiện + dòng inventory_movements trong cùng giao dịch");
+    }
+}

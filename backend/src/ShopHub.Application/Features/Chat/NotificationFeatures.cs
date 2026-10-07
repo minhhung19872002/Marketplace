@@ -30,8 +30,9 @@ public sealed class NotificationPrefsHandler(IApplicationDbContext db, ICurrentU
         var prefs = (from c in Enum.GetValues<NotificationCategory>()
                      from ch in Enum.GetValues<NotificationChannel>()
                      let row = saved.FirstOrDefault(p => p.Category == c && p.Channel == ch)
-                     select new NotificationPrefDto(c, ch, ch == NotificationChannel.InApp || (row?.Enabled ?? NotificationPref.Default(c, ch)),
-                         ch == NotificationChannel.InApp)).ToList();
+                     // Order, wallet and account news always show in the app; promotions can be turned off there too
+                     let locked = ch == NotificationChannel.InApp && c != NotificationCategory.Promotion
+                     select new NotificationPrefDto(c, ch, locked || (row?.Enabled ?? NotificationPref.Default(c, ch)), locked)).ToList();
         return new NotificationPrefsDto(prefs, user.Email is not null, user.Phone is not null);
     }
 }
@@ -40,14 +41,14 @@ public record PrefInput(NotificationCategory Category, NotificationChannel Chann
 
 public record SaveNotificationPrefsCommand(IReadOnlyList<PrefInput> Prefs) : IRequest<Unit>;
 
-/// <summary>In-app stays on (it is the inbox itself); every other channel follows the user's choice per category.</summary>
+/// <summary>In-app stays on for orders, wallet and account news (they are the inbox itself); promotions and every other channel follow the user's choice.</summary>
 public sealed class SaveNotificationPrefsHandler(IApplicationDbContext db, ICurrentUser currentUser) : IRequestHandler<SaveNotificationPrefsCommand, Unit>
 {
     public async Task<Unit> Handle(SaveNotificationPrefsCommand request, CancellationToken ct)
     {
         var userId = UserGuard.Require(currentUser);
         var saved = await db.NotificationPrefs.Where(p => p.UserId == userId).ToListAsync(ct);
-        foreach (var p in (request.Prefs ?? []).Where(p => p.Channel != NotificationChannel.InApp))
+        foreach (var p in (request.Prefs ?? []).Where(p => p.Channel != NotificationChannel.InApp || p.Category == NotificationCategory.Promotion))
         {
             var row = saved.FirstOrDefault(x => x.Category == p.Category && x.Channel == p.Channel);
             if (row is null) db.NotificationPrefs.Add(new NotificationPref(userId, p.Category, p.Channel, p.Enabled));
@@ -100,10 +101,12 @@ public sealed class BroadcastsHandler(IApplicationDbContext db) : IRequestHandle
 public record SendBroadcastCommand(string Title, string Body, string? Link, BroadcastSegment Segment) : IRequest<BroadcastDto>;
 
 /// <summary>
-/// Gửi thông báo hàng loạt theo phân khúc: one promotion notification per person per campaign (dedupe key) and never
-/// more than one promotion notification per person per Vietnam day — people who already got one today are skipped.
+/// Gửi thông báo hàng loạt theo phân khúc (active accounts only): one promotion per person per campaign and never more
+/// than one promotion per person per Vietnam day — kept by unique indexes (<see cref="PromoNotifications"/>), so two
+/// broadcasts sent at the same moment cannot both reach anyone. People who turned promotions off are skipped. The member
+/// segments are exact tiers by the same spending as <see cref="Marketing.Membership"/>.
 /// </summary>
-public sealed class SendBroadcastHandler(IApplicationDbContext db, ISystemParameters parameters, ICurrentUser currentUser, IClock clock)
+public sealed partial class SendBroadcastHandler(IApplicationDbContext db, ISystemParameters parameters, ICurrentUser currentUser, IClock clock)
     : IRequestHandler<SendBroadcastCommand, BroadcastDto>
 {
     public async Task<BroadcastDto> Handle(SendBroadcastCommand request, CancellationToken ct)
@@ -116,38 +119,33 @@ public sealed class SendBroadcastHandler(IApplicationDbContext db, ISystemParame
         db.Broadcasts.Add(broadcast);
 
         var users = db.Users.AsNoTracking().Where(u => u.Status == UserStatus.Active).Select(u => u.Id);
-        var days = await parameters.GetIntAsync(ParameterKeys.MemberWindowDays, ct);
-        var since = now.AddDays(-days);
-        var minSpend = request.Segment == BroadcastSegment.MemberDiamond
-            ? await parameters.GetIntAsync(ParameterKeys.MemberDiamondMinSpend, ct)
-            : await parameters.GetIntAsync(ParameterKeys.MemberGoldMinSpend, ct);
-        IQueryable<Guid> targets = request.Segment switch
+        List<Guid> recipients;
+        if (request.Segment is BroadcastSegment.MemberGold or BroadcastSegment.MemberDiamond)
         {
-            BroadcastSegment.NoOrderYet => users.Where(id => !db.Orders.Any(o => o.BuyerId == id)),
-            BroadcastSegment.MemberGold or BroadcastSegment.MemberDiamond =>
-                db.Orders.Where(o => o.Status == OrderStatus.Completed && o.CompletedAt >= since).GroupBy(o => o.BuyerId)
-                    .Where(g => g.Sum(o => o.GrandTotal) >= minSpend)
-                    .Select(g => g.Key),
-            _ => users,
-        };
-        var dayStart = new DateTimeOffset(VietnamTime.ToLocal(now).Date, TimeSpan.FromHours(7)).ToUniversalTime();
-        var recipients = await targets.ToListAsync(ct);
-        var already = (await db.Notifications.AsNoTracking()
-                .Where(n => n.Category == NotificationCategory.Promotion && n.CreatedAt >= dayStart && recipients.Contains(n.UserId))
-                .Select(n => n.UserId).Distinct().ToListAsync(ct)).ToHashSet();
-        var sending = recipients.Where(r => !already.Contains(r)).ToList();
-        foreach (var batch in sending.Chunk(500))
-        {
-            foreach (var userId in batch)
-                db.Notifications.Add(new Notification(userId, NotificationCategory.Promotion, broadcast.Title, broadcast.Body, broadcast.Link, "broadcast",
-                    broadcast.Id, now, $"broadcast:{broadcast.Id}"));
-            await db.SaveChangesAsync(ct);
+            var gold = await parameters.GetIntAsync(ParameterKeys.MemberGoldMinSpend, ct);
+            var diamond = await parameters.GetIntAsync(ParameterKeys.MemberDiamondMinSpend, ct);
+            var spend = await Marketing.Membership.SpendByBuyerAsync(db, now.AddDays(-await parameters.GetIntAsync(ParameterKeys.MemberWindowDays, ct)), ct);
+            var active = (await users.Where(id => spend.Keys.Contains(id)).ToListAsync(ct)).ToHashSet();
+            recipients = MemberSegment(request.Segment, spend, active, gold, diamond);
         }
-        broadcast.Sent(sending.Count, recipients.Count - sending.Count, now);
+        else
+            recipients = await (request.Segment == BroadcastSegment.NoOrderYet ? users.Where(id => !db.Orders.Any(o => o.BuyerId == id)) : users).ToListAsync(ct);
+        await db.SaveChangesAsync(ct);
+        var sent = await PromoNotifications.SendAsync(db, recipients.Select(userId => new PromoNotice(userId, broadcast.Title, broadcast.Body, broadcast.Link,
+            "broadcast", broadcast.Id, $"broadcast:{broadcast.Id}")).ToList(), now, ct);
+        broadcast.Sent(sent, recipients.Count - sent, now);
         await db.SaveChangesAsync(ct);
         return new BroadcastDto(broadcast.Id, broadcast.Title, broadcast.Body, broadcast.Link, broadcast.Segment, broadcast.Recipients,
             broadcast.SkippedToday, broadcast.CreatedAt);
     }
+}
+
+public sealed partial class SendBroadcastHandler
+{
+    /// <summary>Active members of exactly the segment's tier: Gold = gold ≤ spend &lt; diamond, Diamond = spend ≥ diamond.</summary>
+    public static List<Guid> MemberSegment(BroadcastSegment segment, IReadOnlyDictionary<Guid, long> spend, IReadOnlySet<Guid> active, long gold, long diamond) =>
+        spend.Where(x => active.Contains(x.Key) && (segment == BroadcastSegment.MemberDiamond ? x.Value >= diamond : x.Value >= gold && x.Value < diamond))
+            .OrderBy(x => x.Key).Select(x => x.Key).ToList();
 }
 
 // ---------- public chat stats of a shop ----------

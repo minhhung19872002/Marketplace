@@ -250,8 +250,11 @@ public sealed class SendMessageHandler(
         var now = clock.UtcNow;
         var flagged = request.Type == MessageType.Text && await contacts.FlagsAsync(body, ct);
         var message = new ChatMessage(conversation.Id, userId, role, request.Type, body, payload, flagged, now);
+        // One conversation's sends / reads run one after another, so each recount sees every message before it
+        await using var tx = await db.BeginTransactionAsync(ct);
+        await db.LockAsync($"chat:{conversation.Id}", ct);
         db.ChatMessages.Add(message);
-        conversation.Posted(role, Preview(message), now);
+        var posts = new List<(ChatRole Role, string Preview, DateTimeOffset At)> { (role, Preview(message), now) };
 
         ChatMessage? autoReply = null;
         if (role == ChatRole.Buyer)
@@ -263,7 +266,7 @@ public sealed class SendMessageHandler(
             {
                 autoReply = new ChatMessage(conversation.Id, null, ChatRole.System, MessageType.Text, settings.AutoReplyText, null, false, now.AddMilliseconds(1));
                 db.ChatMessages.Add(autoReply);
-                conversation.Posted(ChatRole.System, autoReply.Body, autoReply.CreatedAt);
+                posts.Add((ChatRole.System, autoReply.Body, autoReply.CreatedAt));
             }
         }
 
@@ -281,6 +284,8 @@ public sealed class SendMessageHandler(
                 now, dedupe));
         }
         await db.SaveChangesAsync(ct);
+        foreach (var post in posts) await ConversationState.AfterPostAsync(db, conversation.Id, post.Role, post.Preview, post.At, ct);
+        await tx.CommitAsync(ct);
 
         var dto = await ChatViews.ToDtoAsync(storage, message, sender, ct);
         await realtime.ToUsersAsync(participants, RealtimeEvents.ChatMessage, dto, ct);
@@ -336,6 +341,36 @@ public sealed class SendMessageHandler(
     }
 }
 
+/// <summary>
+/// The conversation row follows its messages (spec bẫy 2): last message, "awaiting a shop answer", and the unread
+/// counters — counted from <c>messages</c> (the other side's messages with no read time), never incremented. Called
+/// inside the conversation's lock, after the messages are saved.
+/// </summary>
+internal static class ConversationState
+{
+    public static Task<int> AfterPostAsync(IApplicationDbContext db, Guid conversationId, ChatRole by, string preview, DateTimeOffset at, CancellationToken ct)
+    {
+        var text = preview.Length > 120 ? preview[..120] : preview;
+        var role = by.ToString();
+        return db.ExecuteSqlAsync($"""
+            UPDATE engage.conversations c SET
+                last_message_preview = CASE WHEN {at} >= c.last_message_at THEN {text} ELSE c.last_message_preview END,
+                last_message_at = GREATEST(c.last_message_at, {at}),
+                awaiting_reply_since = CASE {role} WHEN 'Buyer' THEN COALESCE(c.awaiting_reply_since, {at}) WHEN 'Shop' THEN NULL ELSE c.awaiting_reply_since END,
+                buyer_unread = (SELECT count(*) FROM engage.messages m WHERE m.conversation_id = c.id AND m.read_at IS NULL AND m.sender_role <> 'Buyer'),
+                shop_unread = (SELECT count(*) FROM engage.messages m WHERE m.conversation_id = c.id AND m.read_at IS NULL AND m.sender_role = 'Buyer')
+            WHERE c.id = {conversationId}
+            """, ct);
+    }
+
+    public static Task<int> RecountAsync(IApplicationDbContext db, Guid conversationId, CancellationToken ct) => db.ExecuteSqlAsync($"""
+        UPDATE engage.conversations c SET
+            buyer_unread = (SELECT count(*) FROM engage.messages m WHERE m.conversation_id = c.id AND m.read_at IS NULL AND m.sender_role <> 'Buyer'),
+            shop_unread = (SELECT count(*) FROM engage.messages m WHERE m.conversation_id = c.id AND m.read_at IS NULL AND m.sender_role = 'Buyer')
+        WHERE c.id = {conversationId}
+        """, ct);
+}
+
 public record MarkConversationReadCommand(Guid ConversationId, Guid? ShopId) : IRequest<Unit>;
 
 /// <summary>"Đã xem": the other side's messages get their read time, the reader's unread counter goes to 0, the sender sees it live.</summary>
@@ -350,12 +385,16 @@ public sealed class MarkConversationReadHandler(IApplicationDbContext db, ChatAc
             : await access.AsBuyerAsync(request.ConversationId, ct);
         var now = clock.UtcNow;
         var others = side == ChatRole.Buyer ? new[] { ChatRole.Shop, ChatRole.System } : [ChatRole.Buyer];
-        await db.ExecuteSqlAsync($"""
-            UPDATE engage.messages SET read_at = {now}
-            WHERE conversation_id = {conversation.Id} AND read_at IS NULL AND sender_role = ANY({others.Select(r => r.ToString()).ToArray()})
-            """, ct);
-        conversation.ReadBy(side);
-        await db.SaveChangesAsync(ct);
+        await using (var tx = await db.BeginTransactionAsync(ct))
+        {
+            await db.LockAsync($"chat:{conversation.Id}", ct);
+            await db.ExecuteSqlAsync($"""
+                UPDATE engage.messages SET read_at = {now}
+                WHERE conversation_id = {conversation.Id} AND read_at IS NULL AND sender_role = ANY({others.Select(r => r.ToString()).ToArray()})
+                """, ct);
+            await ConversationState.RecountAsync(db, conversation.Id, ct);
+            await tx.CommitAsync(ct);
+        }
         await realtime.ToUsersAsync(await access.ParticipantsAsync(conversation, ct), RealtimeEvents.ChatRead,
             new { conversationId = conversation.Id, side, at = now }, ct);
         return Unit.Value;

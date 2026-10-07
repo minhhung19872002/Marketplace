@@ -161,8 +161,11 @@ public interface IProviderStatements
     /// <summary>CSV <c>txn_id,payment_id,amount,refunded_amount,paid_at</c> of successful payments in [from, to).</summary>
     Task<string> GatewayStatementCsvAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct);
 
-    /// <summary>CSV <c>tracking_no,cod_amount,shipping_fee,delivered_at</c> of COD parcels delivered in [from, to).</summary>
-    Task<string> CarrierCodStatementCsvAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct);
+    /// <summary>
+    /// CSV <c>tracking_no,cod_amount,shipping_fee,delivered_at</c> of the COD parcels a simulated carrier delivered in
+    /// [from, to) — only <paramref name="carrierCode"/>'s parcels, and only if that carrier is simulated (a real one sends its own).
+    /// </summary>
+    Task<string> CarrierCodStatementCsvAsync(string carrierCode, DateTimeOffset from, DateTimeOffset to, CancellationToken ct);
 }
 
 public enum ReconcileIssue
@@ -173,23 +176,29 @@ public enum ReconcileIssue
     RefundMismatch,      // the refunded amounts differ
     FeeMismatch,         // the shipping fee differs
     BadLine,             // the line cannot be read
+    DuplicateInStatement, // the same transaction / tracking number twice in the file (counted once)
 }
 
 public record ReconcileLine(string Reference, ReconcileIssue Issue, long? ProviderAmount, long? SystemAmount, string Note);
 
-public record ReconcileResult(int StatementLines, int Matched, IReadOnlyList<ReconcileLine> Issues, long StatementTotal, long SystemTotal);
+public record ReconcileResult(int StatementLines, int Matched, IReadOnlyList<ReconcileLine> Issues, long StatementTotal, long SystemTotal,
+    long StatementFees = 0);
 
-public record ReconcileGatewayCommand(DateTimeOffset From, DateTimeOffset To, string Csv) : IRequest<ReconcileResult>;
+public record ReconcileGatewayCommand(DateTimeOffset From, DateTimeOffset To, string Csv, PaymentMethod Method) : IRequest<ReconcileResult>;
 
-/// <summary>Each successful gateway transaction against the payments and refunds ShopHub recorded, to the đồng.</summary>
+/// <summary>
+/// Each transaction of one gateway's statement against the payments and refunds ShopHub recorded through that gateway,
+/// to the đồng (spec VI.7). Only that gateway's payments are compared: a VNPay file never reports MoMo payments missing.
+/// </summary>
 public sealed class ReconcileGatewayHandler(IApplicationDbContext db) : IRequestHandler<ReconcileGatewayCommand, ReconcileResult>
 {
     public async Task<ReconcileResult> Handle(ReconcileGatewayCommand request, CancellationToken ct)
     {
-        var lines = Csv.Parse(request.Csv);
+        if (!request.Method.IsOnline()) throw new BusinessRuleException("Chọn cổng thanh toán cần đối soát (VNPay, MoMo, ZaloPay hoặc cổng giả lập).");
+        var statement = GatewayStatementFormats.Parse(request.Method, request.Csv);
         var (from, to) = (request.From.ToUniversalTime(), request.To.ToUniversalTime());
         var system = await db.Payments.AsNoTracking()
-            .Where(p => p.Method == PaymentMethod.Simulated && p.ProviderTxnId != null && p.PaidAt >= from && p.PaidAt < to
+            .Where(p => p.Method == request.Method && p.ProviderTxnId != null && p.PaidAt >= from && p.PaidAt < to
                         && (p.Status == PaymentStatus.Succeeded || p.Status == PaymentStatus.Refunded))
             .ToListAsync(ct);
         var paymentIds = system.Select(p => p.Id).ToList();
@@ -199,50 +208,50 @@ public sealed class ReconcileGatewayHandler(IApplicationDbContext db) : IRequest
         long RefundedOf(Payment p) => refunds.GetValueOrDefault(p.Id) is var r && r > 0 ? r : p.Status == PaymentStatus.Refunded ? p.Amount : 0;
 
         var byTxn = system.ToDictionary(p => p.ProviderTxnId!);
-        var issues = new List<ReconcileLine>();
-        var seen = new HashSet<string>();
+        var issues = statement.BadLines.Select(b => new ReconcileLine($"dòng {b.Line}", ReconcileIssue.BadLine, null, null, b.Note)).ToList();
+        issues.AddRange(statement.Duplicates.Select(d => new ReconcileLine(d.TxnId, ReconcileIssue.DuplicateInStatement, null, null,
+            $"Giao dịch lặp lại ở dòng {d.Line} của tệp — chỉ tính một lần.")));
         int matched = 0;
-        long statementTotal = 0;
-        foreach (var (row, number) in lines.Skip(1).Select((r, i) => (r, i + 2)))
+        foreach (var row in statement.Payments)
         {
-            if (row.Length < 4 || !long.TryParse(row[2], NumberStyles.None, CultureInfo.InvariantCulture, out var amount)
-                               || !long.TryParse(row[3], NumberStyles.None, CultureInfo.InvariantCulture, out var refunded))
+            if (!byTxn.TryGetValue(row.TxnId, out var p))
             {
-                issues.Add(new ReconcileLine($"dòng {number}", ReconcileIssue.BadLine, null, null, "Không đọc được dòng này."));
+                issues.Add(new ReconcileLine(row.TxnId, ReconcileIssue.MissingInSystem, row.Amount, null, "Cổng có giao dịch nhưng ShopHub không ghi nhận."));
                 continue;
             }
-            var txn = row[0];
-            statementTotal += amount;
-            seen.Add(txn);
-            if (!byTxn.TryGetValue(txn, out var p))
-            {
-                issues.Add(new ReconcileLine(txn, ReconcileIssue.MissingInSystem, amount, null, "Cổng có giao dịch nhưng ShopHub không ghi nhận."));
-                continue;
-            }
-            if (p.Amount != amount)
-                issues.Add(new ReconcileLine(txn, ReconcileIssue.AmountMismatch, amount, p.Amount, "Số tiền giao dịch lệch."));
-            else if (RefundedOf(p) != refunded)
-                issues.Add(new ReconcileLine(txn, ReconcileIssue.RefundMismatch, refunded, RefundedOf(p), "Số tiền đã hoàn lệch."));
+            if (p.Amount != row.Amount)
+                issues.Add(new ReconcileLine(row.TxnId, ReconcileIssue.AmountMismatch, row.Amount, p.Amount, "Số tiền giao dịch lệch."));
+            else if (RefundedOf(p) != row.Refunded)
+                issues.Add(new ReconcileLine(row.TxnId, ReconcileIssue.RefundMismatch, row.Refunded, RefundedOf(p), "Số tiền đã hoàn lệch."));
             else matched++;
         }
+        var seen = statement.Payments.Select(r => r.TxnId).ToHashSet();
         foreach (var p in system.Where(p => !seen.Contains(p.ProviderTxnId!)))
             issues.Add(new ReconcileLine(p.ProviderTxnId!, ReconcileIssue.MissingInStatement, null, p.Amount, "ShopHub ghi nhận nhưng tệp của cổng không có."));
-        return new ReconcileResult(Math.Max(0, lines.Count - 1), matched, issues, statementTotal, system.Sum(p => p.Amount));
+        return new ReconcileResult(statement.Lines, matched, issues, statement.Payments.Sum(r => r.Amount), system.Sum(p => p.Amount),
+            statement.Payments.Sum(r => r.Fee));
     }
 }
 
-public record ReconcileCarrierCommand(DateTimeOffset From, DateTimeOffset To, string Csv) : IRequest<ReconcileResult>;
+public record ReconcileCarrierCommand(DateTimeOffset From, DateTimeOffset To, string Csv, string CarrierCode) : IRequest<ReconcileResult>;
 
-/// <summary>COD collected by the carrier against the delivered COD orders (amount to collect and shipping fee).</summary>
+/// <summary>
+/// COD collected by one carrier against that carrier's delivered COD parcels (amount to collect and shipping fee) —
+/// a GHN file never reports GHTK parcels missing. A tracking number twice in the file is reported, not matched twice.
+/// </summary>
 public sealed class ReconcileCarrierHandler(IApplicationDbContext db) : IRequestHandler<ReconcileCarrierCommand, ReconcileResult>
 {
     public async Task<ReconcileResult> Handle(ReconcileCarrierCommand request, CancellationToken ct)
     {
+        var carrierCode = request.CarrierCode?.Trim() ?? "";
+        if (carrierCode.Length == 0 || !await db.Carriers.AnyAsync(c => c.Code == carrierCode, ct))
+            throw new BusinessRuleException("Chọn đơn vị vận chuyển của tệp đối soát.");
         var lines = Csv.Parse(request.Csv);
         var (fromAt, toAt) = (request.From.ToUniversalTime(), request.To.ToUniversalTime());
         var system = await (from s in db.Shipments.AsNoTracking()
                             join o in db.Orders.AsNoTracking() on s.OrderId equals o.Id
-                            where s.Direction == ShipmentDirection.Outbound && o.PaymentMethod == PaymentMethod.Cod && o.DeliveredAt >= fromAt
+                            where s.CarrierCode == carrierCode && s.Direction == ShipmentDirection.Outbound && o.PaymentMethod == PaymentMethod.Cod
+                                  && o.DeliveredAt >= fromAt
                                   && o.DeliveredAt < toAt
                             select new { s.TrackingNo, o.Code, Cod = s.CodAmount, Fee = s.Fee }).ToListAsync(ct);
         var byTracking = system.ToDictionary(s => s.TrackingNo);
@@ -259,8 +268,12 @@ public sealed class ReconcileCarrierHandler(IApplicationDbContext db) : IRequest
                 continue;
             }
             var tracking = row[0];
+            if (!seen.Add(tracking))
+            {
+                issues.Add(new ReconcileLine(tracking, ReconcileIssue.DuplicateInStatement, cod, null, $"Vận đơn lặp lại ở dòng {number} của tệp — chỉ tính một lần."));
+                continue;
+            }
             statementTotal += cod;
-            seen.Add(tracking);
             if (!byTracking.TryGetValue(tracking, out var s))
             {
                 issues.Add(new ReconcileLine(tracking, ReconcileIssue.MissingInSystem, cod, null, "Hãng thu hộ nhưng không có đơn COD đã giao trong kỳ."));
@@ -276,7 +289,26 @@ public sealed class ReconcileCarrierHandler(IApplicationDbContext db) : IRequest
     }
 }
 
-public record ProviderStatementQuery(string Provider, DateTimeOffset From, DateTimeOffset To) : IRequest<FileResultDto>;
+public record ReconcileSourceDto(string Code, string Name, bool Simulated);
+
+public record ReconcileSourcesDto(IReadOnlyList<ReconcileSourceDto> Gateways, IReadOnlyList<ReconcileSourceDto> Carriers);
+
+public record ReconcileSourcesQuery : IRequest<ReconcileSourcesDto>;
+
+/// <summary>What a statement can be reconciled against: every online gateway, every carrier (simulated ones can generate their file).</summary>
+public sealed class ReconcileSourcesHandler(IApplicationDbContext db) : IRequestHandler<ReconcileSourcesQuery, ReconcileSourcesDto>
+{
+    public async Task<ReconcileSourcesDto> Handle(ReconcileSourcesQuery request, CancellationToken ct)
+    {
+        var gateways = new[] { PaymentMethod.VnPay, PaymentMethod.MoMo, PaymentMethod.ZaloPay, PaymentMethod.Simulated }
+            .Select(m => new ReconcileSourceDto(m.ToString(), GatewayStatementFormats.Label(m), m == PaymentMethod.Simulated)).ToList();
+        var carriers = await db.Carriers.AsNoTracking().OrderBy(c => c.SortOrder).ThenBy(c => c.Code)
+            .Select(c => new ReconcileSourceDto(c.Code, c.Name, c.Provider == "SIMULATED")).ToListAsync(ct);
+        return new ReconcileSourcesDto(gateways, carriers);
+    }
+}
+
+public record ProviderStatementQuery(string Provider, DateTimeOffset From, DateTimeOffset To, string? CarrierCode = null) : IRequest<FileResultDto>;
 
 public sealed class ProviderStatementHandler(IProviderStatements statements) : IRequestHandler<ProviderStatementQuery, FileResultDto>
 {
@@ -285,7 +317,9 @@ public sealed class ProviderStatementHandler(IProviderStatements statements) : I
         var csv = request.Provider switch
         {
             "gateway" => await statements.GatewayStatementCsvAsync(request.From.ToUniversalTime(), request.To.ToUniversalTime(), ct),
-            "carrier" => await statements.CarrierCodStatementCsvAsync(request.From.ToUniversalTime(), request.To.ToUniversalTime(), ct),
+            "carrier" => await statements.CarrierCodStatementCsvAsync(
+                string.IsNullOrWhiteSpace(request.CarrierCode) ? throw new BusinessRuleException("Chọn đơn vị vận chuyển.") : request.CarrierCode.Trim(),
+                request.From.ToUniversalTime(), request.To.ToUniversalTime(), ct),
             _ => throw new NotFoundException("Không tìm thấy nhà cung cấp."),
         };
         return new FileResultDto($"sao-ke-{request.Provider}-{SettlementReports.Stamp(request.From, request.To)}.csv", "text/csv",

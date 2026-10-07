@@ -413,6 +413,33 @@ public class CatalogTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_stock_change_whose_history_row_cannot_be_saved_leaves_the_stock_unchanged()
+    {
+        var (owner, shopId, skuId) = await SkuWithStockAsync(10);
+        // Make the movement insert fail for this SKU only (stands in for any failure after the stock UPDATE)
+        var fn = $"test_fail_movement_{skuId:N}";
+        // Identifiers cannot be parameters; both come from a Guid
+        var create = $"""
+            CREATE FUNCTION catalog.{fn}() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN IF NEW.sku_id = '{skuId}' THEN RAISE EXCEPTION 'movement insert refused'; END IF; RETURN NEW; END $$;
+            CREATE TRIGGER {fn} BEFORE INSERT ON catalog.inventory_movements FOR EACH ROW EXECUTE FUNCTION catalog.{fn}();
+            """;
+        var drop = $"DROP TRIGGER {fn} ON catalog.inventory_movements; DROP FUNCTION catalog.{fn}();";
+        await factory.WithDbAsync(db => db.Database.ExecuteSqlRawAsync(create));
+        try
+        {
+            var res = await owner.Client.PostAsJsonAsync($"/api/seller/shops/{shopId}/skus/{skuId}/stock-adjustments", new { delta = 5, note = "Nhập hàng" });
+            res.IsSuccessStatusCode.Should().BeFalse();
+            (await factory.WithDbAsync(db => db.Skus.Where(s => s.Id == skuId).Select(s => s.Stock).SingleAsync()))
+                .Should().Be(10, "tồn kho và dòng lịch sử phải cùng một giao dịch: không có dấu vết thì không được đổi");
+        }
+        finally
+        {
+            await factory.WithDbAsync(db => db.Database.ExecuteSqlRawAsync(drop));
+        }
+    }
+
+    [Fact]
     public async Task Stock_cannot_drop_below_reserved_even_by_direct_sql()
     {
         var (owner, shopId, skuId) = await SkuWithStockAsync(10);

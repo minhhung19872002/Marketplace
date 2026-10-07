@@ -332,26 +332,31 @@ public sealed class AdminReports(IApplicationDbContext db)
     }
 
     /// <summary>
-    /// Conversion funnel of signed-in buyers (guests cannot be followed across devices): viewed a product → added to
-    /// cart → placed a checkout → paid (online paid, Ví, or COD delivered).
+    /// Conversion funnel of signed-in buyers (guests cannot be followed across devices) as ONE cohort: the people who
+    /// viewed a product in the period; of them, who added to cart; of those, who placed a checkout; of those, who paid
+    /// (online paid, Ví, or COD delivered) — so every step is a subset of the one before and no rate passes 100%.
     /// </summary>
     private async Task<ReportResult> FunnelAsync(ReportRange r, CancellationToken ct)
     {
-        var viewed = await db.ProductViews.AsNoTracking().Where(v => v.UserId != null && v.ViewedAt >= r.Start && v.ViewedAt < r.End)
-            .Select(v => v.UserId!.Value).Distinct().CountAsync(ct);
-        var carted = await db.CartAdds.AsNoTracking().Where(a => a.UserId != null && a.AddedAt >= r.Start && a.AddedAt < r.End)
-            .Select(a => a.UserId!.Value).Distinct().CountAsync(ct);
-        var ordered = await db.CheckoutSessions.AsNoTracking().Where(c => c.CreatedAt >= r.Start && c.CreatedAt < r.End)
-            .Select(c => c.UserId).Distinct().CountAsync(ct);
-        var paid = await db.Orders.AsNoTracking().Where(o => o.CreatedAt >= r.Start && o.CreatedAt < r.End
-                                                             && (o.PaymentStatus != OrderPaymentStatus.Unpaid
-                                                                 || (o.PaymentMethod == PaymentMethod.Cod && o.DeliveredAt != null)))
-            .Select(o => o.BuyerId).Distinct().CountAsync(ct);
+        var viewedQ = db.ProductViews.AsNoTracking().Where(v => v.UserId != null && v.ViewedAt >= r.Start && v.ViewedAt < r.End)
+            .Select(v => v.UserId!.Value).Distinct();
+        var cartedQ = db.CartAdds.AsNoTracking().Where(a => a.UserId != null && a.AddedAt >= r.Start && a.AddedAt < r.End && viewedQ.Contains(a.UserId!.Value))
+            .Select(a => a.UserId!.Value).Distinct();
+        var orderedQ = db.CheckoutSessions.AsNoTracking().Where(c => c.CreatedAt >= r.Start && c.CreatedAt < r.End && cartedQ.Contains(c.UserId))
+            .Select(c => c.UserId).Distinct();
+        var paidQ = db.Orders.AsNoTracking().Where(o => o.CreatedAt >= r.Start && o.CreatedAt < r.End && orderedQ.Contains(o.BuyerId)
+                                                     && (o.PaymentStatus != OrderPaymentStatus.Unpaid
+                                                         || (o.PaymentMethod == PaymentMethod.Cod && o.DeliveredAt != null)))
+            .Select(o => o.BuyerId).Distinct();
+        var viewed = await viewedQ.CountAsync(ct);
+        var carted = await cartedQ.CountAsync(ct);
+        var ordered = await orderedQ.CountAsync(ct);
+        var paid = await paidQ.CountAsync(ct);
         (string Step, long Count)[] steps = [("Xem sản phẩm", viewed), ("Thêm vào giỏ", carted), ("Đặt hàng", ordered), ("Trả tiền", paid)];
         var rows = steps.Select((s, i) => (IReadOnlyList<object>)[s.Step, s.Count, i == 0 ? 10_000L : ReportOrders.Bp(s.Count, steps[i - 1].Count),
             ReportOrders.Bp(s.Count, steps[0].Count)]).ToList();
         return new ReportResult(
-            new ReportTable("Phễu chuyển đổi (người dùng đã đăng nhập)", r.Describe(), [Text("Bước"), Int("Số người"), Pct("So với bước trước"), Pct("So với bước đầu")], rows),
+            new ReportTable("Phễu chuyển đổi (nhóm người dùng đã đăng nhập có xem sản phẩm trong kỳ)", r.Describe(), [Text("Bước"), Int("Số người"), Pct("So với bước trước"), Pct("So với bước đầu")], rows),
             new ChartDto("funnel", "Số người", null, steps.Select(s => new ChartPoint(s.Step, s.Count)).ToList()));
     }
 }
@@ -374,13 +379,15 @@ public sealed class AdminReportExportHandler(AdminReports reports, IReportDocume
     {
         var range = ReportRange.Of(q.From, q.To, q.Granularity, clock.UtcNow);
         var result = await reports.BuildAsync(q.Kind, range, ct);
-        return ReportFiles.Of(result.Table, q.Format, $"bao-cao-{q.Kind.ToString().ToLowerInvariant()}-{range.From:yyyyMMdd}-{range.To:yyyyMMdd}", documents);
+        return ReportFiles.Of(result.Table, q.Format, $"bao-cao-{q.Kind.ToString().ToLowerInvariant()}-{range.From:yyyyMMdd}-{range.To:yyyyMMdd}", documents,
+            new ReportChart(result.Chart.Series, result.Chart.Series2, result.Chart.Points.Select(p => (p.Label, p.Value, p.Value2)).ToList()));
     }
 }
 
 public static class ReportFiles
 {
-    public static ReportFile Of(ReportTable table, ExportFormat format, string name, IReportDocuments documents) => format == ExportFormat.Pdf
-        ? new ReportFile(documents.Pdf(table), "application/pdf", name + ".pdf")
+    public static ReportFile Of(ReportTable table, ExportFormat format, string name, IReportDocuments documents, ReportChart? chart = null) =>
+        format == ExportFormat.Pdf
+        ? new ReportFile(documents.Pdf(table, chart), "application/pdf", name + ".pdf")
         : new ReportFile(documents.Excel(table), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name + ".xlsx");
 }

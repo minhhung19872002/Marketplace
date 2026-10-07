@@ -127,7 +127,7 @@ public class ShippingRuleTests
     public void Delivery_dates_skip_sundays_and_holidays()
     {
         // Friday 2026-10-02 + 2 working days: Sat 03, (Sun 04 skipped), Mon 05
-        VietnamTime.AddWorkingDays(new DateOnly(2026, 10, 2), 2, new HashSet<DateOnly>()).Should().Be(new DateOnly(2026, 10, 5));
-        VietnamTime.AddWorkingDays(new DateOnly(2026, 10, 2), 2, new HashSet<DateOnly> { new(2026, 10, 3) }).Should().Be(new DateOnly(2026, 10, 6));
+        WorkingCalendar.Add(new DateOnly(2026, 10, 2), 2, new HashSet<DateOnly>(), new HashSet<DayOfWeek> { DayOfWeek.Sunday }).Should().Be(new DateOnly(2026, 10, 5));
+        WorkingCalendar.Add(new DateOnly(2026, 10, 2), 2, new HashSet<DateOnly> { new(2026, 10, 3) }, new HashSet<DayOfWeek> { DayOfWeek.Sunday }).Should().Be(new DateOnly(2026, 10, 6));
     }
 }

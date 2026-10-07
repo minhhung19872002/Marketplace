@@ -68,6 +68,7 @@ internal sealed class ReturnRequestConfiguration : IEntityTypeConfiguration<Retu
         b.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
         b.Property(r => r.Description).HasMaxLength(1000).IsRequired();
         b.Property(r => r.ShopNote).HasMaxLength(500);
+        b.Property(r => r.PlatformBorne).HasDefaultValue(false);
         b.Property(r => r.Version).IsRowVersion();
         b.Ignore(r => r.IsOpen);
         b.HasOne<Order>().WithMany().HasForeignKey(r => r.OrderId).OnDelete(DeleteBehavior.Restrict);

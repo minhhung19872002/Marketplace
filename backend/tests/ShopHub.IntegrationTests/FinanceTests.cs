@@ -153,6 +153,43 @@ public class FinanceTests(ApiFactory factory)
 
     private static long Bp(long amount, int bp) => (long)Math.Round(amount * (decimal)bp / 10_000, MidpointRounding.AwayFromZero);
 
+    [Fact]
+    public async Task A_drifted_cached_balance_is_overwritten_with_the_sum_of_its_entries_and_finance_admins_are_alerted()
+    {
+        var shop = await factory.CreateStoreAsync("79", products: [new(Product, "Bình Giữ Nhiệt", Price, 5, "Việt Nam")]);
+        await FundAsync(shop.ShopId, 500_000);
+        var admin = await factory.CreateUserAsync([Permissions.FinanceLedgerView]);
+        // Someone (a bad migration, a hand fix) moved the cached column without an entry
+        await factory.WithDbAsync(db => db.LedgerAccounts
+            .Where(a => a.OwnerType == LedgerOwnerType.Shop && a.OwnerId == shop.ShopId && a.Type == LedgerAccountType.ShopAvailable)
+            .ExecuteUpdateAsync(u => u.SetProperty(a => a.Balance, a => a.Balance + 77_777)));
+        (await CheckLedgerAsync()).Mismatches.Should().ContainSingle(m => m.OwnerId == shop.ShopId && m.Cached == 577_777 && m.FromEntries == 500_000);
+
+        var result = await InScopeAsync(sp => sp.GetRequiredService<LedgerCheckService>().RepairAsync(CancellationToken.None));
+        result.Repaired.Should().BeGreaterThanOrEqualTo(1);
+        (await factory.WithDbAsync(db => db.LedgerAccounts.AsNoTracking()
+            .SingleAsync(a => a.OwnerType == LedgerOwnerType.Shop && a.OwnerId == shop.ShopId && a.Type == LedgerAccountType.ShopAvailable)))
+            .Balance.Should().Be(500_000, "số dư là tổng bút toán");
+        (await CheckLedgerAsync()).Mismatches.Should().BeEmpty();
+        (await factory.WithDbAsync(db => db.Notifications.AsNoTracking().Where(n => n.UserId == admin.Id).Select(n => n.Title).ToListAsync()))
+            .Should().Contain("Kiểm tra sổ cái phát hiện chênh lệch", "lệch phải tới tay quản trị tài chính, không chỉ nằm trong log");
+    }
+
+    [Fact]
+    public async Task A_ledger_posting_outside_a_transaction_is_refused()
+    {
+        var act = () => InScopeAsync(async sp =>
+        {
+            await sp.GetRequiredService<Ledger>().PostAsync("TEST_FUND", "test", Guid.NewGuid(), "Không có giao dịch",
+            [
+                new LedgerLine(AccountKey.Platform(LedgerAccountType.PlatformCash), LedgerDirection.Debit, 1_000),
+                new LedgerLine(AccountKey.Platform(LedgerAccountType.PlatformSubsidy), LedgerDirection.Credit, 1_000),
+            ], null, CancellationToken.None);
+            return 0;
+        });
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
     /// <summary>Gives a shop money it can withdraw (a released order is the real way; the tests that only need a balance post it).</summary>
     private async Task FundAsync(Guid shopId, long amount) =>
         await InScopeAsync(async sp =>
@@ -483,6 +520,78 @@ public class FinanceTests(ApiFactory factory)
         (await CheckLedgerAsync()).Mismatches.Should().BeEmpty();
     }
 
+    // ---------- manual refund by the platform (VI.5) ----------
+
+    private static object ManualRefund(Guid itemId, int quantity, long amount, bool platformBorne = false, string reason = "Khách khiếu nại qua tổng đài, đã xác minh") =>
+        new { lines = new[] { new { orderItemId = itemId, quantity } }, amount, platformBorne, reason };
+
+    [Fact]
+    public async Task Manual_refunds_never_exceed_what_was_paid_even_in_parallel_and_the_shop_bears_them_before_release()
+    {
+        var store = await StoreAsync();
+        var b = await BuyAsync(store, 2, complete: false);
+        var admin = await factory.ClientWithPermissionsAsync(Permissions.OrderIntervene);
+        var url = $"/api/admin/orders/{b.Code}/manual-refund";
+        var item = await factory.WithDbAsync(db => db.OrderItems.Include(i => i.Discounts).AsNoTracking().SingleAsync(i => i.Id == b.ItemId));
+        var paid = item.LineTotal - item.Discounts.Sum(d => d.Amount);
+        var perUnit = Application.Features.Returns.ReturnPricing.ForUnits(paid, 0, 2, 0, 1).Money;
+
+        // More than the unit's paid share → refused with the ceiling
+        var tooMuch = await admin.PostAsJsonAsync(url, ManualRefund(b.ItemId, 1, perUnit + 1));
+        tooMuch.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await tooMuch.ReadEnvelopeAsync()).Message.Should().Contain("tối đa");
+        (await admin.PostAsJsonAsync(url, ManualRefund(b.ItemId, 1, perUnit, reason: "ngắn"))).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        (await admin.PostAsJsonAsync(url, ManualRefund(b.ItemId, 1, perUnit))).StatusCode.Should().Be(HttpStatusCode.OK);
+        // One unit left: two admins refunding it at the same moment → exactly one goes through
+        var both = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ => Task.Run(() => admin.PostAsJsonAsync(url, ManualRefund(b.ItemId, 1, paid - perUnit)))));
+        both.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        (await admin.PostAsJsonAsync(url, ManualRefund(b.ItemId, 1, 1))).StatusCode.Should().Be(HttpStatusCode.Conflict, "không còn sản phẩm nào để hoàn");
+
+        var refunds = await factory.WithDbAsync(db => db.Refunds.Where(r => r.OrderId == b.OrderId).SumAsync(r => r.Amount));
+        refunds.Should().Be(paid, "tổng hoàn bằng đúng phần đã trả, không hơn");
+        await DrainOutboxAsync();
+        // COD → the buyer's Ví ShopHub
+        (await BalanceAsync(AccountKey.Wallet(b.Buyer.Id))).Should().Be(paid);
+        (await b.Buyer.Client.PostAsync($"/api/orders/{b.Code}/received", null)).EnsureSuccessStatusCode();
+        await DrainOutboxAsync();
+        var breakdown = (await (await store.Staff.Client.GetAsync($"/api/seller/shops/{store.Shop.ShopId}/finance/pending")).ReadEnvelopeAsync()).Data
+            .GetProperty("items").EnumerateArray().Single(r => r.Str("orderCode") == b.Code);
+        breakdown.GetProperty("refundsBorne").GetInt64().Should().Be(item.LineTotal - item.Discounts.Where(d => d.Source is DiscountSource.Shop or DiscountSource.Combo).Sum(d => d.Amount),
+            "shop chịu: toàn bộ giá trị hàng đã hoàn trừ vào doanh thu chờ giải ngân");
+        (await CheckLedgerAsync()).Mismatches.Should().BeEmpty();
+
+        var noRight = await factory.ClientWithPermissionsAsync(Permissions.OrderView);
+        (await noRight.PostAsJsonAsync(url, ManualRefund(b.ItemId, 1, 1))).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task After_release_a_manual_refund_is_only_possible_on_the_platform_and_leaves_the_shops_money_untouched()
+    {
+        var store = await StoreAsync();
+        var b = await BuyAsync(store, 1);
+        await WithParametersAsync(async () => (await ReleaseAsync()).Orders.Should().BeGreaterThanOrEqualTo(1), (ParameterKeys.ReturnWindowDays, "0"));
+        var available = AccountKey.Shop(store.Shop.ShopId, LedgerAccountType.ShopAvailable);
+        var before = await BalanceAsync(available);
+        before.Should().BeGreaterThan(0);
+        var admin = await factory.ClientWithPermissionsAsync(Permissions.OrderIntervene);
+        var url = $"/api/admin/orders/{b.Code}/manual-refund";
+
+        var shopPays = await admin.PostAsJsonAsync(url, ManualRefund(b.ItemId, 1, 10_000));
+        shopPays.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await shopPays.ReadEnvelopeAsync()).Message.Should().Contain("sàn chịu");
+        (await admin.PostAsJsonAsync(url, ManualRefund(b.ItemId, 1, 10_000, platformBorne: true))).StatusCode.Should().Be(HttpStatusCode.OK);
+        await DrainOutboxAsync();
+
+        (await BalanceAsync(available)).Should().Be(before, "sàn chịu: tiền của shop không đổi");
+        (await BalanceAsync(AccountKey.Wallet(b.Buyer.Id))).Should().Be(10_000);
+        (await CheckLedgerAsync()).Mismatches.Should().BeEmpty();
+        var history = await factory.WithDbAsync(db => db.ReturnRequests.Where(r => r.OrderId == b.OrderId).Select(r => new { r.Reason, r.PlatformBorne, r.Status }).SingleAsync());
+        history.Reason.Should().Be(ReturnReason.ManualRefund);
+        history.PlatformBorne.Should().BeTrue();
+        history.Status.Should().Be(ReturnStatus.Refunded);
+    }
+
     // ---------- reconciliation & access ----------
 
     [Fact]
@@ -501,18 +610,8 @@ public class FinanceTests(ApiFactory factory)
             .Join(db.Payments, o => o.CheckoutId, p => p.CheckoutId, (_, p) => p.ProviderTxnId).SingleAsync());
         statement.Should().Contain(txn!);
 
-        async Task<JsonElement> ReconcileAsync(string provider, string csv)
-        {
-            using var form = new MultipartFormDataContent
-            {
-                { new StringContent(from.ToString("O")), "from" },
-                { new StringContent(to.ToString("O")), "to" },
-                { new ByteArrayContent(Encoding.UTF8.GetBytes(csv)), "file", "sao-ke.csv" },
-            };
-            var res = await admin.PostAsync($"/api/admin/finance/reconcile/{provider}", form);
-            res.StatusCode.Should().Be(HttpStatusCode.OK, await res.Content.ReadAsStringAsync());
-            return (await res.ReadEnvelopeAsync()).Data;
-        }
+        Task<JsonElement> ReconcileAsync(string provider, string csv, string? source = null) =>
+            ReconcileFileAsync(admin, provider, source ?? "Simulated", from, to, csv);
 
         var clean = await ReconcileAsync("gateway", statement);
         clean.GetProperty("issues").EnumerateArray().Where(i => i.Str("reference") == txn).Should().BeEmpty();
@@ -534,10 +633,73 @@ public class FinanceTests(ApiFactory factory)
         dropped.GetProperty("issues").EnumerateArray().Should().Contain(i => i.Str("reference") == txn && i.Str("issue") == "MissingInStatement");
 
         // Carrier COD statement: the delivered COD parcel matches (amount and fee)
-        var tracking = await factory.WithDbAsync(db => db.Shipments.Where(s => s.OrderId == cod.OrderId).Select(s => s.TrackingNo).SingleAsync());
-        var carrier = await (await admin.GetAsync($"/api/admin/finance/statements/carrier?{range}")).Content.ReadAsStringAsync();
+        var (tracking, code) = await factory.WithDbAsync(async db => await db.Shipments.Where(s => s.OrderId == cod.OrderId)
+            .Select(s => new ValueTuple<string, string>(s.TrackingNo, s.CarrierCode)).SingleAsync());
+        var carrier = await (await admin.GetAsync($"/api/admin/finance/statements/carrier?{range}&carrier={code}")).Content.ReadAsStringAsync();
         carrier.Should().Contain(tracking);
-        (await ReconcileAsync("carrier", carrier)).GetProperty("issues").EnumerateArray().Where(i => i.Str("reference") == tracking).Should().BeEmpty();
+        (await ReconcileAsync("carrier", carrier, code)).GetProperty("issues").EnumerateArray().Where(i => i.Str("reference") == tracking).Should().BeEmpty();
+    }
+
+    private static async Task<JsonElement> ReconcileFileAsync(HttpClient admin, string provider, string source, DateTimeOffset from, DateTimeOffset to, string csv)
+    {
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent(from.ToString("O")), "from" },
+            { new StringContent(to.ToString("O")), "to" },
+            { new StringContent(source), "source" },
+            { new ByteArrayContent(Encoding.UTF8.GetBytes(csv)), "file", "sao-ke.csv" },
+        };
+        var res = await admin.PostAsync($"/api/admin/finance/reconcile/{provider}", form);
+        res.StatusCode.Should().Be(HttpStatusCode.OK, await res.Content.ReadAsStringAsync());
+        return (await res.ReadEnvelopeAsync()).Data;
+    }
+
+    [Fact]
+    public async Task Each_reconciliation_only_compares_the_chosen_carrier_or_gateway_and_reports_a_repeated_line_once()
+    {
+        var store = await StoreAsync(stock: 50);
+        var first = await BuyAsync(store, 1, complete: false);
+        var second = await BuyAsync(store, 1, complete: false);
+        var simulatedPaid = await BuyAsync(store, 1, method: "Simulated", deliver: false);
+        var vnpayPaid = await BuyAsync(store, 1, method: "Simulated", deliver: false);
+        var admin = await factory.ClientWithPermissionsAsync(Permissions.FinanceReconcile);
+        var from = DateTimeOffset.UtcNow.AddHours(-1);
+        var to = DateTimeOffset.UtcNow.AddHours(1);
+
+        // The second parcel went with another carrier
+        var (firstTracking, carrierA) = await factory.WithDbAsync(async db => await db.Shipments.Where(s => s.OrderId == first.OrderId)
+            .Select(s => new ValueTuple<string, string>(s.TrackingNo, s.CarrierCode)).SingleAsync());
+        var carrierB = await factory.WithDbAsync(db => db.Carriers.Where(c => c.Code != carrierA).OrderBy(c => c.Code).Select(c => c.Code).FirstAsync());
+        await factory.WithDbAsync(db => db.Shipments.Where(s => s.OrderId == second.OrderId).ExecuteUpdateAsync(u => u.SetProperty(s => s.CarrierCode, carrierB)));
+        var secondTracking = await factory.WithDbAsync(db => db.Shipments.Where(s => s.OrderId == second.OrderId).Select(s => s.TrackingNo).SingleAsync());
+        var (cod, fee) = await factory.WithDbAsync(async db => await db.Shipments.Where(s => s.OrderId == first.OrderId)
+            .Select(s => new ValueTuple<long, long>(s.CodAmount, s.Fee)).SingleAsync());
+        var carrierFile = $"tracking_no,cod_amount,shipping_fee,delivered_at\n{firstTracking},{cod},{fee},x\n{firstTracking},{cod},{fee},x\n";
+        var byCarrier = await ReconcileFileAsync(admin, "carrier", carrierA, from, to, carrierFile);
+        var issues = byCarrier.GetProperty("issues").EnumerateArray().ToList();
+        issues.Should().NotContain(i => i.Str("reference") == secondTracking, "vận đơn của hãng khác không thuộc tệp này");
+        issues.Should().ContainSingle(i => i.Str("reference") == firstTracking && i.Str("issue") == "DuplicateInStatement");
+        byCarrier.GetProperty("statementTotal").GetInt64().Should().Be(cod, "dòng lặp không được cộng hai lần");
+
+        // One payment went through VNPay: its file is compared with VNPay payments only
+        var payment = await factory.WithDbAsync(db => db.Orders.Where(o => o.Id == vnpayPaid.OrderId)
+            .Join(db.Payments, o => o.CheckoutId, x => x.CheckoutId, (_, x) => x).SingleAsync());
+        await factory.WithDbAsync(db => db.Payments.Where(x => x.Id == payment.Id).ExecuteUpdateAsync(u => u.SetProperty(x => x.Method, PaymentMethod.VnPay)));
+        var simulatedTxn = await factory.WithDbAsync(db => db.Orders.Where(o => o.Id == simulatedPaid.OrderId)
+            .Join(db.Payments, o => o.CheckoutId, x => x.CheckoutId, (_, x) => x.ProviderTxnId).SingleAsync());
+        var vnpayFile = $"STT,Mã GD VNPAY,Số tiền,Phí,Loại GD\n1,{payment.ProviderTxnId},{payment.Amount.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN"))},1.000,Thanh toán\n";
+        var byGateway = await ReconcileFileAsync(admin, "gateway", "VnPay", from, to, vnpayFile);
+        byGateway.GetProperty("issues").EnumerateArray().Should().NotContain(i => i.Str("reference") == simulatedTxn, "giao dịch của cổng khác không thuộc tệp VNPay");
+        byGateway.GetProperty("matched").GetInt32().Should().Be(1);
+        byGateway.GetProperty("statementFees").GetInt64().Should().Be(1_000);
+
+        // No gateway / carrier chosen → refused, not "everything missing"
+        using var none = new MultipartFormDataContent
+        {
+            { new StringContent(from.ToString("O")), "from" }, { new StringContent(to.ToString("O")), "to" },
+            { new ByteArrayContent(Encoding.UTF8.GetBytes(carrierFile)), "file", "sao-ke.csv" },
+        };
+        (await admin.PostAsync("/api/admin/finance/reconcile/carrier", none)).StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
     [Fact]

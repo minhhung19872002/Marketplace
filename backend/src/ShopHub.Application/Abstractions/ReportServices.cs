@@ -17,9 +17,12 @@ public record ReportColumn(string Title, ReportCellKind Kind);
 public record ReportTable(string Title, string Subtitle, IReadOnlyList<ReportColumn> Columns, IReadOnlyList<IReadOnlyList<object>> Rows,
     IReadOnlyList<object>? Totals = null);
 
+/// <summary>The chart shown next to a report's table, drawn into its PDF too (spec VI.10 "bảng + biểu đồ + tệp").</summary>
+public record ReportChart(string Series, string? Series2, IReadOnlyList<(string Label, long Value, long? Value2)> Points);
+
 public interface IReportDocuments
 {
     byte[] Excel(ReportTable table);
 
-    byte[] Pdf(ReportTable table);
+    byte[] Pdf(ReportTable table, ReportChart? chart = null);
 }

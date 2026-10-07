@@ -1,0 +1,4 @@
+Mã giao dịch MoMo,Mã đơn hàng,Số tiền,Phí giao dịch,Loại giao dịch,Mã giao dịch gốc,Thời gian
+3100000001,9f1c,200000,2200,Thanh toán,,06/10/2026 08:00:00
+3100000002,7a2d,150000,1650,Thanh toán,,06/10/2026 09:15:00
+3100000009,7a2d,-150000,0,Hoàn tiền,3100000002,06/10/2026 12:00:00

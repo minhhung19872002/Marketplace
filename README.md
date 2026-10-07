@@ -10,7 +10,8 @@ Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** 
 > giỏ theo shop, PricingEngine, voucher sàn / shop, xu, Flash Sale, checkout tách đơn có idempotency, COD + cổng giả lập (VNPay / MoMo,
 > GHN / GHTK bật bằng khoá), máy trạng thái đơn, vận đơn giả lập, đánh giá, trả hàng & khiếu nại, sổ cái kép, giải ngân, Ví ShopHub,
 > chat thời gian thực, thông báo đa kênh, quản trị & báo cáo; tài khoản phụ, trang trí & danh mục shop, Excel hàng loạt, Freeship / Voucher
-> Xtra, đăng nhập Google (tuỳ chọn); SEO cho máy thu thập, 1 triệu sản phẩm đạt ngưỡng, 375 px / 1366 px, WCAG AA, production HTTPS +
+> Xtra, đăng nhập Google (tuỳ chọn); đa kho (mỗi kho gửi một kiện), kênh vận chuyển / COD theo shop, facet vận chuyển & dịch vụ, đăng ký chiến dịch
+> của sàn, xuất Excel chạy nền; SEO cho máy thu thập, 1 triệu sản phẩm đạt ngưỡng, 375 px / 1366 px, WCAG AA, production HTTPS +
 > sao lưu. `docker compose up -d` có sẵn dữ liệu mẫu: ~1.000 sản phẩm, ~600 đơn trải 90 ngày qua đúng các lệnh nghiệp vụ, 800 đánh giá.
 > Hướng dẫn: [người mua](docs/01-huong-dan-nguoi-mua.md) · [người bán](docs/02-huong-dan-nguoi-ban.md) · [quản trị](docs/03-huong-dan-quan-tri.md);
 > kịch bản kiểm thử: [`docs/06`](docs/06-kich-ban-kiem-thu.md); chưa làm / ngoài phạm vi: `docs/07` và mục 12 của đặc tả.

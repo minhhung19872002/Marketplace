@@ -35,6 +35,10 @@ test.describe('Khoá tài khoản cắt phiên ngay', () => {
 
 /** Horizontal overflow of the document, in CSS pixels (0 = no sideways scroll). */
 const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+/** The elements that stick out past the right edge, so a failure names its cause (CI renders differently from dev). */
+const culprits = (page) => page.evaluate(() => [...document.querySelectorAll('body *')]
+  .filter((e) => e.getBoundingClientRect().right > document.documentElement.clientWidth + 1 && ![...e.children].some((c) => c.getBoundingClientRect().right > document.documentElement.clientWidth + 1))
+  .slice(0, 4).map((e) => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')} "${(e.textContent || '').trim().slice(0, 40)}"`).join(' | '));
 
 test.describe('Giao diện ở 375 px và 1366 × 768', () => {
   test.setTimeout(240_000);
@@ -55,7 +59,7 @@ test.describe('Giao diện ở 375 px và 1366 × 768', () => {
       await page.goto(`${BASE}${path}`);
       await page.waitForLoadState('networkidle');
       const px = await overflow(page);
-      if (px > 0) problems.push(`${path}: ${px}px`);
+      if (px > 0) problems.push(`${path}: ${px}px — ${await culprits(page)}`);
     }
     // On a phone the account lives behind the header icon (the desktop top bar is hidden)
     await page.goto(`${BASE}/dang-nhap`);
@@ -69,7 +73,7 @@ test.describe('Giao diện ở 375 px và 1366 × 768', () => {
       await page.goto(`${BASE}${path}`);
       await page.waitForLoadState('networkidle');
       const px = await overflow(page);
-      if (px > 0) problems.push(`${path}: ${px}px`);
+      if (px > 0) problems.push(`${path}: ${px}px — ${await culprits(page)}`);
     }
     expect(problems).toEqual([]);
   });

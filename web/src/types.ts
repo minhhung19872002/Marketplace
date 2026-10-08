@@ -22,6 +22,8 @@ export interface CategoryNode {
   children: CategoryNode[];
   // Products on sale in the subtree
   productCount: number;
+  // Shown to buyers (G2-A7): hidden industries stay out of every menu, filter and list
+  isVisible: boolean;
 }
 
 export interface CategoryCrumb {
@@ -37,6 +39,8 @@ export interface CategoryPage {
   // Banner ngành and thương hiệu nổi bật (II.2)
   banners: { id: string; title: string; imageUrl: string; link: string }[] | null;
   brands: { id: string; name: string; slug: string; logoUrl: string | null; isVerified: boolean; productCount: number }[] | null;
+  // false: hidden from buyers for now — the page says "Danh mục đang cập nhật" (G2-A7)
+  isVisible: boolean;
 }
 
 export interface ProductCard {
@@ -59,6 +63,10 @@ export interface ProductCard {
   provinceName: string | null;
   /** The shown price is a Flash Sale price */
   isFlashSale?: boolean;
+  // Tags under the name backed by data (combo / add-on / gift programme, Freeship Xtra)
+  labels?: string[] | null;
+  // Campaign frame laid over the photo (product taking part in a running campaign)
+  frameUrl?: string | null;
 }
 
 // ---------- search ----------
@@ -223,6 +231,8 @@ export interface ProductPage {
 export interface TopCategoryProduct {
   category: CategoryCrumb;
   product: ProductCard;
+  // Units sold in the last 30 days (orders not cancelled)
+  monthlySold: number;
 }
 
 export interface MallShop {
@@ -232,6 +242,8 @@ export interface MallShop {
   logoUrl: string | null;
   coverImageUrl: string | null;
   productCount: number;
+  // Deepest real discount among the shop's SKUs on sale (0 = none)
+  maxDiscountPercent: number;
 }
 
 export interface ShopTab {

@@ -41,6 +41,17 @@ internal sealed class ReviewMediaConfiguration : IEntityTypeConfiguration<Review
     }
 }
 
+internal sealed class ReviewHelpfulVoteConfiguration : IEntityTypeConfiguration<ReviewHelpfulVote>
+{
+    public void Configure(EntityTypeBuilder<ReviewHelpfulVote> b)
+    {
+        b.ToTable("review_helpful_votes", "engage");
+        b.HasKey(v => v.Id);
+        b.HasOne<Review>().WithMany().HasForeignKey(v => v.ReviewId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(v => new { v.ReviewId, v.UserId }).IsUnique().HasDatabaseName("ux_review_helpful_votes");
+    }
+}
+
 internal sealed class ReviewReportConfiguration : IEntityTypeConfiguration<ReviewReport>
 {
     public void Configure(EntityTypeBuilder<ReviewReport> b)

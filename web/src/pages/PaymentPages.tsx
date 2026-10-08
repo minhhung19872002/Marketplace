@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { checkoutApi, gatewayApi } from '../api/commerce';
+import { storefrontApi } from '../api/storefront';
+import ProductGrid from '../components/ProductGrid';
 import { ApiError } from '../api/http';
 import { formatPrice } from '../lib/money';
 import { formatDateTime } from '../lib/datetime';
@@ -170,6 +172,7 @@ export const OrderSuccessPage = () => {
   if (!data) return <div className="container payment-result"><QueryState query={checkout}>{() => null}</QueryState></div>;
 
   return (
+    <>
     <div className="container payment-result" data-testid="order-success">
       <div className="payment-result-icon ok"><Check size={36} aria-hidden /></div>
       <h1>Đặt hàng thành công</h1>
@@ -192,5 +195,14 @@ export const OrderSuccessPage = () => {
         <Link to="/" className="payment-result-btn ghost">Tiếp tục mua sắm</Link>
       </div>
     </div>
+    <AfterOrderSuggestions />
+    </>
   );
+};
+
+/** "Có thể bạn cũng thích" under the success page (G2-B4): the buyer's own suggestions, as on the home page. */
+const AfterOrderSuggestions = () => {
+  const { data } = useQuery({ queryKey: ['cart-suggestions'], queryFn: () => storefrontApi.recommendations(1, 12), staleTime: 60_000 });
+  if (!data?.items.length) return null;
+  return <div className="container"><ProductGrid title="CÓ THỂ BẠN CŨNG THÍCH" products={data.items} /></div>;
 };

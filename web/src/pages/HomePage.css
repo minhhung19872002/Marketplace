@@ -2,25 +2,74 @@
   padding-bottom: 30px;
 }
 
+.home-row {
+  padding: var(--sh-space-3) var(--sh-space-4) var(--sh-space-4);
+}
+
+.home-viewed-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--sh-radius-sm);
+  background: transparent;
+  color: var(--sh-text-muted);
+  font: inherit;
+  font-size: 13px;
+}
+
+.home-viewed-clear:hover {
+  background: var(--sh-surface-sunken);
+  color: var(--sh-primary);
+}
+
+/* Gợi ý hôm nay: sticky title bar with an orange underline, right under the (compact) header */
+.home-daily {
+  margin-top: var(--sh-space-3);
+}
+
+.home-daily-bar {
+  position: sticky;
+  top: var(--sh-header-h, 64px);
+  z-index: 5;
+  margin-bottom: 10px;
+  background: var(--sh-surface);
+  border-bottom: 4px solid var(--sh-primary);
+  box-shadow: var(--sh-shadow-sm);
+}
+
+.home-daily-title {
+  padding: 14px 0;
+  color: var(--sh-primary);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
 .home-load-more {
   display: flex;
   justify-content: center;
-  margin-top: 24px;
+  margin-top: var(--sh-space-5);
 }
 
 .home-load-more-btn {
-  background: #fff;
-  color: #555;
-  border: 1px solid #e0e0e0;
-  padding: 12px 90px;
-  border-radius: 2px;
+  width: min(360px, 100%);
+  height: 44px;
+  border: 1px solid var(--sh-border-strong);
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  color: var(--text);
+  font: inherit;
   font-size: 14px;
   transition: color 0.15s, border-color 0.15s;
 }
 
 .home-load-more-btn:hover {
-  color: var(--sh-primary);
   border-color: var(--sh-primary);
+  color: var(--sh-primary);
 }
 
 .home-popup {

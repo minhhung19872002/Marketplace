@@ -28,7 +28,10 @@ public record ReviewDto(
     DateTimeOffset CreatedAt,
     bool Edited,
     string? SellerReply,
-    DateTimeOffset? RepliedAt);
+    DateTimeOffset? RepliedAt,
+    // "Hữu ích": how many buyers found it helpful, and whether the current buyer is one of them
+    int HelpfulCount = 0,
+    bool HelpfulByMe = false);
 
 // Variants: how many reviews each bought variant has (filter "theo phân loại", spec 3.11)
 public record ReviewSummaryDto(double Average, int Total, IReadOnlyDictionary<int, int> ByStar, int WithMedia, int WithComment,
@@ -40,13 +43,20 @@ public record ProductReviewsDto(ReviewSummaryDto Summary, PagedResult<ReviewDto>
 
 internal static class ReviewViews
 {
-    public static async Task<List<ReviewDto>> MapAsync(IApplicationDbContext db, IObjectStorage storage, IReadOnlyList<Review> reviews, CancellationToken ct)
+    public static async Task<List<ReviewDto>> MapAsync(IApplicationDbContext db, IObjectStorage storage, IReadOnlyList<Review> reviews, CancellationToken ct,
+        Guid? viewer = null)
     {
         var buyerIds = reviews.Select(r => r.BuyerId).Distinct().ToList();
         var names = await db.Users.AsNoTracking().Where(u => buyerIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName, ct);
+        var ids = reviews.Select(r => r.Id).ToList();
+        var helpful = await db.ReviewHelpfulVotes.AsNoTracking().Where(v => ids.Contains(v.ReviewId))
+            .GroupBy(v => v.ReviewId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        var mine = viewer is { } me
+            ? (await db.ReviewHelpfulVotes.AsNoTracking().Where(v => ids.Contains(v.ReviewId) && v.UserId == me).Select(v => v.ReviewId).ToListAsync(ct)).ToHashSet()
+            : [];
         return reviews.Select(r => new ReviewDto(r.Id, Review.MaskName(names.GetValueOrDefault(r.BuyerId) ?? "", r.IsAnonymous), r.Rating, r.Content, r.Tags,
             r.VariantSnapshot, r.Media.OrderBy(m => m.SortOrder).Select(m => new ReviewMediaDto(m.Type, m.Url)).ToList(), r.CreatedAt, r.EditedAt is not null,
-            r.SellerReply, r.RepliedAt)).ToList();
+            r.SellerReply, r.RepliedAt, helpful.GetValueOrDefault(r.Id), mine.Contains(r.Id))).ToList();
     }
 }
 
@@ -236,7 +246,7 @@ public sealed class ProductReviewsValidator : AbstractValidator<ProductReviewsQu
     }
 }
 
-public sealed class ProductReviewsHandler(IApplicationDbContext db, IObjectStorage storage) : IRequestHandler<ProductReviewsQuery, ProductReviewsDto>
+public sealed class ProductReviewsHandler(IApplicationDbContext db, IObjectStorage storage, ICurrentUser currentUser) : IRequestHandler<ProductReviewsQuery, ProductReviewsDto>
 {
     public async Task<ProductReviewsDto> Handle(ProductReviewsQuery request, CancellationToken ct)
     {
@@ -256,7 +266,7 @@ public sealed class ProductReviewsHandler(IApplicationDbContext db, IObjectStora
         if (request.WithComment) q = q.Where(r => r.Content != "");
         if (!string.IsNullOrWhiteSpace(request.Variant)) q = q.Where(r => r.VariantSnapshot == request.Variant.Trim());
         var page = await q.Include(r => r.Media).OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id).ToPagedResultAsync(request, ct);
-        var items = await ReviewViews.MapAsync(db, storage, page.Items, ct);
+        var items = await ReviewViews.MapAsync(db, storage, page.Items, ct, currentUser.UserId);
         return new ProductReviewsDto(summary, new PagedResult<ReviewDto>(items, page.TotalCount, page.Page, page.PageSize));
     }
 }
@@ -309,6 +319,38 @@ public sealed class ReplyReviewHandler(IApplicationDbContext db, SellerAccess ac
 }
 
 // ---------- reports & moderation ----------
+
+/// <summary>"Hữu ích" on / off for the current buyer (idempotent both ways); the review's new count comes back.</summary>
+public record HelpfulReviewCommand(Guid ReviewId, bool Helpful) : IRequest<int>;
+
+public sealed class HelpfulReviewHandler(IApplicationDbContext db, ICurrentUser currentUser, IClock clock) : IRequestHandler<HelpfulReviewCommand, int>
+{
+    public async Task<int> Handle(HelpfulReviewCommand request, CancellationToken ct)
+    {
+        var userId = UserGuard.Require(currentUser);
+        if (!await db.Reviews.AnyAsync(r => r.Id == request.ReviewId && !r.IsHidden, ct)) throw new NotFoundException("Không tìm thấy đánh giá.");
+        if (request.Helpful)
+        {
+            if (!await db.ReviewHelpfulVotes.AnyAsync(v => v.ReviewId == request.ReviewId && v.UserId == userId, ct))
+            {
+                db.ReviewHelpfulVotes.Add(new ReviewHelpfulVote(request.ReviewId, userId, clock.UtcNow));
+                try
+                {
+                    await db.SaveChangesAsync(ct);
+                }
+                catch (ConflictException ce) when (ce.Constraint == "ux_review_helpful_votes")
+                {
+                    // Two clicks at once: one vote is kept
+                }
+            }
+        }
+        else
+        {
+            await db.ReviewHelpfulVotes.Where(v => v.ReviewId == request.ReviewId && v.UserId == userId).ExecuteDeleteAsync(ct);
+        }
+        return await db.ReviewHelpfulVotes.CountAsync(v => v.ReviewId == request.ReviewId, ct);
+    }
+}
 
 public record ReportReviewCommand(Guid ReviewId, string Reason) : IRequest<Unit>;
 

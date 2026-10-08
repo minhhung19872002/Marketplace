@@ -1,6 +1,6 @@
 import {
   Baby, BadgePercent, Bike, Camera, Dumbbell, Flame, Footprints, Headphones, Heart, House, Laptop, LayoutGrid, Package,
-  PackageCheck, Pill, Shirt, ShoppingBag, ShoppingBasket, Smartphone, Sparkles, Star, Store, Tag, Ticket, ToyBrick, Truck,
+  PackageCheck, PawPrint, Pill, Shirt, ShoppingBag, ShoppingBasket, Smartphone, Sparkles, Star, Store, Tag, Ticket, ToyBrick, Truck,
   Watch, Zap, type LucideIcon,
 } from 'lucide-react';
 import { isImageUrl } from '../lib/image';
@@ -15,7 +15,7 @@ const BY_CODE: Record<string, LucideIcon> = {
   '\u{1F3CD}\u{FE0F}': Bike, '\u{1F3CD}': Bike, '\u{1F9F8}': ToyBrick, '\u{1F6D2}': ShoppingBasket,
   shirt: Shirt, phone: Smartphone, laptop: Laptop, audio: Headphones, camera: Camera, watch: Watch, shoes: Footprints,
   bag: ShoppingBag, baby: Baby, home: House, beauty: Sparkles, health: Pill, sport: Dumbbell, motor: Bike, toy: ToyBrick,
-  grocery: ShoppingBasket,
+  grocery: ShoppingBasket, pet: PawPrint,
   // Home shortcuts (Mã giảm giá, Freeship, Deal sốc, Mall…)
   '\u{1F39F}\u{FE0F}': Ticket, '\u{1F39F}': Ticket, '\u{1F69A}': Truck, '\u{26A1}': Zap, '\u{1F3EC}': Store, '\u{1F496}': Heart,
   '\u{2B50}': Star, '\u{1F525}': Flame, '\u{1F195}': Sparkles, '\u{1F3F7}\u{FE0F}': Tag, '\u{1F3F7}': Tag, '\u{1F4E6}': PackageCheck,

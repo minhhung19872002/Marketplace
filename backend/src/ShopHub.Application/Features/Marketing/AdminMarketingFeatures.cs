@@ -123,7 +123,8 @@ public sealed class SaveBannerHandler(IApplicationDbContext db, IClock clock) : 
 
 // ---------- campaigns ----------
 
-public record CampaignDto(Guid Id, string Name, string Slug, DateTimeOffset StartAt, DateTimeOffset EndAt, IReadOnlyList<CampaignBlock> Blocks, bool IsActive);
+public record CampaignDto(Guid Id, string Name, string Slug, DateTimeOffset StartAt, DateTimeOffset EndAt, IReadOnlyList<CampaignBlock> Blocks, bool IsActive,
+    string? FrameImageUrl = null);
 
 public record AdminCampaignsQuery : IRequest<IReadOnlyList<CampaignDto>>;
 
@@ -131,11 +132,12 @@ public sealed class AdminCampaignsHandler(IApplicationDbContext db) : IRequestHa
 {
     public async Task<IReadOnlyList<CampaignDto>> Handle(AdminCampaignsQuery request, CancellationToken ct) =>
         (await db.Campaigns.AsNoTracking().OrderByDescending(c => c.StartAt).Take(100).ToListAsync(ct))
-        .Select(c => new CampaignDto(c.Id, c.Name, c.Slug, c.StartAt, c.EndAt, c.Blocks, c.IsActive)).ToList();
+        .Select(c => new CampaignDto(c.Id, c.Name, c.Slug, c.StartAt, c.EndAt, c.Blocks, c.IsActive, c.FrameImageUrl)).ToList();
 }
 
+// FrameImageUrl: transparent frame over the photos of approved products while the campaign runs (empty = none)
 public record SaveCampaignCommand(Guid? Id, string Name, string Slug, DateTimeOffset StartAt, DateTimeOffset EndAt, IReadOnlyList<CampaignBlock> Blocks,
-    bool IsActive) : IRequest<Guid>;
+    bool IsActive, string? FrameImageUrl = null) : IRequest<Guid>;
 
 public sealed class SaveCampaignHandler(IApplicationDbContext db, IClock clock) : IRequestHandler<SaveCampaignCommand, Guid>
 {
@@ -153,6 +155,7 @@ public sealed class SaveCampaignHandler(IApplicationDbContext db, IClock clock) 
             db.Campaigns.Add(campaign);
         }
         campaign.SetActive(r.IsActive);
+        campaign.SetFrame(r.FrameImageUrl);
         await db.SaveChangesAsync(ct);
         return campaign.Id;
     }

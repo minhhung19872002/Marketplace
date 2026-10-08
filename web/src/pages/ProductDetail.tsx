@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { storefrontApi } from '../api/storefront';
@@ -7,16 +7,18 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 import ProductGrid from '../components/ProductGrid';
+import ProductCard from '../components/ProductCard';
 import ProductReviews from '../components/ProductReviews';
+import ProductGallery from '../components/ProductGallery';
 import Countdown from '../components/Countdown';
 import { viewSource } from '../lib/navigation';
 import { productIdOf, productPath } from '../lib/urls';
 import ShopVouchers from '../components/ShopVouchers';
 import ProductShipping from '../components/ProductShipping';
 import ShareProduct from '../components/ShareProduct';
-import ImageLightbox from '../components/ImageLightbox';
 import QueryState from '../components/QueryState';
 import ReportProduct from '../components/ReportProduct';
+import Carousel from '../components/ui/Carousel';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { clockSkew, marketingApi } from '../api/marketing';
 import { formatPrice, formatSold } from '../lib/money';
@@ -26,14 +28,45 @@ import type { ProductPage, PublicSku } from '../types';
 import './ProductDetail.css';
 import { usePageTitle } from '../lib/pageTitle';
 import { toast } from '../lib/toast';
-import { Zap, Store, Heart, ShoppingCart } from 'lucide-react';
-import { Stars } from '../components/ui';
+import { Check, Zap, Store, Heart, ShoppingCart, X } from 'lucide-react';
+import { Badge, Section, Stars } from '../components/ui';
 
 const priceRange = (min: number, max: number) => (min === max ? formatPrice(min) : `${formatPrice(min)} - ${formatPrice(max)}`);
 
 /** SKUs still possible with the current selection (null = not chosen yet). */
 const matching = (skus: PublicSku[], picked: (string | null)[]) =>
   skus.filter((s) => (picked[0] == null || s.option1 === picked[0]) && (picked[1] == null || s.option2 === picked[1]));
+
+/** The shop block's figures that have data (G2-A5): a count of 0 or a rating nobody gave is left out, not shown as "0". */
+export const shopFacts = (shop: ProductPage['shop']) => [
+  ...(shop.ratingCount > 0 ? [{ key: 'rating', value: shop.ratingAvg.toFixed(1), label: `Đánh Giá (${formatSold(shop.ratingCount)})` }] : []),
+  ...(shop.productCount > 0 ? [{ key: 'products', value: formatSold(shop.productCount), label: 'Sản Phẩm' }] : []),
+  ...(shop.followerCount > 0 ? [{ key: 'followers', value: formatSold(shop.followerCount), label: 'Người Theo Dõi' }] : []),
+  { key: 'joined', value: formatDate(shop.joinedAt), label: 'Tham Gia' },
+];
+
+/** Long descriptions fold to a fixed height with "Xem thêm" (G2-B2). */
+const Description = ({ html }: { html: string }) => {
+  const box = useRef<HTMLDivElement>(null);
+  const [long, setLong] = useState(false);
+  const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    if (box.current) setLong(box.current.scrollHeight > 460);
+  }, [html]);
+  return (
+    <div className="pd-section">
+      <h2 className="pd-section-title">MÔ TẢ SẢN PHẨM</h2>
+      {/* Description HTML is sanitised by the server when the seller saves it */}
+      <div ref={box} id="pd-description" className={`pd-description ${long && !open ? 'is-folded' : ''}`} dangerouslySetInnerHTML={{ __html: html }} />
+      {long && (
+        <button type="button" className="pd-description-toggle" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="pd-description"
+          data-testid="description-toggle">
+          {open ? 'Thu gọn' : 'Xem thêm'}
+        </button>
+      )}
+    </div>
+  );
+};
 
 const ProductView = ({ product }: { product: ProductPage }) => {
   const navigate = useNavigate();
@@ -45,7 +78,8 @@ const ProductView = ({ product }: { product: ProductPage }) => {
   const [quantity, setQuantity] = useState(1);
   const [variantError, setVariantError] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
-  const [zoomed, setZoomed] = useState(false);
+  // Mobile: the buy bar opens a sheet to pick the variant and quantity, then adds or buys
+  const [sheet, setSheet] = useState<'cart' | 'buy' | null>(null);
 
   const images = product.media.filter((m) => m.type === 'Image');
   const video = product.media.find((m) => m.type === 'Video');
@@ -94,7 +128,6 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     }
   };
 
-
   const [busy, setBusy] = useState(false);
 
   /** Adds the chosen SKU to the server cart; false when a variant is missing or the server refused. */
@@ -139,59 +172,145 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     }
   };
 
+  const confirmSheet = async () => {
+    if (sheet === 'buy') await buyNow();
+    else if (await add()) setSheet(null);
+  };
+
   const liked = has(product.id);
   const missingTiers = tiers.filter((_, i) => picked[i] == null).map((t) => t.name);
   const leaf = product.breadcrumb[product.breadcrumb.length - 1];
 
+  const priceBox = (
+    <div className="product-detail-price-box">
+      {sku && skuDeal ? (
+        <>
+          <span className="price-original">{formatPrice(Math.max(sku.originalPrice, sku.price))}</span>
+          <span className="price-current" data-testid="pd-price">{formatPrice(skuDeal.price)}</span>
+          <span className="price-discount">{skuDeal.label}</span>
+        </>
+      ) : sku ? (
+        <>
+          {sku.originalPrice > sku.price && <span className="price-original">{formatPrice(sku.originalPrice)}</span>}
+          <span className="price-current" data-testid="pd-price">{formatPrice(sku.price)}</span>
+          {sku.originalPrice > sku.price && (
+            <span className="price-discount">{Math.floor(((sku.originalPrice - sku.price) * 100) / sku.originalPrice)}% GIẢM</span>
+          )}
+        </>
+      ) : dealPrices.some((d, i) => d < product.skus[i].price) ? (
+        <>
+          {/* A deal on a middle SKU leaves the range unchanged: nothing to strike then */}
+          {priceRange(product.minPrice, product.maxPrice) !== priceRange(Math.min(...dealPrices), Math.max(...dealPrices)) && (
+            <span className="price-original">{priceRange(product.minPrice, product.maxPrice)}</span>
+          )}
+          <span className="price-current" data-testid="pd-price">{priceRange(Math.min(...dealPrices), Math.max(...dealPrices))}</span>
+          <span className="price-discount">{flash ? 'Flash Sale' : 'Giảm giá'}</span>
+        </>
+      ) : (
+        <>
+          {product.originalMaxPrice > product.minPrice && (
+            <span className="price-original">{priceRange(product.originalMinPrice, product.originalMaxPrice)}</span>
+          )}
+          <span className="price-current" data-testid="pd-price">{priceRange(product.minPrice, product.maxPrice)}</span>
+          {product.discountPercent > 0 && <span className="price-discount">{product.discountPercent}% GIẢM</span>}
+        </>
+      )}
+    </div>
+  );
+
+  // Variant chips: the chosen one carries a tick in its corner, sold-out ones are struck through and cannot be pressed
+  const variantRows = (
+    <>
+      {tiers.map((tier, ti) => (
+        <div key={tier.name} className="product-detail-row product-detail-row-top">
+          <span className="row-label">{tier.name}</span>
+          <div className="pd-variants" role="group" aria-label={tier.name}>
+            {tier.options.map((opt) => {
+              const enabled = optionAvailable(ti, opt.value);
+              const active = picked[ti] === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`pd-variant ${active ? 'active' : ''} ${enabled ? '' : 'is-soldout'}`}
+                  onClick={() => pick(ti, opt.value)}
+                  disabled={!enabled}
+                  aria-pressed={active}
+                  title={enabled ? undefined : 'Hết hàng'}
+                  data-testid="variant-option"
+                >
+                  {opt.imageUrl && <img src={opt.imageUrl} alt="" className="pd-variant-img" onError={handleImgError} />}
+                  {opt.value}
+                  {active && <span className="pd-variant-tick" aria-hidden><Check size={10} strokeWidth={3} /></span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {variantError && missingTiers.length > 0 && (
+        <div className="pd-variant-error" data-testid="variant-error" role="alert">
+          Vui lòng chọn {missingTiers.join(', ')}
+        </div>
+      )}
+    </>
+  );
+
+  const quantityRow = (
+    <div className="product-detail-row pd-quantity-row">
+      <span className="row-label">Số Lượng</span>
+      <div className="quantity-control">
+        <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))} aria-label="Giảm">−</button>
+        <input
+          type="number"
+          min="1"
+          max={maxQty}
+          value={quantity}
+          onChange={(e) => setQuantity(Math.min(maxQty, Math.max(1, Number(e.target.value) || 1)))}
+          aria-label="Số lượng"
+        />
+        <button type="button" onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))} aria-label="Tăng">+</button>
+      </div>
+      <span className="pd-stock" data-testid="pd-stock">
+        {available > 0 ? `${available} sản phẩm có sẵn` : 'Hết hàng'}
+      </span>
+      {product.maxPerBuyer && (
+        <span className="pd-limit" data-testid="pd-limit">Mỗi người mua tối đa {product.maxPerBuyer} sản phẩm</span>
+      )}
+    </div>
+  );
+
   return (
     <div className="product-detail">
       <div className="container">
-        <div className="breadcrumb" data-testid="product-breadcrumb">
-          <Link to="/">Trang chủ</Link>
+        <nav className="breadcrumb" aria-label="Đường dẫn" data-testid="product-breadcrumb">
+          <Link to="/">ShopHub</Link>
           {product.breadcrumb.map((c) => (
-            <span key={c.id}>
-              <span>› </span>
+            <span key={c.id} className="breadcrumb-step">
+              <span aria-hidden>›</span>
               <Link to={`/danh-muc/${c.slug}`}>{c.name}</Link>
             </span>
           ))}
-          <span>›</span>
-          <span className="breadcrumb-current">{product.name}</span>
-        </div>
-
+          <span aria-hidden>›</span>
+          <span className="breadcrumb-current" title={product.name} aria-current="page">{product.name}</span>
+        </nav>
 
         <div className="product-detail-main">
           <div className="product-detail-gallery">
-            <button type="button" className="product-detail-image" onClick={() => setZoomed(true)} aria-label="Phóng to ảnh" data-testid="pd-zoom">
-              <img src={gallery[activeImg] ?? gallery[0]} alt={product.name} onError={handleImgError} data-testid="pd-main-image" />
-            </button>
-            {zoomed && (
-              <ImageLightbox images={gallery} index={Math.min(activeImg, gallery.length - 1)} alt={product.name} onIndex={setActiveImg}
-                onClose={() => setZoomed(false)} />
-            )}
-            <div className="product-detail-thumbs">
-              {gallery.map((src, i) => (
-                <button
-                  key={src}
-                  className={`pd-thumb ${i === activeImg ? 'active' : ''}`}
-                  onMouseEnter={() => setActiveImg(i)}
-                  onClick={() => setActiveImg(i)}
-                  aria-label={`Ảnh ${i + 1}`}
-                >
-                  <img src={src} alt="" onError={handleImgError} />
-                </button>
-              ))}
+            <ProductGallery images={gallery} alt={product.name} active={activeImg} onActive={setActiveImg} videoUrl={video?.url} />
+            <div className="pd-gallery-foot">
+              <ShareProduct title={product.name} />
+              <button type="button" className={`btn-wishlist ${liked ? 'liked' : ''}`} onClick={() => toggle(product.id)} data-testid="detail-heart"
+                aria-pressed={liked} aria-label="Yêu thích">
+                <Heart size={18} fill={liked ? 'currentColor' : 'none'} aria-hidden /> {liked ? 'Đã Thích' : 'Yêu Thích'} ({formatSold(product.likeCount)})
+              </button>
             </div>
-            {video && (
-              <video className="pd-video" src={video.url} controls preload="metadata">
-                Trình duyệt không hỗ trợ video.
-              </video>
-            )}
           </div>
 
           <div className="product-detail-info">
             <h1 className="product-detail-name" data-testid="pd-name">
-              {product.shop.isMall && <span className="pd-mall-tag">Mall</span>}
-              {product.shop.isPreferred && !product.shop.isMall && <span className="pd-pref-tag">Yêu thích</span>}
+              {product.shop.isMall && <Badge tone="mall" className="pd-name-badge">Mall</Badge>}
+              {product.shop.isPreferred && !product.shop.isMall && <Badge tone="preferred" className="pd-name-badge">Yêu thích</Badge>}
               {product.name}
             </h1>
 
@@ -209,6 +328,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               )}
               <span className="stat-divider" />
               <span className="stat-sold">{formatSold(product.soldCount)} Đã Bán</span>
+              <span className="stat-report"><ReportProduct productId={product.id} /></span>
             </div>
 
             {flash && deals.data && receivedAt > 0 && (
@@ -218,37 +338,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                 <span className="pd-flash-sold">Đã bán {flash.sold}/{flash.quota} · tối đa {flash.perUserLimit} sản phẩm/người</span>
               </div>
             )}
-            <div className="product-detail-price-box">
-              {sku && skuDeal ? (
-                <>
-                  <span className="price-original">{formatPrice(Math.max(sku.originalPrice, sku.price))}</span>
-                  <span className="price-current" data-testid="pd-price">{formatPrice(skuDeal.price)}</span>
-                  <span className="price-discount">{skuDeal.label}</span>
-                </>
-              ) : sku ? (
-                <>
-                  {sku.originalPrice > sku.price && <span className="price-original">{formatPrice(sku.originalPrice)}</span>}
-                  <span className="price-current" data-testid="pd-price">{formatPrice(sku.price)}</span>
-                  {sku.originalPrice > sku.price && (
-                    <span className="price-discount">{Math.floor(((sku.originalPrice - sku.price) * 100) / sku.originalPrice)}% GIẢM</span>
-                  )}
-                </>
-              ) : dealPrices.some((d, i) => d < product.skus[i].price) ? (
-                <>
-                  <span className="price-original">{priceRange(product.minPrice, product.maxPrice)}</span>
-                  <span className="price-current" data-testid="pd-price">{priceRange(Math.min(...dealPrices), Math.max(...dealPrices))}</span>
-                  <span className="price-discount">{flash ? 'Flash Sale' : 'Giảm giá'}</span>
-                </>
-              ) : (
-                <>
-                  {product.originalMaxPrice > product.minPrice && (
-                    <span className="price-original">{priceRange(product.originalMinPrice, product.originalMaxPrice)}</span>
-                  )}
-                  <span className="price-current" data-testid="pd-price">{priceRange(product.minPrice, product.maxPrice)}</span>
-                  {product.discountPercent > 0 && <span className="price-discount">{product.discountPercent}% GIẢM</span>}
-                </>
-              )}
-            </div>
+            {priceBox}
 
             {(deals.data?.offers.length ?? 0) > 0 && (
               <div className="product-detail-row" data-testid="pd-offers">
@@ -277,10 +367,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               </div>
             )}
 
-            <div className="product-detail-row product-detail-row-top">
-              <span className="row-label">Voucher Của Shop</span>
-              <ShopVouchers shopId={product.shop.id} compact />
-            </div>
+            <ShopVouchers shopId={product.shop.id} compact rowLabel="Voucher Của Shop" moreTo={`/shop/${product.shop.slug}`} />
 
             <ProductShipping productId={product.id} />
 
@@ -291,56 +378,11 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               </div>
             )}
 
-            {tiers.map((tier, ti) => (
-              <div key={tier.name} className="product-detail-row product-detail-row-top">
-                <span className="row-label">{tier.name}</span>
-                <div className="pd-variants">
-                  {tier.options.map((opt) => {
-                    const enabled = optionAvailable(ti, opt.value);
-                    return (
-                      <button
-                        key={opt.value}
-                        className={`pd-variant ${picked[ti] === opt.value ? 'active' : ''}`}
-                        onClick={() => pick(ti, opt.value)}
-                        disabled={!enabled}
-                        title={enabled ? undefined : 'Hết hàng'}
-                        data-testid="variant-option"
-                      >
-                        {opt.imageUrl && <img src={opt.imageUrl} alt="" className="pd-variant-img" onError={handleImgError} />}
-                        {opt.value}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-            {variantError && missingTiers.length > 0 && (
-              <div className="pd-variant-error" data-testid="variant-error">
-                Vui lòng chọn {missingTiers.join(', ')}
-              </div>
-            )}
-
-            <div className="product-detail-row">
-              <span className="row-label">Số Lượng</span>
-              <div className="quantity-control">
-                <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} aria-label="Giảm">−</button>
-                <input
-                  type="number"
-                  min="1"
-                  max={maxQty}
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.min(maxQty, Math.max(1, Number(e.target.value) || 1)))}
-                  aria-label="Số lượng"
-                />
-                <button onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))} aria-label="Tăng">+</button>
-              </div>
-              <span className="pd-stock" data-testid="pd-stock">
-                {available > 0 ? `${available} sản phẩm có sẵn` : 'Hết hàng'}
-              </span>
-              {product.maxPerBuyer && (
-                <span className="pd-limit" data-testid="pd-limit">Mỗi người mua tối đa {product.maxPerBuyer} sản phẩm</span>
-              )}
-            </div>
+            {/* While the mobile sheet is open it owns the variant and quantity inputs (one of each on the page) */}
+            {!sheet && <div className="pd-desktop-only">
+              {variantRows}
+              {quantityRow}
+            </div>}
 
             {!product.purchasable && (
               <div className="pd-unavailable" role="status" data-testid="pd-unavailable">
@@ -352,29 +394,26 @@ const ProductView = ({ product }: { product: ProductPage }) => {
 
             <div className="product-detail-actions">
               <button
+                type="button"
                 className="btn-add-cart"
                 onClick={() => void add()}
                 disabled={!product.purchasable || (sku != null && sku.available <= 0)}
                 data-testid="add-to-cart"
               >
-                <ShoppingCart size={18} aria-hidden /> Thêm Vào Giỏ Hàng
+                <ShoppingCart size={20} aria-hidden /> Thêm Vào Giỏ Hàng
               </button>
-              <button className="btn-buy-now" onClick={() => void buyNow()} disabled={!product.purchasable || busy} data-testid="buy-now">
+              <button type="button" className="btn-buy-now" onClick={() => void buyNow()} disabled={!product.purchasable || busy} data-testid="buy-now">
                 Mua Ngay
               </button>
-              <button className={`btn-wishlist ${liked ? 'liked' : ''}`} onClick={() => toggle(product.id)} data-testid="detail-heart" aria-label="Yêu thích">
-                <Heart size={16} fill={liked ? 'currentColor' : 'none'} aria-hidden /> {liked ? 'Đã Thích' : 'Yêu Thích'} ({formatSold(product.likeCount)})
-              </button>
             </div>
-            <ShareProduct title={product.name} />
-            <ReportProduct productId={product.id} />
           </div>
         </div>
 
         <div className="pd-shop" data-testid="pd-shop">
-          <div className="pd-shop-avatar">
+          <Link to={`/shop/${product.shop.slug}`} className="pd-shop-avatar" aria-label={product.shop.name}>
             {product.shop.logoUrl ? <img src={product.shop.logoUrl} alt="" onError={handleImgError} /> : product.shop.name.charAt(0)}
-          </div>
+            {product.shop.isMall && <Badge tone="mall" className="pd-shop-avatar-badge">Mall</Badge>}
+          </Link>
           <div className="pd-shop-info">
             <div className="pd-shop-name">{product.shop.name}</div>
             <div className="pd-shop-sub" data-testid="shop-last-active">
@@ -388,72 +427,128 @@ const ProductView = ({ product }: { product: ProductPage }) => {
             </div>
           </div>
           <div className="pd-shop-stats">
-            <div data-testid="shop-rating">
-              <strong>{product.shop.ratingCount > 0 ? product.shop.ratingAvg.toFixed(1) : '—'}</strong>
-              <span>Đánh Giá ({formatSold(product.shop.ratingCount)})</span>
-            </div>
-            <div><strong>{formatSold(product.shop.productCount)}</strong><span>Sản Phẩm</span></div>
-            <div><strong>{formatSold(product.shop.followerCount)}</strong><span>Người Theo Dõi</span></div>
-            <div><strong>{formatDate(product.shop.joinedAt)}</strong><span>Tham Gia</span></div>
+            {shopFacts(product.shop).map((f) => (
+              <div key={f.key} data-testid={f.key === 'rating' ? 'shop-rating' : undefined}>
+                <strong>{f.value}</strong><span>{f.label}</span>
+              </div>
+            ))}
             <ChatStats shopId={product.shop.id} />
           </div>
         </div>
 
-        <div className="pd-section">
-          <h2 className="pd-section-title">CHI TIẾT SẢN PHẨM</h2>
-          <table className="pd-specs" data-testid="pd-specs">
-            <tbody>
-              {leaf && (
-                <tr>
-                  <td className="pd-spec-key">Danh mục</td>
-                  <td className="pd-spec-val"><Link to={`/danh-muc/${leaf.slug}`}>{leaf.name}</Link></td>
-                </tr>
-              )}
-              {product.brandName && (
-                <tr>
-                  <td className="pd-spec-key">Thương hiệu</td>
-                  <td className="pd-spec-val">{product.brandName}</td>
-                </tr>
-              )}
-              {product.attributes.map((a) => (
-                <tr key={a.name}>
-                  <td className="pd-spec-key">{a.name}</td>
-                  <td className="pd-spec-val">{a.value}</td>
-                </tr>
-              ))}
-              <tr>
-                <td className="pd-spec-key">Tình trạng</td>
-                <td className="pd-spec-val">{product.condition === 'New' ? 'Mới' : 'Đã sử dụng'}</td>
-              </tr>
-              {product.shop.provinceName && (
-                <tr>
-                  <td className="pd-spec-key">Gửi từ</td>
-                  <td className="pd-spec-val">{product.shop.provinceName}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <div className="pd-lower">
+          <div className="pd-lower-main">
+            <div className="pd-section">
+              <h2 className="pd-section-title">CHI TIẾT SẢN PHẨM</h2>
+              <table className="pd-specs" data-testid="pd-specs">
+                <tbody>
+                  {leaf && (
+                    <tr>
+                      <td className="pd-spec-key">Danh mục</td>
+                      <td className="pd-spec-val"><Link to={`/danh-muc/${leaf.slug}`}>{leaf.name}</Link></td>
+                    </tr>
+                  )}
+                  {product.brandName && (
+                    <tr>
+                      <td className="pd-spec-key">Thương hiệu</td>
+                      <td className="pd-spec-val">{product.brandName}</td>
+                    </tr>
+                  )}
+                  {product.attributes.map((a) => (
+                    <tr key={a.name}>
+                      <td className="pd-spec-key">{a.name}</td>
+                      <td className="pd-spec-val">{a.value}</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td className="pd-spec-key">Tình trạng</td>
+                    <td className="pd-spec-val">{product.condition === 'New' ? 'Mới' : 'Đã sử dụng'}</td>
+                  </tr>
+                  {product.shop.provinceName && (
+                    <tr>
+                      <td className="pd-spec-key">Gửi từ</td>
+                      <td className="pd-spec-val">{product.shop.provinceName}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-        <div className="pd-section">
-          <h2 className="pd-section-title">MÔ TẢ SẢN PHẨM</h2>
-          {/* Description HTML is sanitised by the server when the seller saves it */}
-          <div className="pd-description" dangerouslySetInnerHTML={{ __html: product.description }} />
-        </div>
+            <Description html={product.description} />
 
-        <ProductReviews productId={product.id} />
+            <ProductReviews productId={product.id} />
+          </div>
+          <ShopBestSellers productId={product.id} />
+        </div>
       </div>
+
+      {/* Mobile: a buy bar fixed to the bottom; the actions open a sheet to pick the variant and quantity */}
+      <div className="pd-mobile-bar" data-testid="pd-mobile-bar">
+        <ChatNowButton shopId={product.shop.id} productId={product.id} className="pd-mobile-chat" testId="mobile-chat" label="Chat" />
+        <button type="button" className="pd-mobile-cart" onClick={() => setSheet('cart')} disabled={!product.purchasable} data-testid="mobile-add-to-cart">
+          <ShoppingCart size={20} aria-hidden /> Thêm vào giỏ
+        </button>
+        <button type="button" className="pd-mobile-buy" onClick={() => setSheet('buy')} disabled={!product.purchasable} data-testid="mobile-buy-now">
+          Mua ngay
+        </button>
+      </div>
+      {sheet && (
+        <div className="pd-sheet" role="dialog" aria-modal="true" aria-label={sheet === 'buy' ? 'Mua ngay' : 'Thêm vào giỏ hàng'} data-testid="pd-sheet"
+          onKeyDown={(e) => { if (e.key === 'Escape') setSheet(null); }}>
+          <button type="button" className="pd-sheet-backdrop" aria-label="Đóng" onClick={() => setSheet(null)} tabIndex={-1} />
+          <div className="pd-sheet-panel">
+            <div className="pd-sheet-head">
+              <img src={gallery[activeImg] ?? gallery[0]} alt="" onError={handleImgError} />
+              <div className="pd-sheet-price">{priceBox}<span className="pd-stock">Kho: {available}</span></div>
+              <button type="button" className="pd-sheet-close" onClick={() => setSheet(null)} aria-label="Đóng" autoFocus><X size={22} aria-hidden /></button>
+            </div>
+            <div className="pd-sheet-body">
+              {variantRows}
+              {quantityRow}
+            </div>
+            <button type="button" className="pd-sheet-confirm" onClick={() => void confirmSheet()} disabled={busy || (sku != null && sku.available <= 0)}
+              data-testid="pd-sheet-confirm">
+              {sheet === 'buy' ? 'Mua ngay' : 'Thêm vào giỏ hàng'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-const Related = ({ id }: { id: string }) => {
+/** "Top sản phẩm bán chạy của shop" (G2-B2): a sticky sidebar next to the details on wide screens. */
+const ShopBestSellers = ({ productId }: { productId: string }) => {
+  const shop = useQuery({ queryKey: ['product', productId, 'shop-products'], queryFn: () => storefrontApi.shopProducts(productId) });
+  const top = (shop.data ?? []).filter((p) => p.soldCount > 0).slice(0, 5);
+  if (top.length === 0) return null;
+  return (
+    <aside className="pd-aside" aria-labelledby="pd-aside-title" data-testid="shop-best-sellers">
+      <h2 id="pd-aside-title" className="pd-aside-title">Top Sản Phẩm Bán Chạy</h2>
+      {top.map((p) => (
+        <Link key={p.id} to={productPath(p.slug, p.shopId, p.id)} className="pd-aside-item">
+          <img src={imageOrPlaceholder(p.imageUrl)} alt="" loading="lazy" width={160} height={160} onError={handleImgError} />
+          <span className="pd-aside-name">{p.name}</span>
+          <span className="pd-aside-price">{formatPrice(p.minPrice)}</span>
+        </Link>
+      ))}
+    </aside>
+  );
+};
+
+const Related = ({ id, shopSlug }: { id: string; shopSlug: string }) => {
   const shop = useQuery({ queryKey: ['product', id, 'shop-products'], queryFn: () => storefrontApi.shopProducts(id) });
   const related = useQuery({ queryKey: ['product', id, 'related'], queryFn: () => storefrontApi.related(id) });
   return (
-    <div className="container">
-      {(shop.data?.length ?? 0) > 0 && <ProductGrid title="CÁC SẢN PHẨM KHÁC CỦA SHOP" products={shop.data!.slice(0, 6)} />}
-      {(related.data?.length ?? 0) > 0 && <ProductGrid title="SẢN PHẨM TƯƠNG TỰ" products={related.data!} />}
+    <div className="container pd-related">
+      {(shop.data?.length ?? 0) > 0 && (
+        <Section title="CÁC SẢN PHẨM KHÁC CỦA SHOP" more={{ to: `/shop/${shopSlug}` }} testId="shop-other-products">
+          <div className="pd-related-row">
+            <Carousel label="Các sản phẩm khác của shop">{shop.data!.map((p) => <ProductCard key={p.id} product={p} />)}</Carousel>
+          </div>
+        </Section>
+      )}
+      {(related.data?.length ?? 0) > 0 && <ProductGrid title="CÓ THỂ BẠN CŨNG THÍCH" products={related.data!} />}
     </div>
   );
 };
@@ -501,7 +596,7 @@ const ProductDetail = () => {
   return (
     <>
       <ProductView key={data.id} product={data} />
-      <Related id={data.id} />
+      <Related id={data.id} shopSlug={data.shop.slug} />
     </>
   );
 };

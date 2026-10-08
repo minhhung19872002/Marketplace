@@ -325,4 +325,18 @@ public class StorefrontTests(ApiFactory factory)
         suggest.GetProperty("keywords").EnumerateArray().Select(k => k.GetString()).Should().Contain(shown);
         suggest.GetProperty("products").EnumerateArray().Select(p => p.Str("name")).Should().Contain($"Tai Nghe Chống Ồn Volt {s.Marker}");
     }
+
+    [Fact]
+    public async Task A_keyword_only_typed_without_accents_takes_its_spelling_from_product_names()
+    {
+        var s = await StoreAsync(products: [new("Áo Khoác Gió Xanh Rêu", "Áo Khoác", 300_000, 5, "Việt Nam")]);
+        var plain = $"ao khoac gio xanh reu {s.Marker}".ToLowerInvariant();
+        for (var i = 0; i < 3; i++)
+        {
+            var user = await factory.CreateUserAsync();
+            (await user.Client.GetAsync($"/api/search/products?q={Uri.EscapeDataString(plain)}")).EnsureSuccessStatusCode();
+        }
+        var hot = (await (await factory.CreateClient().GetAsync("/api/search/hot-keywords")).ReadEnvelopeAsync()).Data;
+        hot.EnumerateArray().Select(k => k.GetString()).Should().Contain($"Áo khoác gió xanh rêu {s.Marker.ToLowerInvariant()}").And.NotContain(Slug.Fold(plain), "G2-A4: \"Ao\" → \"Áo\"");
+    }
 }

@@ -20,7 +20,9 @@ public record CategoryNodeDto(
     bool IsLeaf,
     IReadOnlyList<CategoryNodeDto> Children,
     // Products on sale in the category and its subtree: the storefront hides industries with nothing to show
-    int ProductCount = 0);
+    int ProductCount = 0,
+    // Shown to buyers: false when this category or one above it is hidden (sellers still list in it)
+    bool IsVisible = true);
 
 public record CategoryAttributeDto(
     Guid Id,
@@ -39,22 +41,42 @@ internal static class CategoryTree
 {
     /// <param name="rates">Fixed fee in force per category (the fee schedule is the source; the column is a copy)</param>
     public static IReadOnlyList<CategoryNodeDto> Build(IReadOnlyList<Category> all, Guid? parentId, IReadOnlyDictionary<Guid, int> rates,
-        IReadOnlyDictionary<Guid, int>? products = null)
+        IReadOnlyDictionary<Guid, int>? products = null, bool parentVisible = true)
     {
         return all.Where(c => c.ParentId == parentId)
             .OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ThenBy(c => c.Id)
             .Select(c =>
             {
-                var children = Build(all, c.Id, rates, products);
+                var visible = parentVisible && c.IsVisible;
+                var children = Build(all, c.Id, rates, products, visible);
                 return new CategoryNodeDto(c.Id, c.ParentId, c.Name, c.Slug, c.IconUrl, c.Level, c.SortOrder, c.IsActive,
                     rates.GetValueOrDefault(c.Id, c.CommissionRateBp), children.Count == 0, children,
-                    (products?.GetValueOrDefault(c.Id) ?? 0) + children.Sum(x => x.ProductCount));
+                    (products?.GetValueOrDefault(c.Id) ?? 0) + children.Sum(x => x.ProductCount), visible);
             })
             .ToList();
     }
 
+
     public static CategoryAttributeDto ToDto(CategoryAttribute a) =>
         new(a.Id, a.CategoryId, a.Name, a.InputType, a.Unit, a.IsRequired, a.IsFilterable, a.Options, a.SortOrder);
+}
+
+/// <summary>Which categories buyers may see (UI G2-A7).</summary>
+public static class CategoryVisibility
+{
+    /// <summary>Ids of the categories buyers must not see: hidden ones and everything below them.</summary>
+    public static async Task<HashSet<Guid>> HiddenIdsAsync(IApplicationDbContext db, CancellationToken ct)
+    {
+        var all = await db.Categories.AsNoTracking().Select(c => new { c.Id, c.ParentId, c.IsVisible }).ToListAsync(ct);
+        var hidden = all.Where(c => !c.IsVisible).Select(c => c.Id).ToHashSet();
+        for (var grew = hidden.Count > 0; grew;)
+        {
+            grew = false;
+            foreach (var c in all)
+                if (c.ParentId is { } p && hidden.Contains(p) && hidden.Add(c.Id)) grew = true;
+        }
+        return hidden;
+    }
 }
 
 // ---------- Public ----------
@@ -110,8 +132,8 @@ public sealed class SearchBrandsHandler(IApplicationDbContext db) : IRequestHand
 
 // ---------- Admin: categories ----------
 
-public record SaveCategoryCommand(Guid? Id, Guid? ParentId, string Name, string? IconUrl, int SortOrder, int CommissionRateBp, bool IsActive)
-    : IRequest<Guid>;
+public record SaveCategoryCommand(Guid? Id, Guid? ParentId, string Name, string? IconUrl, int SortOrder, int CommissionRateBp, bool IsActive,
+    bool IsVisible = true) : IRequest<Guid>;
 
 public sealed class SaveCategoryValidator : AbstractValidator<SaveCategoryCommand>
 {
@@ -156,12 +178,14 @@ public sealed class SaveCategoryHandler(IApplicationDbContext db, IClock clock) 
             if (inForce != request.CommissionRateBp) await StartFixedFeeAsync(category.Id, request.CommissionRateBp, ct);
             category.SetCommission(request.CommissionRateBp);
             category.SetActive(request.IsActive);
+            category.SetVisible(request.IsVisible);
             if (request.ParentId != category.ParentId) category.MoveTo(request.ParentId, level);
         }
         else
         {
             category = new Category(request.ParentId, level, request.Name, slug, request.IconUrl, request.SortOrder, request.CommissionRateBp);
             category.SetActive(request.IsActive);
+            category.SetVisible(request.IsVisible);
             db.Categories.Add(category);
             // Inherits the parent's fixed fee unless a different one was typed
             var inherited = await new Finance.FeeSchedule(db).RateAsync(Domain.Finance.FeeType.Fixed, request.ParentId, clock.UtcNow, ct);

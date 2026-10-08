@@ -16,7 +16,9 @@ import QueryState from '../components/QueryState';
 import { useShopVouchers } from '../stores/shopVouchers';
 import { ConfirmButton } from '../components/ConfirmDialog';
 import './CartPage.css';
-import { ShoppingCart, ChevronDown } from 'lucide-react';
+import { ShoppingCart, ChevronDown, Store } from 'lucide-react';
+import { ChatNowButton } from '../components/chat/Chat';
+import { Badge, EmptyState } from '../components/ui';
 
 /** "Phân loại: …" with a picker of the product's other SKUs (change variant without leaving the cart). */
 const VariantPicker = ({ line, onPick }: { line: CartLine; onPick: (skuId: string) => void }) => {
@@ -120,10 +122,10 @@ const CartPage = () => {
       <div className="cart-page">
         <div className="container">
           <div className="cart-empty" data-testid="cart-empty">
-            <div className="cart-empty-icon"><ShoppingCart size={56} strokeWidth={1.25} aria-hidden /></div>
-            <p>Giỏ hàng của bạn còn trống</p>
-            <Link to="/" className="cart-empty-btn">Mua Sắm Ngay</Link>
+            <EmptyState icon={ShoppingCart} title="Giỏ hàng của bạn còn trống" text="Thêm sản phẩm bạn thích để mua cùng lúc và dùng voucher của shop."
+              action={<Link to="/" className="cart-empty-btn">Mua Sắm Ngay</Link>} />
           </div>
+          <YouMayLike />
         </div>
       </div>
     );
@@ -171,8 +173,9 @@ const CartPage = () => {
                   aria-label={`Chọn tất cả sản phẩm của ${shop.shopName}`}
                   data-testid="select-shop"
                 />
-                {shop.isMall && <span className="cart-shop-mall">Mall</span>}
-                <Link to={`/shop/${shop.shopSlug}`} className="cart-shop-name">{shop.shopName}</Link>
+                {shop.isMall && <Badge tone="mall">Mall</Badge>}
+                <Link to={`/shop/${shop.shopSlug}`} className="cart-shop-name"><Store size={16} aria-hidden /> {shop.shopName}</Link>
+                <ChatNowButton shopId={shop.shopId} className="cart-shop-chat" testId="cart-chat" label="Chat" />
                 {shop.onVacation && <span className="cart-shop-vacation">Shop đang tạm nghỉ</span>}
               </div>
               {shop.lines.map((item) => (
@@ -191,6 +194,10 @@ const CartPage = () => {
                     <div className="cart-item-textblock">
                       <Link to={`/san-pham/${item.productId}`} className="cart-item-name">{item.name}</Link>
                       <VariantPicker line={item} onPick={(skuId) => run(() => update(item.skuId, { skuId }))} />
+                      {/* Few left (G2-B4): said before it runs out, not after */}
+                      {item.canBuy && item.available > 0 && item.available <= 5 && (
+                        <span className="cart-item-low" data-testid="cart-item-low">Chỉ còn {item.available} sản phẩm</span>
+                      )}
                       {item.problem && (
                         <span className="cart-item-problem" data-testid="cart-item-problem">
                           {item.problem}{' '}
@@ -286,13 +293,13 @@ const ShopVoucherBlock = ({ loggedIn, ticked, quoteShop, code, onChange }: {
   );
 };
 
-/** "Bạn có thể thích" under the cart (II.6): the same personalised suggestions as the home page. */
+/** "Có thể bạn cũng thích" under the cart (II.6): the same personalised suggestions as the home page. */
 const YouMayLike = () => {
   const suggestions = useQuery({ queryKey: ['cart-suggestions'], queryFn: () => storefrontApi.recommendations(1, 12), staleTime: 60_000 });
   if (!suggestions.data?.items.length) return null;
   return (
     <div className="cart-suggestions" data-testid="cart-suggestions">
-      <ProductGrid title="BẠN CÓ THỂ THÍCH" products={suggestions.data.items} />
+      <ProductGrid title="CÓ THỂ BẠN CŨNG THÍCH" products={suggestions.data.items} />
     </div>
   );
 };

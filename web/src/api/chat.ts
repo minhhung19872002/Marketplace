@@ -52,7 +52,7 @@ export const chatApi = {
   block: (id: string, blocked: boolean) => apiCommand(`/chat/conversations/${id}/block`, { method: 'POST', body: { blocked } }),
   report: (id: string, reason: string) => apiCommand(`/chat/conversations/${id}/report`, { method: 'POST', body: { reason } }),
   stats: (shopId: string) =>
-    apiRequest<{ responseRatePercent: number; responseTime: string; lastActiveAt: string | null }>(`/shops/${shopId}/chat-stats`, { auth: false }),
+    apiRequest<{ responseRatePercent: number; responseTime: string; lastActiveAt: string | null; conversations: number }>(`/shops/${shopId}/chat-stats`, { auth: false }),
 };
 
 export type NotificationCategory = 'Order' | 'Promotion' | 'Wallet' | 'Activity';

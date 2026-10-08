@@ -17,6 +17,7 @@ interface CategoryForm {
   commissionPercent: number
   sortOrder: number
   isActive: boolean
+  isVisible: boolean
 }
 
 type AttributeForm = Omit<CategoryAttribute, 'id' | 'categoryId'>
@@ -53,6 +54,7 @@ const CategoriesPage = () => {
     mutationFn: (v: CategoryForm) => catalogApi.saveCategory({
       id: editing?.node?.id, parentId: editing?.node ? editing.node.parentId : editing?.parentId ?? null, name: v.name,
       iconUrl: editing?.node?.iconUrl ?? null, sortOrder: v.sortOrder, commissionRateBp: Math.round(v.commissionPercent * 100), isActive: v.isActive,
+      isVisible: v.isVisible,
     }),
     onSuccess: (r) => { void message.success(r.message); setEditing(null); void queryClient.invalidateQueries({ queryKey: ['admin-categories'] }) },
     onError: (e) => void message.error(errorText(e)),
@@ -74,6 +76,8 @@ const CategoriesPage = () => {
     setEditing({ parentId, node })
     catForm.setFieldsValue({
       name: node?.name ?? '', commissionPercent: (node?.commissionRateBp ?? 500) / 100, sortOrder: node?.sortOrder ?? 0, isActive: node?.isActive ?? true,
+      // The node's own flag (the tree reports the effective one: a hidden parent hides it too)
+      isVisible: node?.isVisible ?? true,
     })
   }
   const openAttribute = (a: CategoryAttribute | 'new') => {
@@ -87,7 +91,7 @@ const CategoriesPage = () => {
   const toTree = (nodes: CategoryNode[]): TreeItem[] =>
     nodes.map((n) => ({
       key: n.id,
-      title: <span>{n.name} {!n.isActive && <Tag>Ẩn</Tag>} <Typography.Text type="secondary">{n.commissionRateBp / 100}%</Typography.Text></span>,
+      title: <span>{n.name} {!n.isActive && <Tag>Ẩn</Tag>} {n.isActive && !n.isVisible && <Tag color="orange">Ẩn với người mua</Tag>} <Typography.Text type="secondary">{n.commissionRateBp / 100}%</Typography.Text></span>,
       children: toTree(n.children),
     }))
 
@@ -169,6 +173,8 @@ const CategoriesPage = () => {
           <Form.Item label="Phí cố định (%)" name="commissionPercent"><InputNumber min={0} max={100} step={0.5} /></Form.Item>
           <Form.Item label="Thứ tự" name="sortOrder"><InputNumber min={0} /></Form.Item>
           <Form.Item label="Hiển thị" name="isActive" valuePropName="checked"><Switch /></Form.Item>
+          <Form.Item label="Hiện với người mua" name="isVisible" valuePropName="checked"
+            extra="Tắt khi ngành chưa có sản phẩm để trưng bày: người bán vẫn đăng được, người mua chưa thấy (menu, bộ lọc, sitemap…)."><Switch /></Form.Item>
         </Form>
       </Modal>
 

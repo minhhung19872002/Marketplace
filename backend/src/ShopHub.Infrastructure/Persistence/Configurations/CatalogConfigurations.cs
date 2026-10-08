@@ -21,6 +21,7 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
         b.HasOne<Category>().WithMany().HasForeignKey(c => c.ParentId).OnDelete(DeleteBehavior.Restrict);
         // Globally unique: category pages live at /danh-muc/{slug}
         b.HasIndex(c => c.Slug).IsUnique().HasFilter("deleted_at IS NULL").HasDatabaseName("ux_categories_slug");
+        b.Property(c => c.IsVisible).HasDefaultValue(true);
     }
 }
 

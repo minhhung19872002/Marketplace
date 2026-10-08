@@ -172,6 +172,22 @@ public sealed class WishlistHandler(IApplicationDbContext db, ICurrentUser curre
 
 // ---------- Recently viewed ----------
 
+/// <summary>"Xoá lịch sử" of Đã xem gần đây: the viewer's own views (account or browser session) are hidden from it.</summary>
+public record ClearViewedCommand(string? SessionKey) : IRequest<int>;
+
+public sealed class ClearViewedHandler(IApplicationDbContext db, ICurrentUser currentUser, IClock clock) : IRequestHandler<ClearViewedCommand, int>
+{
+    public async Task<int> Handle(ClearViewedCommand request, CancellationToken ct)
+    {
+        var now = clock.UtcNow;
+        var views = db.ProductViews.Where(v => v.HiddenAt == null);
+        if (currentUser.UserId is { } userId) views = views.Where(v => v.UserId == userId);
+        else if (request.SessionKey is { Length: > 0 } key) views = views.Where(v => v.UserId == null && v.SessionKey == key);
+        else return 0;
+        return await views.ExecuteUpdateAsync(s => s.SetProperty(v => v.HiddenAt, now), ct);
+    }
+}
+
 public record RecentlyViewedQuery(string? SessionKey, int Take = 20) : IRequest<IReadOnlyList<ProductCardDto>>;
 
 public sealed class RecentlyViewedHandler(IApplicationDbContext db, ICurrentUser currentUser, CardPricing pricing) : IRequestHandler<RecentlyViewedQuery, IReadOnlyList<ProductCardDto>>
@@ -179,7 +195,7 @@ public sealed class RecentlyViewedHandler(IApplicationDbContext db, ICurrentUser
     public async Task<IReadOnlyList<ProductCardDto>> Handle(RecentlyViewedQuery request, CancellationToken ct)
     {
         var userId = currentUser.UserId;
-        var views = db.ProductViews.AsNoTracking();
+        var views = db.ProductViews.AsNoTracking().Where(v => v.HiddenAt == null);
         if (userId is not null) views = views.Where(v => v.UserId == userId);
         else if (request.SessionKey is { Length: > 0 } key) views = views.Where(v => v.SessionKey == key);
         else return [];

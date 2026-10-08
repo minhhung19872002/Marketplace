@@ -10,6 +10,8 @@ const TONES = ['primary', 'mall', 'amber', 'teal', 'violet', 'tech'];
 const CategoryShortcuts = () => {
   const { data } = useQuery({ queryKey: ['home-banners'], queryFn: marketingApi.banners, staleTime: 60_000 });
   const shortcuts = data?.shortcuts ?? [];
+  // Holds its height while loading (CLS)
+  if (!data) return <section className="feature-shortcuts feature-shortcuts--loading" aria-hidden />;
   if (shortcuts.length === 0) return null;
   return (
     <section className="feature-shortcuts" aria-label="Lối tắt">

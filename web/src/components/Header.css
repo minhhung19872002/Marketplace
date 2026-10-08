@@ -456,20 +456,11 @@
   }
 }
 
-/* ---- Compact header past the first screen (P0-5): no top bar, no hot keywords, shorter search row ---- */
-.header-top,
-.header-hot-keywords {
-  transition: max-height 0.2s, opacity 0.2s, margin 0.2s;
-  max-height: 40px;
-}
-
+/* ---- Compact header past the first screen (P0-5, G2-A3): the top bar and the hot keywords are taken out of the
+   layout at once (display: none) — no fade, so nothing half-transparent ever sits over the search box ---- */
 .header--compact .header-top,
 .header--compact .header-hot-keywords {
-  max-height: 0;
-  margin: 0;
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
+  display: none;
 }
 
 .header--compact .header-main {
@@ -489,9 +480,95 @@
 /* Hot keywords: one line, never wraps under the search box */
 .header-hot-keywords {
   flex-wrap: nowrap;
-  min-height: 16px;
+  height: 16px;
+  overflow: hidden;
 }
 
 .header-hot-keyword {
   flex: none;
+}
+
+/* ---- G2-B5: bolder wordmark, search box with a 2 px frame and the orange button inside ---- */
+.header-logo-text {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.header-search {
+  padding: 2px;
+  border: 2px solid var(--sh-surface);
+  border-radius: var(--sh-radius-sm);
+  box-shadow: var(--sh-shadow-sm);
+}
+
+.header-search-btn {
+  border-radius: 2px;
+}
+
+.header-search:focus-within {
+  border-color: var(--sh-warning-soft);
+}
+
+/* G2-B3 suggestions: bold typed part, shop card, history */
+.header-suggest-item b {
+  color: var(--sh-text-strong);
+  font-weight: 700;
+}
+
+.header-suggest-item:focus-visible {
+  outline: none;
+  background: var(--sh-surface-sunken);
+}
+
+.header-suggest-shop {
+  border-bottom: 1px solid var(--border);
+}
+
+.header-suggest-shop-logo {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--sh-surface);
+  color: var(--sh-primary);
+}
+
+.header-suggest-shop-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.header-suggest-item .header-suggest-shop-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.header-suggest-shop-text small {
+  color: var(--sh-text-muted);
+  font-size: 12px;
+}
+
+.header-suggest-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-suggest-clear {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--sh-info);
+  font: inherit;
+  font-size: 12px;
+}
+
+.header-suggest-group + .header-suggest-group {
+  border-top: 1px solid var(--border);
 }

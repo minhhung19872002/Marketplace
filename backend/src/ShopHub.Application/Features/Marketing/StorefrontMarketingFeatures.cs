@@ -170,7 +170,7 @@ public sealed class ShopOffersHandler(IApplicationDbContext db, IClock clock) : 
 public record PublicBannerDto(Guid Id, string Title, string ImageUrl, string Link);
 
 public record HomeBannersDto(IReadOnlyList<PublicBannerDto> Main, IReadOnlyList<PublicBannerDto> Side, IReadOnlyList<PublicBannerDto> Shortcuts,
-    PublicBannerDto? Popup, int PopupFrequencyHours, IReadOnlyList<string> PinnedKeywords);
+    PublicBannerDto? Popup, int PopupFrequencyHours, IReadOnlyList<string> PinnedKeywords, IReadOnlyList<PublicBannerDto>? Mall = null);
 
 public record HomeBannersQuery : IRequest<HomeBannersDto>;
 
@@ -185,7 +185,8 @@ public sealed class HomeBannersHandler(IApplicationDbContext db, ISystemParamete
         var pinned = (await parameters.GetStringAsync(ParameterKeys.SearchPinnedKeywords, ct))
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(10).ToList();
         return new HomeBannersDto(Of(BannerPosition.HomeMain), Of(BannerPosition.HomeSide).Take(2).ToList(), Of(BannerPosition.Shortcut).Take(10).ToList(),
-            Of(BannerPosition.Popup).FirstOrDefault(), (int)await parameters.GetIntAsync(ParameterKeys.PopupFrequencyHours, ct), pinned);
+            Of(BannerPosition.Popup).FirstOrDefault(), (int)await parameters.GetIntAsync(ParameterKeys.PopupFrequencyHours, ct), pinned,
+            Of(BannerPosition.Mall).Take(5).ToList());
     }
 }
 

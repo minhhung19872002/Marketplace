@@ -10,6 +10,7 @@ public enum BannerPosition
     Shortcut,   // "lối tắt" icons under the banners (title + icon)
     Category,   // top of a category page
     Popup,      // home page popup (shown at most once per POPUP.FREQUENCY_HOURS)
+    Mall,       // portrait slides at the left of the home "ShopHub Mall" block (G2-B1)
 }
 
 /// <summary>Scheduled banner / shortcut / popup set by the platform (spec II.1, VI.6).</summary>
@@ -140,6 +141,18 @@ public class Campaign : Entity
     public List<CampaignBlock> Blocks { get; private set; } = [];
     public bool IsActive { get; private set; } = true;
     public DateTimeOffset CreatedAt { get; private set; }
+    /// <summary>
+    /// Transparent frame laid over the photos of the products taking part (approved registrations) while the campaign
+    /// runs — e.g. a "10.10 SIÊU SALE" band (G2-B5). Null = no frame.
+    /// </summary>
+    public string? FrameImageUrl { get; private set; }
+
+    public void SetFrame(string? url)
+    {
+        if (url is not null && !Banner.IsSafeLink(url) && !url.StartsWith("http://", StringComparison.Ordinal))
+            throw new BusinessRuleException("Ảnh khung phải là đường dẫn https:// hoặc trong sàn.");
+        FrameImageUrl = string.IsNullOrWhiteSpace(url) ? null : url.Trim();
+    }
 
     public void Update(string name, string slug, DateTimeOffset startAt, DateTimeOffset endAt, IReadOnlyList<CampaignBlock> blocks)
     {

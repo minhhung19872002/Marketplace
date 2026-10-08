@@ -150,7 +150,7 @@ public sealed partial class SendBroadcastHandler
 
 // ---------- public chat stats of a shop ----------
 
-public record ShopChatStatsDto(int ResponseRatePercent, string ResponseTime, DateTimeOffset? LastActiveAt);
+public record ShopChatStatsDto(int ResponseRatePercent, string ResponseTime, DateTimeOffset? LastActiveAt, int Conversations = 0);
 
 public record ShopChatStatsQuery(Guid ShopId) : IRequest<ShopChatStatsDto>;
 
@@ -165,6 +165,6 @@ public sealed class ShopChatStatsHandler(IApplicationDbContext db, ChatPerforman
                           join c in db.Conversations.AsNoTracking() on m.ConversationId equals c.Id
                           where c.ShopId == request.ShopId && m.SenderRole == ChatRole.Shop
                           select (DateTimeOffset?)m.CreatedAt).MaxAsync(ct);
-        return new ShopChatStatsDto(p.ResponseRatePercent, p.ResponseTime, last);
+        return new ShopChatStatsDto(p.ResponseRatePercent, p.ResponseTime, last, p.Conversations);
     }
 }

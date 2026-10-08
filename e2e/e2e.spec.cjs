@@ -24,7 +24,7 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('.category-grid-section')).toBeVisible();
     await expect(page.locator('.mall-brands')).toBeVisible();
     await expect(page.locator('.top-categories')).toBeVisible();
-    await expect(page.locator('.product-grid-section')).toBeVisible();
+    await expect(page.locator('.home-daily [data-testid="daily-grid"]')).toBeVisible();
     // Flash Sale of the platform: shown exactly when a slot runs now (the seeded one lasts until the next 3-hour mark,
     // a long-lived stack may be between slots), real items, countdown on the server's clock
     const board = (await (await page.request.get(`${BASE}/api/flash-sale`)).json()).data;
@@ -50,20 +50,22 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('[data-testid="feature-shortcut"]')).toHaveCount(home.shortcuts.length);
     for (const label of ['Mã Giảm Giá', 'Freeship', 'Deal Sốc']) await expect(page.locator('[data-testid="feature-shortcut"]', { hasText: label })).toHaveCount(1);
     // Industries with nothing on sale are left out of the home grid (UI upgrade P0-1)
-    await expect(page.locator('[data-testid="category-item"]')).toHaveCount(tree.filter((c) => c.isActive && c.productCount > 0).length);
-    await expect(page.locator('[data-testid="mall-brand"]')).toHaveCount(mall.length);
-    // ShopHub Mall shows its products, not only brand logos (E3)
-    await expect(page.locator('[data-testid="mall-products"] [data-testid="product-card"]').first()).toBeVisible();
-    await expect(page.locator('.product-grid [data-testid="product-card"]')).toHaveCount(24);
-    await expect(page.locator('[data-testid="category-item"]').first()).toContainText(tree[0].name);
+    // ...and so are industries hidden from buyers (G2-A7)
+    const shown = tree.filter((c) => c.isActive && c.isVisible && c.productCount > 0);
+    await expect(page.locator('[data-testid="category-item"]')).toHaveCount(shown.length);
+    // ShopHub Mall (G2-B1): up to 8 brand tiles, each with a product photo of the shop (E3)
+    await expect(page.locator('[data-testid="mall-brand"]')).toHaveCount(Math.min(mall.length, 8));
+    await expect(page.locator('[data-testid="mall-brand"] img').first()).toBeVisible();
+    await expect(page.locator('[data-testid="daily-grid"] [data-testid="product-card"]')).toHaveCount(24);
+    await expect(page.locator('[data-testid="category-item"]').first()).toContainText(shown[0].name);
   });
 
   test('Nút Xem Thêm tải thêm sản phẩm gợi ý', async ({ page }) => {
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('.product-grid [data-testid="product-card"]')).toHaveCount(24);
+    await expect(page.locator('[data-testid="daily-grid"] [data-testid="product-card"]')).toHaveCount(24);
     await page.locator('[data-testid="load-more"]').click();
-    await expect(page.locator('.product-grid [data-testid="product-card"]')).toHaveCount(48);
+    await expect(page.locator('[data-testid="daily-grid"] [data-testid="product-card"]')).toHaveCount(48);
   });
 
   test('Gợi ý tìm kiếm từ máy chủ khi gõ không dấu', async ({ page }) => {
@@ -367,7 +369,8 @@ test.describe('ShopHub Marketplace', () => {
     // The grid keeps the previous results on screen while the sorted page loads: wait for the sorted response, then read
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/search/products') && r.url().includes('sort=PriceAsc') && r.ok()),
-      page.locator('[data-testid="sort-price"]').click(),
+      // "Giá" opens a small menu with the two directions (G2-B3)
+      page.locator('[data-testid="sort-price"]').click().then(() => page.locator('[data-testid="sort-price-asc"]').click()),
     ]);
     await expect(page).toHaveURL(/sort=PriceAsc/);
     await expect(async () => {

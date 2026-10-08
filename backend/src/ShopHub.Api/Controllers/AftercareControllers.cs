@@ -51,6 +51,17 @@ public sealed class BuyerAftercareController : ApiControllerBase
 
     public record ReasonRequest(string Reason);
 
+    /// <summary>"Hữu ích" on a review (G2-B2): one vote per buyer; DELETE takes it back. Returns the new count.</summary>
+    [HttpPost("reviews/{reviewId:guid}/helpful")]
+    [ProducesResponseType<ApiResponse<int>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Helpful(Guid reviewId, CancellationToken ct) =>
+        OkData(await Sender.Send(new HelpfulReviewCommand(reviewId, true), ct));
+
+    [HttpDelete("reviews/{reviewId:guid}/helpful")]
+    [ProducesResponseType<ApiResponse<int>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> NotHelpful(Guid reviewId, CancellationToken ct) =>
+        OkData(await Sender.Send(new HelpfulReviewCommand(reviewId, false), ct));
+
     [HttpPost("reviews/{reviewId:guid}/report")]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Report(Guid reviewId, [FromBody] ReasonRequest body, CancellationToken ct)

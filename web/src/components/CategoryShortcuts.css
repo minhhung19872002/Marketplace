@@ -68,3 +68,6 @@
 .feature-shortcut:hover .feature-shortcut-label {
   color: var(--sh-primary);
 }
+.feature-shortcuts--loading {
+  height: 112px;
+}

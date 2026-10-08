@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react';
 import type { ProductCard as Card } from '../types';
 import { Link } from 'react-router-dom';
 import { Heart, MapPin, Zap } from 'lucide-react';
-import { formatPrice, formatSold } from '../lib/money';
+import { formatPrice, formatSold, priceParts } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { useWishlist } from '../context/WishlistContext';
 import { Stars } from './ui';
@@ -32,6 +32,8 @@ const ProductCard = ({ product }: { product: Card }) => {
       <Link to={href} className="product-card-link" data-testid="product-card">
         <div className="product-card-img">
           <img src={imageOrPlaceholder(product.imageUrl)} alt={product.name} loading="lazy" decoding="async" width={240} height={240} onError={handleImgError} />
+          {/* Campaign frame (e.g. 10.10) — decoration only, the product's own photo stays the content */}
+          {product.frameUrl && <img className="product-card-frame" src={product.frameUrl} alt="" aria-hidden loading="lazy" width={240} height={240} />}
           <div className="product-card-flags">
             {product.isMall && <span className="pc-flag pc-flag--mall">Mall</span>}
             {product.isPreferred && !product.isMall && <span className="pc-flag pc-flag--preferred">Yêu thích</span>}
@@ -52,8 +54,15 @@ const ProductCard = ({ product }: { product: Card }) => {
         <div className="product-card-body">
           <h3 className="product-card-name" data-testid="product-card-name">{product.name}</h3>
 
+          <div className="product-card-labels">
+            {(product.labels ?? []).map((l) => <span key={l} className="product-card-label" data-testid="product-card-label">{l}</span>)}
+          </div>
+
           <div className="product-card-price-row">
-            <span className="product-card-price price" data-testid="product-card-price">{formatPrice(product.minPrice)}</span>
+            <span className="product-card-price price" data-testid="product-card-price" aria-label={formatPrice(product.minPrice)}>
+              <span className="product-card-currency" aria-hidden>{priceParts(product.minPrice).currency}</span>
+              <span aria-hidden>{priceParts(product.minPrice).amount}</span>
+            </span>
             {showOriginal && <span className="product-card-original price">{formatPrice(product.originalPrice)}</span>}
           </div>
 

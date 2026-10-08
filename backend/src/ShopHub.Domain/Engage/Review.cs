@@ -156,6 +156,23 @@ public enum ReviewReportStatus
 }
 
 /// <summary>Someone reports a review that breaks the rules; one report per person per review.</summary>
+/// <summary>"Hữu ích" on a review (G2-B2): one vote per buyer and review, guaranteed by the database.</summary>
+public class ReviewHelpfulVote : Entity
+{
+    private ReviewHelpfulVote() { }
+
+    public ReviewHelpfulVote(Guid reviewId, Guid userId, DateTimeOffset now)
+    {
+        ReviewId = reviewId;
+        UserId = userId;
+        CreatedAt = now;
+    }
+
+    public Guid ReviewId { get; private set; }
+    public Guid UserId { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+}
+
 public class ReviewReport : Entity
 {
     private ReviewReport() { }

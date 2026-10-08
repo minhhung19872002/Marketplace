@@ -16,6 +16,8 @@ export interface HomeBanners {
   popup: PublicBanner | null;
   popupFrequencyHours: number;
   pinnedKeywords: string[];
+  // Portrait slides of the home "ShopHub Mall" block
+  mall: PublicBanner[] | null;
 }
 
 export interface FlashBoardItem {

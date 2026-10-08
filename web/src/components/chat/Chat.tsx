@@ -313,7 +313,8 @@ export const ChatWidget = () => {
 };
 
 /** "Chat ngay" on the product page / shop page; guests go to sign-in first. */
-export const ChatNowButton = ({ shopId, productId, className }: { shopId: string; productId?: string; className?: string }) => {
+export const ChatNowButton = ({ shopId, productId, className, testId = 'chat-now', label = 'Chat Ngay' }:
+  { shopId: string; productId?: string; className?: string; testId?: string; label?: string }) => {
   const { isLoggedIn } = useAuth();
   const chat = useChat();
   const navigate = useNavigate();
@@ -321,7 +322,7 @@ export const ChatNowButton = ({ shopId, productId, className }: { shopId: string
   const [error, setError] = useState('');
   return (
     <>
-      <button className={className} data-testid="chat-now" onClick={async () => {
+      <button type="button" className={className} data-testid={testId} onClick={async () => {
         if (!isLoggedIn) {
           navigate('/dang-nhap', { state: { from: location.pathname } });
           return;
@@ -332,7 +333,7 @@ export const ChatNowButton = ({ shopId, productId, className }: { shopId: string
         } catch (e) {
           setError(e instanceof ApiError ? e.message : 'Không mở được chat.');
         }
-      }}><MessageCircle size={16} aria-hidden /> Chat Ngay</button>
+      }}><MessageCircle size={16} aria-hidden /> {label}</button>
       {error && <span className="chat-error" role="alert">{error}</span>}
     </>
   );
@@ -360,7 +361,8 @@ export const ContactShopButton = ({ shopId, orderCode, className }: { shopId: st
 /** Response rate / time shown with the shop (spec II.11). */
 export const ChatStats = ({ shopId }: { shopId: string }) => {
   const stats = useQuery({ queryKey: ['chat-stats', shopId], queryFn: () => chatApi.stats(shopId), staleTime: 600_000 });
-  if (!stats.data) return null;
+  // A shop nobody has chatted with yet has no rate to show: "0%" would read as "never answers"
+  if (!stats.data || stats.data.conversations === 0) return null;
   return (
     <>
       <div><strong data-testid="chat-response-rate">{stats.data.responseRatePercent}%</strong><span>Tỉ Lệ Phản Hồi</span></div>

@@ -26,7 +26,7 @@ export interface FlashSlot {
   items: FlashItem[]
 }
 
-export type BannerPosition = 'HomeMain' | 'HomeSide' | 'Shortcut' | 'Category' | 'Popup'
+export type BannerPosition = 'HomeMain' | 'HomeSide' | 'Shortcut' | 'Category' | 'Popup' | 'Mall'
 
 export interface Banner {
   id: string
@@ -57,6 +57,8 @@ export interface Campaign {
   id: string
   name: string
   slug: string
+  // Transparent frame over the photos of approved products while the campaign runs (null = none)
+  frameImageUrl: string | null
   startAt: string
   endAt: string
   blocks: CampaignBlock[]
@@ -69,6 +71,7 @@ export const POSITION_LABEL: Record<BannerPosition, string> = {
   Shortcut: 'Lối tắt',
   Category: 'Đầu trang danh mục',
   Popup: 'Popup',
+  Mall: 'Banner dọc ShopHub Mall',
 }
 
 export type RegistrationStatus = 'Pending' | 'Approved' | 'Rejected'

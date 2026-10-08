@@ -61,6 +61,11 @@ public class ProductView : Entity
 
     // Where the viewer came from (seller analytics: nguồn truy cập)
     public ViewSource Source { get; private set; }
+    /// <summary>
+    /// Set when the viewer clears "Đã xem gần đây" (G2-B1): the row leaves the buyer's history but still counts for the
+    /// shop's views and conversion funnel.
+    /// </summary>
+    public DateTimeOffset? HiddenAt { get; private set; }
 
     public Guid? UserId { get; private set; }
     public string? SessionKey { get; private set; }

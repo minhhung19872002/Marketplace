@@ -149,7 +149,8 @@ async function shopWithProduct(request, admin, { stock = 50, price = 159000 } = 
 
 /** Pick an option of the buyer site's searchable select (components/ui/SearchSelect) by its accessible label. */
 async function pickOption(scope, label, option) {
-  await scope.getByRole('button', { name: label, exact: true }).click();
+  // The trigger's name is "<label>: <current choice>" (the visible text is part of it, WCAG 2.5.3)
+  await scope.getByRole('button', { name: new RegExp(`^${label}:`) }).click();
   await scope.getByRole('combobox', { name: `Tìm ${label}` }).fill(option);
   await scope.getByRole('option', { name: option, exact: true }).click();
 }
@@ -160,7 +161,17 @@ async function pickAddress(scope, province = 'Thành phố Hà Nội', ward = 'P
   await pickOption(scope, 'Phường/Xã', ward);
 }
 
+/** Choose a voucher in the ticket dialog of components/VoucherPicker (G2-B4): open, tick the code's ticket, OK. */
+async function pickVoucher(scope, testId, code) {
+  const page = typeof scope.page === 'function' ? scope.page() : scope;
+  await scope.getByTestId(`${testId}-open`).click();
+  const dialog = page.getByTestId('voucher-dialog');
+  await dialog.getByTestId('voucher-ticket').filter({ hasText: `Mã ${code}` }).click();
+  await dialog.getByTestId('voucher-confirm').click();
+  await scope.getByTestId(`${testId}-value`).filter({ hasText: code }).waitFor();
+}
+
 module.exports = {
   BASE, newPhone, latestOtp, registerViaApi, api, findProduct, withTiers, withoutTiers, loginInBrowser, stripTones,
-  addAddressViaApi, apiLogin, apiAs, shopWithProduct, pickOption, pickAddress,
+  addAddressViaApi, apiLogin, apiAs, shopWithProduct, pickOption, pickAddress, pickVoucher,
 };

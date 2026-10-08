@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { Link, type LinkProps } from 'react-router-dom';
-import { ChevronRight, PackageOpen, Star, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PackageOpen, Star, type LucideIcon } from 'lucide-react';
+import { pageWindow } from '../../lib/text';
 import './ui.css';
 
 // Design system primitives shared by every page (G0). Icons come from lucide-react — never emoji.
@@ -124,3 +125,24 @@ export const Section = ({ title, more, extra, className, children, testId }: Sec
     {children}
   </section>
 );
+
+/** Numbered pager (G2): ‹ 1 … 4 5 6 … 20 ›. Renders nothing for a single page. */
+export const Pager = ({ page, total, onPage, testId, label = 'Phân trang' }: { page: number; total: number; onPage: (p: number) => void; testId?: string; label?: string }) => {
+  if (total <= 1) return null;
+  return (
+    <nav className="sh-pager" aria-label={label} data-testid={testId}>
+      <button type="button" className="sh-pager__btn" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Trang trước">
+        <ChevronLeft size={18} aria-hidden />
+      </button>
+      {pageWindow(page, total).map((p, i) => p === '…'
+        ? <span key={`gap-${i}`} className="sh-pager__gap" aria-hidden>…</span>
+        : (
+          <button key={p} type="button" className={`sh-pager__btn ${p === page ? 'is-current' : ''}`} onClick={() => onPage(p)}
+            aria-current={p === page ? 'page' : undefined} aria-label={`Trang ${p}`}>{p}</button>
+        ))}
+      <button type="button" className="sh-pager__btn" disabled={page >= total} onClick={() => onPage(page + 1)} aria-label="Trang sau" data-testid="next-page">
+        <ChevronRight size={18} aria-hidden />
+      </button>
+    </nav>
+  );
+};

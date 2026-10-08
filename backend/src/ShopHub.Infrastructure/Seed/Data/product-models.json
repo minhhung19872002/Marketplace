@@ -13,6 +13,7 @@
   "origin": "Khác",
   "weightG": 50,
   "images": [
+   "p001-m.webp",
    "p001-0.webp"
   ]
  },
@@ -65,6 +66,7 @@
   "origin": "Hàn Quốc",
   "weightG": 40,
   "images": [
+   "p004-m.webp",
    "p004-0.webp"
   ]
  },
@@ -130,6 +132,7 @@
   "origin": "Khác",
   "weightG": 300,
   "images": [
+   "p007-m.webp",
    "p007-0.webp",
    "p007-1.webp",
    "p007-2.webp"
@@ -211,6 +214,7 @@
   "origin": "Khác",
   "weightG": 300,
   "images": [
+   "p010-m.webp",
    "p010-0.webp",
    "p010-1.webp",
    "p010-2.webp"
@@ -256,6 +260,7 @@
   "origin": "Mỹ",
   "weightG": 450,
   "images": [
+   "p120-m.webp",
    "p120-0.webp",
    "p120-1.webp",
    "p120-2.webp"
@@ -313,6 +318,7 @@
   "origin": "Việt Nam",
   "weightG": 12000,
   "images": [
+   "p013-m.webp",
    "p013-0.webp",
    "p013-1.webp",
    "p013-2.webp"
@@ -370,6 +376,7 @@
   "origin": "Việt Nam",
   "weightG": 15000,
   "images": [
+   "p043-m.webp",
    "p043-0.webp",
    "p043-1.webp",
    "p043-2.webp"
@@ -425,6 +432,7 @@
   "origin": "Việt Nam",
   "weightG": 1200,
   "images": [
+   "p046-m.webp",
    "p046-0.webp",
    "p046-1.webp",
    "p046-2.webp",
@@ -479,6 +487,7 @@
   "origin": "Việt Nam",
   "weightG": 300,
   "images": [
+   "p049-m.webp",
    "p049-0.webp",
    "p049-1.webp"
   ]
@@ -553,6 +562,7 @@
   "origin": "Việt Nam",
   "weightG": 1400,
   "images": [
+   "p052-m.webp",
    "p052-0.webp"
   ]
  },
@@ -604,6 +614,7 @@
   "origin": "Việt Nam",
   "weightG": 200,
   "images": [
+   "p055-m.webp",
    "p055-0.webp"
   ]
  },
@@ -661,6 +672,7 @@
   "origin": "Việt Nam",
   "weightG": 300,
   "images": [
+   "p058-m.webp",
    "p058-0.webp"
   ]
  },
@@ -715,6 +727,7 @@
   "origin": "Việt Nam",
   "weightG": 1200,
   "images": [
+   "p061-m.webp",
    "p061-0.webp"
   ]
  },
@@ -766,6 +779,7 @@
   "origin": "Việt Nam",
   "weightG": 250,
   "images": [
+   "p064-m.webp",
    "p064-0.webp"
   ]
  },
@@ -823,6 +837,7 @@
   "origin": "Việt Nam",
   "weightG": 500,
   "images": [
+   "p067-m.webp",
    "p067-0.webp",
    "p067-1.webp"
   ]
@@ -891,6 +906,7 @@
   "origin": "Việt Nam",
   "weightG": 150,
   "images": [
+   "p070-m.webp",
    "p070-0.webp"
   ]
  },
@@ -958,6 +974,7 @@
   "origin": "Việt Nam",
   "weightG": 1500,
   "images": [
+   "p073-m.webp",
    "p073-0.webp"
   ]
  },
@@ -1009,6 +1026,7 @@
   "origin": "Việt Nam",
   "weightG": 700,
   "images": [
+   "p076-m.webp",
    "p076-0.webp"
   ]
  },
@@ -1090,6 +1108,7 @@
   "origin": "Khác",
   "weightG": 1000,
   "images": [
+   "p030-m.webp",
    "p030-0.webp"
   ]
  },
@@ -1162,6 +1181,7 @@
   "origin": "Việt Nam",
   "weightG": 600,
   "images": [
+   "p040-m.webp",
    "p040-0.webp"
   ]
  },
@@ -1246,6 +1266,7 @@
   "origin": "Việt Nam",
   "weightG": 300,
   "images": [
+   "p026-m.webp",
    "p026-0.webp"
   ]
  },
@@ -1330,6 +1351,7 @@
   "origin": "Khác",
   "weightG": 400,
   "images": [
+   "p017-m.webp",
    "p017-0.webp"
   ]
  },
@@ -1391,6 +1413,7 @@
   "origin": "Việt Nam",
   "weightG": 700,
   "images": [
+   "p023-m.webp",
    "p023-0.webp"
   ]
  },
@@ -1454,6 +1477,7 @@
   "origin": "Việt Nam",
   "weightG": 1100,
   "images": [
+   "p029-m.webp",
    "p029-0.webp"
   ]
  },
@@ -1514,6 +1538,7 @@
   "origin": "Khác",
   "weightG": 300,
   "images": [
+   "p034-m.webp",
    "p034-0.webp"
   ]
  },
@@ -1574,6 +1599,7 @@
   "origin": "Việt Nam",
   "weightG": 700,
   "images": [
+   "p027-m.webp",
    "p027-0.webp"
   ]
  },
@@ -1722,6 +1748,7 @@
   "origin": "Khác",
   "weightG": 2300,
   "images": [
+   "p079-m.webp",
    "p079-0.webp",
    "p079-1.webp",
    "p079-2.webp"
@@ -1830,6 +1857,7 @@
   "origin": "Mỹ",
   "weightG": 1300,
   "images": [
+   "p082-m.webp",
    "p082-0.webp",
    "p082-1.webp",
    "p082-2.webp"
@@ -1938,6 +1966,7 @@
   "origin": "Hàn Quốc",
   "weightG": 700,
   "images": [
+   "p161-m.webp",
    "p161-0.webp",
    "p161-1.webp",
    "p161-2.webp",
@@ -2059,6 +2088,7 @@
   "origin": "Mỹ",
   "weightG": 400,
   "images": [
+   "p123-m.webp",
    "p123-0.webp",
    "p123-1.webp",
    "p123-2.webp"
@@ -2178,6 +2208,7 @@
   "origin": "Trung Quốc",
   "weightG": 380,
   "images": [
+   "p126-m.webp",
    "p126-0.webp",
    "p126-1.webp",
    "p126-2.webp"
@@ -2298,6 +2329,7 @@
   "origin": "Trung Quốc",
   "weightG": 380,
   "images": [
+   "p129-m.webp",
    "p129-0.webp",
    "p129-1.webp",
    "p129-2.webp"
@@ -2417,6 +2449,7 @@
   "origin": "Hàn Quốc",
   "weightG": 350,
   "images": [
+   "p132-m.webp",
    "p132-0.webp",
    "p132-1.webp",
    "p132-2.webp"
@@ -2535,6 +2568,7 @@
   "origin": "Trung Quốc",
   "weightG": 360,
   "images": [
+   "p135-m.webp",
    "p135-0.webp",
    "p135-1.webp",
    "p135-2.webp"
@@ -2617,6 +2651,7 @@
   "origin": "Mỹ",
   "weightG": 200,
   "images": [
+   "p104-m.webp",
    "p104-0.webp",
    "p104-1.webp"
   ]
@@ -2695,6 +2730,7 @@
   "origin": "Trung Quốc",
   "weightG": 400,
   "images": [
+   "p109-m.webp",
    "p109-0.webp",
    "p109-1.webp"
   ]
@@ -2757,6 +2793,7 @@
   "origin": "Mỹ",
   "weightG": 1000,
   "images": [
+   "p099-m.webp",
    "p099-0.webp",
    "p099-1.webp"
   ]
@@ -2823,6 +2860,7 @@
   "origin": "Mỹ",
   "weightG": 500,
   "images": [
+   "p101-m.webp",
    "p101-0.webp"
   ]
  },
@@ -2880,6 +2918,7 @@
   "origin": "Khác",
   "weightG": 250,
   "images": [
+   "p094-m.webp",
    "p094-0.webp",
    "p094-1.webp",
    "p094-2.webp"
@@ -2937,6 +2976,7 @@
   "origin": "Khác",
   "weightG": 250,
   "images": [
+   "p097-m.webp",
    "p097-0.webp",
    "p097-1.webp",
    "p097-2.webp"
@@ -2994,6 +3034,7 @@
   "origin": "Khác",
   "weightG": 150,
   "images": [
+   "p191-m.webp",
    "p191-0.webp",
    "p191-1.webp",
    "p191-2.webp"
@@ -3051,6 +3092,7 @@
   "origin": "Nhật Bản",
   "weightG": 150,
   "images": [
+   "p194-m.webp",
    "p194-0.webp",
    "p194-1.webp",
    "p194-2.webp"
@@ -3157,6 +3199,7 @@
   "origin": "Việt Nam",
   "weightG": 250,
   "images": [
+   "p084-m.webp",
    "p084-0.webp",
    "p084-1.webp",
    "p084-2.webp",
@@ -3286,6 +3329,7 @@
   "origin": "Việt Nam",
   "weightG": 300,
   "images": [
+   "p087-m.webp",
    "p087-0.webp",
    "p087-1.webp",
    "p087-2.webp",
@@ -3344,6 +3388,7 @@
   "origin": "Trung Quốc",
   "weightG": 100,
   "images": [
+   "p156-m.webp",
    "p156-0.webp",
    "p156-1.webp",
    "p156-2.webp"
@@ -3420,6 +3465,7 @@
   "origin": "Việt Nam",
   "weightG": 350,
   "images": [
+   "p162-m.webp",
    "p162-0.webp",
    "p162-1.webp",
    "p162-2.webp",
@@ -3537,6 +3583,7 @@
   "origin": "Việt Nam",
   "weightG": 350,
   "images": [
+   "p165-m.webp",
    "p165-0.webp",
    "p165-1.webp",
    "p165-2.webp",
@@ -3654,6 +3701,7 @@
   "origin": "Việt Nam",
   "weightG": 500,
   "images": [
+   "p178-m.webp",
    "p178-0.webp",
    "p178-1.webp",
    "p178-2.webp",
@@ -3772,6 +3820,7 @@
   "origin": "Việt Nam",
   "weightG": 380,
   "images": [
+   "p181-m.webp",
    "p181-0.webp",
    "p181-1.webp",
    "p181-2.webp",
@@ -3830,6 +3879,7 @@
   "origin": "Hàn Quốc",
   "weightG": 50,
   "images": [
+   "p184-m.webp",
    "p184-0.webp",
    "p184-1.webp",
    "p184-2.webp"
@@ -3961,6 +4011,7 @@
   "origin": "Việt Nam",
   "weightG": 900,
   "images": [
+   "p091-m.webp",
    "p091-0.webp",
    "p091-1.webp",
    "p091-2.webp",
@@ -4093,6 +4144,7 @@
   "origin": "Việt Nam",
   "weightG": 650,
   "images": [
+   "p187-m.webp",
    "p187-0.webp",
    "p187-1.webp",
    "p187-2.webp",
@@ -4225,6 +4277,7 @@
   "origin": "Việt Nam",
   "weightG": 900,
   "images": [
+   "p185-m.webp",
    "p185-0.webp",
    "p185-1.webp",
    "p185-2.webp",
@@ -4293,6 +4346,7 @@
   "origin": "Khác",
   "weightG": 900,
   "images": [
+   "p174-m.webp",
    "p174-0.webp",
    "p174-1.webp",
    "p174-2.webp"
@@ -4356,6 +4410,7 @@
   "origin": "Mỹ",
   "weightG": 500,
   "images": [
+   "p137-m.webp",
    "p137-0.webp"
   ]
  },
@@ -4409,6 +4464,7 @@
   "origin": "Trung Quốc",
   "weightG": 900,
   "images": [
+   "p150-m.webp",
    "p150-0.webp"
   ]
  },
@@ -4487,6 +4543,7 @@
   "origin": "Trung Quốc",
   "weightG": 4000,
   "images": [
+   "p141-m.webp",
    "p141-0.webp"
   ]
  },
@@ -4538,6 +4595,7 @@
   "origin": "Khác",
   "weightG": 900,
   "images": [
+   "p144-m.webp",
    "p144-0.webp",
    "p144-1.webp",
    "p144-2.webp",
@@ -4604,6 +4662,7 @@
   "origin": "Việt Nam",
   "weightG": 450,
   "images": [
+   "p147-m.webp",
    "p147-0.webp"
   ]
  },
@@ -4655,6 +4714,7 @@
   "origin": "Việt Nam",
   "weightG": 250,
   "images": [
+   "p151-m.webp",
    "p151-0.webp"
   ]
  },

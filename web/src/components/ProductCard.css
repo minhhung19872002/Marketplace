@@ -250,3 +250,61 @@
     display: block;
   }
 }
+
+/* ---- G2-B5: campaign frame, tags, split price ---- */
+.product-card-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.product-card-labels {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-height: 16px;
+  overflow: hidden;
+}
+
+.product-card-label {
+  flex: none;
+  padding: 0 4px;
+  border: 1px solid var(--sh-primary);
+  border-radius: 2px;
+  color: var(--sh-primary);
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.product-card-price {
+  font-weight: 700;
+}
+
+.product-card-currency {
+  margin-right: 1px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The discount as a yellow tag folded on the top-right corner */
+.product-card-discount {
+  top: 0;
+  right: 0;
+  padding: 2px 5px 3px;
+  border-radius: 0 0 0 var(--sh-radius-sm);
+  background: var(--sh-deal-tag);
+  color: var(--sh-deal-tag-text);
+}
+
+.product-card {
+  box-shadow: none;
+}
+
+.product-card:hover,
+.product-card:focus-within {
+  transform: translateY(-1px);
+}

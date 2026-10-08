@@ -526,3 +526,295 @@ button.checkout-address-manage {
   margin: 4px 0 0;
   padding-left: 18px;
 }
+
+/* ---- G2-B4: two columns, envelope address, method cards, sticky place bar ---- */
+.checkout-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+.checkout-main {
+  min-width: 0;
+}
+
+.checkout-summary {
+  position: sticky;
+  top: calc(var(--sh-header-h, 64px) + 12px);
+  align-items: stretch;
+}
+
+.checkout-summary .checkout-summary-row span:first-child {
+  color: var(--sh-text-muted);
+}
+
+.checkout-summary-saving {
+  margin-top: 4px;
+  color: var(--sh-success);
+  font-size: 13px;
+  text-align: right;
+}
+
+.checkout-terms {
+  margin: 12px 0 0;
+  color: var(--sh-text-muted);
+  font-size: 12px;
+}
+
+.checkout-terms a {
+  color: var(--sh-info);
+}
+
+.checkout-place-bar-total {
+  display: none;
+}
+
+.checkout-summary .checkout-place {
+  float: none;
+  width: 100%;
+  height: 48px;
+  border-radius: var(--sh-radius-sm);
+}
+
+/* Air-mail stripes along the top of the address card */
+.checkout-address {
+  position: relative;
+  padding-top: 24px;
+  overflow: hidden;
+}
+
+.checkout-address::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  background: repeating-linear-gradient(45deg, var(--sh-primary) 0 33px, transparent 0 41px, var(--sh-info) 0 74px, transparent 0 82px);
+}
+
+.checkout-address-current {
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.checkout-address-change {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--sh-info);
+  font: inherit;
+}
+
+.checkout-address-option {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--sh-radius-sm);
+  cursor: pointer;
+}
+
+.checkout-address-option.is-checked {
+  border-color: var(--sh-primary);
+}
+
+.checkout-address-option input {
+  margin-top: 3px;
+  accent-color: var(--sh-primary);
+}
+
+.checkout-address-option > span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.checkout-address-option-line {
+  color: var(--sh-text-muted);
+}
+
+.checkout-shop-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkout-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkout-note input {
+  flex: 1;
+  width: auto;
+  margin: 0;
+  height: 36px;
+}
+
+.checkout-carriers-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.checkout-carrier {
+  border-radius: var(--sh-radius-sm);
+}
+
+.checkout-carrier.active {
+  background: var(--sh-primary-soft);
+}
+
+.checkout-carrier-name {
+  flex: 1;
+  font-size: 13px;
+}
+
+.checkout-carrier-name strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.checkout-carrier-fee {
+  font-weight: 500;
+}
+
+.checkout-coins {
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.checkout-coins > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkout-coins svg {
+  color: var(--star);
+}
+
+.checkout-coins-used {
+  color: var(--sh-primary);
+}
+
+.checkout-coins input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--sh-primary);
+}
+
+/* Payment methods as cards */
+.checkout-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.checkout-method {
+  position: relative;
+  min-height: 56px;
+  border-radius: var(--sh-radius-sm);
+}
+
+/* The radio covers the whole card, invisible: the card is the click target and keyboard focus stays on the radio */
+.checkout-method input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.checkout-method.disabled input {
+  cursor: not-allowed;
+}
+
+.checkout-method:focus-within {
+  outline: 2px solid var(--sh-focus, var(--sh-primary));
+  outline-offset: 2px;
+}
+
+.checkout-method-icon {
+  flex: none;
+  color: var(--sh-primary);
+}
+
+.checkout-method-text {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+}
+
+.checkout-method-text small {
+  color: var(--sh-text-muted);
+  font-size: 12px;
+}
+
+.checkout-method-tick {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: end;
+  width: 16px;
+  height: 16px;
+  padding: 0 1px 1px 0;
+  background: linear-gradient(-45deg, var(--sh-primary) 50%, transparent 50%);
+  color: var(--sh-on-primary);
+}
+
+.checkout-options .checkout-method {
+  min-height: 40px;
+}
+
+@media (max-width: 1023px) {
+  .checkout-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .checkout-summary {
+    position: static;
+    padding-bottom: 80px;
+  }
+
+  /* The place button and the total stick to the bottom of the screen */
+  .checkout-place-bar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 8px 16px;
+    background: var(--sh-surface);
+    box-shadow: var(--sh-shadow-md);
+  }
+
+  .checkout-place-bar-total {
+    display: inline;
+  }
+
+  .checkout-place-bar-total strong {
+    color: var(--sh-primary);
+    font-size: 18px;
+  }
+
+  .checkout-summary .checkout-place {
+    width: auto;
+    min-width: 140px;
+    margin: 0;
+  }
+}

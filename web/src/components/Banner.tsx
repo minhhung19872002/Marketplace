@@ -40,6 +40,15 @@ const Banner = () => {
     return () => clearInterval(timer);
   }, [next, main.length, paused]);
 
+  // While loading, the same box (fixed ratio) holds the place so nothing below jumps when the slides arrive (CLS)
+  if (!data) {
+    return (
+      <section className="banner" aria-hidden data-testid="home-banners-loading">
+        <div className="banner-slider sh-skeleton" />
+        <div className="banner-side"><span className="sh-skeleton" /><span className="sh-skeleton" /></div>
+      </section>
+    );
+  }
   if (main.length === 0) return null;
 
   return (
@@ -47,7 +56,7 @@ const Banner = () => {
       <div className="banner-slider" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
         onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
         {main.map((b, i) => (
-          <BannerLink key={b.id} to={b.link} className={`banner-slide ${i === active ? 'active' : ''}`} label={b.title}>
+          <BannerLink key={b.id} to={b.link} className={`banner-slide ${i === active ? 'active' : ''}`}>
             {isImageUrl(b.imageUrl)
               ? <img className="banner-image" src={b.imageUrl} alt="" onError={handleImgError} fetchPriority={i === 0 ? 'high' : 'auto'} />
               : <span className="banner-image banner-image--fallback" aria-hidden />}

@@ -1,64 +1,73 @@
 .top-categories {
-  background: var(--sh-on-primary);
-  border-radius: 4px;
-  margin-top: 16px;
+  margin-top: var(--sh-space-3);
 }
 
-.top-categories-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.top-categories-title {
-  color: var(--sh-primary);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.top-categories-list {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 12px;
-  padding: 16px 20px;
+.top-categories-row {
+  padding: var(--sh-space-3) var(--sh-space-4) var(--sh-space-4);
 }
 
 .top-category {
-  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--sh-space-2);
 }
 
-.top-category img {
-  width: 100%;
+.top-category-image {
+  position: relative;
+  overflow: hidden;
   aspect-ratio: 1;
-  object-fit: cover;
-  background: var(--bg);
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface-sunken);
 }
 
+.top-category-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s;
+}
+
+.top-category:hover .top-category-image img {
+  transform: scale(1.04);
+}
+
+/* TOP ribbon folded on the top-left corner */
 .top-category-badge {
   position: absolute;
+  z-index: 1;
   top: 0;
   left: 0;
-  padding: 2px 6px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--sh-on-primary);
+  padding: 3px 8px 4px;
+  border-radius: 0 0 var(--sh-radius-sm) 0;
   background: var(--sh-primary);
+  color: var(--sh-on-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
+/* Sales line on a dark band along the bottom of the photo */
 .top-category-sold {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 4px 6px;
+  background: var(--sh-overlay);
+  color: var(--sh-on-dark);
   font-size: 12px;
-  color: var(--text-light);
+  text-align: center;
 }
 
 .top-category-name {
-  font-size: 14px;
-  color: var(--text);
+  overflow: hidden;
+  color: var(--sh-text-strong);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-@media (max-width: 768px) {
-  .top-categories-list {
-    grid-template-columns: repeat(3, 1fr);
-  }
+.top-category:hover .top-category-name {
+  color: var(--sh-primary);
 }

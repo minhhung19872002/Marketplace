@@ -19,6 +19,7 @@ public sealed class CardPricing(IApplicationDbContext db, PriceBook prices, IClo
         if (cards.Count == 0) return cards;
         var ids = cards.Select(c => c.Id).Distinct().ToList();
         var now = clock.UtcNow;
+        cards = await DecorateAsync(cards, ids, now, ct);
         // Only products with a programme in force need work; most pages have few or none
         var withPromo = await db.PricePrograms.AsNoTracking()
             .Where(p => p.IsActive && p.StartAt <= now && p.EndAt > now && db.Skus.Any(s => s.Id == p.SkuId && ids.Contains(s.ProductId)))
@@ -47,6 +48,45 @@ public sealed class CardPricing(IApplicationDbContext db, PriceBook prices, IClo
                 DiscountPercent = ProductCards.DiscountPercent(min, original),
                 IsFlashSale = flash,
             };
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Labels and campaign frame of the cards (G2-B5) — each one backed by data in force now: a running combo / add-on /
+    /// gift programme that lists the product, the shop's Freeship Xtra, an approved registration in a running campaign
+    /// that has a frame.
+    /// </summary>
+    private async Task<IReadOnlyList<ProductCardDto>> DecorateAsync(IReadOnlyList<ProductCardDto> cards, List<Guid> ids, DateTimeOffset now, CancellationToken ct)
+    {
+        var promos = await (from pp in db.PromotionProducts.AsNoTracking()
+                            join pr in db.Promotions.AsNoTracking() on pp.PromotionId equals pr.Id
+                            where ids.Contains(pp.ProductId) && pr.Status == PromotionStatus.Active && pr.StartAt <= now && pr.EndAt > now
+                            select new { pp.ProductId, pr.Type, pr.DiscountBp }).ToListAsync(ct);
+        var shopIds = cards.Select(c => c.ShopId).Distinct().ToList();
+        var xtra = (await db.Shops.AsNoTracking().Where(s => shopIds.Contains(s.Id) && s.FreeshipXtraSince != null).Select(s => s.Id).ToListAsync(ct)).ToHashSet();
+        var frames = await (from r in db.CampaignRegistrations.AsNoTracking()
+                            join c in db.Campaigns.AsNoTracking() on r.CampaignId equals c.Id
+                            where ids.Contains(r.ProductId) && r.Status == CampaignRegistrationStatus.Approved && c.IsActive
+                                  && c.StartAt <= now && c.EndAt > now && c.FrameImageUrl != null
+                            orderby c.StartAt descending
+                            select new { r.ProductId, c.FrameImageUrl }).ToListAsync(ct);
+        var frameOf = frames.GroupBy(f => f.ProductId).ToDictionary(g => g.Key, g => g.First().FrameImageUrl);
+        return cards.Select(card =>
+        {
+            var labels = new List<string>();
+            foreach (var p in promos.Where(p => p.ProductId == card.Id).OrderBy(p => p.Type))
+            {
+                var label = p.Type switch
+                {
+                    PromotionType.Combo => p.DiscountBp > 0 ? $"Combo giảm {p.DiscountBp / 100}%" : "Mua combo giảm giá",
+                    PromotionType.AddOn => "Mua kèm deal sốc",
+                    PromotionType.Gift => "Có quà tặng",
+                    _ => null,
+                };
+                if (label is not null && !labels.Contains(label)) labels.Add(label);
+            }
+            if (xtra.Contains(card.ShopId)) labels.Add("Freeship Xtra");
+            return card with { Labels = labels.Count > 0 ? labels.Take(2).ToList() : null, FrameUrl = frameOf.GetValueOrDefault(card.Id) };
         }).ToList();
     }
 

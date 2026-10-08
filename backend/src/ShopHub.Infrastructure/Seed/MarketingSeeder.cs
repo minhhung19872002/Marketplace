@@ -1,4 +1,6 @@
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Features.Media;
@@ -13,7 +15,8 @@ namespace ShopHub.Infrastructure.Seed;
 /// artwork from Seed/Data/Art, the title is drawn by the page) and shortcuts, a popup and one campaign page. Side banners
 /// carry no image: the buyer site draws them as voucher / freeship cards. Idempotent (only when empty).
 /// </summary>
-public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectStorage storage, IImageProcessor images, ILogger<MarketingSeeder> logger)
+public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectStorage storage, IImageProcessor images, IServiceProvider services,
+    ILogger<MarketingSeeder> logger)
 {
     // Each title matches its artwork (hero-1 technology, hero-2 beauty, hero-3 home)
     public static readonly (string Title, string Link, string Art)[] MainBanners =
@@ -40,6 +43,101 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
         ("Hàng Mới Về", "new", "/tim-kiem?sort=Newest"), ("Giá Từ Thấp", "price", "/tim-kiem?sort=PriceAsc"),
         ("Có Sẵn Hàng", "stock", "/tim-kiem?inStock=true"),
     ];
+
+    /// <summary>
+    /// The 10.10 frame (transparent PNG, uploaded as is — the image pipeline would flatten it) and the products taking
+    /// part: Mall shops' products and about one in seven of the others, approved like an admin would.
+    /// </summary>
+    private async Task SeedCampaignFrameAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        var campaign = await db.Campaigns.FirstOrDefaultAsync(c => c.Slug == "sieu-sale-10-10", ct);
+        if (campaign is null || campaign.FrameImageUrl is not null) return;
+        await using var stream = typeof(MarketingSeeder).Assembly.GetManifestResourceStream("ShopHub.Infrastructure.Seed.Data.Art.frame-1010.png")
+            ?? throw new InvalidOperationException("Thiếu tài nguyên Art/frame-1010.png.");
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, ct);
+        await storage.PutAsync(Buckets.Banners, "seed/frame-1010.png", ms.ToArray(), "image/png", ct);
+        campaign.SetFrame(storage.PublicUrl(Buckets.Banners, "seed/frame-1010.png"));
+        var products = await (from p in db.Products.AsNoTracking()
+                              join sh in db.Shops.AsNoTracking() on p.ShopId equals sh.Id
+                              where p.Status == ProductStatus.Active
+                              orderby p.Id
+                              select new { p.Id, p.ShopId, Mall = sh.Type == Domain.Shops.ShopType.Mall }).ToListAsync(ct);
+        var rng = new Random(1010);
+        var picked = 0;
+        foreach (var p in products.Where(p => p.Mall ? rng.Next(100) < 45 : rng.Next(100) < 15))
+        {
+            var registration = new CampaignRegistration(campaign.Id, p.ShopId, p.Id, now);
+            registration.Decide(true, null, now);
+            db.CampaignRegistrations.Add(registration);
+            picked++;
+        }
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("SEED campaign frame: {Count} products take part", picked);
+    }
+
+    // Portrait slides at the left of the home "ShopHub Mall" block
+    private async Task SeedMallBannersAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        if (await db.Banners.AnyAsync(b => b.Position == BannerPosition.Mall, ct)) return;
+        string[] titles = ["ShopHub Mall — thương hiệu chính hãng", "ShopHub Mall — mỹ phẩm & nước hoa", "ShopHub Mall — thời trang chính hãng"];
+        for (var i = 0; i < titles.Length; i++)
+            db.Banners.Add(new Banner(BannerPosition.Mall, titles[i], await ArtAsync($"mall-{i + 1}.webp", ct), "/tim-kiem?mall=true", now.AddMinutes(-1),
+                now.AddYears(1), i, null, now));
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// A few shop programmes running now (combo, add-on deal, gift) created through the seller command as the shop owner —
+    /// so the "Combo giảm 10%", "Mua kèm deal sốc", "Có quà tặng" tags of the cards are real — and Freeship Xtra for the
+    /// Mall shops and some others.
+    /// </summary>
+    private async Task SeedShopProgrammesAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        if (await db.Promotions.AnyAsync(p => p.Type != PromotionType.Discount, ct)) return;
+        var shops = await db.Shops.Where(s => s.Status == Domain.Shops.ShopStatus.Active).OrderBy(s => s.Name).ToListAsync(ct);
+        foreach (var shop in shops.Where((s, i) => s.Type == Domain.Shops.ShopType.Mall || i % 4 == 0))
+            shop.SetXtra(Domain.Shops.XtraProgram.FreeshipXtra, true, now);
+        await db.SaveChangesAsync(ct);
+
+        var created = 0;
+        for (var i = 0; i < shops.Count && created < 12; i++)
+        {
+            var shop = shops[i];
+            var skus = await (from k in db.Skus.AsNoTracking()
+                              join p in db.Products.AsNoTracking() on k.ProductId equals p.Id
+                              where p.ShopId == shop.Id && p.Status == ProductStatus.Active && k.IsActive && k.Stock - k.Reserved > 10
+                              orderby k.Price, k.Id
+                              select new { SkuId = k.Id, k.ProductId, k.Price }).ToListAsync(ct);
+            var products = skus.Select(k => k.ProductId).Distinct().ToList();
+            if (products.Count < 5) continue;
+            var type = (PromotionType)(1 + created % 3);  // Combo, AddOn, Gift
+            var main = products.Skip(1).Take(4).ToList();
+            var cheapest = skus.First();
+            var input = type switch
+            {
+                PromotionType.Combo => new Application.Features.Marketing.PromotionInput(type, "Mua 2 giảm 10%", now.AddHours(-1), now.AddDays(30), main, null,
+                    2, 1_000, 0, 0, 0, null, 0),
+                PromotionType.AddOn => new Application.Features.Marketing.PromotionInput(type, "Mua kèm deal sốc", now.AddHours(-1), now.AddDays(30), main,
+                    [new Application.Features.Marketing.PromotionSkuInput(cheapest.SkuId, Math.Max(1_000, cheapest.Price * 6 / 10 / 1_000 * 1_000), 2)],
+                    0, 0, 0, 2, 0, null, 0),
+                _ => new Application.Features.Marketing.PromotionInput(type, "Quà tặng cho đơn từ ₫300.000", now.AddHours(-1), now.AddDays(30), main, null,
+                    0, 0, 0, 0, 300_000, cheapest.SkuId, 1),
+            };
+            try
+            {
+                await using var scope = services.CreateAsyncScope();
+                scope.ServiceProvider.GetRequiredService<ActingUser>().UserId = shop.OwnerId;
+                await scope.ServiceProvider.GetRequiredService<ISender>().Send(new Application.Features.Marketing.CreatePromotionCommand(shop.Id, input), ct);
+                created++;
+            }
+            catch (Exception ex) when (ex is Application.Common.ConflictException or Domain.Common.BusinessRuleException or FluentValidation.ValidationException)
+            {
+                logger.LogWarning("Sample programme for {Shop} refused: {Message}", shop.Name, ex.Message);
+            }
+        }
+        logger.LogInformation("SEED shop programmes: {Count} (combo / add-on / gift), Freeship Xtra for Mall shops and a few others", created);
+    }
 
     /// <summary>A seed artwork (Seed/Data/Art) through the image pipeline into the banner bucket; its large public URL.</summary>
     private async Task<string> ArtAsync(string file, CancellationToken ct)
@@ -84,7 +182,9 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
                 var slot = n++ % 2 == 0 ? running : next;
                 // Never more units than the stock can deliver
                 var quota = Math.Min(20 + n * 5, p.Sku!.Available);
-                var item = new FlashSaleItem(slot.Id, p.Sku.Id, p.Id, p.ShopId, Math.Max(1_000, p.Sku.Price * 70 / 100 / 1_000 * 1_000), quota, 2, now);
+                // Discounts from 10 % to 50 % (not one flat rate)
+                var off = 10 + n * 17 % 41;
+                var item = new FlashSaleItem(slot.Id, p.Sku.Id, p.Id, p.ShopId, Math.Max(1_000, p.Sku.Price * (100 - off) / 100 / 1_000 * 1_000), quota, 2, now);
                 item.Approve(now);
                 db.FlashSaleItems.Add(item);
                 db.PricePrograms.Add(new PriceProgram(item.SkuId, item.ShopId, PriceProgramKind.PlatformFlash, item.Id, item.FlashPrice, slot.StartAt, slot.EndAt));
@@ -123,5 +223,9 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
             await db.SaveChangesAsync(ct);
             logger.LogInformation("SEED campaign: sieu-sale-10-10");
         }
+
+        await SeedCampaignFrameAsync(now, ct);
+        await SeedMallBannersAsync(now, ct);
+        await SeedShopProgrammesAsync(now, ct);
     }
 }

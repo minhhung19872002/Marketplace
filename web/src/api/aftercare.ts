@@ -38,6 +38,9 @@ export interface Review {
   edited: boolean;
   sellerReply: string | null;
   repliedAt: string | null;
+  /** "Hữu ích" votes and whether the signed-in viewer gave one */
+  helpfulCount: number;
+  helpfulByMe: boolean;
 }
 
 export interface ProductReviews {
@@ -80,6 +83,8 @@ export const reviewsApi = {
     apiCommand<string>(`/orders/${encodeURIComponent(code)}/items/${orderItemId}/review`, { method: 'POST', body: input }),
   edit: (reviewId: string, input: ReviewInput) => apiCommand(`/reviews/${reviewId}`, { method: 'PUT', body: input }),
   report: (reviewId: string, reason: string) => apiCommand(`/reviews/${reviewId}/report`, { method: 'POST', body: { reason } }),
+  /** "Hữu ích" on / off; the review's new count comes back */
+  helpful: (reviewId: string, on: boolean) => apiCommand<number>(`/reviews/${reviewId}/helpful`, { method: on ? 'POST' : 'DELETE' }),
 };
 
 /** Why a review is reported (spec 3.11: báo cáo đánh giá vi phạm → quản trị ẩn) */

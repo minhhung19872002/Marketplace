@@ -123,7 +123,8 @@ public sealed class SeoRenderHandler(ISender sender, IApplicationDbContext db, I
 
     private async Task<Page> HomeAsync(string name, CancellationToken ct)
     {
-        var categories = await db.Categories.AsNoTracking().Where(c => c.IsActive && c.ParentId == null).OrderBy(c => c.SortOrder)
+        var hidden = await Features.Catalog.CategoryVisibility.HiddenIdsAsync(db, ct);
+        var categories = await db.Categories.AsNoTracking().Where(c => c.IsActive && c.ParentId == null && !hidden.Contains(c.Id)).OrderBy(c => c.SortOrder)
             .Select(c => new { c.Name, c.Slug }).ToListAsync(ct);
         var top = await sender.Send(new SearchProductsQuery(Sort: ProductSort.BestSelling, PageSize: 60), ct);
         var body = $"<h1>{E(name)} — Mua sắm online giá tốt</h1>" +
@@ -306,8 +307,11 @@ public sealed class SitemapHandlers(IApplicationDbContext db, ISystemParameters 
             urls = [("/", null), ("/tro-giup", null), .. cms.Select(p => ((p.Kind == Domain.SystemConfig.CmsKind.Page ? "/trang/" : "/tro-giup/") + p.Slug, (DateTimeOffset?)p.UpdatedAt))];
         }
         else if (request.Name == "categories")
-            urls = (await db.Categories.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.Slug).Select(c => c.Slug).ToListAsync(ct))
+        {
+            var hidden = await Features.Catalog.CategoryVisibility.HiddenIdsAsync(db, ct);
+            urls = (await db.Categories.AsNoTracking().Where(c => c.IsActive && !hidden.Contains(c.Id)).OrderBy(c => c.Slug).Select(c => c.Slug).ToListAsync(ct))
                 .Select(s => (SeoPaths.Category(s), (DateTimeOffset?)null)).ToList();
+        }
         else if (request.Name == "shops")
             urls = (await db.Shops.AsNoTracking().Where(s => s.Status == ShopStatus.Active || s.Status == ShopStatus.Vacation).OrderBy(s => s.Slug)
                     .Select(s => new { s.Slug, s.UpdatedAt }).Take(Sitemaps.UrlsPerFile).ToListAsync(ct))

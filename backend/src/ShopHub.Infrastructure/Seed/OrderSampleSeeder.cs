@@ -131,6 +131,8 @@ public sealed class OrderSampleSeeder(IServiceProvider services, ShopHubSettings
                 logger.LogInformation("SEED sample orders: {Done}/{Total} ({Seconds:0}s)", i + 1, Orders, (DateTime.UtcNow - started).TotalSeconds);
         }
 
+        await FlashBuysAsync(buyers.Select(b => b.Id).ToList(), rng, counters, ct);
+
         // Back to now: what the scheduler would have done since (expiry, auto-complete, returns, payouts)
         await using (var scope = services.CreateAsyncScope())
         {
@@ -265,8 +267,17 @@ public sealed class OrderSampleSeeder(IServiceProvider services, ShopHubSettings
             var text = ReviewTexts[rng.Next(ReviewTexts.Length)];
             IReadOnlyList<string> tags = rating >= 4 ? Domain.Engage.Review.AllowedTags.OrderBy(_ => rng.Next()).Take(rng.Next(1, 3)).ToList() : [];
             await using var scope = services.CreateAsyncScope();
+            // About a third of the happy buyers add a photo or two of what they received (spec 3.11, G2-B2)
+            List<Guid>? photos = null;
+            if (rating >= 4 && rng.Next(100) < 30)
+            {
+                photos = [];
+                foreach (var bytes in await BuyerPhotosAsync(itemId, 1 + rng.Next(2), rng, ct))
+                    photos.Add((await SendAsync(scope, buyerId, new UploadMediaCommand(bytes, MediaPurpose.Review), ct)).Id);
+                if (photos.Count == 0) photos = null;
+            }
             using (SystemClock.TravelTo(reviewed))
-                await SendAsync(scope, buyerId, new WriteReviewCommand(order.Code, itemId, rating, text.Length == 0 ? null : text, tags, rng.Next(100) < 15, null), ct);
+                await SendAsync(scope, buyerId, new WriteReviewCommand(order.Code, itemId, rating, text.Length == 0 ? null : text, tags, rng.Next(100) < 15, photos), ct);
             counters.Reviews++;
         }
     }
@@ -332,10 +343,105 @@ public sealed class OrderSampleSeeder(IServiceProvider services, ShopHubSettings
             .OrderBy(i => i.Id).Select(i => i.Id).ToListAsync(ct);
     }
 
+    /// <summary>
+    /// The running Flash Sale gets real buyers too: sample buyers check out flash items now, through the same cart and
+    /// checkout commands (the slot's "Đã bán" then comes from these orders). Popular items lead, so the bars differ.
+    /// </summary>
+    private async Task FlashBuysAsync(List<Guid> buyers, Random rng, Counters counters, CancellationToken ct)
+    {
+        await using var root = services.CreateAsyncScope();
+        var db = root.ServiceProvider.GetRequiredService<ShopHubDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var items = await (from i in db.FlashSaleItems.AsNoTracking()
+                           join sl in db.FlashSaleSlots.AsNoTracking() on i.SlotId equals sl.Id
+                           where sl.StartAt <= now && sl.EndAt > now && i.Status == Domain.Promo.FlashItemStatus.Approved
+                           orderby i.Id
+                           select new { i.SkuId, i.ShopId, i.PerUserLimit }).ToListAsync(ct);
+        if (items.Count == 0) return;
+        foreach (var buyer in buyers)
+        {
+            for (var k = rng.Next(1, 4); k > 0; k--)
+            {
+                var item = items[(int)(items.Count * Math.Pow(rng.NextDouble(), 1.8))];
+                try
+                {
+                    await using var scope = services.CreateAsyncScope();
+                    var cart = await SendAsync(scope, buyer, new GetCartQuery(new CartOwner(buyer, null)), ct);
+                    var leftovers = cart.Shops.SelectMany(s => s.Lines).Select(l => l.SkuId).ToList();
+                    if (leftovers.Count > 0) await SendAsync(scope, buyer, new RemoveCartItemsCommand(new CartOwner(buyer, null), leftovers), ct);
+                    await SendAsync(scope, buyer, new AddCartItemCommand(new CartOwner(buyer, null), item.SkuId, 1 + rng.Next(Math.Max(1, item.PerUserLimit))), ct);
+                    var addressId = await scope.ServiceProvider.GetRequiredService<ShopHubDbContext>().Addresses.AsNoTracking()
+                        .Where(a => a.UserId == buyer && a.IsDefault).Select(a => a.Id).FirstAsync(ct);
+                    var request = new CheckoutRequest(addressId, [new CheckoutShopChoice(item.ShopId, null, null, null)], null, null, false, PaymentMethod.Cod);
+                    var quote = await SendAsync(scope, buyer, new QuoteCheckoutQuery(request), ct);
+                    if (!quote.CanPlace) continue;
+                    var result = await SendAsync(scope, buyer, new PlaceOrderCommand(Guid.NewGuid().ToString("N"), request, quote.GrandTotal), ct);
+                    counters.Placed += result.Orders.Count;
+                }
+                catch (Exception ex) when (ex is ConflictException or Domain.Common.BusinessRuleException or NotFoundException or FluentValidation.ValidationException)
+                {
+                    // Per-buyer limit reached or the quota ran out: like a real crowd, some do not get one
+                }
+            }
+        }
+    }
+
     private static async Task<T> SendAsync<T>(AsyncServiceScope scope, Guid actAs, IRequest<T> request, CancellationToken ct)
     {
         scope.ServiceProvider.GetRequiredService<ActingUser>().UserId = actAs;
         return await scope.ServiceProvider.GetRequiredService<ISender>().Send(request, ct);
+    }
+
+    /// <summary>
+    /// "Photos the buyer took" of an order line: the product's own seed photos as if shot at home — tilted, cropped off
+    /// centre, on a warm table colour with soft light. Empty when the product has no seed photo.
+    /// </summary>
+    private async Task<List<byte[]>> BuyerPhotosAsync(Guid orderItemId, int count, Random rng, CancellationToken ct)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ShopHubDbContext>();
+        var urls = await (from i in db.OrderItems.AsNoTracking()
+                          join p in db.Products.AsNoTracking() on i.ProductId equals p.Id
+                          where i.Id == orderItemId
+                          select p.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.SortOrder).Select(m => m.Url).ToList()).FirstOrDefaultAsync(ct) ?? [];
+        var result = new List<byte[]>();
+        // Studio photos only (pNNN-k), not the marketing cover (pNNN-m)
+        foreach (var url in urls.Where(u => u.Contains("/product/seed/p", StringComparison.Ordinal) && !u.Contains("-m_", StringComparison.Ordinal))
+                     .OrderBy(_ => rng.Next()).Take(count))
+        {
+            var name = url[(url.LastIndexOf('/') + 1)..];
+            name = name[..name.LastIndexOf('_')] + ".webp";
+            await using var stream = typeof(OrderSampleSeeder).Assembly.GetManifestResourceStream($"ShopHub.Infrastructure.Seed.Data.ProductImages.{name}");
+            if (stream is null) continue;
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms, ct);
+            result.Add(HomePhoto(ms.ToArray(), rng));
+        }
+        return result;
+    }
+
+    private static readonly SKColor[] Tables = [new(0xEE, 0xE2, 0xD0), new(0xE4, 0xD5, 0xC1), new(0xDD, 0xE3, 0xE8), new(0xEF, 0xE9, 0xE1), new(0xD9, 0xCB, 0xB5)];
+
+    private static byte[] HomePhoto(byte[] studio, Random rng)
+    {
+        using var source = SKBitmap.Decode(studio);
+        using var bmp = new SKBitmap(720, 720);
+        using (var canvas = new SKCanvas(bmp))
+        {
+            var table = Tables[rng.Next(Tables.Length)];
+            using (var bg = new SKPaint { Shader = SKShader.CreateRadialGradient(new SKPoint(240 + rng.Next(240), 200 + rng.Next(200)), 700,
+                       [table.WithAlpha(255), new SKColor((byte)(table.Red * 0.8), (byte)(table.Green * 0.8), (byte)(table.Blue * 0.8))], SKShaderTileMode.Clamp) })
+                canvas.DrawRect(0, 0, 720, 720, bg);
+            canvas.Translate(360 + rng.Next(-60, 60), 360 + rng.Next(-40, 60));
+            canvas.RotateDegrees(rng.Next(-14, 15));
+            var scale = 0.9f + (float)rng.NextDouble() * 0.45f;
+            canvas.Scale(scale);
+            // The studio photo has a white background: multiply blends it into the table
+            using var paint = new SKPaint { BlendMode = SKBlendMode.Multiply, IsAntialias = true };
+            canvas.DrawBitmap(source, new SKRect(-360, -360, 360, 360), paint);
+        }
+        using var img = SKImage.FromBitmap(bmp);
+        return img.Encode(SKEncodedImageFormat.Jpeg, 82).ToArray();
     }
 
     private static byte[] EvidencePhoto(Random rng)

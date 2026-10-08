@@ -13,6 +13,8 @@ export interface CategoryNode {
   level: number
   sortOrder: number
   isActive: boolean
+  // Shown to buyers (false also when a category above is hidden); sellers still list in it
+  isVisible: boolean
   commissionRateBp: number
   isLeaf: boolean
   children: CategoryNode[]
@@ -110,7 +112,7 @@ const q = (params: Record<string, string | number | boolean | undefined>) =>
 
 export const catalogApi = {
   categories: () => apiRequest<CategoryNode[]>('/admin/categories'),
-  saveCategory: (body: { id?: string; parentId: string | null; name: string; iconUrl?: string | null; sortOrder: number; commissionRateBp: number; isActive: boolean }) =>
+  saveCategory: (body: { id?: string; parentId: string | null; name: string; iconUrl?: string | null; sortOrder: number; commissionRateBp: number; isActive: boolean; isVisible: boolean }) =>
     apiCommand<string>('/admin/categories', { method: 'POST', body }),
   attributes: (categoryId: string) => apiRequest<CategoryAttribute[]>(`/categories/${categoryId}/attributes`),
   saveAttribute: (body: Omit<CategoryAttribute, 'id'> & { id?: string }) => apiCommand<string>('/admin/categories/attributes', { method: 'POST', body }),

@@ -2,7 +2,7 @@
 // is the voucher the checkout uses. Needs an admin to approve the test shop:
 //   SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=... SH_E2E_ADMIN_PASSWORD=... npx playwright test cart-voucher.spec.cjs
 const { test, expect } = require('@playwright/test');
-const { BASE, addAddressViaApi, apiAs, apiLogin, loginInBrowser, registerViaApi, shopWithProduct } = require('./helpers.cjs');
+const { BASE, addAddressViaApi, apiAs, apiLogin, loginInBrowser, registerViaApi, shopWithProduct, pickVoucher } = require('./helpers.cjs');
 
 const ADMIN_USER = process.env.SH_E2E_ADMIN_USER;
 const ADMIN_PASSWORD = process.env.SH_E2E_ADMIN_PASSWORD;
@@ -31,11 +31,11 @@ test.describe('Voucher shop trong giỏ', () => {
 
     await page.goto(`${BASE}/gio-hang`);
     const block = page.getByTestId('cart-shop').filter({ hasText: shop.shopName });
-    await block.getByTestId('cart-voucher-select').selectOption(code);
+    await pickVoucher(block, 'cart-voucher', code);
     await expect(block.getByTestId('cart-voucher-saving')).toContainText('20.000');
 
     await page.getByTestId('checkout').click();
     await page.waitForURL(`${BASE}/thanh-toan`);
-    await expect(page.getByTestId('shop-voucher-select')).toHaveValue(code);
+    await expect(page.getByTestId('shop-voucher-value')).toContainText(code);
   });
 });

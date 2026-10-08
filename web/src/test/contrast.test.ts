@@ -50,6 +50,15 @@ describe('contrast', () => {
     expect(contrast(token('sh-primary-dark'), token('sh-primary-soft'))).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('discount tag text on the yellow tag', () => {
+    expect(contrast(token('sh-deal-tag-text'), token('sh-deal-tag'))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('Flash Sale bar text on its track and on every stop of its fill', () => {
+    expect(contrast(token('sh-flash-text'), token('sh-flash-track'))).toBeGreaterThanOrEqual(4.5);
+    for (const stop of stops(token('sh-flash-fill'))) expect(contrast(token('sh-flash-text'), stop), stop).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('the keyboard focus ring stands out from white (non-text 3:1)', () => {
     expect(contrast(token('sh-focus'), white)).toBeGreaterThanOrEqual(3);
   });

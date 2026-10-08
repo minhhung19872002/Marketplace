@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type FormEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,9 +10,10 @@ import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { UserAvatar } from './AvatarEditor';
 import { cartBadge, recentLines } from '../lib/cart';
-import { badgeCount } from '../lib/text';
+import { badgeCount, highlightParts } from '../lib/text';
+import { clearSearchHistory, pushSearchHistory, readSearchHistory } from '../lib/searchHistory';
 import './Header.css';
-import { Bell, CircleHelp, Store, TrendingUp, UserRound, Heart, ShoppingCart } from 'lucide-react';
+import { Bell, CircleHelp, History, Search, Store, TrendingUp, UserRound, Heart, ShoppingCart } from 'lucide-react';
 
 // The seller centre is its own app under /seller (full page load, not a client route)
 const SELLER_URL = '/seller/';
@@ -26,6 +27,11 @@ function useDebounced<T>(value: T, ms: number): T {
   }, [value, ms]);
   return debounced;
 }
+
+/** The text with the typed part (accent-insensitive) in bold. */
+const Highlight = ({ text, query }: { text: string; query: string }) => (
+  <>{highlightParts(text, query).map((part, i) => (part.match ? <b key={i}>{part.text}</b> : part.text))}</>
+);
 
 const Header = () => {
   const navigate = useNavigate();
@@ -55,6 +61,17 @@ const Header = () => {
   const [showSuggest, setShowSuggest] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  // Sticky bars below the header (e.g. "Gợi ý hôm nay") sit right under it through --sh-header-h
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const publish = () => document.documentElement.style.setProperty('--sh-header-h', `${el.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const userRef = useRef<HTMLDivElement>(null);
 
   // Đóng dropdown khi click ra ngoài
@@ -68,9 +85,21 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
+  const [history, setHistory] = useState<string[]>(readSearchHistory);
+  const suggestRef = useRef<HTMLDivElement>(null);
   const goSearch = (q: string) => {
+    if (q && q.trim()) setHistory(pushSearchHistory(q));
     navigate(q && q.trim() ? `/tim-kiem?q=${encodeURIComponent(q.trim())}` : '/tim-kiem');
     setShowSuggest(false);
+  };
+
+  /** ↑ / ↓ move through the suggestions, Esc closes them (the input hands over with ↓). */
+  const onSuggestKey = (e: KeyboardEvent) => {
+    const items = Array.from(suggestRef.current?.querySelectorAll<HTMLButtonElement>('.header-suggest-item') ?? []);
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); items[Math.min(items.length - 1, at + 1)]?.focus(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); if (at <= 0) searchRef.current?.querySelector('input')?.focus(); else items[at - 1]?.focus(); }
+    if (e.key === 'Escape') { setShowSuggest(false); searchRef.current?.querySelector('input')?.focus(); }
   };
 
   const handleSearch = (e: FormEvent<HTMLFormElement>) => {
@@ -93,7 +122,7 @@ const Header = () => {
   const suggestedShops = typed ? suggestion?.shops ?? [] : [];
 
   return (
-    <header className={`header ${compact ? 'header--compact' : ''}`} data-compact={compact}>
+    <header ref={headerRef} className={`header ${compact ? 'header--compact' : ''}`} data-compact={compact}>
       {/* Thanh trên cùng */}
       <div className="header-top">
         <div className="container header-top-inner">
@@ -169,6 +198,10 @@ const Header = () => {
                 setShowSuggest(true);
               }}
               onFocus={() => setShowSuggest(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') { e.preventDefault(); setShowSuggest(true); suggestRef.current?.querySelector<HTMLButtonElement>('.header-suggest-item')?.focus(); }
+                if (e.key === 'Escape') setShowSuggest(false);
+              }}
               aria-label="Tìm kiếm sản phẩm"
             />
             <button type="submit" className="header-search-btn" aria-label="Tìm kiếm">
@@ -179,35 +212,42 @@ const Header = () => {
             </button>
           </form>
 
-          {/* Dropdown gợi ý tìm kiếm */}
-          {showSuggest && (
-            <div className="header-suggest" data-testid="search-suggest">
+          {/* Search suggestions (G2-B3): shop card, keywords and products with the typed part in bold; history when empty */}
+          {showSuggest && (typed || history.length > 0 || hotKeywords.length > 0) && (
+            <div className="header-suggest" data-testid="search-suggest" onKeyDown={onSuggestKey} ref={suggestRef}>
               {typed ? (
                 <>
-                  {suggestedShops.map((shop) => (
+                  {suggestedShops.slice(0, 1).map((shop) => (
                     <button
                       key={shop.id}
-                      className="header-suggest-item"
+                      type="button"
+                      className="header-suggest-item header-suggest-shop"
                       onClick={() => {
                         setShowSuggest(false);
                         navigate(`/shop/${shop.slug}`);
                       }}
+                      data-testid="suggest-shop"
                     >
-                      <Store size={14} className="header-suggest-icon" aria-hidden /> <span>Shop: {shop.name}</span>
+                      <span className="header-suggest-shop-logo">
+                        {shop.logoUrl ? <img src={shop.logoUrl} alt="" onError={handleImgError} /> : <Store size={18} aria-hidden />}
+                      </span>
+                      <span className="header-suggest-shop-text">
+                        <strong><Highlight text={shop.name} query={keyword} /></strong>
+                        <small>Tìm shop “{keyword.trim()}”</small>
+                      </span>
                       {shop.isMall && <span className="header-suggest-mall">Mall</span>}
                     </button>
                   ))}
                   {suggestedKeywords.map((k) => (
-                    <button key={k} className="header-suggest-item" onClick={() => goSearch(k)}>
-                      <svg className="header-suggest-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-                      </svg>
-                      <span>{k}</span>
+                    <button key={k} type="button" className="header-suggest-item" onClick={() => goSearch(k)}>
+                      <Search size={14} className="header-suggest-icon" aria-hidden />
+                      <span><Highlight text={k} query={keyword} /></span>
                     </button>
                   ))}
                   {suggestedProducts.map((p) => (
                     <button
                       key={p.id}
+                      type="button"
                       className="header-suggest-item"
                       onClick={() => {
                         setShowSuggest(false);
@@ -216,24 +256,39 @@ const Header = () => {
                       data-testid="suggest-product"
                     >
                       <img className="header-suggest-thumb" src={imageOrPlaceholder(p.imageUrl)} alt="" onError={handleImgError} />
-                      <span>{p.name}</span>
+                      <span><Highlight text={p.name} query={keyword} /></span>
                     </button>
                   ))}
-                  <button className="header-suggest-item header-suggest-all" onClick={() => goSearch(keyword)}>
+                  <button type="button" className="header-suggest-item header-suggest-all" onClick={() => goSearch(keyword)}>
                     Tìm “{keyword.trim()}”
                   </button>
                 </>
               ) : (
-                hotKeywords.length > 0 && (
-                  <div className="header-suggest-trending">
-                    <div className="header-suggest-title">Tìm kiếm phổ biến</div>
-                    {hotKeywords.map((k) => (
-                      <button key={k} className="header-suggest-item" onClick={() => goSearch(k)}>
-                        <TrendingUp size={14} className="header-suggest-icon" aria-hidden /> <span>{k}</span>
-                      </button>
-                    ))}
-                  </div>
-                )
+                <>
+                  {history.length > 0 && (
+                    <div className="header-suggest-group" data-testid="search-history">
+                      <div className="header-suggest-title">
+                        Lịch sử tìm kiếm
+                        <button type="button" className="header-suggest-clear" data-confirm="local" onClick={() => { clearSearchHistory(); setHistory([]); }}>Xoá</button>
+                      </div>
+                      {history.map((k) => (
+                        <button key={k} type="button" className="header-suggest-item" onClick={() => goSearch(k)}>
+                          <History size={14} className="header-suggest-icon" aria-hidden /> <span>{k}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {hotKeywords.length > 0 && (
+                    <div className="header-suggest-group">
+                      <div className="header-suggest-title">Tìm kiếm phổ biến</div>
+                      {hotKeywords.map((k) => (
+                        <button key={k} type="button" className="header-suggest-item" onClick={() => goSearch(k)}>
+                          <TrendingUp size={14} className="header-suggest-icon" aria-hidden /> <span>{k}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

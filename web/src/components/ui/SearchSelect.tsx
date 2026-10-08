@@ -65,7 +65,7 @@ const SearchSelect = ({ value, options, onChange, placeholder, label, disabled, 
   return (
     <div className={`sh-select ${open ? 'is-open' : ''}`} ref={root} data-testid={testId}>
       <button type="button" className="sh-select__trigger" onClick={() => setOpen((v) => !v)} disabled={disabled}
-        aria-haspopup="listbox" aria-expanded={open} aria-label={label}>
+        aria-haspopup="listbox" aria-expanded={open} aria-label={`${label}: ${selected?.label ?? placeholder}`}>
         <span className={selected ? '' : 'sh-select__placeholder'}>{selected?.label ?? placeholder}</span>
         <ChevronDown size={16} aria-hidden />
       </button>

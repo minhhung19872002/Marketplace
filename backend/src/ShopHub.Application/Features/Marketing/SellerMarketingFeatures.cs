@@ -104,10 +104,13 @@ public sealed class CreatePromotionHandler(IApplicationDbContext db, SellerAcces
     {
         var staff = await access.RequireAsync(request.ShopId, ShopPermissions.MarketingManage, ct);
         var input = request.Input;
+        await using var tx = await db.BeginTransactionAsync(ct);
+        await PromotionContent.LockSkusAsync(db, input, ct);
         var promo = new Promotion(request.ShopId, input.Type, input.Name, input.StartAt, input.EndAt, staff.UserId, clock.UtcNow);
         await PromotionContent.FillAsync(db, promo, input, ct);
         db.Promotions.Add(promo);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return promo.Id;
     }
 }
@@ -131,6 +134,7 @@ public sealed class UpdatePromotionHandler(IApplicationDbContext db, SellerAcces
         await access.RequireAsync(request.ShopId, ShopPermissions.MarketingManage, ct);
         var now = clock.UtcNow;
         await using var tx = await db.BeginTransactionAsync(ct);
+        await PromotionContent.LockSkusAsync(db, request.Input, ct);
         var promo = await db.Promotions.Include(p => p.Products).Include(p => p.Skus)
                         .FirstOrDefaultAsync(p => p.Id == request.PromotionId && p.ShopId == request.ShopId, ct)
                     ?? throw new NotFoundException("Không tìm thấy chương trình.");
@@ -150,6 +154,19 @@ public sealed class UpdatePromotionHandler(IApplicationDbContext db, SellerAcces
 
 internal static class PromotionContent
 {
+    /// <summary>
+    /// Writers of price programmes for the same SKUs take turns (L147): two overlapping inserts checked by the exclusion
+    /// constraint at the same moment wait on each other's uncommitted row and Postgres kills one as a deadlock (40P01 —
+    /// a 500, not the 409 of a plain conflict). Locks are taken in SKU order inside the caller's transaction, so the
+    /// second writer simply waits and then meets the first one's committed row (23P01 → 409).
+    /// </summary>
+    public static async Task LockSkusAsync(IApplicationDbContext db, PromotionInput input, CancellationToken ct)
+    {
+        if (input.Type != PromotionType.Discount) return;
+        foreach (var skuId in (input.Skus ?? []).Select(s => s.SkuId).Distinct().OrderBy(id => id))
+            await db.LockAsync($"price-programs:{skuId}", ct);
+    }
+
     /// <summary>Products, SKU prices, the type's settings and (for a discount) the price programmes of <paramref name="promo"/>.</summary>
     public static async Task FillAsync(IApplicationDbContext db, Promotion promo, PromotionInput input, CancellationToken ct)
     {

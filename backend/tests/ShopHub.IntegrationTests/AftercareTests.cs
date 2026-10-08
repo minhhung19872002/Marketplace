@@ -172,6 +172,30 @@ public class AftercareTests(ApiFactory factory)
         page.GetProperty("summary").GetProperty("total").GetInt32().Should().Be(0);
     }
 
+    [Fact]
+    public async Task Helpful_votes_count_one_per_buyer_even_when_clicked_twice_at_once()
+    {
+        var b = await BuyAsync(quantity: 1);
+        var write = await b.Buyer.Client.PostAsJsonAsync($"/api/orders/{b.Code}/items/{b.ItemId}/review", new { rating = 5, content = "Hàng tốt, đóng gói kỹ", anonymous = false });
+        var reviewId = Guid.Parse((await write.ReadEnvelopeAsync()).Data.GetString()!);
+        var voter = await factory.CreateUserAsync();
+        var other = await factory.CreateUserAsync();
+
+        // Two clicks at the same moment: one vote (unique index), both answers 200
+        var twice = await Task.WhenAll(Task.Run(() => voter.Client.PostAsync($"/api/reviews/{reviewId}/helpful", null)),
+            Task.Run(() => voter.Client.PostAsync($"/api/reviews/{reviewId}/helpful", null)));
+        twice.Should().OnlyContain(r => r.IsSuccessStatusCode);
+        (await (await other.Client.PostAsync($"/api/reviews/{reviewId}/helpful", null)).ReadEnvelopeAsync()).Data.GetInt32().Should().Be(2);
+
+        var seen = (await (await voter.Client.GetAsync($"/api/products/{b.ProductId}/reviews")).ReadEnvelopeAsync()).Data.GetProperty("reviews").GetProperty("items")[0];
+        seen.GetProperty("helpfulCount").GetInt32().Should().Be(2);
+        seen.GetProperty("helpfulByMe").GetBoolean().Should().BeTrue();
+
+        (await (await voter.Client.DeleteAsync($"/api/reviews/{reviewId}/helpful")).ReadEnvelopeAsync()).Data.GetInt32().Should().Be(1);
+        (await factory.CreateClient().PostAsync($"/api/reviews/{reviewId}/helpful", null)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await voter.Client.PostAsync($"/api/reviews/{Guid.NewGuid()}/helpful", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
     // ---------- returns ----------
 
     [Fact]

@@ -6,6 +6,8 @@
 
 .main-content {
   flex: 1;
+  /* The footer starts below the first screen, so pages filling in after their data arrives never push it (CLS, G2) */
+  min-height: 100vh;
 }
 
 .page-loader {

@@ -1,7 +1,7 @@
 // Phase 5 — cart, checkout, payment (spec section 9, scenarios 2, 3, 4). Needs the stack and an admin account:
 //   SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=... SH_E2E_ADMIN_PASSWORD=... npx playwright test commerce.spec.cjs
 const { test, expect } = require('@playwright/test');
-const { BASE, api, apiAs, apiLogin, addAddressViaApi, findProduct, loginInBrowser, registerViaApi, withoutTiers } = require('./helpers.cjs');
+const { BASE, api, apiAs, apiLogin, addAddressViaApi, findProduct, loginInBrowser, registerViaApi, withoutTiers, pickVoucher } = require('./helpers.cjs');
 
 const ADMIN_USER = process.env.SH_E2E_ADMIN_USER;
 const ADMIN_PASSWORD = process.env.SH_E2E_ADMIN_PASSWORD;
@@ -82,9 +82,9 @@ test.describe('Giỏ hàng & thanh toán', () => {
 
     // Shop voucher for the first shop block, the platform's SHOPHUB50, and xu
     const firstShop = page.locator('[data-testid="checkout-shop"]').filter({ hasText: a.product.shop.name });
-    await firstShop.locator('[data-testid="shop-voucher-select"]').selectOption(a.voucher.code);
+    await pickVoucher(firstShop, 'shop-voucher', a.voucher.code);
     await expect(firstShop.locator('.checkout-shop-total')).not.toHaveText(/^$/);
-    await page.locator('[data-testid="platform-voucher-select"]').selectOption('SHOPHUB50');
+    await pickVoucher(page, 'platform-voucher', 'SHOPHUB50');
     await page.locator('[data-testid="use-coins"]').check();
     await expect(page.locator('[data-testid="checkout-summary"]')).toContainText('Voucher của shop');
     await expect(page.locator('[data-testid="checkout-summary"]')).toContainText('ShopHub Voucher');

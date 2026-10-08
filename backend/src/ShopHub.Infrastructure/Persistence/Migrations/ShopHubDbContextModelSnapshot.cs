@@ -118,6 +118,12 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsVisible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_visible");
+
                     b.Property<int>("Level")
                         .HasColumnType("integer")
                         .HasColumnName("level");
@@ -1291,6 +1297,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<DateTimeOffset?>("HiddenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("hidden_at");
+
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid")
                         .HasColumnName("product_id");
@@ -1480,6 +1490,35 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_reviews_rating", "rating BETWEEN 1 AND 5");
                         });
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.ReviewHelpfulVote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("review_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_review_helpful_votes");
+
+                    b.HasIndex("ReviewId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_review_helpful_votes");
+
+                    b.ToTable("review_helpful_votes", "engage");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Engage.ReviewMedia", b =>
@@ -3399,6 +3438,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("EndAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("end_at");
+
+                    b.Property<string>("FrameImageUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("frame_image_url");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -6967,6 +7010,16 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_reviews_products_product_id");
+                });
+
+            modelBuilder.Entity("ShopHub.Domain.Engage.ReviewHelpfulVote", b =>
+                {
+                    b.HasOne("ShopHub.Domain.Engage.Review", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_review_helpful_votes_reviews_review_id");
                 });
 
             modelBuilder.Entity("ShopHub.Domain.Engage.ReviewMedia", b =>

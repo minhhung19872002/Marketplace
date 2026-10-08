@@ -30,7 +30,10 @@ internal sealed class FacetLabeler(ShopHubDbContext db)
     {
         var carrierNames = await db.Carriers.AsNoTracking().ToDictionaryAsync(c => c.Code, c => c.Name, ct);
         var categoryIds = categories.Keys.Select(Guid.Parse).ToList();
-        var categoryNames = await db.Categories.AsNoTracking().Where(c => categoryIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id.ToString(), c => c.Name, ct);
+        // Categories hidden from buyers (G2-A7) never show up as a filter
+        var hidden = await Application.Features.Catalog.CategoryVisibility.HiddenIdsAsync(db, ct);
+        var categoryNames = await db.Categories.AsNoTracking().Where(c => categoryIds.Contains(c.Id) && !hidden.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id.ToString(), c => c.Name, ct);
         var provinceCodes = provinces.Keys.ToList();
         var provinceNames = await db.AdminDivisions.AsNoTracking().Where(d => provinceCodes.Contains(d.Code)).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
         var brandIds = brands.Keys.Select(Guid.Parse).ToList();

@@ -86,6 +86,7 @@ public interface IApplicationDbContext
     DbSet<Review> Reviews { get; }
     DbSet<ReviewMedia> ReviewMedia { get; }
     DbSet<ReviewReport> ReviewReports { get; }
+    DbSet<ReviewHelpfulVote> ReviewHelpfulVotes { get; }
     DbSet<ReturnRequest> ReturnRequests { get; }
     DbSet<ReturnItem> ReturnItems { get; }
     DbSet<ReturnEvidence> ReturnEvidence { get; }

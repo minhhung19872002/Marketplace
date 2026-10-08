@@ -425,7 +425,8 @@
       }
      ]
     }
-   ]
+   ],
+   "hidden": true
   },
   {
    "name": "Đồng Hồ",
@@ -596,7 +597,8 @@
       }
      ]
     }
-   ]
+   ],
+   "hidden": true
   },
   {
    "name": "Nhà Cửa & Đời Sống",
@@ -884,7 +886,8 @@
       }
      ]
     }
-   ]
+   ],
+   "hidden": true
   },
   {
    "name": "Bách Hóa Online",
@@ -1399,7 +1402,7 @@
    "sells": [
     "Bách Hóa Online"
    ],
-   "joinedDaysAgo": 220,
+   "joinedDaysAgo": 270,
    "color": "#558b2f"
   },
   {
@@ -1417,7 +1420,7 @@
    "sells": [
     "Bách Hóa Online"
    ],
-   "joinedDaysAgo": 210,
+   "joinedDaysAgo": 260,
    "color": "#4e342e"
   },
   {
@@ -1436,7 +1439,7 @@
     "Nhà Cửa & Đời Sống",
     "Bách Hóa Online"
    ],
-   "joinedDaysAgo": 200,
+   "joinedDaysAgo": 250,
    "color": "#ef6c00"
   },
   {
@@ -1455,7 +1458,7 @@
     "Điện Thoại & Phụ Kiện",
     "Máy Tính & Laptop"
    ],
-   "joinedDaysAgo": 180,
+   "joinedDaysAgo": 230,
    "color": "#1565c0"
   },
   {
@@ -1474,7 +1477,7 @@
     "Thể Thao & Du Lịch",
     "Ô Tô & Xe Máy"
    ],
-   "joinedDaysAgo": 160,
+   "joinedDaysAgo": 270,
    "color": "#f57f17"
   },
   {
@@ -1492,7 +1495,7 @@
    "sells": [
     "Sắc Đẹp"
    ],
-   "joinedDaysAgo": 150,
+   "joinedDaysAgo": 260,
    "color": "#2e7d32"
   },
   {
@@ -1511,7 +1514,7 @@
     "Thể Thao & Du Lịch",
     "Giày Dép Nam"
    ],
-   "joinedDaysAgo": 140,
+   "joinedDaysAgo": 250,
    "color": "#d84315"
   },
   {
@@ -1530,7 +1533,7 @@
     "Ô Tô & Xe Máy",
     "Đồng Hồ"
    ],
-   "joinedDaysAgo": 120,
+   "joinedDaysAgo": 230,
    "color": "#212121"
   },
   {
@@ -1549,7 +1552,7 @@
     "Bách Hóa Online",
     "Thú Cưng"
    ],
-   "joinedDaysAgo": 100,
+   "joinedDaysAgo": 270,
    "color": "#388e3c"
   }
  ],

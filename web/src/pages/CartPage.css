@@ -457,3 +457,45 @@
   color: var(--sh-warning);
   font-size: 11px;
 }
+
+/* ---- G2-B4 ---- */
+.cart-shop-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cart-shop-chat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  color: var(--sh-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.cart-item-low {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--sh-warning);
+  border-radius: 2px;
+  color: var(--sh-warning);
+  font-size: 12px;
+}
+
+.cart-variant-menu button:disabled {
+  text-decoration: line-through;
+}
+
+.cart-empty {
+  padding: 32px 20px;
+}
+
+.cart-shop .checkout-voucher {
+  justify-content: flex-start;
+  gap: 16px;
+}

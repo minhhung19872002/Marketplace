@@ -6,7 +6,7 @@
   --sh-on-primary: #fff;
   --sh-focus: #1f5fb8;
   /* WCAG AA: white text on every stop of it reaches 4.5:1 */
-  --sh-gradient-brand: linear-gradient(-180deg, #c93d19, #c64a1d);
+  --sh-gradient-brand: linear-gradient(-180deg, #d8381a, #c93d19);
   --sh-text-muted: #6b6b6b;
   --sh-gradient-voucher: linear-gradient(135deg, #7b4397, #dc2430);
   --sh-gradient-freeship: linear-gradient(135deg, #0b6b5f, #0f7a61);
@@ -69,6 +69,13 @@
   --sh-font-caption: 400 12px/16px var(--sh-font);
   --sh-font: 'Be Vietnam Pro', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
   --sh-container: 1200px;
+  /* "-xx%" tag of the cards: yellow with dark red text */
+  --sh-deal-tag: #ffd424;
+  --sh-deal-tag-text: #9b1c0a;
+  /* Flash Sale progress bar: dark text reads 4.5:1 on the track and on the fill */
+  --sh-flash-track: #ffe3d9;
+  --sh-flash-fill: linear-gradient(90deg, #ffb199, #ff9466);
+  --sh-flash-text: #6e1a06;
   /* Header heights (sticky offsets) */
   --sh-header-full: 120px;
   --sh-header-compact: 64px;

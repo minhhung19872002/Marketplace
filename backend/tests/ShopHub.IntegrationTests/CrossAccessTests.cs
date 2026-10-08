@@ -120,6 +120,7 @@ public class CrossAccessTests(ApiFactory factory)
         ["api/account/vouchers/{voucherId:guid}/claim"] = "public vouchers are saved by anyone (private ones need their code)",
         ["api/media/{purpose}"] = "upload: the purpose is not an id",
         ["api/reviews/{reviewId:guid}/report"] = "anyone may report a review they read",
+        ["api/reviews/{reviewId:guid}/helpful"] = "anyone may find a review they read helpful (one vote each, 00 #186)",
         ["api/cart/items/{skuId:guid}"] = "the caller's own cart line of that SKU",
     };
 
@@ -302,5 +303,33 @@ public class CrossAccessTests(ApiFactory factory)
         results.Count(r => r.IsSuccessStatusCode).Should().Be(1, "mọi khoảng thời gian đều chồng nhau: chỉ một chương trình giá được giữ — {0}", string.Join(" | ", answers));
         results.Where(r => !r.IsSuccessStatusCode).Should().OnlyContain(r => r.StatusCode == HttpStatusCode.Conflict, string.Join(" | ", answers));
         (await factory.WithDbAsync(db => db.PricePrograms.CountAsync(p => p.SkuId == sku && p.IsActive))).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Overlapping_programmes_on_two_skus_listed_in_opposite_orders_never_end_in_a_500()
+    {
+        // L147: two writers inserting the same pair of SKUs in opposite orders wait on each other inside the exclusion
+        // check — Postgres breaks that with a deadlock error. Writers must take turns, every loser gets a 409.
+        var store = await factory.CreateStoreAsync("79", products: [new("Ấm Đôi A", "Bình Giữ Nhiệt", 200_000, 50, "Việt Nam"), new("Ấm Đôi B", "Bình Giữ Nhiệt", 210_000, 50, "Việt Nam")]);
+        var staff = await factory.CreateUserAsync();
+        await factory.WithDbAsync(async db =>
+        {
+            db.ShopStaff.Add(new Domain.Shops.ShopStaff(store.ShopId, staff.Id, Domain.Shops.ShopStaffRole.Manager, ShopPermissions.All));
+            await db.SaveChangesAsync();
+            return 0;
+        });
+        var (a, b) = (store.Skus["Ấm Đôi A"], store.Skus["Ấm Đôi B"]);
+        var url = $"/api/seller/shops/{store.ShopId}/marketing/promotions";
+        var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(i => Task.Run(() => staff.Client.PostAsJsonAsync(url, new
+        {
+            type = "Discount", name = $"Đôi {i}", startAt = DateTimeOffset.UtcNow.AddHours(1), endAt = DateTimeOffset.UtcNow.AddDays(2),
+            skus = i % 2 == 0
+                ? new[] { new { skuId = a, price = 150_000 }, new { skuId = b, price = 160_000 } }
+                : new[] { new { skuId = b, price = 160_000 }, new { skuId = a, price = 150_000 } },
+        }))));
+        var answers = await Task.WhenAll(results.Select(async r => $"{(int)r.StatusCode} {await r.Content.ReadAsStringAsync()}"));
+        results.Count(r => r.IsSuccessStatusCode).Should().Be(1, string.Join(" | ", answers));
+        results.Where(r => !r.IsSuccessStatusCode).Should().OnlyContain(r => r.StatusCode == HttpStatusCode.Conflict, string.Join(" | ", answers));
+        answers.Should().NotContain(x => x.Contains("thao tác khác đang xử lý"), "chờ lượt thay vì deadlock (không phải thông báo thử lại)");
     }
 }

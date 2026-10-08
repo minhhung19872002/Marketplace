@@ -159,27 +159,29 @@ const CampaignsTab = () => {
   const [reviewing, setReviewing] = useState<Campaign | null>(null)
   const [editing, setEditing] = useState<Campaign | null>(null)
   const [blocks, setBlocks] = useState('')
-  const [form] = Form.useForm<{ name: string; slug: string; period: [Dayjs, Dayjs]; isActive: boolean }>()
+  const [form] = Form.useForm<{ name: string; slug: string; period: [Dayjs, Dayjs]; isActive: boolean; frameImageUrl: string }>()
   const list = useQuery({ queryKey: ['campaigns'], queryFn: marketingApi.campaigns })
   const save = useMutation({
-    mutationFn: (v: { name: string; slug: string; period: [Dayjs, Dayjs]; isActive: boolean }) => {
+    mutationFn: (v: { name: string; slug: string; period: [Dayjs, Dayjs]; isActive: boolean; frameImageUrl: string }) => {
       let parsed: CampaignBlock[]
       try {
         parsed = JSON.parse(blocks) as CampaignBlock[]
       } catch {
         throw new ApiError(400, 'Danh sách khối không phải JSON hợp lệ.')
       }
-      return marketingApi.saveCampaign({ id: editing?.id || null, name: v.name, slug: v.slug, startAt: v.period[0].toISOString(), endAt: v.period[1].toISOString(), blocks: parsed, isActive: v.isActive })
+      return marketingApi.saveCampaign({ id: editing?.id || null, name: v.name, slug: v.slug, startAt: v.period[0].toISOString(), endAt: v.period[1].toISOString(), blocks: parsed, isActive: v.isActive,
+        frameImageUrl: v.frameImageUrl?.trim() || null })
     },
     onSuccess: (r) => { message.success(r.message); setEditing(null); void queryClient.invalidateQueries({ queryKey: ['campaigns'] }) },
     onError: (e) => message.error(errorText(e, 'Không lưu được chiến dịch.')),
   })
   const edit = (c?: Campaign) => {
-    const value = c ?? { id: '', name: '', slug: '', startAt: dayjs().toISOString(), endAt: dayjs().add(14, 'day').toISOString(), isActive: true,
+    const value = c ?? { id: '', name: '', slug: '', startAt: dayjs().toISOString(), endAt: dayjs().add(14, 'day').toISOString(), isActive: true, frameImageUrl: null,
       blocks: [{ type: 'FlashSale', title: 'Flash Sale', imageUrl: null, link: null, voucherCodes: null, keyword: null, categoryId: null, maxPrice: null, limit: null }] as CampaignBlock[] }
     setEditing(value)
     setBlocks(JSON.stringify(value.blocks, null, 2))
-    form.setFieldsValue({ name: value.name, slug: value.slug, period: [dayjs(value.startAt), dayjs(value.endAt)], isActive: value.isActive })
+    form.setFieldsValue({ name: value.name, slug: value.slug, period: [dayjs(value.startAt), dayjs(value.endAt)], isActive: value.isActive,
+      frameImageUrl: value.frameImageUrl ?? '' })
   }
   return (
     <>
@@ -209,6 +211,7 @@ const CampaignsTab = () => {
           <Form.Item name="slug" label="Đường dẫn (/su-kien/…)" rules={[{ required: true, pattern: /^[a-z0-9]+(-[a-z0-9]+)*$/, message: 'Chữ thường không dấu, số, gạch ngang.' }]}><Input /></Form.Item>
           <Form.Item name="period" label="Thời gian"><DatePicker.RangePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="isActive" label="Bật" valuePropName="checked"><Switch /></Form.Item>
+          <Form.Item name="frameImageUrl" label="Ảnh khung sản phẩm (tuỳ chọn)" extra="Ảnh PNG trong suốt phủ lên ảnh các sản phẩm được duyệt tham gia, chỉ khi chiến dịch đang chạy. Để trống = không khung."><Input placeholder="https://…/khung.png" /></Form.Item>
           <Typography.Text type="secondary">
             Khối (JSON): Banner (title, imageUrl, link) · Vouchers (voucherCodes) · FlashSale · Products (keyword, categoryId, maxPrice, limit) ·
             Registered (title, limit — sản phẩm shop đăng ký và được duyệt; có khối này thì shop đăng ký được)

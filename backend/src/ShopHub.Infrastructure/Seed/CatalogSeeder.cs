@@ -52,6 +52,7 @@ public sealed class CatalogSeeder(
         foreach (var top in seed.Categories)
         {
             var root = new Category(null, 1, top.Name, Slug.From(top.Name), top.Icon, sort++, top.CommissionBp);
+            root.SetVisible(!top.Hidden);
             db.Categories.Add(root);
             var s2 = 0;
             foreach (var l2 in top.Children)
@@ -225,7 +226,8 @@ public sealed class CatalogSeeder(
 
     private sealed record AttributeSeed(string Name, AttributeInputType Type, List<string>? Options, string? Unit, bool Required, bool Filterable);
 
-    private sealed record CategorySeed(string Name, string? Icon, int CommissionBp, string AttributeSet, List<CategoryChildSeed> Children);
+    // Hidden: an industry the sample data has no matching photos for — sellers can list in it, buyers do not see it yet
+    private sealed record CategorySeed(string Name, string? Icon, int CommissionBp, string AttributeSet, List<CategoryChildSeed> Children, bool Hidden = false);
 
     private sealed record CategoryChildSeed(string Name, List<CategoryLeafSeed> Children);
 

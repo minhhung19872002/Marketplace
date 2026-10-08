@@ -28,6 +28,11 @@ public class Category : AuditableEntity
     public string? IconUrl { get; private set; }
     public int SortOrder { get; private set; }
     public bool IsActive { get; private set; }
+    /// <summary>
+    /// Shown to buyers (menus, filters, top lists, sitemap). Off = sellers can still list in it, buyers do not see it —
+    /// for an industry with nothing to show yet (UI G2-A7). Hides the whole subtree.
+    /// </summary>
+    public bool IsVisible { get; private set; } = true;
 
     // Fixed platform fee for orders in this category, basis points (1% = 100)
     public int CommissionRateBp { get; private set; }
@@ -43,6 +48,8 @@ public class Category : AuditableEntity
     public void SetSortOrder(int sortOrder) => SortOrder = sortOrder;
 
     public void SetActive(bool active) => IsActive = active;
+
+    public void SetVisible(bool visible) => IsVisible = visible;
 
     public void SetCommission(int bp)
     {

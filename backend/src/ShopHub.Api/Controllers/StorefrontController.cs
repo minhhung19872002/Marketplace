@@ -126,6 +126,13 @@ public sealed class StorefrontController : ApiControllerBase
     public async Task<IActionResult> Viewed(CancellationToken ct) =>
         OkData(await Sender.Send(new RecentlyViewedQuery(Request.Cookies[VisitorCookie]), ct));
 
+    /// <summary>"Xoá lịch sử" of Đã xem gần đây — the caller's own views only (account or this browser).</summary>
+    [HttpDelete("viewed")]
+    [AllowAnonymous]
+    [ProducesResponseType<ApiResponse<int>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ClearViewed(CancellationToken ct) =>
+        OkData(await Sender.Send(new ClearViewedCommand(Request.Cookies[VisitorCookie]), ct), "Đã xoá lịch sử xem.");
+
     [HttpGet("categories/by-slug/{slug}")]
     [OutputCache(PolicyName = OutputCachePolicies.Storefront)]
     [AllowAnonymous]

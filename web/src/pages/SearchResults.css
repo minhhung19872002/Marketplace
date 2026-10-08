@@ -31,11 +31,6 @@
   border-bottom: 1px solid #f0f0f0;
 }
 
-.filter-group-title {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 12px;
-}
 
 .filter-cats {
   display: flex;
@@ -220,9 +215,6 @@
 @media (max-width: 768px) {
   .search-layout {
     grid-template-columns: 1fr;
-  }
-  .search-sidebar {
-    display: none;
   }
 }
 
@@ -414,4 +406,311 @@
 .related-shop-view {
   flex: 0 0 auto;
   color: var(--sh-primary);
+}
+
+/* ---- G2-B3 ---- */
+.filter-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filter-title span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-group-head {
+  margin-bottom: 10px;
+}
+
+.filter-group .filter-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.filter-sheet-close,
+.filter-sheet-apply,
+.search-filter-open {
+  display: none;
+}
+
+.category-brand {
+  position: relative;
+  border-radius: var(--sh-radius-sm);
+}
+
+.category-brand-tick {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: end;
+  width: 14px;
+  height: 14px;
+  padding: 0 1px 1px 0;
+  background: linear-gradient(-45deg, var(--sh-primary) 50%, transparent 50%);
+  color: var(--sh-on-primary);
+}
+
+/* "Đang lọc" chips */
+.search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.search-chips-label {
+  color: var(--sh-text-muted);
+  font-size: 13px;
+}
+
+.search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid var(--sh-primary);
+  border-radius: 14px;
+  background: var(--sh-primary-soft);
+  color: var(--sh-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.search-chips-clear {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--sh-info);
+  font: inherit;
+  font-size: 13px;
+}
+
+/* Sort bar: price menu + mini pager */
+.search-price-sort {
+  position: relative;
+}
+
+.search-price-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 200px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 2px;
+  background: var(--sh-surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.search-price-sort-btn.active {
+  color: var(--sh-primary);
+}
+
+.search-price-sort-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 4px 0;
+  border-radius: 2px;
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-md);
+}
+
+.search-price-sort-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+}
+
+.search-price-sort-menu button:hover,
+.search-price-sort-menu button[aria-checked='true'] {
+  color: var(--sh-primary);
+}
+
+.search-mini-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.search-mini-pager strong {
+  color: var(--sh-primary);
+  font-weight: 500;
+}
+
+.search-mini-pager span {
+  margin-right: 12px;
+}
+
+.search-mini-pager button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 34px;
+  border: 1px solid var(--border);
+  background: var(--sh-surface);
+  color: var(--text);
+}
+
+.search-mini-pager button:disabled {
+  opacity: 0.45;
+}
+
+.search-empty .sh-empty {
+  padding: 24px 0;
+}
+
+/* Phones: the sidebar becomes a sheet sliding up from the bottom */
+@media (max-width: 768px) {
+  .search-sort-bar {
+    position: sticky;
+    top: var(--sh-header-h, 56px);
+    z-index: 6;
+    gap: 6px;
+    padding: 8px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .search-sort-label,
+  .search-mini-pager span {
+    display: none;
+  }
+
+  .search-sort-btn,
+  .search-price-sort-btn {
+    flex: none;
+    padding: 8px 10px;
+  }
+
+  .search-price-sort-btn {
+    min-width: 0;
+  }
+
+  .search-filter-open {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 2px;
+    background: var(--sh-surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+  }
+
+  .search-filter-count {
+    display: grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--sh-primary);
+    color: var(--sh-on-primary);
+    font-size: 11px;
+  }
+
+  .search-layout .search-sidebar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 70;
+    display: block;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 12px 12px 0 0;
+    transform: translateY(105%);
+    transition: transform 0.2s ease-out;
+    visibility: hidden;
+  }
+
+  .search-layout .search-sidebar.is-open {
+    transform: none;
+    visibility: visible;
+  }
+
+  .search-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 69;
+    border: none;
+    background: var(--sh-overlay);
+  }
+
+  .filter-sheet-close {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--sh-text-muted);
+  }
+
+  .filter-sheet-apply {
+    position: sticky;
+    bottom: 0;
+    display: block;
+    width: 100%;
+    height: 44px;
+    margin-top: 10px;
+    border: none;
+    border-radius: var(--sh-radius-sm);
+    background: var(--sh-primary);
+    color: var(--sh-on-primary);
+    font: inherit;
+    font-weight: 600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-layout .search-sidebar {
+    transition: none;
+  }
+}
+
+/* Placeholders while the first answer loads (CLS) */
+.filter-group--loading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.related-shop--loading {
+  height: 112px;
 }

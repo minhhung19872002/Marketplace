@@ -72,6 +72,7 @@ export const storefrontApi = {
   topCategories: () => apiRequest<TopCategoryProduct[]>('/home/top-categories', { auth: false }),
   mall: () => apiRequest<MallShop[]>('/home/mall', { auth: false }),
   viewed: () => apiRequest<ProductCard[]>('/viewed'),
+  clearViewed: () => apiCommand<number>('/viewed', { method: 'DELETE' }),
 
   shop: (slug: string) => apiRequest<ShopPage>(`/shops/${encodeURIComponent(slug)}`),
   shopHome: (shopId: string) => apiRequest<ShopHomeBlock[]>(`/shops/${shopId}/home`),

@@ -90,6 +90,7 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<ReviewMedia> ReviewMedia => Set<ReviewMedia>();
     public DbSet<ReviewReport> ReviewReports => Set<ReviewReport>();
+    public DbSet<ReviewHelpfulVote> ReviewHelpfulVotes => Set<ReviewHelpfulVote>();
     public DbSet<ReturnRequest> ReturnRequests => Set<ReturnRequest>();
     public DbSet<ReturnItem> ReturnItems => Set<ReturnItem>();
     public DbSet<ReturnEvidence> ReturnEvidence => Set<ReturnEvidence>();

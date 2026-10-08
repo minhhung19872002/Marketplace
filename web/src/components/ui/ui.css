@@ -274,3 +274,119 @@
   padding: var(--sh-space-3);
   color: var(--sh-text-muted);
 }
+
+/* ---- Carousel (one scrolling row) ---- */
+.sh-carousel {
+  position: relative;
+}
+/* Default slide widths at zero specificity: a caller's class always wins, whatever the stylesheet order */
+:where(.sh-carousel) {
+  --carousel-item: calc((100% - 5 * 10px) / 6);
+}
+.sh-carousel__track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--carousel-item);
+  gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.sh-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+.sh-carousel__track > * {
+  scroll-snap-align: start;
+  min-width: 0;
+}
+/* Fading edges where there is more to scroll */
+.sh-carousel.has-prev .sh-carousel__track {
+  mask-image: linear-gradient(90deg, transparent 0, #000 40px);
+}
+.sh-carousel.has-next .sh-carousel__track {
+  mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent 100%);
+}
+.sh-carousel.has-prev.has-next .sh-carousel__track {
+  mask-image: linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+}
+.sh-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-md);
+  color: var(--text);
+  transform: translateY(-50%);
+}
+.sh-carousel__arrow:hover {
+  color: var(--sh-primary);
+}
+.sh-carousel__arrow--prev { left: -14px; }
+.sh-carousel__arrow--next { right: -14px; }
+@media (hover: none) {
+  .sh-carousel__arrow { display: none; }
+}
+@media (max-width: 1023px) {
+  :where(.sh-carousel) { --carousel-item: calc((100% - 3 * 10px) / 4); }
+}
+@media (max-width: 767px) {
+  :where(.sh-carousel) { --carousel-item: 42%; }
+  .sh-carousel__arrow--prev { left: 2px; }
+  .sh-carousel__arrow--next { right: 2px; }
+}
+
+/* ---- Pager ---- */
+.sh-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: var(--sh-space-5) 0;
+}
+.sh-pager__btn {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  height: 36px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--sh-radius-sm);
+  background: transparent;
+  color: var(--sh-text-muted);
+  font: inherit;
+  font-size: 16px;
+}
+.sh-pager__btn:hover:not(:disabled) {
+  color: var(--sh-primary);
+}
+.sh-pager__btn.is-current {
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
+}
+.sh-pager__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sh-pager__gap {
+  min-width: 24px;
+  color: var(--sh-text-muted);
+  text-align: center;
+}
+
+/* Read by screen readers, not shown */
+.sh-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -193,15 +193,45 @@ public static class KeywordDisplay
             .GroupBy(l => new { l.Keyword, Display = l.DisplayKeyword!.ToLower() })
             .Select(g => new { g.Key.Keyword, g.Key.Display, Count = g.Count() })
             .ToListAsync(ct);
-        return folds.Select(fold =>
+        var result = new List<string>();
+        foreach (var fold in folds)
         {
             var fromCurated = curated.FirstOrDefault(c => Slug.Fold(c) == fold);
-            if (fromCurated is not null) return Capitalise(fromCurated.Trim());
+            if (fromCurated is not null)
+            {
+                result.Add(Capitalise(fromCurated.Trim()));
+                continue;
+            }
             // An accented spelling beats an unaccented one even when typed less often
             var best = typed.Where(t => t.Keyword == fold)
                 .OrderByDescending(t => t.Display != fold).ThenByDescending(t => t.Count).ThenBy(t => t.Display, StringComparer.Ordinal)
                 .Select(t => t.Display).FirstOrDefault();
-            return Capitalise(best ?? fold);
-        }).ToList();
+            // Nobody typed the accents ("ao"): take how the words are written in product names ("Áo")
+            if (best is null || best == fold) best = await FromProductNamesAsync(db, fold, ct) ?? best;
+            result.Add(Capitalise(best ?? fold));
+        }
+        return result;
+    }
+
+    /// <summary>The words of a product name that fold to the keyword, as written there ("ao thun" → "Áo Thun" → "áo thun").</summary>
+    private static async Task<string?> FromProductNamesAsync(IApplicationDbContext db, string fold, CancellationToken ct)
+    {
+        var words = fold.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return null;
+        var slug = string.Join('-', words);
+        var names = await db.Products.AsNoTracking().Where(p => p.Status == Domain.Catalog.ProductStatus.Active && p.Slug.Contains(slug))
+            .OrderByDescending(p => p.SoldCount).ThenBy(p => p.Id).Select(p => p.Name).Take(20).ToListAsync(ct);
+        var found = new List<string>();
+        foreach (var name in names)
+        {
+            var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            for (var i = 0; i + words.Length <= parts.Length; i++)
+                if (Enumerable.Range(0, words.Length).All(k => Slug.Fold(parts[i + k]) == words[k]))
+                {
+                    found.Add(string.Join(' ', parts.Skip(i).Take(words.Length)).ToLower(System.Globalization.CultureInfo.GetCultureInfo("vi-VN")));
+                    break;
+                }
+        }
+        return found.GroupBy(x => x).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).Select(g => g.Key).FirstOrDefault();
     }
 }

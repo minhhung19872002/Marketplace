@@ -276,18 +276,20 @@ public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUse
         q.OrderByDescending(p => p.SoldCount).ThenByDescending(p => p.RatingAvg).ThenByDescending(p => p.PublishedAt).ThenBy(p => p.Id);
 }
 
-public record TopCategoryProductDto(CategoryCrumbDto Category, ProductCardDto Product);
+// MonthlySold: units of the product in orders of the last 30 days that were not cancelled ("Bán x+ / tháng")
+public record TopCategoryProductDto(CategoryCrumbDto Category, ProductCardDto Product, int MonthlySold = 0);
 
 public record TopProductsByCategoryQuery : IRequest<IReadOnlyList<TopCategoryProductDto>>;
 
 /// <summary>"Tìm kiếm hàng đầu": the best-selling product of each top-level category.</summary>
-public sealed class TopProductsByCategoryHandler(IApplicationDbContext db, CardPricing pricing) : IRequestHandler<TopProductsByCategoryQuery, IReadOnlyList<TopCategoryProductDto>>
+public sealed class TopProductsByCategoryHandler(IApplicationDbContext db, CardPricing pricing, IClock clock) : IRequestHandler<TopProductsByCategoryQuery, IReadOnlyList<TopCategoryProductDto>>
 {
     public async Task<IReadOnlyList<TopCategoryProductDto>> Handle(TopProductsByCategoryQuery request, CancellationToken ct)
     {
         var all = await db.Categories.AsNoTracking().Where(c => c.IsActive).Select(c => new { c.Id, c.ParentId, c.Name, c.Slug, c.SortOrder }).ToListAsync(ct);
+        var hidden = await Catalog.CategoryVisibility.HiddenIdsAsync(db, ct);
         var result = new List<TopCategoryProductDto>();
-        foreach (var top in all.Where(c => c.ParentId is null).OrderBy(c => c.SortOrder))
+        foreach (var top in all.Where(c => c.ParentId is null && !hidden.Contains(c.Id)).OrderBy(c => c.SortOrder))
         {
             var leafIds = new List<Guid>();
             var frontier = new List<Guid> { top.Id };
@@ -303,11 +305,19 @@ public sealed class TopProductsByCategoryHandler(IApplicationDbContext db, CardP
             if (row is not null) result.Add(new TopCategoryProductDto(new CategoryCrumbDto(top.Id, top.Name, top.Slug), ProductCards.ToDto(row)));
         }
         var priced = (await pricing.ApplyAsync(result.Select(r => r.Product).ToList(), ct)).ToDictionary(c => c.Id);
-        return result.Select(r => r with { Product = priced[r.Product.Id] }).ToList();
+        var since = clock.UtcNow.AddDays(-30);
+        var productIds = result.Select(r => r.Product.Id).ToList();
+        var monthly = await (from i in db.OrderItems.AsNoTracking()
+                             join o in db.Orders.AsNoTracking() on i.OrderId equals o.Id
+                             where productIds.Contains(i.ProductId) && o.CreatedAt >= since && o.Status != Domain.Sales.OrderStatus.Cancelled
+                             group i by i.ProductId into g
+                             select new { g.Key, Units = g.Sum(x => x.Quantity) }).ToDictionaryAsync(x => x.Key, x => x.Units, ct);
+        return result.Select(r => r with { Product = priced[r.Product.Id], MonthlySold = monthly.GetValueOrDefault(r.Product.Id) }).ToList();
     }
 }
 
-public record MallShopDto(Guid Id, string Name, string Slug, string? LogoUrl, string? CoverImageUrl, int ProductCount);
+// MaxDiscountPercent: the deepest real discount among the shop's SKUs on sale ("Giảm đến …%" — never a made-up claim)
+public record MallShopDto(Guid Id, string Name, string Slug, string? LogoUrl, string? CoverImageUrl, int ProductCount, int MaxDiscountPercent = 0);
 
 public record MallShopsQuery(int Take = 12) : IRequest<IReadOnlyList<MallShopDto>>;
 
@@ -323,12 +333,17 @@ public sealed class MallShopsHandler(IApplicationDbContext db) : IRequestHandler
                     .OrderByDescending(p => p.SoldCount).ThenBy(p => p.Id)
                     .SelectMany(p => p.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.SortOrder).Select(m => m.Url).Take(1))
                     .FirstOrDefault(),
-                s.ProductCount))
+                s.ProductCount,
+                db.Products.Where(p => p.ShopId == s.Id && p.Status == ProductStatus.Active)
+                    .SelectMany(p => p.Skus.Where(k => k.IsActive && k.OriginalPrice > k.Price))
+                    .Max(k => (int?)((k.OriginalPrice - k.Price) * 100 / k.OriginalPrice)) ?? 0))
             .ToListAsync(ct);
 }
 
 public record CategoryPageDto(CategoryCrumbDto Category, IReadOnlyList<CategoryCrumbDto> Breadcrumb, IReadOnlyList<CategoryCrumbDto> Children,
-    IReadOnlyList<Marketing.PublicBannerDto>? Banners = null, IReadOnlyList<FeaturedBrandDto>? Brands = null);
+    IReadOnlyList<Marketing.PublicBannerDto>? Banners = null, IReadOnlyList<FeaturedBrandDto>? Brands = null,
+    // false: hidden from buyers for now (G2-A7) — the page shows "Danh mục đang cập nhật" instead of a 404
+    bool IsVisible = true);
 
 // Thương hiệu nổi bật of an industry: the brands selling most in its subtree
 public record FeaturedBrandDto(Guid Id, string Name, string Slug, string? LogoUrl, bool IsVerified, int ProductCount);
@@ -341,7 +356,8 @@ public sealed class GetCategoryBySlugHandler(IApplicationDbContext db, IClock cl
     {
         var category = await db.Categories.AsNoTracking().FirstOrDefaultAsync(c => c.Slug == request.Slug && c.IsActive, ct)
             ?? throw new NotFoundException("Không tìm thấy danh mục.");
-        var children = await db.Categories.AsNoTracking().Where(c => c.ParentId == category.Id && c.IsActive)
+        var hidden = await Catalog.CategoryVisibility.HiddenIdsAsync(db, ct);
+        var children = await db.Categories.AsNoTracking().Where(c => c.ParentId == category.Id && c.IsActive && !hidden.Contains(c.Id))
             .OrderBy(c => c.SortOrder).ThenBy(c => c.Name).Select(c => new CategoryCrumbDto(c.Id, c.Name, c.Slug)).ToListAsync(ct);
         var breadcrumb = await Breadcrumbs.ForAsync(db, category.Id, ct);
 
@@ -377,6 +393,7 @@ public sealed class GetCategoryBySlugHandler(IApplicationDbContext db, IClock cl
             return new FeaturedBrandDto(r.Id, r.Name, r.Slug, r.LogoUrl, r.IsVerified, b.Count);
         }).ToList();
 
-        return new CategoryPageDto(new CategoryCrumbDto(category.Id, category.Name, category.Slug), breadcrumb, children, banners, featured);
+        return new CategoryPageDto(new CategoryCrumbDto(category.Id, category.Name, category.Slug), breadcrumb, children, banners, featured,
+            !hidden.Contains(category.Id));
     }
 }

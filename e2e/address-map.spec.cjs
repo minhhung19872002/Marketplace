@@ -1,7 +1,7 @@
 // E7 (spec I.2): an address can be pinned on the map (OpenStreetMap through Leaflet) — optional, saved as lat / lng.
 //   SH_E2E_BASE_URL=http://localhost:18000 npx playwright test address-map.spec.cjs
 const { test, expect } = require('@playwright/test');
-const { BASE, apiLogin, loginInBrowser, registerViaApi } = require('./helpers.cjs');
+const { BASE, apiLogin, loginInBrowser, registerViaApi, pickAddress } = require('./helpers.cjs');
 
 test('Sổ địa chỉ: ghim vị trí trên bản đồ, lưu lại và bỏ ghim được', async ({ page, request }) => {
   const buyer = await registerViaApi(request, 'Người Mua Ghim Bản Đồ');
@@ -10,9 +10,7 @@ test('Sổ địa chỉ: ghim vị trí trên bản đồ, lưu lại và bỏ g
   await page.getByTestId('address-add').click();
   await page.locator('input[aria-label="Tên người nhận"]').fill('Người Mua Ghim Bản Đồ');
   await page.locator('input[aria-label="Số điện thoại người nhận"]').fill(buyer.phone);
-  await page.locator('select[aria-label="Tỉnh/Thành phố"]').selectOption({ label: 'Thành phố Hà Nội' });
-  await page.locator('select[aria-label="Quận/Huyện"]').selectOption({ label: 'Quận Ba Đình' });
-  await page.locator('select[aria-label="Phường/Xã"]').selectOption({ label: 'Phường Phúc Xá' });
+  await pickAddress(page);
   await page.locator('input[aria-label="Địa chỉ cụ thể"]').fill('12 Phố Ghim');
 
   // Optional: open the map and drop the pin (the click works whether or not the map tiles load)

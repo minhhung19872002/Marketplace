@@ -13,7 +13,6 @@ interface FormValues {
   contactName: string
   phone: string
   provinceCode: string
-  districtCode: string
   wardCode: string
   street: string
   legalName: string
@@ -33,15 +32,14 @@ const RegisterShopPage = () => {
   const [form] = Form.useForm<FormValues>()
   const type = Form.useWatch('type', form) ?? 'Personal'
   const province = Form.useWatch('provinceCode', form)
-  const district = Form.useWatch('districtCode', form)
   const [front, setFront] = useState<MediaAsset | null>(null)
   const [back, setBack] = useState<MediaAsset | null>(null)
   const [license, setLicense] = useState<MediaAsset | null>(null)
   const [error, setError] = useState('')
 
   const provinces = useQuery({ queryKey: ['div', ''], queryFn: () => sellerApi.divisions(), staleTime: Infinity })
-  const districts = useQuery({ queryKey: ['div', province], queryFn: () => sellerApi.divisions(province), enabled: !!province, staleTime: Infinity })
-  const wards = useQuery({ queryKey: ['div', district], queryFn: () => sellerApi.divisions(district), enabled: !!district, staleTime: Infinity })
+  // Two levels since 2025-07-01: province → ward
+  const wards = useQuery({ queryKey: ['div', province], queryFn: () => sellerApi.divisions(province), enabled: !!province, staleTime: Infinity })
   const banks = useQuery({ queryKey: ['banks'], queryFn: sellerApi.banks, staleTime: 3_600_000 })
   const carriers = useQuery({ queryKey: ['site-carriers'], queryFn: sellerApi.carriers, staleTime: 600_000 })
   // Every active carrier ticked at first; the seller unticks the ones it does not use
@@ -55,7 +53,7 @@ const RegisterShopPage = () => {
         name: v.name.trim(),
         type: v.type,
         description: v.description ?? '',
-        warehouse: { contactName: v.contactName, phone: v.phone, provinceCode: v.provinceCode, districtCode: v.districtCode, wardCode: v.wardCode, street: v.street },
+        warehouse: { contactName: v.contactName, phone: v.phone, provinceCode: v.provinceCode, wardCode: v.wardCode, street: v.street },
         personal: v.type === 'Personal' ? { legalName: v.legalName, idCardNumber: v.idCardNumber, frontAssetId: front?.id ?? '', backAssetId: back?.id ?? '' } : null,
         business: v.type === 'Business' ? { legalName: v.legalName, taxCode: v.taxCode, licenseAssetId: license?.id ?? '' } : null,
         bank: { bankCode: v.bankCode, accountNo: v.accountNo, accountName: v.accountName },
@@ -101,15 +99,10 @@ const RegisterShopPage = () => {
         <Form.Item name="provinceCode" rules={[{ required: true, message: 'Chọn tỉnh/thành.' }]}>
           <Select placeholder="Tỉnh/Thành phố" showSearch optionFilterProp="label" aria-label="Tỉnh lấy hàng"
             options={provinces.data?.map((p) => ({ value: p.code, label: p.name }))}
-            onChange={() => form.setFieldsValue({ districtCode: undefined, wardCode: undefined })} />
-        </Form.Item>
-        <Form.Item name="districtCode" rules={[{ required: true, message: 'Chọn quận/huyện.' }]}>
-          <Select placeholder="Quận/Huyện" showSearch optionFilterProp="label" disabled={!province} aria-label="Quận lấy hàng"
-            options={districts.data?.map((p) => ({ value: p.code, label: p.name }))}
             onChange={() => form.setFieldsValue({ wardCode: undefined })} />
         </Form.Item>
         <Form.Item name="wardCode" rules={[{ required: true, message: 'Chọn phường/xã.' }]}>
-          <Select placeholder="Phường/Xã" showSearch optionFilterProp="label" disabled={!district} aria-label="Phường lấy hàng"
+          <Select placeholder="Phường/Xã" showSearch optionFilterProp="label" disabled={!province} aria-label="Phường lấy hàng"
             options={wards.data?.map((p) => ({ value: p.code, label: p.name }))} />
         </Form.Item>
         <Form.Item name="street" rules={[{ required: true, message: 'Nhập địa chỉ cụ thể.' }]}>

@@ -5,12 +5,13 @@ export interface WarehouseAddress {
   contactName: string
   phone: string
   provinceCode: string
-  districtCode: string
   wardCode: string
   street: string
 }
 
 export interface Warehouse extends WarehouseAddress {
+  // Only on warehouses saved before the two-level reform (2025-07-01)
+  districtCode: string | null
   id: string
   name: string
   fullAddress: string

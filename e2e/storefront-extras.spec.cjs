@@ -3,7 +3,7 @@
 // "Đã xem" / "Shop theo dõi" pages and "Bạn có thể thích" in the cart. Needs an admin to approve the test shop:
 //   SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=... SH_E2E_ADMIN_PASSWORD=... npx playwright test storefront-extras.spec.cjs
 const { test, expect } = require('@playwright/test');
-const { BASE, addAddressViaApi, apiAs, apiLogin, loginInBrowser, registerViaApi, shopWithProduct } = require('./helpers.cjs');
+const { BASE, addAddressViaApi, apiAs, apiLogin, loginInBrowser, registerViaApi, shopWithProduct, pickAddress, pickOption } = require('./helpers.cjs');
 
 const ADMIN_USER = process.env.SH_E2E_ADMIN_USER;
 const ADMIN_PASSWORD = process.env.SH_E2E_ADMIN_PASSWORD;
@@ -41,7 +41,7 @@ test.describe('Trang người mua — phần bổ sung', () => {
     const before = await shipping.getByTestId('pd-shipping-option').first().textContent();
     await Promise.all([
       page.waitForResponse((r) => r.url().includes(`/products/${shop.productId}/shipping?province=`) && r.ok()),
-      shipping.getByTestId('pd-shipping-to').selectOption({ label: 'Thành phố Hồ Chí Minh' }),
+      pickOption(shipping, 'Vận chuyển tới', 'Thành phố Hồ Chí Minh'),
     ]);
     await expect(shipping.getByTestId('pd-shipping-option').first()).not.toHaveText(before);
     await expect(page.getByTestId('share-facebook')).toHaveAttribute('href', /facebook\.com\/sharer/);
@@ -120,9 +120,7 @@ test.describe('Trang người mua — phần bổ sung', () => {
     const form = page.getByTestId('checkout-address-form');
     await form.getByLabel('Tên người nhận').fill('Người Nhận Tại Trang');
     await form.getByLabel('Số điện thoại người nhận').fill(buyer.phone);
-    for (const [label, option] of [['Tỉnh/Thành phố', 'Thành phố Hà Nội'], ['Quận/Huyện', 'Quận Ba Đình'], ['Phường/Xã', 'Phường Phúc Xá']]) {
-      await form.getByLabel(label).selectOption({ label: option });
-    }
+    await pickAddress(form);
     await form.getByLabel('Địa chỉ cụ thể').fill('7 Phố Thanh Toán');
     await form.getByTestId('address-save').click();
     await expect(page.getByTestId('checkout-address')).toContainText('Người Nhận Tại Trang');

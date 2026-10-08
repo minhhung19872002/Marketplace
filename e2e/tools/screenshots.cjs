@@ -57,10 +57,10 @@ async function main() {
   const { ticket } = await api(ctx, 'POST', '/auth/otp/verify', { data: { target: phone, purpose: 'Register', code } });
   const buyerPassword = `Mua${crypto.randomBytes(9).toString('base64url')}9`;
   const buyer = await api(ctx, 'POST', '/auth/register', { data: { target: phone, ticket, password: buyerPassword, fullName: 'Nguyễn Văn An', acceptTerms: true } });
-  const ward = (await api(ctx, 'GET', '/admin-divisions?parent=001'))[0];
+  const ward = (await api(ctx, 'GET', '/admin-divisions?parent=01')).find((w) => w.name === 'Phường Ba Đình');
   await api(ctx, 'POST', '/account/addresses', {
     token: buyer.accessToken,
-    data: { receiverName: 'Nguyễn Văn An', phone, provinceCode: '01', districtCode: '001', wardCode: ward.code, street: '12 Phố Hàng Bài', type: 'Home', isDefault: true },
+    data: { receiverName: 'Nguyễn Văn An', phone, provinceCode: '01', wardCode: ward.code, street: '12 Phố Hàng Bài', type: 'Home', isDefault: true },
   });
 
   const browser = await chromium.launch();

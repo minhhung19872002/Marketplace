@@ -35,7 +35,7 @@ describe('contrast', () => {
 
   it('white text on the brand colour, the brand bar and the banner tones', () => {
     expect(contrast(token('sh-on-primary'), token('sh-primary'))).toBeGreaterThanOrEqual(4.5);
-    for (const name of ['sh-gradient-brand', 'sh-tone-primary', 'sh-tone-mall'])
+    for (const name of ['sh-gradient-brand', 'sh-tone-primary', 'sh-tone-mall', 'sh-gradient-voucher', 'sh-gradient-freeship'])
       for (const stop of stops(token(name))) expect(contrast(white, stop), `${name} ${stop}`).toBeGreaterThanOrEqual(4.5);
   });
 

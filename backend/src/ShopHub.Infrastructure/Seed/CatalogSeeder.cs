@@ -10,13 +10,15 @@ using ShopHub.Domain.Catalog;
 using ShopHub.Domain.Media;
 using ShopHub.Domain.Shops;
 using ShopHub.Infrastructure.Persistence;
+using ShopHub.Infrastructure.Services;
 
 namespace ShopHub.Infrastructure.Seed;
 
 /// <summary>
-/// Category tree + industry attributes + brands (reference data, always), and — with sample data on — 30 shops and the
-/// 40 legacy products as real rows. Product images go through the real pipeline (decode → 3 WebP sizes → MinIO) and
-/// products through the real lifecycle (submit → approve). Every part checks its own presence.
+/// Category tree + industry attributes + brands (reference data, always), and — with sample data on — 30 shops (logo,
+/// cover, joined weeks to years ago, followed by sample buyers) and the sample catalogue (ProductGenerator). Images go
+/// through the real pipeline (decode → 3 WebP sizes → MinIO) and products through the real lifecycle (submit → approve).
+/// Every part checks its own presence.
 /// </summary>
 public sealed class CatalogSeeder(
     ShopHubDbContext db,
@@ -38,8 +40,8 @@ public sealed class CatalogSeeder(
         if (!sampleData) return;
         await SeedShopsAsync(seed, ct);
         await SeedStaffAsync(ct);
-        await SeedProductsAsync(seed, ct);
-        await generator.GenerateAsync(ct);
+        await generator.GenerateAsync(seed.Shops.ToDictionary(s => s.Name, s => (IReadOnlyList<string>)s.Sells), ct);
+        await SeedFollowersAsync(ct);
     }
 
     private async Task SeedCategoriesAsync(CatalogSeed seed, CancellationToken ct)
@@ -96,18 +98,26 @@ public sealed class CatalogSeeder(
         var existing = await db.Shops.IgnoreQueryFilters().Select(s => s.Slug).ToListAsync(ct);
         var now = clock.UtcNow;
         var created = 0;
-        foreach (var s in seed.Shops.Where(s => !existing.Contains(Slug.From(s.Name))))
+        var logos = new Dictionary<string, string>();
+        for (var index = 0; index < seed.Shops.Count; index++)
         {
+            var s = seed.Shops[index];
+            if (existing.Contains(Slug.From(s.Name))) continue;
+            // A shop that joined weeks to years ago (the "Tham gia" of its page), not on the day the data was loaded
+            using var joined = SystemClock.TravelTo(now.AddDays(-s.JoinedDaysAgo));
             var ownerId = owners[s.Owner % owners.Count];
             var shop = new Shop(ownerId, s.Name, Slug.From(s.Name), s.Type);
-            shop.UpdateProfile(s.Description, null, null);
-            shop.Approve(now);
+            var logo = await UploadArtAsync($"shop-{index:D2}-logo.webp", $"shop/seed/{Slug.From(s.Name)}-logo", ownerId, ImageSizes.Small, ct);
+            var cover = await UploadArtAsync($"shop-{index:D2}-cover.webp", $"shop/seed/{Slug.From(s.Name)}-cover", ownerId, ImageSizes.Large, ct);
+            shop.UpdateProfile(s.Description, logo, cover);
+            if (s.Mall && s.Name.StartsWith("Mall ", StringComparison.Ordinal)) logos[s.Name["Mall ".Length..]] = logo;
+            shop.Approve(clock.UtcNow);
             shop.SetLabels(s.Mall, s.Preferred);
             db.Shops.Add(shop);
             db.ShopStaff.Add(new ShopStaff(shop.Id, ownerId, ShopStaffRole.Owner, ShopPermissions.All));
 
             var warehouse = new ShopWarehouse(shop.Id);
-            warehouse.Update("Kho chính", "Bộ phận kho", "0900000999", s.Warehouse.Province, s.Warehouse.District, s.Warehouse.Ward,
+            warehouse.Update("Kho chính", "Bộ phận kho", "0900000999", s.Warehouse.Province, s.Warehouse.Ward,
                 $"Số {created + 1} Đường Mẫu", isPickupDefault: true, isReturnDefault: true);
             db.ShopWarehouses.Add(warehouse);
 
@@ -120,9 +130,44 @@ public sealed class CatalogSeeder(
             db.ShopBankAccounts.Add(new ShopBankAccount(shop.Id, "VCB", encryptor.Encrypt(account), account[^4..],
                 "CONG TY MAU", isDefault: true));
             created++;
+            await db.SaveChangesAsync(ct);
         }
+        // Mall brands show their shop's logo (home "ShopHub Mall", brand filters)
+        foreach (var brand in await db.Brands.Where(b => logos.Keys.Contains(b.Name)).ToListAsync(ct))
+            brand.Update(brand.Name, brand.Slug, logos[brand.Name], brand.IsVerified);
         await db.SaveChangesAsync(ct);
         if (created > 0) logger.LogInformation("Seeded {Count} sample shop(s)", created);
+    }
+
+    /// <summary>A seed artwork (Seed/Data/Art) through the image pipeline into MinIO; the public URL of one size.</summary>
+    private async Task<string> UploadArtAsync(string file, string key, Guid ownerId, int size, CancellationToken ct)
+    {
+        var processed = images.Process(await ReadBytesAsync($"Art.{file}", ct), ImageSizes.Public);
+        foreach (var v in processed.Variants)
+            await storage.PutAsync(Buckets.Products, ImageSizes.Key(key, v.MaxSide), v.WebP, "image/webp", ct);
+        db.MediaAssets.Add(new MediaAsset(ownerId, MediaKind.Image, "shop", Buckets.Products, key, "image/webp",
+            processed.Variants.Sum(v => (long)v.WebP.Length), processed.Width, processed.Height, null, clock.UtcNow));
+        return storage.PublicUrl(Buckets.Products, ImageSizes.Key(key, size));
+    }
+
+    // Sample buyers (09000000xx) follow a few shops each, so follower counts (recomputed from shop_followers) are real
+    private async Task SeedFollowersAsync(CancellationToken ct)
+    {
+        if (await db.ShopFollowers.AnyAsync(ct)) return;
+        var buyers = await db.Users.Where(u => u.Phone != null && u.Phone.StartsWith("09000000")).OrderBy(u => u.Phone).Select(u => u.Id).ToListAsync(ct);
+        var shops = await db.Shops.AsNoTracking().OrderBy(s => s.Name).Select(s => new { s.Id, s.Type }).ToListAsync(ct);
+        if (buyers.Count == 0 || shops.Count == 0) return;
+        var rng = new Random(77);
+        var now = clock.UtcNow;
+        foreach (var buyer in buyers)
+        {
+            // Mall shops are followed more often
+            var picks = shops.OrderBy(s => rng.NextDouble() / (s.Type == ShopType.Mall ? 2.5 : 1)).Take(4 + rng.Next(9));
+            foreach (var shop in picks)
+                db.ShopFollowers.Add(new Domain.Engage.ShopFollower(shop.Id, buyer, now.AddDays(-rng.Next(1, 90))));
+        }
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Seeded shop followers for {Count} sample buyer(s)", buyers.Count);
     }
 
     // The 2 sample staff accounts (09000002xx) work for the first shop of the first sample owner: a manager and a CSKH
@@ -142,57 +187,6 @@ public sealed class CatalogSeeder(
             db.ShopStaff.Add(new ShopStaff(shopId.Value, staffUsers[i], roles[i], ShopPermissions.DefaultsFor(roles[i])));
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Seeded {Count} sample shop staff", Math.Min(staffUsers.Count, roles.Length));
-    }
-
-    private async Task SeedProductsAsync(CatalogSeed seed, CancellationToken ct)
-    {
-        var manifest = await ReadAsync<Dictionary<string, List<string>>>("product-images.manifest.json", ct);
-        var categories = await db.Categories.AsNoTracking().ToListAsync(ct);
-        var shops = await db.Shops.AsNoTracking().ToDictionaryAsync(s => s.Name, ct);
-        var now = clock.UtcNow;
-        var created = 0;
-
-        foreach (var p in seed.Products)
-        {
-            if (!shops.TryGetValue(p.Shop, out var shop)) continue;
-            if (await db.Products.IgnoreQueryFilters().AnyAsync(x => x.ShopId == shop.Id && x.Name == p.Name, ct)) continue;
-
-            var leaf = ResolvePath(categories, p.Category);
-            var definitions = await db.CategoryAttributes.AsNoTracking().Where(a => a.CategoryId == leaf.Id).ToListAsync(ct);
-            var attributes = definitions.Where(d => p.Attributes.ContainsKey(d.Name)).Select(d => (d.Id, (IReadOnlyList<string>)p.Attributes[d.Name])).ToList();
-            foreach (var d in definitions)
-                if (d.Check(p.Attributes.GetValueOrDefault(d.Name) ?? []) is { } error)
-                    throw new InvalidOperationException($"Dữ liệu gieo sai ở \"{p.Name}\": {error}");
-
-            var media = new List<MediaSpec>();
-            foreach (var file in manifest[p.LegacyId.ToString()])
-            {
-                var bytes = await ReadBytesAsync($"ProductImages.{file}", ct);
-                var processed = images.Process(bytes, ImageSizes.Public);
-                var key = $"product/seed/{p.LegacyId:D2}-{Path.GetFileNameWithoutExtension(file)}";
-                foreach (var v in processed.Variants)
-                    await storage.PutAsync(Buckets.Products, ImageSizes.Key(key, v.MaxSide), v.WebP, "image/webp", ct);
-                var asset = new MediaAsset(shop.OwnerId, MediaKind.Image, "product", Buckets.Products, key, "image/webp",
-                    processed.Variants.Sum(v => (long)v.WebP.Length), processed.Width, processed.Height, null, now);
-                db.MediaAssets.Add(asset);
-                media.Add(new MediaSpec(MediaType.Image, asset.Id, storage.PublicUrl(Buckets.Products, ImageSizes.Key(key, ImageSizes.Large)), null));
-            }
-
-            var product = new Product(shop.Id);
-            product.SetInfo(leaf.Id, null, p.Name, Slug.From(p.Name), p.Description, ProductCondition.New, p.WeightG, 250, 200, 100, false, 0);
-            product.SetAttributes(attributes);
-            var tiers = p.Variant is null ? new List<TierSpec>() : [new TierSpec(p.Variant.Tier, p.Variant.Options.Select(o => new OptionSpec(o, null)).ToList())];
-            var deltas = product.SetVariants(tiers, p.Skus.Select(s => new SkuSpec(s.Option, null, null, s.Price, s.OriginalPrice, s.Stock, null, true)).ToList());
-            product.SetMedia(media);
-            product.SubmitForReview(now, null);
-            product.Approve(now);
-            db.Products.Add(product);
-            foreach (var (sku, delta) in deltas)
-                db.InventoryMovements.Add(new InventoryMovement(sku.Id, delta, 0, InventoryReason.Seed, "seed", product.Id, null, "Dữ liệu gieo", now));
-            created++;
-        }
-        await db.SaveChangesAsync(ct);
-        if (created > 0) logger.LogInformation("Seeded {Count} sample product(s)", created);
     }
 
     private static Category ResolvePath(IReadOnlyList<Category> all, string path)
@@ -227,8 +221,7 @@ public sealed class CatalogSeeder(
         Dictionary<string, List<AttributeSeed>> AttributeSets,
         List<CategorySeed> Categories,
         List<string> Brands,
-        List<ShopSeed> Shops,
-        List<ProductSeed> Products);
+        List<ShopSeed> Shops);
 
     private sealed record AttributeSeed(string Name, AttributeInputType Type, List<string>? Options, string? Unit, bool Required, bool Filterable);
 
@@ -238,14 +231,8 @@ public sealed class CatalogSeeder(
 
     private sealed record CategoryLeafSeed(string Name);
 
-    private sealed record ShopSeed(string Name, ShopType Type, bool Mall, bool Preferred, int Owner, string Description, WarehouseSeed Warehouse);
+    private sealed record ShopSeed(string Name, ShopType Type, bool Mall, bool Preferred, int Owner, string Description, WarehouseSeed Warehouse,
+        List<string> Sells, int JoinedDaysAgo);
 
-    private sealed record WarehouseSeed(string Province, string District, string Ward);
-
-    private sealed record ProductSeed(int LegacyId, string Name, string Category, string Shop, string Description, int WeightG,
-        Dictionary<string, List<string>> Attributes, VariantSeed? Variant, List<SkuSeed> Skus);
-
-    private sealed record VariantSeed(string Tier, List<string> Options);
-
-    private sealed record SkuSeed(string? Option, long Price, long OriginalPrice, int Stock);
+    private sealed record WarehouseSeed(string Province, string Ward);
 }

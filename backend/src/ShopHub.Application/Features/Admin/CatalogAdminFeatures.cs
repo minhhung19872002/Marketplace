@@ -242,7 +242,7 @@ public sealed class GetShopForAdminHandler(IApplicationDbContext db, IObjectStor
         WarehouseDto? warehouseDto = null;
         if (warehouse is not null)
         {
-            var codes = new[] { warehouse.WardCode, warehouse.DistrictCode, warehouse.ProvinceCode };
+            var codes = new[] { warehouse.WardCode, warehouse.DistrictCode, warehouse.ProvinceCode }.OfType<string>().ToArray();
             var names = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code)).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
             warehouseDto = new WarehouseDto(warehouse.ContactName, warehouse.Phone,
                 string.Join(", ", new[] { warehouse.Street }.Concat(codes.Select(c => names.GetValueOrDefault(c) ?? c))));

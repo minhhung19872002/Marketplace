@@ -102,10 +102,9 @@ public class SearchServiceFacetsTests(ApiFactory factory)
         var store = await factory.CreateStoreAsync("01", products: [new($"Kệ {word} Bắc", "Đèn Bàn", 100_000, 10, "Việt Nam"), new($"Kệ {word} Nam", "Đèn Bàn", 100_000, 10, "Việt Nam")]);
         await factory.WithDbAsync(async db =>
         {
-            var district = await db.AdminDivisions.Where(d => d.ParentCode == "79").OrderBy(d => d.Code).FirstAsync();
-            var ward = await db.AdminDivisions.Where(d => d.ParentCode == district.Code).OrderBy(d => d.Code).FirstAsync();
+            var ward = await CommerceFixtures.FirstWardAsync(db, "79");
             var south = new ShopWarehouse(store.ShopId);
-            south.Update("Kho Nam", "Kho", "0912345678", "79", district.Code, ward.Code, "2 Đường Thử", false, false);
+            south.Update("Kho Nam", "Kho", "0912345678", "79", ward, "2 Đường Thử", false, false);
             db.ShopWarehouses.Add(south);
             (await db.Shops.SingleAsync(s => s.Id == store.ShopId)).SetMultiWarehouse(true);
             (await db.Products.SingleAsync(p => p.Id == store.Products[$"Kệ {word} Nam"])).ShipFrom(south.Id);

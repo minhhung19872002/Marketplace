@@ -846,10 +846,24 @@
   font-size: 14px;
 }
 
-.pd-shipping-to select {
-  max-width: 260px;
-  padding: 2px 4px;
-  border: 1px solid var(--border);
+.pd-shipping-to {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pd-shipping-to .sh-select {
+  width: 260px;
+  max-width: 100%;
+}
+
+.pd-shipping-to .sh-select__trigger {
+  height: 34px;
+}
+
+.pd-shipping-icon {
+  color: var(--sh-success);
 }
 
 .pd-shipping-from,
@@ -881,4 +895,28 @@
   background: none;
   text-decoration: none;
   cursor: pointer;
+}
+
+/* Content of a label | value row may shrink (voucher strip, shipping picker) — never widens the page at 375 px */
+.product-detail-row > :not(.row-label) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.pd-shipping-options li {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 479px) {
+  .product-detail-row {
+    gap: 10px;
+  }
+
+  .row-label {
+    width: 76px;
+  }
+
+  .pd-shipping-to .sh-select {
+    width: 100%;
+  }
 }

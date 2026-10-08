@@ -69,3 +69,7 @@ export const formatSince = (value: DateInput, nowMs: number = Date.now()): strin
   const days = Math.floor(hours / 24);
   return days < 30 ? `${days} ngày trước` : `${Math.floor(days / 30)} tháng trước`;
 };
+
+/** The current year in Vietnam (copyright line). */
+export const currentYear = (nowMs: number = Date.now()): number =>
+  Number(new Intl.DateTimeFormat('en-US', { timeZone: VN_TIME_ZONE, year: 'numeric' }).format(new Date(nowMs)));

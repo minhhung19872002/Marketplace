@@ -8,7 +8,8 @@ export const useCategoryTree = () => useQuery({ queryKey: ['categories'], queryF
 
 const CategoryGrid = () => {
   const { data: tree = [] } = useCategoryTree();
-  const top = tree.filter((c) => c.isActive);
+  // Industries with nothing on sale stay out of the home grid (an empty page is a dead end)
+  const top = tree.filter((c) => c.isActive && c.productCount > 0);
   if (top.length === 0) return null;
 
   return (

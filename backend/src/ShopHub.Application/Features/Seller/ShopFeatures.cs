@@ -8,6 +8,7 @@ using ShopHub.Application.Features.Media;
 using ShopHub.Application.Identity;
 using ShopHub.Application.Security;
 using ShopHub.Application.SystemConfig;
+using ShopHub.Domain.Iam;
 using ShopHub.Domain.Shops;
 
 namespace ShopHub.Application.Features.Seller;
@@ -30,7 +31,8 @@ public sealed class SellerAccess(IApplicationDbContext db, ICurrentUser currentU
     }
 }
 
-public record WarehouseInput(string ContactName, string Phone, string ProvinceCode, string DistrictCode, string WardCode, string Street);
+/// <summary>Pickup / return address: province → ward (two levels since 2025-07-01).</summary>
+public record WarehouseInput(string ContactName, string Phone, string ProvinceCode, string WardCode, string Street);
 
 public record PersonalKycInput(string LegalName, string IdCardNumber, Guid FrontAssetId, Guid BackAssetId);
 
@@ -58,12 +60,12 @@ internal static class ShopRules
 {
     public static async Task EnsureWarehouseAsync(IApplicationDbContext db, WarehouseInput w, CancellationToken ct)
     {
-        var codes = new[] { w.ProvinceCode, w.DistrictCode, w.WardCode };
-        var units = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code)).ToListAsync(ct);
-        var district = units.FirstOrDefault(u => u.Code == w.DistrictCode);
-        var ward = units.FirstOrDefault(u => u.Code == w.WardCode);
-        if (units.All(u => u.Code != w.ProvinceCode) || district?.ParentCode != w.ProvinceCode || ward?.ParentCode != w.DistrictCode)
-            throw new ValidationException([new ValidationFailure("warehouse", "Địa chỉ lấy hàng không hợp lệ (Tỉnh/Quận/Phường không khớp).")]);
+        var codes = new[] { w.ProvinceCode, w.WardCode };
+        var units = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code) && d.IsActive).ToListAsync(ct);
+        var province = units.FirstOrDefault(u => u.Code == w.ProvinceCode && u.Level == AdminDivisionLevel.Province);
+        var ward = units.FirstOrDefault(u => u.Code == w.WardCode && u.Level == AdminDivisionLevel.Ward);
+        if (province is null || ward?.ParentCode != w.ProvinceCode)
+            throw new ValidationException([new ValidationFailure("warehouse", "Địa chỉ lấy hàng không hợp lệ (Phường/Xã không thuộc Tỉnh/Thành phố đã chọn).")]);
     }
 
     public static async Task ApplyKycAsync(IApplicationDbContext db, IDataEncryptor encryptor, ShopKyc kyc, Guid userId, ShopType type,
@@ -161,7 +163,7 @@ public sealed class RegisterShopHandler(IApplicationDbContext db, SellerAccess a
 
         var warehouse = new ShopWarehouse(shop.Id);
         var w = request.Warehouse;
-        warehouse.Update("Kho chính", w.ContactName, Identifiers.NormalisePhone(w.Phone)!, w.ProvinceCode, w.DistrictCode, w.WardCode,
+        warehouse.Update("Kho chính", w.ContactName, Identifiers.NormalisePhone(w.Phone)!, w.ProvinceCode, w.WardCode,
             w.Street, isPickupDefault: true, isReturnDefault: true);
         db.ShopWarehouses.Add(warehouse);
         // Chosen carriers on (COD as the carrier allows), the other active ones off — the shop changes them later in Thiết lập

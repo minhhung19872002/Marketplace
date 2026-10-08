@@ -50,10 +50,11 @@ public sealed class ShippingEstimateHandler(IApplicationDbContext db, ICurrentUs
         else
         {
             var province = request.ProvinceCode is { } code && provinceNames.ContainsKey(code) ? code : DefaultProvince;
-            // A province alone: its first district and ward stand for it (fees are by zone / province)
-            var district = await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == province).OrderBy(d => d.Code).Select(d => d.Code).FirstAsync(ct);
-            var ward = await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == district).OrderBy(d => d.Code).Select(d => d.Code).FirstOrDefaultAsync(ct) ?? "";
-            to = new RoutePoint(province, district, ward);
+            // A province alone: its first ward stands for it (fees are by zone / province)
+            var ward = await db.AdminDivisions.AsNoTracking()
+                .Where(d => d.ParentCode == province && d.Level == Domain.Iam.AdminDivisionLevel.Ward && d.IsActive)
+                .OrderBy(d => d.Code).Select(d => d.Code).FirstOrDefaultAsync(ct) ?? "";
+            to = new RoutePoint(province, null, ward);
             destination = new ShippingDestinationDto(null, province, provinceNames.GetValueOrDefault(province) ?? province);
         }
 

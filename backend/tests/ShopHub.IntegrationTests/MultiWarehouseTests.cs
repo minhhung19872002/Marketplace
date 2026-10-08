@@ -38,9 +38,8 @@ public class MultiWarehouseTests(ApiFactory factory)
 
     private async Task<object> AddressOf(string province) => await factory.WithDbAsync(async db =>
     {
-        var district = await db.AdminDivisions.Where(d => d.ParentCode == province).OrderBy(d => d.Code).FirstAsync();
-        var ward = await db.AdminDivisions.Where(d => d.ParentCode == district.Code).OrderBy(d => d.Code).FirstAsync();
-        return (object)new { contactName = "Thủ Kho", phone = "0987654321", provinceCode = province, districtCode = district.Code, wardCode = ward.Code,
+        var ward = await CommerceFixtures.FirstWardAsync(db, province);
+        return (object)new { contactName = "Thủ Kho", phone = "0987654321", provinceCode = province, wardCode = ward,
             street = "5 Đường Kho" };
     });
 

@@ -17,6 +17,12 @@ export interface SiteInfo {
   social: { name: string; url: string }[];
   // Zalo Official Account id (SITE.ZALO_OA_ID); null = no Zalo share button
   zaloOaId: string | null;
+  // online.gov.vn registration (SITE.MOIT_URL); null = no "Đã thông báo Bộ Công Thương" badge
+  moitUrl: string | null;
+  appStoreUrl: string | null;
+  googlePlayUrl: string | null;
+  // Active carrier channels (footer "Đơn vị vận chuyển")
+  carriers: string[];
 }
 
 export type ProductReportReason = 'Counterfeit' | 'Prohibited' | 'WrongInfo' | 'Offensive' | 'IntellectualProperty' | 'Other';

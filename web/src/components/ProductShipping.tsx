@@ -4,6 +4,8 @@ import { accountApi } from '../api/account';
 import { storefrontApi } from '../api/storefront';
 import { formatDate } from '../lib/datetime';
 import { formatPrice } from '../lib/money';
+import { Truck } from 'lucide-react';
+import SearchSelect from './ui/SearchSelect';
 
 /**
  * "Vận chuyển" on the product page (II.4): the fee and expected day to the buyer's default address, computed by the
@@ -22,22 +24,18 @@ const ProductShipping = ({ productId }: { productId: string }) => {
     <div className="product-detail-row product-detail-row-top" data-testid="pd-shipping">
       <span className="row-label">Vận Chuyển</span>
       <div className="pd-shipping">
-        <label className="pd-shipping-to">
-          Vận chuyển tới{' '}
-          <select
-            value={picked}
-            aria-label="Vận chuyển tới"
-            data-testid="pd-shipping-to"
-            onChange={(ev) => {
-              const v = ev.target.value;
-              setTo(v.startsWith('p:') ? { province: v.slice(2) } : { addressId: v });
-            }}
-          >
-            {e.myAddresses.map((a) => <option key={a.addressId} value={a.addressId!}>{a.label}</option>)}
-            {(provinces.data ?? []).map((p) => <option key={p.code} value={`p:${p.code}`}>{p.name}</option>)}
-            {!provinces.data && !e.destination.addressId && <option value={picked}>{e.destination.label}</option>}
-          </select>
-        </label>
+        <div className="pd-shipping-to">
+          <Truck size={18} className="pd-shipping-icon" aria-hidden />
+          <span>Vận chuyển tới</span>
+          {/* Saved addresses first, then the 34 provinces — filterable (P1) */}
+          <SearchSelect label="Vận chuyển tới" placeholder={e.destination.label} value={picked} testId="pd-shipping-to"
+            options={[
+              ...e.myAddresses.map((a) => ({ value: a.addressId!, label: a.label })),
+              ...(provinces.data ?? []).map((p) => ({ value: `p:${p.code}`, label: p.name })),
+              ...(!provinces.data && !e.destination.addressId ? [{ value: picked, label: e.destination.label }] : []),
+            ]}
+            onChange={(v) => setTo(v.startsWith('p:') ? { province: v.slice(2) } : { addressId: v })} />
+        </div>
         {e.fromProvinceName && <span className="pd-shipping-from">Gửi từ {e.fromProvinceName}</span>}
         {cheapest ? (
           <ul className="pd-shipping-options">

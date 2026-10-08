@@ -85,6 +85,7 @@ internal sealed class SearchLogConfiguration : IEntityTypeConfiguration<SearchLo
         b.ToTable("search_logs", "engage");
         b.HasKey(l => l.Id);
         b.Property(l => l.Keyword).HasMaxLength(100).IsRequired();
+        b.Property(l => l.DisplayKeyword).HasMaxLength(100);
         b.HasIndex(l => new { l.OccurredAt, l.Keyword }).HasDatabaseName("ix_search_logs_time");
         b.HasIndex(l => l.Keyword).HasDatabaseName("ix_search_logs_keyword").HasOperators("text_pattern_ops");
     }

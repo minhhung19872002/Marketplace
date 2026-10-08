@@ -160,7 +160,7 @@ export interface RegisterShopInput {
   name: string
   type: 'Personal' | 'Business'
   description: string
-  warehouse: { contactName: string; phone: string; provinceCode: string; districtCode: string; wardCode: string; street: string }
+  warehouse: { contactName: string; phone: string; provinceCode: string; wardCode: string; street: string }
   personal: { legalName: string; idCardNumber: string; frontAssetId: string; backAssetId: string } | null
   business: { legalName: string; taxCode: string; licenseAssetId: string } | null
   bank: { bankCode: string; accountNo: string; accountName: string }

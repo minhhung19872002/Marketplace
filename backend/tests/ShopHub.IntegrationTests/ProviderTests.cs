@@ -319,13 +319,17 @@ public class ProviderTests(ApiFactory factory)
         {
             var p = await PlaceAsync("Cod", carrier: "GHN_STD");
             var fee = JsonNode.Parse(Fakes.CallsTo(FakeProviders.GhnHost, "/shiip/public-api/v2/shipping-order/fee").Last().Body)!;
+            // Two-level addresses (2025): ShopHub finds the GHN district that holds the ward
             var (warehouseDistrict, buyerDistrict, buyerWard) = await factory.WithDbAsync(async db =>
             {
                 var w = await db.ShopWarehouses.AsNoTracking().SingleAsync(x => x.ShopId == p.Store.ShopId);
                 var a = await db.Addresses.AsNoTracking().Where(x => x.UserId == p.Buyer.Id).SingleAsync();
-                return (w.DistrictCode, a.DistrictCode, a.WardCode);
+                async Task<List<string>> WardsOf(string province) =>
+                    await db.AdminDivisions.Where(d => d.ParentCode == province && d.IsActive).Select(d => d.Code).ToListAsync();
+                return (FakeProviders.GhnDistrictOf(w.ProvinceCode, w.WardCode, await WardsOf(w.ProvinceCode)),
+                    FakeProviders.GhnDistrictOf(a.ProvinceCode, a.WardCode, await WardsOf(a.ProvinceCode)), a.WardCode);
             });
-            fee["from_district_id"]!.GetValue<int>().Should().Be(int.Parse(warehouseDistrict) + 100_000, "mã quận của GHN, không phải mã Tổng cục Thống kê");
+            fee["from_district_id"]!.GetValue<int>().Should().Be(warehouseDistrict, "mã quận của GHN, không phải mã Tổng cục Thống kê");
             fee["to_ward_code"]!.GetValue<string>().Should().Be($"W{buyerWard}");
 
             var seller = await SellerAsync(p.Store);
@@ -336,7 +340,7 @@ public class ProviderTests(ApiFactory factory)
             tracking.Should().StartWith("GHN");
             var create = Fakes.CallsTo(FakeProviders.GhnHost, "/shiip/public-api/v2/shipping-order/create").Select(c => JsonNode.Parse(c.Body)!)
                 .Single(b => b["client_order_code"]!.GetValue<string>() == p.Code);
-            create["to_district_id"]!.GetValue<int>().Should().Be(int.Parse(buyerDistrict) + 100_000);
+            create["to_district_id"]!.GetValue<int>().Should().Be(buyerDistrict);
             create["cod_amount"]!.GetValue<long>().Should().Be(p.Total, "đơn COD: GHN thu hộ đúng tổng tiền");
             create["to_name"]!.GetValue<string>().Should().Be("Người Nhận Thử");
             create["items"]!.AsArray().Should().ContainSingle();

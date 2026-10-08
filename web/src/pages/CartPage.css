@@ -450,3 +450,10 @@
   color: var(--sh-primary);
   font-weight: 600;
 }
+
+.cart-price-up {
+  display: block;
+  margin-top: 2px;
+  color: var(--sh-warning);
+  font-size: 11px;
+}

@@ -49,7 +49,7 @@ public sealed class OrderSampleSeeder(IServiceProvider services, ShopHubSettings
         "",
     ];
 
-    private sealed record SampleSku(Guid SkuId, Guid ShopId, Guid OwnerId);
+    private sealed record SampleSku(Guid SkuId, Guid ShopId, Guid OwnerId, long Price, bool Mall);
 
     private sealed record Outcome(int Placed, int Reviews, int Returns);
 
@@ -79,32 +79,38 @@ public sealed class OrderSampleSeeder(IServiceProvider services, ShopHubSettings
                            where p.Status == ProductStatus.Active && s.IsActive && s.Stock - s.Reserved >= 30 && sh.Status == ShopStatus.Active
                                  && owners.Contains(sh.OwnerId) && p.MaxPerBuyer == null
                            orderby s.Id
-                           select new { s.Id, p.ShopId, sh.OwnerId }).ToListAsync(ct))
-            .Select(x => new SampleSku(x.Id, x.ShopId, x.OwnerId)).ToList();
+                           select new { s.Id, p.ShopId, sh.OwnerId, s.Price, Mall = sh.Type == ShopType.Mall }).ToListAsync(ct))
+            .Select(x => new SampleSku(x.Id, x.ShopId, x.OwnerId, x.Price, x.Mall)).ToList();
         if (skus.Count < 20)
         {
             logger.LogWarning("Not enough sample products to seed orders ({Count})", skus.Count);
             return;
         }
-        var byShop = skus.GroupBy(s => s.ShopId).ToDictionary(g => g.Key, g => g.ToList());
-        var shopIds = byShop.Keys.OrderBy(k => k).ToList();
-
         var rng = new Random(20261006);
+        // Each shop's SKUs in a fixed random order: picks lean to the front, so a few products sell a lot (like real
+        // shops) and the "đã bán" counts spread out instead of being flat
+        var byShop = skus.GroupBy(s => s.ShopId).ToDictionary(g => g.Key, g => g.OrderBy(_ => rng.Next()).ToList());
+        // Mall shops get more orders
+        var shopIds = byShop.Keys.OrderBy(k => k).SelectMany(k => Enumerable.Repeat(k, byShop[k][0].Mall ? 3 : 1)).ToList();
+
         var now = DateTimeOffset.UtcNow;
         var start = now.AddDays(-90);
         var counters = new Counters();
         var started = DateTime.UtcNow;
         logger.LogInformation("SEED sample orders: {Orders} orders over 90 days through the order commands…", Orders);
 
-        // Every sample buyer needs a delivery address (Hà Nội / Ba Đình)
+        // Every sample buyer needs a delivery address: a ward of Hà Nội or TP. Hồ Chí Minh (two-level divisions)
         foreach (var b in buyers)
         {
             await using var scope = services.CreateAsyncScope();
             var sdb = scope.ServiceProvider.GetRequiredService<ShopHubDbContext>();
             if (await sdb.Addresses.AnyAsync(a => a.UserId == b.Id, ct)) continue;
-            var ward = await sdb.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == "001").OrderBy(d => d.Code).Select(d => d.Code).FirstAsync(ct);
+            var province = rng.Next(2) == 0 ? "01" : "79";
+            var wards = await sdb.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == province && d.Level == AdminDivisionLevel.Ward && d.IsActive)
+                .OrderBy(d => d.Code).Select(d => d.Code).Take(30).ToListAsync(ct);
+            var ward = wards[rng.Next(wards.Count)];
             using (SystemClock.TravelTo(start.AddDays(-1)))
-                await SendAsync(scope, b.Id, new CreateAddressCommand(new AddressInput(b.FullName, b.Phone!, "01", "001", ward,
+                await SendAsync(scope, b.Id, new CreateAddressCommand(new AddressInput(b.FullName, b.Phone!, province, ward,
                     $"{rng.Next(1, 200)} Phố Mẫu", null, null, AddressType.Home, true)), ct);
         }
 
@@ -155,8 +161,12 @@ public sealed class OrderSampleSeeder(IServiceProvider services, ShopHubSettings
             foreach (var shopId in shops)
             {
                 var pool = byShop[shopId];
-                foreach (var sku in Enumerable.Range(0, rng.Next(1, 4)).Select(_ => pool[rng.Next(pool.Count)]).DistinctBy(s => s.SkuId))
-                    await SendAsync(scope, buyerId, new AddCartItemCommand(new CartOwner(buyerId, null), sku.SkuId, rng.Next(100) < 80 ? 1 : 2), ct);
+                foreach (var sku in Enumerable.Range(0, rng.Next(1, 4)).Select(_ => pool[(int)(pool.Count * Math.Pow(rng.NextDouble(), 2.4))]).DistinctBy(s => s.SkuId))
+                {
+                    // Cheap everyday items are often bought by twos and threes
+                    var quantity = sku.Price < 200_000 ? rng.Next(100) switch { < 55 => 1, < 80 => 2, < 93 => 3, _ => 5 } : rng.Next(100) < 88 ? 1 : 2;
+                    await SendAsync(scope, buyerId, new AddCartItemCommand(new CartOwner(buyerId, null), sku.SkuId, quantity), ct);
+                }
             }
             var addressId = await scope.ServiceProvider.GetRequiredService<ShopHubDbContext>().Addresses.AsNoTracking()
                 .Where(a => a.UserId == buyerId && a.IsDefault).Select(a => a.Id).FirstAsync(ct);
@@ -251,7 +261,7 @@ public sealed class OrderSampleSeeder(IServiceProvider services, ShopHubSettings
         foreach (var itemId in items)
         {
             if (counters.Reviews >= ReviewTarget || rng.Next(100) >= 96) continue;
-            var rating = rng.Next(100) switch { < 62 => 5, < 85 => 4, < 94 => 3, < 98 => 2, _ => 1 };
+            var rating = rng.Next(100) switch { < 65 => 5, < 95 => 4, < 99 => 3, _ => 2 };
             var text = ReviewTexts[rng.Next(ReviewTexts.Length)];
             IReadOnlyList<string> tags = rating >= 4 ? Domain.Engage.Review.AllowedTags.OrderBy(_ => rng.Next()).Take(rng.Next(1, 3)).ToList() : [];
             await using var scope = services.CreateAsyncScope();

@@ -77,7 +77,7 @@ public class CatalogTests(ApiFactory factory)
             name,
             type = "Personal",
             description = "Shop thử nghiệm",
-            warehouse = new { contactName = "Kho", phone = "0912345678", provinceCode = "01", districtCode = "001", wardCode = "00001", street = "1 Phố Thử" },
+            warehouse = new { contactName = "Kho", phone = "0912345678", provinceCode = "01", wardCode = "00004", street = "1 Phố Thử" },
             personal = new { legalName = "Nguyễn Văn Thử", idCardNumber = "001200012345", frontAssetId = front, backAssetId = back },
             bank = new { bankCode = "VCB", accountNo = "0011002233445", accountName = "Nguyen Van Thu" },
         });
@@ -495,7 +495,7 @@ public class CatalogTests(ApiFactory factory)
         var cycle = await admin.Client.PostAsJsonAsync("/api/admin/categories",
             new { id = top, parentId = leaf, name = "Đồ Chơi", sortOrder = 0, commissionRateBp = 600, isActive = true });
 
-        tree.GetArrayLength().Should().Be(18);
+        tree.GetArrayLength().Should().Be(19, "18 ngành ban đầu + Thú Cưng của catalogue gieo (quyết định #180)");
         fourth.StatusCode.Should().Be(HttpStatusCode.Conflict);
         cycle.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -538,7 +538,7 @@ public class CatalogTests(ApiFactory factory)
         object Body(string name, string bankCode, string[]? carrierCodes) => new
         {
             name, type = "Personal", description = "Shop thử nghiệm",
-            warehouse = new { contactName = "Kho", phone = "0912345678", provinceCode = "01", districtCode = "001", wardCode = "00001", street = "1 Phố Thử" },
+            warehouse = new { contactName = "Kho", phone = "0912345678", provinceCode = "01", wardCode = "00004", street = "1 Phố Thử" },
             personal = new { legalName = "Nguyễn Văn Thử", idCardNumber = "001200012345", frontAssetId = front, backAssetId = back },
             bank = new { bankCode, accountNo = "0011002233445", accountName = "Nguyen Van Thu" },
             carrierCodes,

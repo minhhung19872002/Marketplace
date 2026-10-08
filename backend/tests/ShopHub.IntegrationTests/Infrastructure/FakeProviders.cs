@@ -30,6 +30,14 @@ public sealed class FakeProviders
     public const string GhnToken = "ghn-test-token";
     public const int GhnShopId = 885123;
     public const string GhnWebhookToken = "ghn-webhook-secret";
+    public const int GhnWardsPerDistrict = 25;
+
+    /// <summary>GHN district id of the fake: 1000 + province, then the district's index (never a GSO code).</summary>
+    public static int GhnDistrictId(string province, int index) => (1_000 + int.Parse(province)) * 100 + index;
+
+    /// <summary>The fake GHN district a ward of ShopHub falls in (wards of a province by code, GhnWardsPerDistrict per district).</summary>
+    public static int GhnDistrictOf(string province, string ward, IEnumerable<string> wardsOfProvince) =>
+        GhnDistrictId(province, wardsOfProvince.OrderBy(c => c, StringComparer.Ordinal).ToList().IndexOf(ward) / GhnWardsPerDistrict);
     public const string GhtkToken = "ghtk-test-token";
     public const string GhtkWebhookToken = "ghtk-webhook-secret";
 
@@ -203,12 +211,18 @@ public sealed class FakeProviders
             {
                 case "/master-data/province":
                     return Json(new { code = 200, data = (await Divisions!(null)).Select(d => new { ProvinceID = int.Parse(d.Code) + 200, ProvinceName = d.Name, NameExtension = new[] { d.Name } }) });
+                // GHN still files places under districts; ShopHub has two levels (2025): the fake groups each province's
+                // wards into districts of GhnWardsPerDistrict, so ShopHub must find the ward inside the right district
                 case "/master-data/district":
                     var province = (int.Parse(query["province_id"]!) - 200).ToString("00");
-                    return Json(new { code = 200, data = (await Divisions!(province)).Select(d => new { DistrictID = int.Parse(d.Code) + 100_000, DistrictName = d.Name, NameExtension = Array.Empty<string>() }) });
+                    var count = ((await Divisions!(province)).Count + GhnWardsPerDistrict - 1) / GhnWardsPerDistrict;
+                    return Json(new { code = 200, data = Enumerable.Range(0, count).Select(i => new { DistrictID = GhnDistrictId(province, i), DistrictName = $"Quận Giả {i + 1}", NameExtension = Array.Empty<string>() }) });
                 case "/master-data/ward":
-                    var district = (int.Parse(query["district_id"]!) - 100_000).ToString("000");
-                    return Json(new { code = 200, data = (await Divisions!(district)).Select(d => new { WardCode = $"W{d.Code}", WardName = d.Name, NameExtension = Array.Empty<string>() }) });
+                    var districtId = int.Parse(query["district_id"]!);
+                    var ofProvince = (districtId / 100 - 1_000).ToString("00");
+                    var index = districtId % 100;
+                    var wards = (await Divisions!(ofProvince)).OrderBy(d => d.Item1, StringComparer.Ordinal).Skip(index * GhnWardsPerDistrict).Take(GhnWardsPerDistrict);
+                    return Json(new { code = 200, data = wards.Select(d => new { WardCode = $"W{d.Item1}", WardName = d.Item2, NameExtension = Array.Empty<string>() }) });
             }
         }
         var shopCall = path is "/v2/shipping-order/fee" or "/v2/shipping-order/create" or "/v2/switch-status/cancel";
@@ -248,7 +262,8 @@ public sealed class FakeProviders
         if (path == "/services/shipment/fee")
         {
             var q = QueryHelpers.ParseQuery(uri.Query);
-            var named = new[] { "pick_province", "pick_district", "province", "district" }.All(k => !string.IsNullOrEmpty(q.GetValueOrDefault(k)));
+            // Post-2025 addresses: province + ward, the district may be empty (not verified against GHTK's real API — docs/08)
+            var named = new[] { "pick_province", "pick_ward", "province", "ward" }.All(k => !string.IsNullOrEmpty(q.GetValueOrDefault(k)));
             return Json(named ? new { success = true, fee = new { fee = 26_000, delivery = true } } : new { success = false, fee = (object?)null, message = "Thiếu địa chỉ" });
         }
         if (path.StartsWith("/services/shipment/order", StringComparison.Ordinal))

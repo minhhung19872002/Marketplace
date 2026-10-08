@@ -1,19 +1,21 @@
 .chat-widget {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 900;
+  display: contents;
 }
 
 .chat-launcher {
-  background: var(--sh-primary);
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 18px;
   border: none;
-  border-radius: 4px;
-  padding: 10px 18px;
+  border-radius: var(--sh-radius-pill);
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
   font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--sh-shadow-md);
 }
 
 .chat-unread {
@@ -35,6 +37,10 @@
 }
 
 .chat-window {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 950;
   width: min(680px, calc(100vw - 32px));
   height: min(520px, calc(100vh - 100px));
   background: #fff;

@@ -94,9 +94,12 @@ const TemplatesTab = () => {
   )
 }
 
-type DivisionRow = { code: string; name: string; level: 'Province' | 'District' | 'Ward'; parentCode: string | null; childCount: number; addressCount: number }
+type DivisionRow = { code: string; name: string; level: 'Province' | 'District' | 'Ward'; parentCode: string | null; childCount: number; addressCount: number; isActive: boolean }
 
-/** Danh mục hành chính (VI.8): browse the tree, add a unit (e.g. after a merger), rename one — codes stay, nothing is deleted. */
+/**
+ * Danh mục hành chính (VI.8): two levels since 2025-07-01 (34 tỉnh/thành → phường/xã). Browse, add a ward under an active
+ * province, rename — codes stay, nothing is deleted; units retired by the reform are listed as "Ngừng dùng".
+ */
 const DivisionsTab = () => {
   const { message } = App.useApp()
   const queryClient = useQueryClient()
@@ -117,9 +120,9 @@ const DivisionsTab = () => {
       <Space style={{ marginBottom: 12 }} wrap>
         <Button size="small" onClick={() => setPath([])} disabled={path.length === 0}>Toàn quốc</Button>
         {path.map((d, i) => <Button key={d.code} size="small" onClick={() => setPath(path.slice(0, i + 1))}>{d.name}</Button>)}
-        {parent?.level !== 'Ward' && (
+        {(!parent || (parent.level === 'Province' && parent.isActive)) && (
           <Button type="primary" size="small" onClick={() => { setEditing('new'); form.setFieldsValue({ code: '', name: '' }) }} data-testid="division-add">
-            Thêm {parent ? (parent.level === 'Province' ? 'quận / huyện' : 'phường / xã') : 'tỉnh / thành phố'}
+            Thêm {parent ? 'phường / xã' : 'tỉnh / thành phố'}
           </Button>
         )}
       </Space>
@@ -132,6 +135,8 @@ const DivisionsTab = () => {
         columns={[
           { title: 'Mã', dataIndex: 'code', width: 100 },
           { title: 'Tên', dataIndex: 'name', render: (n: string, d) => d.level === 'Ward' ? n : <a onClick={() => setPath([...path, d])}>{n}</a> },
+          { title: 'Cấp', dataIndex: 'level', width: 120, render: (l: DivisionRow['level']) => ({ Province: 'Tỉnh / thành', District: 'Quận / huyện (cũ)', Ward: 'Phường / xã' })[l] },
+          { title: 'Trạng thái', dataIndex: 'isActive', width: 120, render: (a: boolean) => a ? <Tag color="green">Đang dùng</Tag> : <Tag>Ngừng dùng</Tag> },
           { title: 'Cấp dưới', dataIndex: 'childCount', width: 100 },
           { title: 'Địa chỉ đã lưu', dataIndex: 'addressCount', width: 130 },
           { title: '', key: 'x', width: 90, render: (_, d) => <Button size="small" onClick={() => { setEditing(d); form.setFieldsValue({ code: d.code, name: d.name }) }}>Đổi tên</Button> },

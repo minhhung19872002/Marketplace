@@ -85,15 +85,19 @@ public class SearchLog : Entity
 {
     private SearchLog() { }
 
-    public SearchLog(string keyword, Guid? userId, int resultCount, DateTimeOffset occurredAt)
+    public SearchLog(string keyword, Guid? userId, int resultCount, DateTimeOffset occurredAt, string? displayKeyword = null)
     {
         Keyword = keyword;
+        DisplayKeyword = displayKeyword;
         UserId = userId;
         ResultCount = resultCount;
         OccurredAt = occurredAt;
     }
 
+    /// <summary>Folded form (no accents, lower case) — what searches are grouped by.</summary>
     public string Keyword { get; private set; } = string.Empty;
+    /// <summary>As typed (trimmed, single spaces): the accented form shown in "từ khoá hot" / suggestions.</summary>
+    public string? DisplayKeyword { get; private set; }
     public Guid? UserId { get; private set; }
     public int ResultCount { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }

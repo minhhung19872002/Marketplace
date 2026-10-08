@@ -145,7 +145,7 @@ const Checkout = () => {
             <select value={quote.address?.id ?? ''} onChange={(e) => setAddressId(e.target.value)} aria-label="Chọn địa chỉ" data-testid="address-select">
               {addresses.data!.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.receiverName} — {a.street}, {a.wardName}, {a.districtName}, {a.provinceName}
+                  {a.receiverName} — {[a.street, a.wardName, a.districtName, a.provinceName].filter(Boolean).join(', ')}
                 </option>
               ))}
             </select>

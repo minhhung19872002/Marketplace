@@ -109,9 +109,11 @@ public class ShippingRuleTests
 {
     [Theory]
     [InlineData("79", "79", ShippingZone.SameProvince)]
-    [InlineData("79", "74", ShippingZone.SameRegion)]
+    [InlineData("79", "80", ShippingZone.SameRegion)]  // TP. Hồ Chí Minh → Tây Ninh (34 provinces, 2025)
     [InlineData("01", "79", ShippingZone.CrossRegion)]
     [InlineData("48", "56", ShippingZone.SameRegion)]
+    [InlineData("37", "38", ShippingZone.CrossRegion)]  // Ninh Bình (North) → Thanh Hóa (Central)
+    [InlineData("68", "75", ShippingZone.CrossRegion)]  // Lâm Đồng (Central) → Đồng Nai (South)
     public void Zone_follows_province_and_region(string from, string to, ShippingZone zone) =>
         ShippingCalculator.ZoneOf(from, to).Should().Be(zone);
 

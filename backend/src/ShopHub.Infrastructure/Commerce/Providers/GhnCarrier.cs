@@ -56,11 +56,17 @@ public sealed class GhnCarrier(
         var province = provinces.FirstOrDefault(p => DivisionNameResolver.Matches(names.Province, p.ProvinceName, p.NameExtension));
         if (province is null) return null;
         var districts = await MasterAsync<GhnDistrict>($"ghn:districts:{province.ProvinceID}", $"/master-data/district?province_id={province.ProvinceID}", ct);
-        var district = districts.FirstOrDefault(d => DivisionNameResolver.Matches(names.District, d.DistrictName, d.NameExtension));
-        if (district is null) return null;
-        var wards = await MasterAsync<GhnWard>($"ghn:wards:{district.DistrictID}", $"/master-data/ward?district_id={district.DistrictID}", ct);
-        var ward = wards.FirstOrDefault(w => DivisionNameResolver.Matches(names.Ward, w.WardName, w.NameExtension));
-        return ward is null ? null : new Location(district.DistrictID, ward.WardCode, names);
+        // Two-level address (no district since 2025-07-01): look for the ward by name in every district of the province
+        var candidates = names.District is null
+            ? districts
+            : districts.Where(d => DivisionNameResolver.Matches(names.District, d.DistrictName, d.NameExtension)).Take(1).ToList();
+        foreach (var district in candidates)
+        {
+            var wards = await MasterAsync<GhnWard>($"ghn:wards:{district.DistrictID}", $"/master-data/ward?district_id={district.DistrictID}", ct);
+            var ward = wards.FirstOrDefault(w => DivisionNameResolver.Matches(names.Ward, w.WardName, w.NameExtension));
+            if (ward is not null) return new Location(district.DistrictID, ward.WardCode, names with { District = names.District ?? district.DistrictName });
+        }
+        return null;
     }
 
     private async Task<IReadOnlyList<T>> MasterAsync<T>(string key, string path, CancellationToken ct)

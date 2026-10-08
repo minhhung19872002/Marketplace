@@ -27,7 +27,7 @@ test.describe('Duyệt hồ sơ bán hàng', () => {
     const [front, back] = [await upload(), await upload()];
     const shopId = await apiAs(request, login.accessToken, 'POST', '/seller/shops', {
       name: `Shop Từ Chối ${seller.phone.slice(-6)}`, type: 'Personal', description: 'Shop kiểm thử duyệt hồ sơ',
-      warehouse: { contactName: 'Kho', phone: seller.phone, provinceCode: '79', districtCode: '760', wardCode: '26734', street: '1 Nguyễn Huệ' },
+      warehouse: { contactName: 'Kho', phone: seller.phone, provinceCode: '79', wardCode: '26740', street: '1 Nguyễn Huệ' },
       personal: { legalName: 'Người Bán Bị Từ Chối', idCardNumber: '079200012345', frontAssetId: front.id, backAssetId: back.id },
       bank: { bankCode: 'VCB', accountNo: '0011002233445', accountName: 'NGUOI BAN BI TU CHOI' },
     });

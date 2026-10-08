@@ -351,10 +351,10 @@ public sealed class ShippingLabelsHandler(IApplicationDbContext db, SellerAccess
         await access.RequireAsync(request.ShopId, ShopPermissions.OrderView, ct);
         var shop = await db.Shops.AsNoTracking().SingleAsync(s => s.Id == request.ShopId, ct);
         var warehouses = await Parcels.WarehousesAsync(db, shop.Id, ct);
-        var codes = warehouses.SelectMany(w => new[] { w.WardCode, w.DistrictCode, w.ProvinceCode }).Distinct().ToList();
+        var codes = warehouses.SelectMany(w => new[] { w.WardCode, w.DistrictCode, w.ProvinceCode }).OfType<string>().Distinct().ToList();
         var names = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code)).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
         string SenderOf(Domain.Shops.ShopWarehouse w) => string.Join(", ", new[] { w.Street, names.GetValueOrDefault(w.WardCode),
-            names.GetValueOrDefault(w.DistrictCode), names.GetValueOrDefault(w.ProvinceCode) }.Where(x => !string.IsNullOrEmpty(x)));
+            w.DistrictCode is null ? null : names.GetValueOrDefault(w.DistrictCode), names.GetValueOrDefault(w.ProvinceCode) }.Where(x => !string.IsNullOrEmpty(x)));
 
         var ids = request.OrderIds.Distinct().ToList();
         var orders = await db.Orders.AsNoTracking().Include(o => o.Items).Include(o => o.Packages).AsSplitQuery()

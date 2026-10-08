@@ -1,22 +1,28 @@
 .footer {
-  background: #fbfbfb;
-  border-top: 4px solid var(--sh-primary);
-  margin-top: 40px;
+  margin-top: var(--sh-space-8);
+  border-top: 1px solid var(--border);
+  background: var(--sh-surface-muted);
 }
 
 .footer-columns {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-  padding: 40px 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sh-space-6);
+  padding-top: 40px;
+  padding-bottom: 32px;
 }
 
 .footer-col-title {
-  font-size: 14px;
+  margin-bottom: var(--sh-space-3);
+  color: var(--sh-text-strong);
+  font-size: 13px;
   font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  margin-bottom: 14px;
-  color: #333;
+}
+
+.footer-col-title--spaced {
+  margin-top: var(--sh-space-5);
 }
 
 .footer-col ul {
@@ -24,43 +30,128 @@
 }
 
 .footer-col li {
-  font-size: 13px;
-  color: var(--text-light);
   margin-bottom: 10px;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.footer-col li:hover {
-  color: var(--sh-primary);
-}
-
-.footer-bottom {
-  border-top: 1px solid var(--border);
-  padding: 20px 0;
-  text-align: center;
-  color: var(--text-light);
+  color: var(--sh-text-muted);
   font-size: 13px;
-}
-
-.footer-country {
-  margin-top: 6px;
-  font-size: 12px;
-}
-
-@media (max-width: 768px) {
-  .footer-columns {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 .footer-col a {
   color: inherit;
   text-decoration: none;
+  transition: color 0.15s;
+}
+
+.footer-col a:hover {
+  color: var(--sh-primary);
+}
+
+/* Payment methods / carriers */
+.footer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.footer-col .footer-chip {
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.footer-social a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* App download */
+.footer-app {
+  display: flex;
+  align-items: center;
+  gap: var(--sh-space-3);
+}
+
+.footer-qr {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  color: var(--sh-text-muted);
+}
+
+.footer-stores {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.footer-col .footer-store {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Bottom: copyright, legal entity, Bộ Công Thương badge */
+.footer-bottom {
+  padding: var(--sh-space-5) 0;
+  border-top: 1px solid var(--border);
+  color: var(--sh-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.footer-bottom-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sh-space-2);
 }
 
 .footer-legal {
-  font-size: 12px;
   line-height: 1.7;
-  margin-bottom: 8px;
+}
+
+.footer-legal-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.footer-moit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--sh-info);
+  border-radius: var(--sh-radius-pill);
+  color: var(--sh-info);
+  font-weight: 600;
+}
+
+@media (max-width: 1023px) {
+  .footer-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 479px) {
+  .footer-columns {
+    grid-template-columns: 1fr;
+    gap: var(--sh-space-4);
+  }
 }

@@ -231,7 +231,8 @@ public class ShopWarehouse : AuditableEntity
     public string ContactName { get; private set; } = string.Empty;
     public string Phone { get; private set; } = string.Empty;
     public string ProvinceCode { get; private set; } = string.Empty;
-    public string DistrictCode { get; private set; } = string.Empty;
+    /// <summary>Only on warehouses saved before the two-level reform (2025-07-01); null otherwise.</summary>
+    public string? DistrictCode { get; private set; }
     public string WardCode { get; private set; } = string.Empty;
     public string Street { get; private set; } = string.Empty;
     public bool IsPickupDefault { get; private set; }
@@ -243,14 +244,14 @@ public class ShopWarehouse : AuditableEntity
         IsReturnDefault = @return;
     }
 
-    public void Update(string name, string contactName, string phone, string provinceCode, string districtCode, string wardCode,
+    public void Update(string name, string contactName, string phone, string provinceCode, string wardCode,
         string street, bool isPickupDefault, bool isReturnDefault)
     {
         Name = name.Trim();
         ContactName = contactName.Trim();
         Phone = phone;
         ProvinceCode = provinceCode;
-        DistrictCode = districtCode;
+        DistrictCode = null;
         WardCode = wardCode;
         Street = street.Trim();
         IsPickupDefault = isPickupDefault;

@@ -455,3 +455,43 @@
     min-width: 0;
   }
 }
+
+/* ---- Compact header past the first screen (P0-5): no top bar, no hot keywords, shorter search row ---- */
+.header-top,
+.header-hot-keywords {
+  transition: max-height 0.2s, opacity 0.2s, margin 0.2s;
+  max-height: 40px;
+}
+
+.header--compact .header-top,
+.header--compact .header-hot-keywords {
+  max-height: 0;
+  margin: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.header--compact .header-main {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.header--compact .header-logo svg {
+  width: 32px;
+  height: 32px;
+}
+
+.header--compact .header-logo-text {
+  font-size: 22px;
+}
+
+/* Hot keywords: one line, never wraps under the search box */
+.header-hot-keywords {
+  flex-wrap: nowrap;
+  min-height: 16px;
+}
+
+.header-hot-keyword {
+  flex: none;
+}

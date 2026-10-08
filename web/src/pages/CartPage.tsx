@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { storefrontApi } from '../api/storefront';
 import { ApiError } from '../api/http';
 import { checkoutApi, type CartLine, type CheckoutRequest } from '../api/commerce';
+import { struckPrice } from '../lib/cart';
 import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { productPath } from '../lib/urls';
@@ -199,8 +200,11 @@ const CartPage = () => {
                     </div>
                   </div>
                   <span className="cart-col-price cart-item-price">
-                    {item.previousPrice !== null && <span className="cart-item-old-price" data-testid="cart-old-price">{formatPrice(item.previousPrice)}</span>}
-                    {formatPrice(item.price)}
+                    {struckPrice(item) !== null && <span className="cart-item-old-price price" data-testid="cart-old-price">{formatPrice(struckPrice(item)!)}</span>}
+                    <span className="price">{formatPrice(item.price)}</span>
+                    {item.previousPrice !== null && item.previousPrice < item.price && (
+                      <span className="cart-price-up" data-testid="cart-price-up">Giá tăng từ {formatPrice(item.previousPrice)}</span>
+                    )}
                     {item.priceLabel && <span className="cart-price-label" data-testid="cart-price-label">{item.priceLabel}</span>}
                   </span>
                   <div className="cart-col-qty cart-item-qty">

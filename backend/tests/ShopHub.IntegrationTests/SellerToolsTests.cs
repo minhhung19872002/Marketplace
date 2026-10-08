@@ -154,14 +154,16 @@ public class SellerToolsTests(ApiFactory factory)
         var admin = await factory.ClientWithPermissionsAsync(Application.Security.Permissions.ContentManage);
         var provinces = (await (await admin.GetAsync("/api/admin/divisions")).ReadEnvelopeAsync()).Data;
         provinces.EnumerateArray().Should().Contain(p => p.Str("code") == "01" && p.GetProperty("childCount").GetInt32() > 0);
-        var district = (await (await admin.GetAsync("/api/admin/divisions?parent=01")).ReadEnvelopeAsync()).Data[0].Str("code");
+        // Two levels since 2025-07-01: a new ward goes right under its province
+        (await (await admin.GetAsync("/api/admin/divisions?parent=01")).ReadEnvelopeAsync()).Data.EnumerateArray()
+            .Should().Contain(d => d.Str("level") == "Ward" && d.GetProperty("isActive").GetBoolean());
 
         var code = $"9{Random.Shared.Next(10_000_000, 99_999_999)}";
-        (await admin.PostAsJsonAsync("/api/admin/divisions", new { code, name = "Phường Thử Mới", parentCode = district })).EnsureSuccessStatusCode();
-        (await admin.PostAsJsonAsync("/api/admin/divisions", new { code, name = "Trùng mã", parentCode = district })).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await admin.PostAsJsonAsync("/api/admin/divisions", new { code, name = "Phường Thử Mới", parentCode = "01" })).EnsureSuccessStatusCode();
+        (await admin.PostAsJsonAsync("/api/admin/divisions", new { code, name = "Trùng mã", parentCode = "01" })).StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await admin.PutAsJsonAsync($"/api/admin/divisions/{code}", new { name = "Phường Thử Đổi Tên" })).EnsureSuccessStatusCode();
         var ward = await factory.WithDbAsync(db => db.AdminDivisions.AsNoTracking().SingleAsync(d => d.Code == code));
-        ward.Should().Match<Domain.Iam.AdminDivision>(w => w.Name == "Phường Thử Đổi Tên" && w.Level == Domain.Iam.AdminDivisionLevel.Ward && w.ParentCode == district);
+        ward.Should().Match<Domain.Iam.AdminDivision>(w => w.Name == "Phường Thử Đổi Tên" && w.Level == Domain.Iam.AdminDivisionLevel.Ward && w.ParentCode == "01" && w.IsActive);
         (await admin.PostAsJsonAsync("/api/admin/divisions", new { code = $"{code}1"[..10], name = "Dưới phường", parentCode = code }))
             .StatusCode.Should().Be(HttpStatusCode.Conflict, "phường / xã không có cấp dưới");
         (await factory.WithDbAsync(db => db.AuditLogs.AnyAsync(l => l.Entity == "AdminDivision" && l.EntityId == code))).Should().BeTrue("mọi thay đổi vào nhật ký");

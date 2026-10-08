@@ -16,6 +16,11 @@ public record TestStore(Guid ShopId, Guid OwnerId, string Marker, Dictionary<str
 
 public static class CommerceFixtures
 {
+    /// <summary>The first active ward of a province (two-level divisions since 2025-07-01).</summary>
+    public static Task<string> FirstWardAsync(ShopHub.Infrastructure.Persistence.ShopHubDbContext db, string province) =>
+        db.AdminDivisions.Where(d => d.ParentCode == province && d.Level == AdminDivisionLevel.Ward && d.IsActive)
+            .OrderBy(d => d.Code).Select(d => d.Code).FirstAsync();
+
     /// <summary>A fresh approved shop in the given province with active single-SKU products, pushed to the search index.</summary>
     public static async Task<TestStore> CreateStoreAsync(this ApiFactory factory, string province = "01", bool mall = false, params SeedProduct[] products)
     {
@@ -33,10 +38,9 @@ public static class CommerceFixtures
             if (mall) shop.SetLabels(true, true);
             db.Shops.Add(shop);
             db.ShopStaff.Add(new ShopStaff(shop.Id, owner.Id, ShopStaffRole.Owner, ShopPermissions.All));
-            var district = await db.AdminDivisions.Where(d => d.ParentCode == province).OrderBy(d => d.Code).FirstAsync();
-            var ward = await db.AdminDivisions.Where(d => d.ParentCode == district.Code).OrderBy(d => d.Code).FirstAsync();
+            var ward = await FirstWardAsync(db, province);
             var w = new ShopWarehouse(shop.Id);
-            w.Update("Kho", "Kho", "0912345678", province, district.Code, ward.Code, "1 Đường Thử", true, true);
+            w.Update("Kho", "Kho", "0912345678", province, ward, "1 Đường Thử", true, true);
             db.ShopWarehouses.Add(w);
 
             foreach (var spec in products)
@@ -72,10 +76,9 @@ public static class CommerceFixtures
         {
             var existing = await db.Addresses.Where(a => a.UserId == userId && a.ProvinceCode == province).Select(a => (Guid?)a.Id).FirstOrDefaultAsync();
             if (existing is { } id) return id;
-            var district = await db.AdminDivisions.Where(d => d.ParentCode == province).OrderBy(d => d.Code).FirstAsync();
-            var ward = await db.AdminDivisions.Where(d => d.ParentCode == district.Code).OrderBy(d => d.Code).FirstAsync();
+            var ward = await FirstWardAsync(db, province);
             var a = new Address(userId);
-            a.Update("Người Nhận Thử", "0901234567", province, district.Code, ward.Code, "12 Đường Nhận", null, null, AddressType.Home);
+            a.Update("Người Nhận Thử", "0901234567", province, ward, "12 Đường Nhận", null, null, AddressType.Home);
             a.SetDefault(!await db.Addresses.AnyAsync(x => x.UserId == userId));
             db.Addresses.Add(a);
             await db.SaveChangesAsync();

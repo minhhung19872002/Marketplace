@@ -72,17 +72,16 @@ async function loginInBrowser(page, account) {
 
 const stripTones = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
 
-/** Default delivery address (Hà Nội / Ba Đình / Phúc Xá) for an account created by registerViaApi. */
+/** Default delivery address (Hà Nội → Phường Ba Đình, two levels since 2025-07-01) for an account created by registerViaApi. */
 async function addAddressViaApi(request, account) {
   const login = await (await request.post(`${BASE}/api/auth/login`, { data: { identifier: account.phone, password: account.password } })).json();
   const token = login.data.accessToken;
   const div = async (parent) => (await (await request.get(`${BASE}/api/admin-divisions${parent ? `?parent=${parent}` : ''}`)).json()).data;
   const province = (await div()).find((d) => d.name === 'Thành phố Hà Nội');
-  const district = (await div(province.code)).find((d) => d.name === 'Quận Ba Đình');
-  const ward = (await div(district.code)).find((d) => d.name === 'Phường Phúc Xá');
+  const ward = (await div(province.code)).find((d) => d.name === 'Phường Ba Đình');
   const res = await request.post(`${BASE}/api/account/addresses`, {
     headers: { Authorization: `Bearer ${token}` },
-    data: { receiverName: 'Người Nhận E2E', phone: account.phone, provinceCode: province.code, districtCode: district.code, wardCode: ward.code,
+    data: { receiverName: 'Người Nhận E2E', phone: account.phone, provinceCode: province.code, wardCode: ward.code,
       street: '1 Phố Thử', type: 'Home', isDefault: true },
   });
   if (!res.ok()) throw new Error(`Thêm địa chỉ thất bại: ${await res.text()}`);
@@ -124,7 +123,7 @@ async function shopWithProduct(request, admin, { stock = 50, price = 159000 } = 
     name: shopName,
     type: 'Personal',
     description: 'Shop kiểm thử đơn hàng',
-    warehouse: { contactName: 'Kho', phone: seller.phone, provinceCode: '79', districtCode: '760', wardCode: '26734', street: '1 Nguyễn Huệ' },
+    warehouse: { contactName: 'Kho', phone: seller.phone, provinceCode: '79', wardCode: '26740', street: '1 Nguyễn Huệ' },
     personal: { legalName: 'Người Bán Đơn Hàng', idCardNumber: '079200012345', frontAssetId: front.id, backAssetId: back.id },
     bank: { bankCode: 'VCB', accountNo: '0011002233445', accountName: 'NGUOI BAN DON HANG' },
   });
@@ -148,7 +147,20 @@ async function shopWithProduct(request, admin, { stock = 50, price = 159000 } = 
   return { seller, token, shopId, shopName, productId, name, input };
 }
 
+/** Pick an option of the buyer site's searchable select (components/ui/SearchSelect) by its accessible label. */
+async function pickOption(scope, label, option) {
+  await scope.getByRole('button', { name: label, exact: true }).click();
+  await scope.getByRole('combobox', { name: `Tìm ${label}` }).fill(option);
+  await scope.getByRole('option', { name: option, exact: true }).click();
+}
+
+/** Province → ward of the buyer address form (two levels since 2025-07-01). */
+async function pickAddress(scope, province = 'Thành phố Hà Nội', ward = 'Phường Ba Đình') {
+  await pickOption(scope, 'Tỉnh/Thành phố', province);
+  await pickOption(scope, 'Phường/Xã', ward);
+}
+
 module.exports = {
   BASE, newPhone, latestOtp, registerViaApi, api, findProduct, withTiers, withoutTiers, loginInBrowser, stripTones,
-  addAddressViaApi, apiLogin, apiAs, shopWithProduct,
+  addAddressViaApi, apiLogin, apiAs, shopWithProduct, pickOption, pickAddress,
 };

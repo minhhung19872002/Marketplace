@@ -341,12 +341,12 @@ public class IdentityTests(ApiFactory factory)
 
     // ---------- Address book ----------
 
-    private static object Address(string name = "Người Nhận", bool isDefault = false, string ward = "00001") => new
+    // Hà Nội → Phường Ba Đình (two levels since 2025-07-01)
+    private static object Address(string name = "Người Nhận", bool isDefault = false, string ward = "00004") => new
     {
         receiverName = name,
         phone = "0912345678",
         provinceCode = "01",
-        districtCode = "001",
         wardCode = ward,
         street = "12 Phố Thử",
         type = "Home",
@@ -359,7 +359,8 @@ public class IdentityTests(ApiFactory factory)
         var user = await factory.CreateUserAsync();
 
         var first = await user.Client.PostAsJsonAsync("/api/account/addresses", Address("A"));
-        var wrongWard = await user.Client.PostAsJsonAsync("/api/account/addresses", Address("B", ward: "26734"));
+        // A ward of TP. Hồ Chí Minh under Hà Nội
+        var wrongWard = await user.Client.PostAsJsonAsync("/api/account/addresses", Address("B", ward: "26740"));
 
         first.StatusCode.Should().Be(HttpStatusCode.OK);
         var created = (await first.ReadEnvelopeAsync()).Data;
@@ -438,12 +439,47 @@ public class IdentityTests(ApiFactory factory)
     [Fact]
     public async Task Administrative_divisions_are_complete_and_hierarchical()
     {
+        // Two levels since 2025-07-01: 34 provinces, then the wards right under them
         var provinces = (await (await Anon.GetAsync("/api/admin-divisions")).ReadEnvelopeAsync()).Data;
-        var hanoiDistricts = (await (await Anon.GetAsync("/api/admin-divisions?parent=01")).ReadEnvelopeAsync()).Data;
+        var hanoiWards = (await (await Anon.GetAsync("/api/admin-divisions?parent=01")).ReadEnvelopeAsync()).Data;
 
-        provinces.GetArrayLength().Should().Be(63);
-        hanoiDistricts.EnumerateArray().Should().Contain(d => d.Str("name") == "Quận Ba Đình");
-        (await factory.WithDbAsync(db => db.AdminDivisions.CountAsync(d => d.Level == AdminDivisionLevel.Ward))).Should().BeGreaterThan(10_000);
+        provinces.GetArrayLength().Should().Be(34);
+        provinces.EnumerateArray().Select(p => p.Str("name")).Should().NotContain(["Tỉnh Hà Giang", "Tỉnh Bắc Kạn", "Tỉnh Bình Dương"]);
+        hanoiWards.EnumerateArray().Should().Contain(d => d.Str("name") == "Phường Ba Đình").And.OnlyContain(d => d.Str("level") == "Ward");
+        (await factory.WithDbAsync(db => db.AdminDivisions.CountAsync(d => d.Level == AdminDivisionLevel.Ward && d.IsActive))).Should().Be(3_321);
+        (await factory.WithDbAsync(db => db.AdminDivisions.CountAsync(d => d.Level == AdminDivisionLevel.District && d.IsActive))).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Old_three_level_data_is_retired_not_deleted_and_old_addresses_still_resolve()
+    {
+        // A database from before the reform: an active district with its ward, and an address saved on them
+        var user = await factory.CreateUserAsync();
+        var district = $"9{Random.Shared.Next(10, 99)}";
+        var ward = $"9{Random.Shared.Next(1000, 9999)}";
+        await factory.WithDbAsync(async db =>
+        {
+            db.AdminDivisions.Add(new AdminDivision(district, "Quận Cũ", AdminDivisionLevel.District, "01"));
+            await db.SaveChangesAsync();
+            db.AdminDivisions.Add(new AdminDivision(ward, "Phường Cũ", AdminDivisionLevel.Ward, district));
+            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync($@"INSERT INTO iam.addresses (id, user_id, receiver_name, phone, province_code, district_code,
+                ward_code, street, type, is_default, created_at) VALUES ({Guid.NewGuid()}, {user.Id}, 'Người Cũ', '0912345678', '01', {district}, {ward},
+                '1 Phố Cũ', 'Home', true, now())");
+        });
+
+        // The sync on start-up sees an active district and runs once
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<ShopHub.Infrastructure.Seed.IdentitySeeder>().SeedAsync(false, CancellationToken.None);
+
+        var units = await factory.WithDbAsync(db => db.AdminDivisions.AsNoTracking().Where(d => d.Code == district || d.Code == ward).ToListAsync());
+        units.Should().HaveCount(2).And.OnlyContain(d => !d.IsActive, "đơn vị cũ được giữ (ngừng dùng), không xoá");
+        var list = (await (await user.Client.GetAsync("/api/account/addresses")).ReadEnvelopeAsync()).Data;
+        var old = list.EnumerateArray().Single();
+        old.Str("districtName").Should().Be("Quận Cũ");
+        old.GetProperty("needsUpdate").GetBoolean().Should().BeTrue();
+        (await (await Anon.GetAsync($"/api/admin-divisions?parent=01")).ReadEnvelopeAsync()).Data.EnumerateArray()
+            .Should().NotContain(d => d.Str("code") == district || d.Str("code") == ward, "chỉ đơn vị đang dùng mới chọn được");
     }
 
     // ---------- Admin RBAC ----------

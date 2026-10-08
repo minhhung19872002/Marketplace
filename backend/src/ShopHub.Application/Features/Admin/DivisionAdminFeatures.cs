@@ -9,7 +9,7 @@ namespace ShopHub.Application.Features.Admin;
 
 // ---------- Danh mục hành chính (VI.8) ----------
 
-public record AdminDivisionRowDto(string Code, string Name, AdminDivisionLevel Level, string? ParentCode, int ChildCount, int AddressCount);
+public record AdminDivisionRowDto(string Code, string Name, AdminDivisionLevel Level, string? ParentCode, int ChildCount, int AddressCount, bool IsActive);
 
 public record AdminDivisionsQuery(string? ParentCode) : IRequest<IReadOnlyList<AdminDivisionRowDto>>;
 
@@ -17,11 +17,12 @@ public record AdminDivisionsQuery(string? ParentCode) : IRequest<IReadOnlyList<A
 public sealed class AdminDivisionsHandler(IApplicationDbContext db) : IRequestHandler<AdminDivisionsQuery, IReadOnlyList<AdminDivisionRowDto>>
 {
     public async Task<IReadOnlyList<AdminDivisionRowDto>> Handle(AdminDivisionsQuery request, CancellationToken ct) =>
+        // Units in use today first; units retired by the 2025 reform (old districts, merged wards) after, marked inactive
         await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == request.ParentCode)
-            .OrderBy(d => d.Code)
+            .OrderByDescending(d => d.IsActive).ThenBy(d => d.Code)
             .Select(d => new AdminDivisionRowDto(d.Code, d.Name, d.Level, d.ParentCode,
-                db.AdminDivisions.Count(c => c.ParentCode == d.Code),
-                db.Addresses.Count(a => a.ProvinceCode == d.Code || a.DistrictCode == d.Code || a.WardCode == d.Code)))
+                db.AdminDivisions.Count(c => c.ParentCode == d.Code && c.IsActive),
+                db.Addresses.Count(a => a.ProvinceCode == d.Code || a.DistrictCode == d.Code || a.WardCode == d.Code), d.IsActive))
             .ToListAsync(ct);
 }
 
@@ -62,12 +63,10 @@ public sealed class SaveAdminDivisionHandler(IApplicationDbContext db, ICurrentU
             {
                 var parent = await db.AdminDivisions.AsNoTracking().FirstOrDefaultAsync(d => d.Code == parentCode, ct)
                              ?? throw new NotFoundException("Không tìm thấy đơn vị cấp trên.");
-                level = parent.Level switch
-                {
-                    AdminDivisionLevel.Province => AdminDivisionLevel.District,
-                    AdminDivisionLevel.District => AdminDivisionLevel.Ward,
-                    _ => throw new ConflictException("Phường / xã không có cấp dưới.", "DIVISION_NO_CHILD"),
-                };
+                // Two levels since 2025-07-01: only an active province takes children (wards)
+                if (parent.Level != AdminDivisionLevel.Province || !parent.IsActive)
+                    throw new ConflictException("Chỉ thêm được Phường / Xã dưới một Tỉnh / Thành phố đang dùng.", "DIVISION_NO_CHILD");
+                level = AdminDivisionLevel.Ward;
             }
             var created = new AdminDivision(code, request.Name.Trim(), level, request.ParentCode is { Length: > 0 } ? request.ParentCode : null);
             db.AdminDivisions.Add(created);

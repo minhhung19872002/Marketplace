@@ -201,7 +201,7 @@ public sealed class PerfSeeder(ShopHubDbContext db, MeiliClient meili, ShopHubSe
 
     private async Task<List<PerfShop>> EnsureShopsAsync(CancellationToken ct)
     {
-        var provinces = await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == null).OrderBy(d => d.Code).Select(d => new { d.Code, d.Name }).ToListAsync(ct);
+        var provinces = await db.AdminDivisions.AsNoTracking().Where(d => d.Level == AdminDivisionLevel.Province && d.IsActive).OrderBy(d => d.Code).Select(d => new { d.Code, d.Name }).ToListAsync(ct);
         var existing = await db.Shops.AsNoTracking().Where(s => s.Name.StartsWith($"Shop {Marker}")).CountAsync(ct);
         var now = clock.UtcNow;
         for (var i = existing; i < Shops; i++)
@@ -214,10 +214,10 @@ public sealed class PerfSeeder(ShopHubDbContext db, MeiliClient meili, ShopHubSe
             db.Shops.Add(shop);
             db.ShopStaff.Add(new ShopStaff(shop.Id, owner.Id, ShopStaffRole.Owner, Application.Security.ShopPermissions.All));
             var province = provinces[i % provinces.Count];
-            var district = await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == province.Code).OrderBy(d => d.Code).Select(d => d.Code).FirstAsync(ct);
-            var ward = await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == district).OrderBy(d => d.Code).Select(d => d.Code).FirstAsync(ct);
+            var ward = await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == province.Code && d.Level == AdminDivisionLevel.Ward && d.IsActive)
+                .OrderBy(d => d.Code).Select(d => d.Code).FirstAsync(ct);
             var w = new ShopWarehouse(shop.Id);
-            w.Update("Kho", "Kho", "0900000000", province.Code, district, ward, "1 Đường Hiệu Năng", true, true);
+            w.Update("Kho", "Kho", "0900000000", province.Code, ward, "1 Đường Hiệu Năng", true, true);
             db.ShopWarehouses.Add(w);
         }
         await db.SaveChangesAsync(ct);

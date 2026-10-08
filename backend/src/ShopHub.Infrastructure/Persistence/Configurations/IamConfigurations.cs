@@ -119,7 +119,7 @@ internal sealed class AddressConfiguration : IEntityTypeConfiguration<Address>
         b.Property(a => a.ReceiverName).HasMaxLength(100).IsRequired();
         b.Property(a => a.Phone).HasMaxLength(15).IsRequired();
         b.Property(a => a.ProvinceCode).HasMaxLength(10).IsRequired();
-        b.Property(a => a.DistrictCode).HasMaxLength(10).IsRequired();
+        b.Property(a => a.DistrictCode).HasMaxLength(10);
         b.Property(a => a.WardCode).HasMaxLength(10).IsRequired();
         b.Property(a => a.Street).HasMaxLength(255).IsRequired();
         b.Property(a => a.Type).HasConversion<string>().HasMaxLength(10);
@@ -143,6 +143,7 @@ internal sealed class AdminDivisionConfiguration : IEntityTypeConfiguration<Admi
         b.Property(d => d.Name).HasMaxLength(100).IsRequired();
         b.Property(d => d.Level).HasConversion<short>();
         b.Property(d => d.ParentCode).HasMaxLength(10);
+        b.Property(d => d.IsActive).HasDefaultValue(true);
         b.HasIndex(d => d.ParentCode).HasDatabaseName("ix_admin_divisions_parent");
         b.HasOne<AdminDivision>().WithMany().HasForeignKey(d => d.ParentCode).OnDelete(DeleteBehavior.Restrict);
     }

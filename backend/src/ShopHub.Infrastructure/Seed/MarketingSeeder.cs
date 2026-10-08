@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ShopHub.Application.Abstractions;
+using ShopHub.Application.Features.Media;
 using ShopHub.Domain.Catalog;
 using ShopHub.Domain.Promo;
 using ShopHub.Infrastructure.Persistence;
@@ -8,16 +9,18 @@ using ShopHub.Infrastructure.Persistence;
 namespace ShopHub.Infrastructure.Seed;
 
 /// <summary>
-/// Sample marketing data (spec section 7): a platform Flash Sale running now and the next one, the home banners and
-/// shortcuts that used to be hard-coded in the buyer site, a popup and one campaign page. Idempotent (only when empty).
+/// Sample marketing data (spec section 7): a platform Flash Sale running now and the next one, the home banners (designed
+/// artwork from Seed/Data/Art, the title is drawn by the page) and shortcuts, a popup and one campaign page. Side banners
+/// carry no image: the buyer site draws them as voucher / freeship cards. Idempotent (only when empty).
 /// </summary>
-public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, ILogger<MarketingSeeder> logger)
+public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectStorage storage, IImageProcessor images, ILogger<MarketingSeeder> logger)
 {
-    public static readonly (string Title, string Link)[] MainBanners =
+    // Each title matches its artwork (hero-1 technology, hero-2 beauty, hero-3 home)
+    public static readonly (string Title, string Link, string Art)[] MainBanners =
     [
-        ("Sinh Nhật ShopHub — hàng nghìn sản phẩm chính hãng giá tốt", "/su-kien/sieu-sale-10-10"),
-        ("ShopHub Mall — thương hiệu chính hãng, đổi trả 15 ngày", "/tim-kiem?mall=true"),
-        ("Công nghệ mới về — điện thoại, laptop, phụ kiện", "/tim-kiem?q=dien+thoai&sort=Newest"),
+        ("Công nghệ chính hãng — iPhone, AirPods, Apple Watch giá tốt", "/tim-kiem?q=apple", "hero-1.webp"),
+        ("Mỹ phẩm & nước hoa chính hãng — ưu đãi đến 40%", "/danh-muc/sac-dep", "hero-2.webp"),
+        ("Nhà đẹp mỗi ngày — đồ gia dụng, nội thất giá tốt", "/danh-muc/nha-cua-doi-song", "hero-3.webp"),
     ];
 
     public static readonly (string Title, string Link)[] SideBanners =
@@ -28,15 +31,28 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, ILogger<M
 
     // Spec II.1: Mã giảm giá, Freeship, Deal sốc, Mall… — each one opens a real page (E3); migration HomeShortcutsDeals adds the
     // first three to databases seeded before
+    // Icon = an icon code the buyer site draws as SVG (or an image URL set by the admin)
     public static readonly (string Label, string Icon, string Link)[] Shortcuts =
     [
-        ("Mã Giảm Giá", "🎟️", "/tai-khoan/voucher"), ("Freeship", "🚚", "/tim-kiem?freeship=true"), ("Deal Sốc", "⚡", "/flash-sale"),
-        ("ShopHub Mall", "🏬", "/tim-kiem?mall=true"), ("Shop Yêu Thích", "💖", "/tim-kiem?preferred=true"),
-        ("Hàng 4 Sao", "⭐", "/tim-kiem?minRating=4"), ("Bán Chạy", "🔥", "/tim-kiem?sort=BestSelling"),
-        ("Hàng Mới Về", "🆕", "/tim-kiem?sort=Newest"), ("Giá Từ Thấp", "🏷️", "/tim-kiem?sort=PriceAsc"),
-        ("Có Sẵn Hàng", "📦", "/tim-kiem?inStock=true"), ("Công Nghệ", "💻", "/danh-muc/may-tinh-laptop"),
-        ("Sắc Đẹp", "💄", "/danh-muc/sac-dep"), ("Nhà Cửa", "🏠", "/danh-muc/nha-cua-doi-song"),
+        ("Mã Giảm Giá", "voucher", "/tai-khoan/voucher"), ("Freeship", "freeship", "/tim-kiem?freeship=true"), ("Deal Sốc", "deal", "/flash-sale"),
+        ("ShopHub Mall", "mall", "/tim-kiem?mall=true"), ("Shop Yêu Thích", "preferred", "/tim-kiem?preferred=true"),
+        ("Hàng 4 Sao", "star", "/tim-kiem?minRating=4"), ("Bán Chạy", "hot", "/tim-kiem?sort=BestSelling"),
+        ("Hàng Mới Về", "new", "/tim-kiem?sort=Newest"), ("Giá Từ Thấp", "price", "/tim-kiem?sort=PriceAsc"),
+        ("Có Sẵn Hàng", "stock", "/tim-kiem?inStock=true"),
     ];
+
+    /// <summary>A seed artwork (Seed/Data/Art) through the image pipeline into the banner bucket; its large public URL.</summary>
+    private async Task<string> ArtAsync(string file, CancellationToken ct)
+    {
+        await using var stream = typeof(MarketingSeeder).Assembly.GetManifestResourceStream($"ShopHub.Infrastructure.Seed.Data.Art.{file}")
+            ?? throw new InvalidOperationException($"Thiếu tài nguyên Art/{file}.");
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, ct);
+        var key = $"seed/{Path.GetFileNameWithoutExtension(file)}";
+        foreach (var v in images.Process(ms.ToArray(), ImageSizes.Public).Variants)
+            await storage.PutAsync(Buckets.Banners, ImageSizes.Key(key, v.MaxSide), v.WebP, "image/webp", ct);
+        return storage.PublicUrl(Buckets.Banners, ImageSizes.Key(key, ImageSizes.Large));
+    }
 
     private static readonly TimeSpan Vn = TimeSpan.FromHours(7);
 
@@ -81,15 +97,14 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, ILogger<M
         {
             var from = now.AddMinutes(-1);
             var to = now.AddYears(1);
-            string ImageOf(int i) => products[i % products.Count].Image ?? "🛍️";
             for (var i = 0; i < MainBanners.Length; i++)
-                db.Banners.Add(new Banner(BannerPosition.HomeMain, MainBanners[i].Title, ImageOf(i), MainBanners[i].Link, from, to, i, null, now));
+                db.Banners.Add(new Banner(BannerPosition.HomeMain, MainBanners[i].Title, await ArtAsync(MainBanners[i].Art, ct), MainBanners[i].Link, from, to, i, null, now));
             for (var i = 0; i < SideBanners.Length; i++)
-                db.Banners.Add(new Banner(BannerPosition.HomeSide, SideBanners[i].Title, ImageOf(3 + i), SideBanners[i].Link, from, to, i, null, now));
+                db.Banners.Add(new Banner(BannerPosition.HomeSide, SideBanners[i].Title, i == 0 ? "voucher" : "freeship", SideBanners[i].Link, from, to, i, null, now));
             var shortcuts = Shortcuts;
             for (var i = 0; i < shortcuts.Length; i++)
                 db.Banners.Add(new Banner(BannerPosition.Shortcut, shortcuts[i].Label, shortcuts[i].Icon, shortcuts[i].Link, from, to, i, null, now));
-            db.Banners.Add(new Banner(BannerPosition.Popup, "Siêu sale 10.10 — mã giảm đến ₫100.000", ImageOf(5), "/su-kien/sieu-sale-10-10", from, to, 0, null, now));
+            db.Banners.Add(new Banner(BannerPosition.Popup, "Siêu sale 10.10 — mã giảm đến ₫100.000", await ArtAsync("popup.webp", ct), "/su-kien/sieu-sale-10-10", from, to, 0, null, now));
             await db.SaveChangesAsync(ct);
             logger.LogInformation("SEED banners: 3 main, 2 side, {Shortcuts} shortcuts, 1 popup", shortcuts.Length);
         }
@@ -98,7 +113,7 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, ILogger<M
         {
             db.Campaigns.Add(new Campaign("Siêu Sale 10.10", "sieu-sale-10-10", now.AddMinutes(-1), now.AddMonths(2),
             [
-                new(CampaignBlockType.Banner, "Siêu Sale 10.10", products[0].Image, "/tim-kiem?sort=BestSelling", null, null, null, null, null),
+                new(CampaignBlockType.Banner, "Siêu Sale 10.10", await ArtAsync("event-1010.webp", ct), "/tim-kiem?sort=BestSelling", null, null, null, null, null),
                 new(CampaignBlockType.Vouchers, "Mã giảm giá của sàn", null, null, ["SHOPHUB50", "FREESHIP", "SALE12"], null, null, null, null),
                 new(CampaignBlockType.FlashSale, "Flash Sale đang diễn ra", null, null, null, null, null, null, null),
                 new(CampaignBlockType.Products, "Deal dưới ₫200.000", null, "/tim-kiem?maxPrice=200000", null, null, null, 200_000, 12),

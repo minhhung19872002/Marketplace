@@ -149,7 +149,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("SH_GHTK_WEBHOOK_TOKEN", FakeProviders.GhtkWebhookToken);
         Environment.SetEnvironmentVariable("SH_CALLBACK_BASE_URL", "https://callback.shophub.test");
         Providers.Divisions = parent => WithDbAsync<IReadOnlyList<(string, string)>>(async db =>
-            (await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == parent).Select(d => new { d.Code, d.Name }).ToListAsync())
+            (await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == parent && d.IsActive).Select(d => new { d.Code, d.Name }).ToListAsync())
             .Select(d => (d.Code, d.Name)).ToList());
 
         // Force host start (migrations + seed) before tests run

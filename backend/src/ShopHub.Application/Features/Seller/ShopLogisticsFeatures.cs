@@ -13,7 +13,7 @@ namespace ShopHub.Application.Features.Seller;
 
 // ---------- Kho hàng & địa chỉ trả hàng, đa kho, đơn vị vận chuyển (III.9) ----------
 
-public record WarehouseDto(Guid Id, string Name, string ContactName, string Phone, string ProvinceCode, string DistrictCode, string WardCode,
+public record WarehouseDto(Guid Id, string Name, string ContactName, string Phone, string ProvinceCode, string? DistrictCode, string WardCode,
     string Street, string FullAddress, bool IsPickupDefault, bool IsReturnDefault, int ProductCount);
 
 public record ShippingChannelDto(string CarrierCode, string Name, string? Description, bool CarrierActive, bool CarrierSupportsCod, bool IsEnabled,
@@ -62,10 +62,10 @@ public sealed class ShopLogisticsHandler(IApplicationDbContext db, SellerAccess 
         var ids = warehouses.Select(w => w.Id).ToList();
         var counts = await db.Products.Where(p => p.ShopId == shop.Id && p.WarehouseId != null && ids.Contains(p.WarehouseId.Value))
             .GroupBy(p => p.WarehouseId!.Value).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
-        var codes = warehouses.SelectMany(w => new[] { w.ProvinceCode, w.DistrictCode, w.WardCode }).Distinct().ToList();
+        var codes = warehouses.SelectMany(w => new[] { w.ProvinceCode, w.DistrictCode, w.WardCode }).OfType<string>().Distinct().ToList();
         var names = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code)).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
-        string Full(ShopWarehouse w) => string.Join(", ", new[] { w.Street, names.GetValueOrDefault(w.WardCode), names.GetValueOrDefault(w.DistrictCode),
-            names.GetValueOrDefault(w.ProvinceCode) }.Where(x => !string.IsNullOrEmpty(x)));
+        string Full(ShopWarehouse w) => string.Join(", ", new[] { w.Street, names.GetValueOrDefault(w.WardCode),
+            w.DistrictCode is null ? null : names.GetValueOrDefault(w.DistrictCode), names.GetValueOrDefault(w.ProvinceCode) }.Where(x => !string.IsNullOrEmpty(x)));
 
         var choices = await ShopChannels.ForShopAsync(db, shop.Id, ct);
         var carriers = await db.Carriers.AsNoTracking().OrderBy(c => c.SortOrder).ThenBy(c => c.Id).ToListAsync(ct);
@@ -128,7 +128,7 @@ public sealed class SaveWarehouseHandler(IApplicationDbContext db, SellerAccess 
         if (!@return && warehouse.IsReturnDefault)
             throw new ConflictException("Shop cần một địa chỉ trả hàng mặc định — hãy đặt kho khác làm mặc định trước.", "NEED_RETURN_DEFAULT");
         var a = request.Address;
-        warehouse.Update(request.Name, a.ContactName, Identifiers.NormalisePhone(a.Phone)!, a.ProvinceCode, a.DistrictCode, a.WardCode, a.Street,
+        warehouse.Update(request.Name, a.ContactName, Identifiers.NormalisePhone(a.Phone)!, a.ProvinceCode, a.WardCode, a.Street,
             pickup, @return);
         foreach (var other in all.Where(w => w.Id != warehouse.Id))
             other.MakeDefaults(other.IsPickupDefault && !pickup, other.IsReturnDefault && !@return);

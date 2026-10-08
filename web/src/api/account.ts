@@ -36,8 +36,9 @@ export interface Address {
   phone: string;
   provinceCode: string;
   provinceName: string;
-  districtCode: string;
-  districtName: string;
+  // Only on addresses saved before the two-level reform (2025-07-01)
+  districtCode: string | null;
+  districtName: string | null;
   wardCode: string;
   wardName: string;
   street: string;
@@ -45,13 +46,15 @@ export interface Address {
   isDefault: boolean;
   lat: number | null;
   lng: number | null;
+  // Saved with units that no longer exist (old district, merged ward / province): the buyer should re-pick them
+  needsUpdate: boolean;
 }
 
+/** Province → ward (two levels since 2025-07-01). */
 export interface AddressInput {
   receiverName: string;
   phone: string;
   provinceCode: string;
-  districtCode: string;
   wardCode: string;
   street: string;
   type: AddressType;

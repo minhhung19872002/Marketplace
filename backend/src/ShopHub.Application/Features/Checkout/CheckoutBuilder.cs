@@ -135,10 +135,15 @@ public sealed class CheckoutBuilder(
         if (address is null) problems.Add("Vui lòng thêm địa chỉ nhận hàng.");
         else
         {
-            var codes = new[] { address.ProvinceCode, address.DistrictCode, address.WardCode };
-            var names = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code)).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
-            var full = string.Join(", ", new[] { address.Street, names.GetValueOrDefault(address.WardCode), names.GetValueOrDefault(address.DistrictCode),
-                names.GetValueOrDefault(address.ProvinceCode) }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            var codes = new[] { address.ProvinceCode, address.DistrictCode, address.WardCode }.OfType<string>().ToArray();
+            var units = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code)).ToDictionaryAsync(d => d.Code, ct);
+            var names = units.ToDictionary(u => u.Key, u => u.Value.Name);
+            var full = string.Join(", ", new[] { address.Street, names.GetValueOrDefault(address.WardCode),
+                address.DistrictCode is null ? null : names.GetValueOrDefault(address.DistrictCode), names.GetValueOrDefault(address.ProvinceCode) }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+            // A province merged away in the 2025 reform: fees and delivery need the new one
+            if (units.GetValueOrDefault(address.ProvinceCode) is not { IsActive: true })
+                problems.Add("Địa chỉ nhận hàng dùng đơn vị hành chính cũ — vui lòng cập nhật Tỉnh/Thành phố và Phường/Xã.");
             addressDto = new CheckoutAddressDto(address.Id, address.ReceiverName, address.Phone, full, address.ProvinceCode);
             snapshot = JsonSerializer.Serialize(new
             {

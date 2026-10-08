@@ -60,7 +60,7 @@ public sealed class SearchProductsHandler(IProductSearch search, IApplicationDbC
             var keyword = Slug.Fold(r.Q);
             if (keyword.Length is >= 2 and <= 100)
             {
-                db.SearchLogs.Add(new SearchLog(keyword, currentUser.UserId, result.TotalCount, clock.UtcNow));
+                db.SearchLogs.Add(new SearchLog(keyword, currentUser.UserId, result.TotalCount, clock.UtcNow, KeywordDisplay.Clean(r.Q)));
                 await db.SaveChangesAsync(ct);
             }
         }
@@ -88,11 +88,12 @@ public sealed class SuggestHandler(IProductSearch search, IApplicationDbContext 
         var since = clock.UtcNow.AddDays(-30);
 
         // Popular queries that start with what was typed and actually returned results
-        var keywords = await db.SearchLogs.AsNoTracking()
+        var folds = await db.SearchLogs.AsNoTracking()
             .Where(l => l.OccurredAt > since && l.ResultCount > 0 && l.Keyword.StartsWith(folded))
             .GroupBy(l => l.Keyword)
             .OrderByDescending(g => g.Count()).ThenBy(g => g.Key)
             .Select(g => g.Key).Take(5).ToListAsync(ct);
+        var keywords = await KeywordDisplay.ForAsync(db, folds, since, [], ct);
 
         var products = await search.SearchAsync(new ProductSearchRequest(q, null, null, [], [], null, null, null, false, false, false, null, [],
             ProductSort.Relevance, 1, 5), ct);
@@ -153,14 +154,54 @@ public sealed class HotKeywordsHandler(IApplicationDbContext db, ISystemParamete
             .OrderByDescending(g => g.Count()).ThenBy(g => g.Key)
             .Select(g => g.Key).Take(take).ToListAsync(ct);
 
-        // Top up with the curated list while real traffic is thin
+        // Shown with accents (the curated spelling, else the most typed accented form); topped up with the curated list
+        // while real traffic is thin
         var curated = JsonSerializer.Deserialize<List<string>>(await parameters.GetStringAsync(ParameterKeys.SearchHotKeywords, ct)) ?? [];
-        var result = fromLogs.ToList();
+        var result = (await KeywordDisplay.ForAsync(db, fromLogs, since, curated, ct)).ToList();
         foreach (var k in curated)
         {
             if (result.Count >= take) break;
-            if (!result.Contains(Slug.Fold(k))) result.Add(k);
+            if (!result.Any(x => Slug.Fold(x) == Slug.Fold(k))) result.Add(KeywordDisplay.Capitalise(k.Trim()));
         }
         return result;
+    }
+}
+
+/// <summary>
+/// How a logged keyword is shown: search logs group by the folded form ("dien thoai"), people read the accented one
+/// ("Điện thoại"). Spelling: the curated hot keyword with the same fold, else the accented form typed most often, else
+/// the folded form — always with a capital first letter.
+/// </summary>
+public static class KeywordDisplay
+{
+    public static string? Clean(string? typed)
+    {
+        if (string.IsNullOrWhiteSpace(typed)) return null;
+        var s = string.Join(' ', typed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return s.Length is >= 2 and <= 100 ? s : null;
+    }
+
+    public static string Capitalise(string s) =>
+        s.Length == 0 ? s : char.ToUpper(s[0], System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) + s[1..];
+
+    public static async Task<IReadOnlyList<string>> ForAsync(IApplicationDbContext db, IReadOnlyList<string> folds, DateTimeOffset since,
+        IReadOnlyList<string> curated, CancellationToken ct)
+    {
+        if (folds.Count == 0) return [];
+        var typed = await db.SearchLogs.AsNoTracking()
+            .Where(l => l.OccurredAt > since && folds.Contains(l.Keyword) && l.DisplayKeyword != null)
+            .GroupBy(l => new { l.Keyword, Display = l.DisplayKeyword!.ToLower() })
+            .Select(g => new { g.Key.Keyword, g.Key.Display, Count = g.Count() })
+            .ToListAsync(ct);
+        return folds.Select(fold =>
+        {
+            var fromCurated = curated.FirstOrDefault(c => Slug.Fold(c) == fold);
+            if (fromCurated is not null) return Capitalise(fromCurated.Trim());
+            // An accented spelling beats an unaccented one even when typed less often
+            var best = typed.Where(t => t.Keyword == fold)
+                .OrderByDescending(t => t.Display != fold).ThenByDescending(t => t.Count).ThenBy(t => t.Display, StringComparer.Ordinal)
+                .Select(t => t.Display).FirstOrDefault();
+            return Capitalise(best ?? fold);
+        }).ToList();
     }
 }

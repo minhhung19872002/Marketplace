@@ -306,21 +306,23 @@ public class StorefrontTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Hot_keywords_and_suggestions_come_from_real_searches()
+    public async Task Hot_keywords_and_suggestions_come_from_real_searches_shown_with_accents()
     {
         var s = await StoreAsync(products: [new("Tai Nghe Chống Ồn Volt", "Tai Nghe Bluetooth", 900_000, 5, "Nhật Bản")]);
-        var keyword = $"tai nghe volt {s.Marker}".ToLowerInvariant();
-        for (var i = 0; i < 3; i++)
+        var accented = $"tai nghe chống ồn volt {s.Marker}".ToLowerInvariant();
+        // Two people type the accents, one does not: all three are one keyword, shown with accents and a capital
+        foreach (var typed in new[] { accented, accented, Slug.Fold(accented) })
         {
             var user = await factory.CreateUserAsync();
-            (await user.Client.GetAsync($"/api/search/products?q={Uri.EscapeDataString(keyword)}")).EnsureSuccessStatusCode();
+            (await user.Client.GetAsync($"/api/search/products?q={Uri.EscapeDataString(typed)}")).EnsureSuccessStatusCode();
         }
 
         var hot = (await (await factory.CreateClient().GetAsync("/api/search/hot-keywords")).ReadEnvelopeAsync()).Data;
-        var suggest = (await (await factory.CreateClient().GetAsync($"/api/search/suggest?q={Uri.EscapeDataString("tai nghe volt")}")).ReadEnvelopeAsync()).Data;
+        var suggest = (await (await factory.CreateClient().GetAsync($"/api/search/suggest?q={Uri.EscapeDataString("tai nghe chong")}")).ReadEnvelopeAsync()).Data;
 
-        hot.EnumerateArray().Select(k => k.GetString()).Should().Contain(Slug.Fold(keyword));
-        suggest.GetProperty("keywords").EnumerateArray().Select(k => k.GetString()).Should().Contain(Slug.Fold(keyword));
+        var shown = "T" + accented[1..];
+        hot.EnumerateArray().Select(k => k.GetString()).Should().Contain(shown).And.NotContain(Slug.Fold(accented));
+        suggest.GetProperty("keywords").EnumerateArray().Select(k => k.GetString()).Should().Contain(shown);
         suggest.GetProperty("products").EnumerateArray().Select(p => p.Str("name")).Should().Contain($"Tai Nghe Chống Ồn Volt {s.Marker}");
     }
 }

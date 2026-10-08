@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 const {
-  BASE, newPhone, latestOtp, registerViaApi, api, findProduct, withTiers, withoutTiers, loginInBrowser, stripTones, addAddressViaApi,
+  BASE, newPhone, latestOtp, registerViaApi, api, findProduct, withTiers, withoutTiers, loginInBrowser, stripTones, addAddressViaApi, pickAddress
 } = require('./helpers.cjs');
 
 const filterRealErrors = (errors) =>
@@ -49,7 +49,8 @@ test.describe('ShopHub Marketplace', () => {
     // Shortcuts as the platform set them, Mã giảm giá / Freeship / Deal sốc among them (E3)
     await expect(page.locator('[data-testid="feature-shortcut"]')).toHaveCount(home.shortcuts.length);
     for (const label of ['Mã Giảm Giá', 'Freeship', 'Deal Sốc']) await expect(page.locator('[data-testid="feature-shortcut"]', { hasText: label })).toHaveCount(1);
-    await expect(page.locator('[data-testid="category-item"]')).toHaveCount(tree.filter((c) => c.isActive).length);
+    // Industries with nothing on sale are left out of the home grid (UI upgrade P0-1)
+    await expect(page.locator('[data-testid="category-item"]')).toHaveCount(tree.filter((c) => c.isActive && c.productCount > 0).length);
     await expect(page.locator('[data-testid="mall-brand"]')).toHaveCount(mall.length);
     // ShopHub Mall shows its products, not only brand logos (E3)
     await expect(page.locator('[data-testid="mall-products"] [data-testid="product-card"]').first()).toBeVisible();
@@ -169,20 +170,18 @@ test.describe('ShopHub Marketplace', () => {
     await page.locator('[data-testid="login-submit"]').click();
     await page.waitForURL(BASE + '/');
 
-    // Address book: Tỉnh → Quận → Phường
+    // Address book: Tỉnh → Phường (two levels since 2025-07-01)
     await page.goto(`${BASE}/tai-khoan/dia-chi`);
     await page.locator('[data-testid="address-add"]').click();
     await page.locator('input[aria-label="Tên người nhận"]').fill('Trần Thị Đăng Ký');
     await page.locator('input[aria-label="Số điện thoại người nhận"]').fill(phone);
-    await page.locator('select[aria-label="Tỉnh/Thành phố"]').selectOption({ label: 'Thành phố Hà Nội' });
-    await page.locator('select[aria-label="Quận/Huyện"]').selectOption({ label: 'Quận Ba Đình' });
-    await page.locator('select[aria-label="Phường/Xã"]').selectOption({ label: 'Phường Phúc Xá' });
+    await pickAddress(page);
     await page.locator('input[aria-label="Địa chỉ cụ thể"]').fill('12 Phố Thử');
     await page.locator('[data-testid="address-save"]').click();
 
     const item = page.locator('[data-testid="address-item"]');
     await expect(item).toHaveCount(1);
-    await expect(item).toContainText('Phường Phúc Xá, Quận Ba Đình, Thành phố Hà Nội');
+    await expect(item).toContainText('Phường Ba Đình, Thành phố Hà Nội');
     await expect(item).toContainText('Mặc định');
   });
 
@@ -444,9 +443,12 @@ test.describe('ShopHub Marketplace', () => {
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.footer')).toBeVisible();
-    // The social column exists only when SITE.SOCIAL_* links are set, each one a real https link (E8)
-    await expect(page.locator('.footer-col')).toHaveCount(site.social.length > 0 ? 4 : 3);
+    // Customer care, about, payment + carriers, follow + app (P0-7); social links only when SITE.SOCIAL_* are set (E8)
+    await expect(page.locator('.footer-col')).toHaveCount(4);
     await expect(page.locator('[data-testid="footer-social"] a')).toHaveCount(site.social.length);
+    await expect(page.locator('[data-testid="footer-carriers"] li')).toHaveCount(site.carriers.length);
+    // The Bộ Công Thương badge only with a real registration link
+    await expect(page.getByTestId('footer-moit')).toHaveCount(site.moitUrl ? 1 : 0);
     await expect(page.locator('.footer a', { hasText: 'Flash Sale' })).toHaveAttribute('href', '/flash-sale');
   });
 });

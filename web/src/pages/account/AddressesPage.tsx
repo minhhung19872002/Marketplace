@@ -4,6 +4,8 @@ import { accountApi, type Address, type AddressInput, type AddressType } from '.
 import { ApiError } from '../../api/http';
 import { ConfirmButton } from '../../components/ConfirmDialog';
 import QueryState from '../../components/QueryState';
+import SearchSelect from '../../components/ui/SearchSelect';
+import { TriangleAlert } from 'lucide-react';
 
 // Leaflet only loads when someone opens the map
 const MapPin = lazy(() => import('../../components/MapPin'));
@@ -12,7 +14,6 @@ const EMPTY: AddressInput = {
   receiverName: '',
   phone: '',
   provinceCode: '',
-  districtCode: '',
   wardCode: '',
   street: '',
   type: 'Home',
@@ -24,21 +25,20 @@ const EMPTY: AddressInput = {
 /** Add / edit one address — also used inline on the checkout page (II.7), which then picks the new address. */
 export const AddressForm = ({ initial, onDone }: { initial: Address | null; onDone: (saved?: Address) => void }) => {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<AddressInput>(initial ? { ...initial } : EMPTY);
+  // An address saved on units that no longer exist starts with the province / ward to re-pick
+  const [form, setForm] = useState<AddressInput>(initial
+    ? { receiverName: initial.receiverName, phone: initial.phone, provinceCode: initial.needsUpdate ? '' : initial.provinceCode,
+        wardCode: initial.needsUpdate ? '' : initial.wardCode, street: initial.street, type: initial.type, isDefault: initial.isDefault,
+        lat: initial.lat, lng: initial.lng }
+    : EMPTY);
   const [showMap, setShowMap] = useState(false);
   const set = <K extends keyof AddressInput>(key: K, value: AddressInput[K]) => setForm((f) => ({ ...f, [key]: value }));
 
   const provinces = useQuery({ queryKey: ['divisions', ''], queryFn: () => accountApi.divisions(), staleTime: Infinity });
-  const districts = useQuery({
+  const wards = useQuery({
     queryKey: ['divisions', form.provinceCode],
     queryFn: () => accountApi.divisions(form.provinceCode),
     enabled: Boolean(form.provinceCode),
-    staleTime: Infinity,
-  });
-  const wards = useQuery({
-    queryKey: ['divisions', form.districtCode],
-    queryFn: () => accountApi.divisions(form.districtCode),
-    enabled: Boolean(form.districtCode),
     staleTime: Infinity,
   });
 
@@ -68,21 +68,20 @@ export const AddressForm = ({ initial, onDone }: { initial: Address | null; onDo
         <input className="account-input" placeholder="Số điện thoại" value={form.phone}
           onChange={(e) => set('phone', e.target.value)} aria-label="Số điện thoại người nhận" />
       </div>
-      <select className="account-input" value={form.provinceCode} aria-label="Tỉnh/Thành phố"
-        onChange={(e) => setForm((f) => ({ ...f, provinceCode: e.target.value, districtCode: '', wardCode: '' }))}>
-        <option value="">Tỉnh/Thành phố</option>
-        {provinces.data?.map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
-      </select>
-      <select className="account-input" value={form.districtCode} aria-label="Quận/Huyện" disabled={!form.provinceCode}
-        onChange={(e) => setForm((f) => ({ ...f, districtCode: e.target.value, wardCode: '' }))}>
-        <option value="">Quận/Huyện</option>
-        {districts.data?.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
-      </select>
-      <select className="account-input" value={form.wardCode} aria-label="Phường/Xã" disabled={!form.districtCode}
-        onChange={(e) => set('wardCode', e.target.value)}>
-        <option value="">Phường/Xã</option>
-        {wards.data?.map((w) => <option key={w.code} value={w.code}>{w.name}</option>)}
-      </select>
+      {initial?.needsUpdate && (
+        <div className="address-legacy-note" role="note">
+          <TriangleAlert size={16} aria-hidden /> Địa chỉ này theo đơn vị hành chính cũ ({[initial.wardName, initial.districtName, initial.provinceName].filter(Boolean).join(', ')}).
+          Vui lòng chọn lại Tỉnh/Thành phố và Phường/Xã theo danh mục mới.
+        </div>
+      )}
+      {/* Two levels since 2025-07-01: 34 provinces → wards */}
+      <div className="address-grid">
+        <SearchSelect label="Tỉnh/Thành phố" placeholder="Tỉnh/Thành phố" value={form.provinceCode} testId="address-province"
+          options={(provinces.data ?? []).map((p) => ({ value: p.code, label: p.name }))}
+          onChange={(v) => setForm((f) => ({ ...f, provinceCode: v, wardCode: '' }))} />
+        <SearchSelect label="Phường/Xã" placeholder="Phường/Xã" value={form.wardCode} testId="address-ward" disabled={!form.provinceCode}
+          options={(wards.data ?? []).map((w) => ({ value: w.code, label: w.name }))} onChange={(v) => set('wardCode', v)} />
+      </div>
       <input className="account-input" placeholder="Địa chỉ cụ thể (số nhà, tên đường)" value={form.street}
         onChange={(e) => set('street', e.target.value)} aria-label="Địa chỉ cụ thể" />
       <div className="address-pin">
@@ -155,8 +154,13 @@ const AddressesPage = () => {
                 <strong>{a.receiverName}</strong> <span className="address-phone">| {a.phone}</span>
               </div>
               <div className="address-line">{a.street}</div>
-              <div className="address-line">{a.wardName}, {a.districtName}, {a.provinceName}</div>
+              <div className="address-line">{[a.wardName, a.districtName, a.provinceName].filter(Boolean).join(', ')}</div>
               {a.isDefault && <span className="address-default">Mặc định</span>}
+              {a.needsUpdate && (
+                <span className="address-legacy" data-testid="address-needs-update">
+                  <TriangleAlert size={12} aria-hidden /> Cần cập nhật theo đơn vị hành chính mới
+                </span>
+              )}
             </div>
             <div className="address-actions">
               <button className="account-link" onClick={() => setEditing(a)}>Cập nhật</button>

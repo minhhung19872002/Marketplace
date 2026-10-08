@@ -223,7 +223,7 @@ public class CrossAccessTests(ApiFactory factory)
         {
             ["PUT api/account/addresses/{id:guid}"] = new
             {
-                receiverName = "Người B", phone = ApiFactory.NewPhone(), provinceCode = address.Str("provinceCode"), districtCode = address.Str("districtCode"),
+                receiverName = "Người B", phone = ApiFactory.NewPhone(), provinceCode = address.Str("provinceCode"),
                 wardCode = address.Str("wardCode"), street = "1 Đường B", type = "Home", isDefault = false,
             },
             ["POST api/chat/conversations/{conversationId:guid}/messages"] = new { type = "Text", text = "Xin chào shop" },
@@ -291,13 +291,16 @@ public class CrossAccessTests(ApiFactory factory)
         });
         var sku = store.Skus["Ấm Trùng Giờ"];
         var url = $"/api/seller/shops/{store.ShopId}/marketing/promotions";
-        var results = await Task.WhenAll(Enumerable.Range(0, 6).Select(i => Task.Run(() => staff.Client.PostAsJsonAsync(url, new
+        // 12 at once (L147 / L153: Postgres may answer concurrent exclusion checks with a deadlock — that must be a 409 too)
+        var results = await Task.WhenAll(Enumerable.Range(0, 12).Select(i => Task.Run(() => staff.Client.PostAsJsonAsync(url, new
         {
             type = "Discount", name = $"Giảm giá {i}", startAt = DateTimeOffset.UtcNow.AddHours(1 + i), endAt = DateTimeOffset.UtcNow.AddDays(2),
             skus = new[] { new { skuId = sku, price = 150_000 + i * 1_000 } },
         }))));
-        results.Count(r => r.IsSuccessStatusCode).Should().Be(1, "mọi khoảng thời gian đều chồng nhau: chỉ một chương trình giá được giữ");
-        results.Where(r => !r.IsSuccessStatusCode).Should().OnlyContain(r => r.StatusCode == HttpStatusCode.Conflict);
+        // Keep what the server said: a failure of this test must show its cause (L147)
+        var answers = await Task.WhenAll(results.Select(async r => $"{(int)r.StatusCode} {await r.Content.ReadAsStringAsync()}"));
+        results.Count(r => r.IsSuccessStatusCode).Should().Be(1, "mọi khoảng thời gian đều chồng nhau: chỉ một chương trình giá được giữ — {0}", string.Join(" | ", answers));
+        results.Where(r => !r.IsSuccessStatusCode).Should().OnlyContain(r => r.StatusCode == HttpStatusCode.Conflict, string.Join(" | ", answers));
         (await factory.WithDbAsync(db => db.PricePrograms.CountAsync(p => p.SkuId == sku && p.IsActive))).Should().Be(1);
     }
 }

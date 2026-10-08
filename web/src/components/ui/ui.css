@@ -191,3 +191,86 @@
 .sh-section__more:hover {
   text-decoration: underline;
 }
+
+/* ---- Search select (province / ward pickers) ---- */
+.sh-select {
+  position: relative;
+  min-width: 0;
+}
+.sh-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sh-space-2);
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--sh-space-3);
+  border: 1px solid var(--sh-border-strong);
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.sh-select__trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sh-select.is-open .sh-select__trigger {
+  border-color: var(--sh-primary);
+}
+.sh-select__trigger:disabled {
+  background: var(--sh-surface-sunken);
+  cursor: not-allowed;
+}
+.sh-select__placeholder {
+  color: var(--sh-text-muted);
+}
+.sh-select__panel {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--sh-radius-md);
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-lg);
+}
+.sh-select__search {
+  display: flex;
+  align-items: center;
+  gap: var(--sh-space-2);
+  padding: var(--sh-space-2) var(--sh-space-3);
+  border-bottom: 1px solid var(--border);
+  color: var(--sh-text-muted);
+}
+.sh-select__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  font: inherit;
+}
+.sh-select__list {
+  max-height: 260px;
+  overflow-y: auto;
+  list-style: none;
+}
+.sh-select__option {
+  padding: 9px var(--sh-space-3);
+  cursor: pointer;
+}
+.sh-select__option.is-active {
+  background: var(--sh-surface-sunken);
+}
+.sh-select__option.is-selected {
+  color: var(--sh-primary);
+  font-weight: 600;
+}
+.sh-select__empty {
+  padding: var(--sh-space-3);
+  color: var(--sh-text-muted);
+}

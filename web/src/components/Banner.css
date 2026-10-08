@@ -1,15 +1,17 @@
 .banner {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 6px;
-  margin-top: 16px;
+  margin-top: var(--sh-space-4);
 }
 
+/* ---- Main carousel: fixed 2.4:1 ---- */
 .banner-slider {
   position: relative;
-  border-radius: 4px;
   overflow: hidden;
   aspect-ratio: 2.4 / 1;
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-tone-primary);
 }
 
 .banner-slide {
@@ -17,7 +19,6 @@
   inset: 0;
   display: flex;
   align-items: center;
-  padding: 0 48px;
   opacity: 0;
   transition: opacity 0.5s;
   pointer-events: none;
@@ -28,143 +29,220 @@
   pointer-events: auto;
 }
 
-.banner-content {
-  color: #fff;
-  max-width: 60%;
-}
-
-.banner-title {
-  font-size: 30px;
-  font-weight: 700;
-  margin-bottom: 10px;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
-
-.banner-subtitle {
-  font-size: 16px;
-  margin-bottom: 18px;
-  opacity: 0.95;
-}
-
-.banner-cta {
-  background: #fff;
-  color: var(--sh-primary);
-  border: none;
-  padding: 10px 26px;
-  border-radius: 3px;
-  font-weight: 600;
-  font-size: 15px;
-  transition: transform 0.15s;
-}
-
-.banner-cta:hover {
-  transform: scale(1.04);
-}
-
-.banner-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.35);
-  border: none;
-  color: #fff;
-  width: 34px;
-  height: 48px;
-  font-size: 28px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-}
-
-.banner-arrow:hover {
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.banner-arrow-left {
-  left: 0;
-  border-radius: 0 3px 3px 0;
-}
-
-.banner-arrow-right {
-  right: 0;
-  border-radius: 3px 0 0 3px;
-}
-
-.banner-dots {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-}
-
-.banner-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.6);
-  padding: 0;
-}
-
-.banner-dot.active {
-  background: #fff;
-}
-
-.banner-side {
-  display: grid;
-  grid-template-rows: 1fr 1fr;
-  gap: 6px;
-}
-
-.banner-side-item {
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 18px;
-}
-
-@media (max-width: 768px) {
-  .banner {
-    grid-template-columns: 1fr;
-  }
-  .banner-side {
-    display: none;
-  }
-  .banner-title {
-    font-size: 20px;
-  }
-}
-
-.banner-side-item--voucher {
-  background: var(--sh-gradient-voucher);
-}
-
-.banner-side-item--freeship {
-  background: var(--sh-gradient-freeship);
-}
-
 .banner-image {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: brightness(0.6);
 }
 
-.banner-slide .banner-content,
-.banner-side-item span {
+.banner-image--fallback {
+  background: var(--sh-tone-primary);
+}
+
+/* Readable white text over any artwork (WCAG): dark fade from the left where the text sits */
+.banner-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--sh-scrim-bottom) 0%, var(--sh-scrim-top) 62%);
+}
+
+.banner-content {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(8px, 1.4vw, 16px);
+  max-width: 58%;
+  padding: 0 clamp(16px, 4vw, 48px);
+  color: var(--sh-on-dark);
+}
+
+.banner-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: clamp(16px, 2.3vw, 30px);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.banner-cta {
+  flex: none;
+  padding: clamp(6px, 0.9vw, 10px) clamp(14px, 2vw, 26px);
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  color: var(--sh-primary);
+  font-size: clamp(12px, 1.1vw, 15px);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: transform 0.15s;
+}
+
+.banner-slide:hover .banner-cta {
+  transform: scale(1.04);
+}
+
+/* Arrows + dots: visible on hover / keyboard focus (always visible on touch screens) */
+.banner-arrow {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 52px;
+  border: none;
+  background: var(--sh-overlay);
+  color: var(--sh-on-dark);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 0.2s;
+}
+
+.banner-arrow-left {
+  left: 0;
+  border-radius: 0 var(--sh-radius-sm) var(--sh-radius-sm) 0;
+}
+
+.banner-arrow-right {
+  right: 0;
+  border-radius: var(--sh-radius-sm) 0 0 var(--sh-radius-sm);
+}
+
+.banner-dots {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 0.2s;
+}
+
+.banner-slider:hover .banner-arrow,
+.banner-slider:hover .banner-dots,
+.banner-slider:focus-within .banner-arrow,
+.banner-slider:focus-within .banner-dots {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .banner-dots {
+    opacity: 1;
+  }
+}
+
+.banner-dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--sh-surface);
+  opacity: 0.55;
+}
+
+.banner-dot.active {
+  width: 20px;
+  border-radius: var(--sh-radius-pill);
+  opacity: 1;
+}
+
+/* ---- Side banners ---- */
+.banner-side {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  min-height: 0;
 }
 
 .banner-side-item {
   position: relative;
   overflow: hidden;
+  min-height: 0;
+  border-radius: var(--sh-radius-sm);
+}
+
+.banner-side-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sh-space-4);
+  padding: 0 var(--sh-space-5);
+  color: var(--sh-on-dark);
+}
+
+.banner-side-card--voucher {
+  background: var(--sh-gradient-voucher);
+}
+
+.banner-side-card--freeship {
+  background: var(--sh-gradient-freeship);
+}
+
+/* Ticket edge on the voucher card */
+.banner-side-card--voucher::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 28%;
+  border-left: 2px dashed rgba(255, 255, 255, 0.45);
+}
+
+.banner-side-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.banner-side-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.banner-side-kicker {
+  font-size: 12px;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.banner-side-title {
+  font-size: clamp(14px, 1.4vw, 19px);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.banner-side-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .banner {
+    grid-template-columns: 1fr;
+  }
+
+  .banner-side {
+    display: none;
+  }
+
+  .banner-content {
+    max-width: 70%;
+  }
 }

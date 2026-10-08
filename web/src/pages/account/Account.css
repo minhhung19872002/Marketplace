@@ -1068,3 +1068,31 @@ img.header-user-avatar {
   margin-left: 8px;
   padding: 2px 8px;
 }
+
+/* Address saved on administrative units retired by the 2025 reform */
+.address-legacy,
+.address-legacy-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sh-warning);
+  font-size: 12px;
+}
+
+.address-legacy {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+
+.address-legacy-note {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: var(--sh-space-3);
+  padding: var(--sh-space-2) var(--sh-space-3);
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-warning-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}

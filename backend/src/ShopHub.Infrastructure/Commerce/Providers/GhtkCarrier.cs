@@ -43,8 +43,8 @@ public sealed class GhtkCarrier(
         if (from is null || to is null) return null;
         var url = QueryHelpers.AddQueryString("/services/shipment/fee", new Dictionary<string, string?>
         {
-            ["pick_province"] = from.Province, ["pick_district"] = from.District, ["pick_ward"] = from.Ward,
-            ["province"] = to.Province, ["district"] = to.District, ["ward"] = to.Ward,
+            ["pick_province"] = from.Province, ["pick_district"] = from.District ?? "", ["pick_ward"] = from.Ward,
+            ["province"] = to.Province, ["district"] = to.District ?? "", ["ward"] = to.Ward,
             ["weight"] = quote.ChargeableWeightG.ToString(CultureInfo.InvariantCulture),
             ["value"] = quote.ParcelValue.ToString(CultureInfo.InvariantCulture),
             ["deliver_option"] = "none", ["transport"] = "road",
@@ -70,9 +70,9 @@ public sealed class GhtkCarrier(
             {
                 id = parcel.OrderCode,
                 pick_name = parcel.Sender.Name, pick_tel = parcel.Sender.Phone, pick_address = parcel.Sender.Street,
-                pick_province = from.Province, pick_district = from.District, pick_ward = from.Ward,
+                pick_province = from.Province, pick_district = from.District ?? "", pick_ward = from.Ward,
                 name = parcel.Receiver.Name, tel = parcel.Receiver.Phone, address = parcel.Receiver.Street,
-                province = to.Province, district = to.District, ward = to.Ward, hamlet = "Khác",
+                province = to.Province, district = to.District ?? "", ward = to.Ward, hamlet = "Khác",
                 // the fee was collected at checkout: GHTK collects only the COD amount from the receiver
                 is_freeship = "1",
                 pick_money = parcel.CodAmount,

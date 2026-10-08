@@ -19,7 +19,7 @@ public static class CarrierParties
             string Str(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
             var province = Str("provinceCode");
             return province.Length == 0 ? null
-                : new CarrierAddress(Str("receiverName"), Str("phone"), Str("street"), new RoutePoint(province, Str("districtCode"), Str("wardCode")));
+                : new CarrierAddress(Str("receiverName"), Str("phone"), Str("street"), new RoutePoint(province, Str("districtCode") is { Length: > 0 } d ? d : null, Str("wardCode")));
         }
         catch (JsonException)
         {

@@ -193,6 +193,12 @@ public class ShopHubDbContext(DbContextOptions<ShopHubDbContext> options) : DbCo
                 ? "Có phân loại đang nằm trong một chương trình giá khác (giảm giá / Flash Sale) trùng thời gian."
                 : "Dữ liệu trùng thời gian với bản ghi khác.", "EXCLUSION_VIOLATION") { Constraint = ex2.ConstraintName };
         }
+        // Concurrent writers on the same rows / exclusion ranges: Postgres may pick one as a deadlock victim (L147) — the
+        // caller retries, it is not a server error
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.DeadlockDetected or PostgresErrorCodes.SerializationFailure })
+        {
+            throw new ConflictException("Có thao tác khác đang xử lý cùng dữ liệu, vui lòng thử lại.", "CONCURRENT_UPDATE");
+        }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg)
         {
             throw new ConflictException(

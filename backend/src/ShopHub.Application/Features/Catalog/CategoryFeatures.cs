@@ -18,7 +18,9 @@ public record CategoryNodeDto(
     bool IsActive,
     int CommissionRateBp,
     bool IsLeaf,
-    IReadOnlyList<CategoryNodeDto> Children);
+    IReadOnlyList<CategoryNodeDto> Children,
+    // Products on sale in the category and its subtree: the storefront hides industries with nothing to show
+    int ProductCount = 0);
 
 public record CategoryAttributeDto(
     Guid Id,
@@ -36,15 +38,17 @@ public record BrandDto(Guid Id, string Name, string Slug, string? LogoUrl, bool 
 internal static class CategoryTree
 {
     /// <param name="rates">Fixed fee in force per category (the fee schedule is the source; the column is a copy)</param>
-    public static IReadOnlyList<CategoryNodeDto> Build(IReadOnlyList<Category> all, Guid? parentId, IReadOnlyDictionary<Guid, int> rates)
+    public static IReadOnlyList<CategoryNodeDto> Build(IReadOnlyList<Category> all, Guid? parentId, IReadOnlyDictionary<Guid, int> rates,
+        IReadOnlyDictionary<Guid, int>? products = null)
     {
         return all.Where(c => c.ParentId == parentId)
             .OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ThenBy(c => c.Id)
             .Select(c =>
             {
-                var children = Build(all, c.Id, rates);
+                var children = Build(all, c.Id, rates, products);
                 return new CategoryNodeDto(c.Id, c.ParentId, c.Name, c.Slug, c.IconUrl, c.Level, c.SortOrder, c.IsActive,
-                    rates.GetValueOrDefault(c.Id, c.CommissionRateBp), children.Count == 0, children);
+                    rates.GetValueOrDefault(c.Id, c.CommissionRateBp), children.Count == 0, children,
+                    (products?.GetValueOrDefault(c.Id) ?? 0) + children.Sum(x => x.ProductCount));
             })
             .ToList();
     }
@@ -67,7 +71,9 @@ public sealed class GetCategoryTreeHandler(IApplicationDbContext db, IClock cloc
         var now = clock.UtcNow;
         var rates = new Dictionary<Guid, int>();
         foreach (var c in all) rates[c.Id] = await schedule.RateAsync(Domain.Finance.FeeType.Fixed, c.Id, now, ct);
-        return CategoryTree.Build(all, null, rates);
+        var products = await db.Products.AsNoTracking().Where(p => p.Status == ProductStatus.Active)
+            .GroupBy(p => p.CategoryId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        return CategoryTree.Build(all, null, rates, products);
     }
 }
 

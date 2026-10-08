@@ -260,7 +260,7 @@ internal sealed class ShopWarehouseConfiguration : IEntityTypeConfiguration<Shop
         b.Property(w => w.ContactName).HasMaxLength(100).IsRequired();
         b.Property(w => w.Phone).HasMaxLength(15).IsRequired();
         b.Property(w => w.ProvinceCode).HasMaxLength(10).IsRequired();
-        b.Property(w => w.DistrictCode).HasMaxLength(10).IsRequired();
+        b.Property(w => w.DistrictCode).HasMaxLength(10);
         b.Property(w => w.WardCode).HasMaxLength(10).IsRequired();
         b.Property(w => w.Street).HasMaxLength(255).IsRequired();
         b.HasOne<Shop>().WithMany().HasForeignKey(w => w.ShopId).OnDelete(DeleteBehavior.Cascade);

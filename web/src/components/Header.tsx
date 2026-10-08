@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import { formatPrice } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { UserAvatar } from './AvatarEditor';
 import { cartBadge, recentLines } from '../lib/cart';
+import { badgeCount } from '../lib/text';
 import './Header.css';
 import { Bell, CircleHelp, Store, TrendingUp, UserRound, Heart, ShoppingCart } from 'lucide-react';
 
@@ -36,7 +37,21 @@ const Header = () => {
   const { count: wishCount } = useWishlist();
   const { data: unread } = useUnreadNotifications(isLoggedIn);
 
+  const location = useLocation();
   const [keyword, setKeyword] = useState('');
+  // On the results page the box shows the keyword being searched (P0-5), not the placeholder
+  useEffect(() => {
+    if (location.pathname === '/tim-kiem') setKeyword(new URLSearchParams(location.search).get('q') ?? '');
+  }, [location.pathname, location.search]);
+
+  // Past the first screen the header collapses (no top bar, no hot keywords) so it covers less of the page
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setCompact((was) => (was ? window.scrollY > 40 : window.scrollY > 120));
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const [showSuggest, setShowSuggest] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -78,7 +93,7 @@ const Header = () => {
   const suggestedShops = typed ? suggestion?.shops ?? [] : [];
 
   return (
-    <header className="header">
+    <header className={`header ${compact ? 'header--compact' : ''}`} data-compact={compact}>
       {/* Thanh trên cùng */}
       <div className="header-top">
         <div className="container header-top-inner">
@@ -89,7 +104,7 @@ const Header = () => {
           </nav>
           <nav className="header-top-links">
             <Link to="/thong-bao" className="header-top-link" data-testid="notifications-link">
-              <Bell size={14} aria-hidden /> Thông Báo{(unread?.total ?? 0) > 0 && <span className="header-noti-badge" data-testid="notifications-badge">{unread!.total}</span>}
+              <Bell size={14} aria-hidden /> Thông Báo{(unread?.total ?? 0) > 0 && <span className="header-noti-badge" data-testid="notifications-badge">{badgeCount(unread!.total)}</span>}
             </Link>
             <Link to="/tro-giup" className="header-top-link" data-testid="help-link"><CircleHelp size={14} aria-hidden /> Hỗ Trợ</Link>
             {isLoggedIn && user ? (
@@ -147,7 +162,7 @@ const Header = () => {
             <input
               type="text"
               className="header-search-input"
-              placeholder="Sinh Nhật ShopHub - Sale To Toàn Sàn"
+              placeholder="Tìm sản phẩm, thương hiệu và shop"
               value={keyword}
               onChange={(e) => {
                 setKeyword(e.target.value);
@@ -237,7 +252,7 @@ const Header = () => {
           {isLoggedIn && (
             <Link to="/thong-bao" className="header-icon-link header-mobile-only" aria-label="Thông báo" data-testid="mobile-notifications">
               <span className="header-heart"><Bell size={22} aria-hidden /></span>
-              {(unread?.total ?? 0) > 0 && <span className="header-cart-badge">{unread!.total}</span>}
+              {(unread?.total ?? 0) > 0 && <span className="header-cart-badge">{badgeCount(unread!.total)}</span>}
             </Link>
           )}
           <Link to={isLoggedIn ? '/tai-khoan' : '/dang-nhap'} className="header-icon-link header-mobile-only"
@@ -247,7 +262,7 @@ const Header = () => {
           {/* Yêu thích */}
           <Link to="/yeu-thich" className="header-icon-link" aria-label="Yêu thích" data-testid="wishlist-link">
             <span className="header-heart"><Heart size={22} aria-hidden /></span>
-            {wishCount > 0 && <span className="header-cart-badge">{wishCount}</span>}
+            {wishCount > 0 && <span className="header-cart-badge">{badgeCount(wishCount)}</span>}
           </Link>
 
           {/* Giỏ hàng + xem nhanh khi hover */}
@@ -258,7 +273,7 @@ const Header = () => {
                 <circle cx="20" cy="21" r="1" />
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
               </svg>
-              {badge > 0 && <span className="header-cart-badge" data-testid="cart-badge">{badge}</span>}
+              {badge > 0 && <span className="header-cart-badge" data-testid="cart-badge">{badgeCount(badge)}</span>}
             </Link>
 
             <div className="header-cart-preview" data-testid="cart-preview">

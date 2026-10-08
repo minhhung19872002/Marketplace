@@ -1581,6 +1581,11 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<string>("DisplayKeyword")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("display_keyword");
+
                     b.Property<string>("Keyword")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -2341,7 +2346,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnName("deleted_at");
 
                     b.Property<string>("DistrictCode")
-                        .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)")
                         .HasColumnName("district_code");
@@ -2432,6 +2436,12 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)")
                         .HasColumnName("code");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
 
                     b.Property<short>("Level")
                         .HasColumnType("smallint")
@@ -6166,7 +6176,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnName("deleted_at");
 
                     b.Property<string>("DistrictCode")
-                        .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)")
                         .HasColumnName("district_code");
@@ -7113,7 +7122,6 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("DistrictCode")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_addresses_admin_divisions_district_code");
 
                     b.HasOne("ShopHub.Domain.Iam.AdminDivision", null)

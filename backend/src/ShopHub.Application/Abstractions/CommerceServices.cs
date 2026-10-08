@@ -22,8 +22,11 @@ public record InboundWebhook(IReadOnlyDictionary<string, string> Headers, IReadO
     public string? QueryValue(string name) => Query.FirstOrDefault(q => string.Equals(q.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
 }
 
-/// <summary>Administrative division codes (Tổng cục Thống kê) of one end of a route.</summary>
-public record RoutePoint(string ProvinceCode, string DistrictCode, string WardCode);
+/// <summary>
+/// Administrative division codes (Tổng cục Thống kê) of one end of a route. Two levels since 2025-07-01: the district
+/// is only set for an address saved before the reform.
+/// </summary>
+public record RoutePoint(string ProvinceCode, string? DistrictCode, string WardCode);
 
 /// <summary>A party of a parcel: who hands it over / receives it.</summary>
 public record CarrierAddress(string Name, string Phone, string Street, RoutePoint Point);

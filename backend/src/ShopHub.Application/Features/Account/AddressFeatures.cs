@@ -16,21 +16,23 @@ public record AddressDto(
     string Phone,
     string ProvinceCode,
     string ProvinceName,
-    string DistrictCode,
-    string DistrictName,
+    // Only on addresses saved before the two-level reform (2025-07-01)
+    string? DistrictCode,
+    string? DistrictName,
     string WardCode,
     string WardName,
     string Street,
     double? Lat,
     double? Lng,
     AddressType Type,
-    bool IsDefault);
+    bool IsDefault,
+    // Saved with units that no longer exist (old district / merged ward or province): the buyer should re-pick them
+    bool NeedsUpdate);
 
 public record AddressInput(
     string ReceiverName,
     string Phone,
     string ProvinceCode,
-    string DistrictCode,
     string WardCode,
     string Street,
     double? Lat,
@@ -46,7 +48,6 @@ public sealed class AddressInputValidator : AbstractValidator<AddressInput>
             .MaximumLength(100).WithMessage("Tên người nhận tối đa 100 ký tự.");
         RuleFor(x => x.Phone).Must(p => Identifiers.NormalisePhone(p) is not null).WithMessage("Số điện thoại không hợp lệ.");
         RuleFor(x => x.ProvinceCode).NotEmpty().WithMessage("Vui lòng chọn Tỉnh/Thành phố.");
-        RuleFor(x => x.DistrictCode).NotEmpty().WithMessage("Vui lòng chọn Quận/Huyện.");
         RuleFor(x => x.WardCode).NotEmpty().WithMessage("Vui lòng chọn Phường/Xã.");
         RuleFor(x => x.Street).NotEmpty().WithMessage("Vui lòng nhập địa chỉ cụ thể.")
             .MaximumLength(255).WithMessage("Địa chỉ cụ thể tối đa 255 ký tự.");
@@ -57,29 +58,31 @@ public sealed class AddressInputValidator : AbstractValidator<AddressInput>
 
 internal static class AddressRules
 {
-    /// <summary>Ward must belong to the district, district to the province (checked against admin_divisions).</summary>
-    public static async Task EnsureHierarchyAsync(IApplicationDbContext db, AddressInput input, CancellationToken ct)
+    /// <summary>Two levels (since 2025-07-01): an active ward of the chosen active province (checked against admin_divisions).</summary>
+    public static Task EnsureHierarchyAsync(IApplicationDbContext db, AddressInput input, CancellationToken ct) =>
+        EnsureHierarchyAsync(db, input.ProvinceCode, input.WardCode, ct);
+
+    public static async Task EnsureHierarchyAsync(IApplicationDbContext db, string provinceCode, string wardCode, CancellationToken ct)
     {
-        var codes = new[] { input.ProvinceCode, input.DistrictCode, input.WardCode };
-        var units = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code)).ToListAsync(ct);
-        var province = units.FirstOrDefault(u => u.Code == input.ProvinceCode && u.Level == AdminDivisionLevel.Province);
-        var district = units.FirstOrDefault(u => u.Code == input.DistrictCode && u.Level == AdminDivisionLevel.District);
-        var ward = units.FirstOrDefault(u => u.Code == input.WardCode && u.Level == AdminDivisionLevel.Ward);
+        var codes = new[] { provinceCode, wardCode };
+        var units = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code) && d.IsActive).ToListAsync(ct);
+        var province = units.FirstOrDefault(u => u.Code == provinceCode && u.Level == AdminDivisionLevel.Province);
+        var ward = units.FirstOrDefault(u => u.Code == wardCode && u.Level == AdminDivisionLevel.Ward);
 
         var errors = new List<ValidationFailure>();
         if (province is null) errors.Add(new("provinceCode", "Tỉnh/Thành phố không hợp lệ."));
-        if (district is null || district.ParentCode != input.ProvinceCode) errors.Add(new("districtCode", "Quận/Huyện không thuộc Tỉnh/Thành phố đã chọn."));
-        if (ward is null || ward.ParentCode != input.DistrictCode) errors.Add(new("wardCode", "Phường/Xã không thuộc Quận/Huyện đã chọn."));
+        else if (ward is null || ward.ParentCode != provinceCode) errors.Add(new("wardCode", "Phường/Xã không thuộc Tỉnh/Thành phố đã chọn."));
         if (errors.Count > 0) throw new ValidationException(errors);
     }
 
     public static IQueryable<AddressDto> Project(IApplicationDbContext db, IQueryable<Address> addresses) =>
         from a in addresses
         join p in db.AdminDivisions on a.ProvinceCode equals p.Code
-        join d in db.AdminDivisions on a.DistrictCode equals d.Code
         join w in db.AdminDivisions on a.WardCode equals w.Code
-        select new AddressDto(a.Id, a.ReceiverName, a.Phone, a.ProvinceCode, p.Name, a.DistrictCode, d.Name,
-            a.WardCode, w.Name, a.Street, a.Lat, a.Lng, a.Type, a.IsDefault);
+        from d in db.AdminDivisions.Where(d => d.Code == a.DistrictCode).DefaultIfEmpty()
+        select new AddressDto(a.Id, a.ReceiverName, a.Phone, a.ProvinceCode, p.Name, a.DistrictCode, d == null ? null : d.Name,
+            a.WardCode, w.Name, a.Street, a.Lat, a.Lng, a.Type, a.IsDefault,
+            a.DistrictCode != null || !p.IsActive || !w.IsActive || w.ParentCode != a.ProvinceCode);
 
     /// <summary>Clear the current default first so the partial unique index (one default per user) never trips.</summary>
     public static Task ClearDefaultAsync(IApplicationDbContext db, Guid userId, CancellationToken ct) =>
@@ -128,7 +131,7 @@ public sealed class CreateAddressHandler(IApplicationDbContext db, ICurrentUser 
         if (makeDefault) await AddressRules.ClearDefaultAsync(db, userId, ct);
 
         var address = new Address(userId);
-        address.Update(input.ReceiverName, Identifiers.NormalisePhone(input.Phone)!, input.ProvinceCode, input.DistrictCode,
+        address.Update(input.ReceiverName, Identifiers.NormalisePhone(input.Phone)!, input.ProvinceCode,
             input.WardCode, input.Street, input.Lat, input.Lng, input.Type);
         address.SetDefault(makeDefault);
         db.Addresses.Add(address);
@@ -161,7 +164,7 @@ public sealed class UpdateAddressHandler(IApplicationDbContext db, ICurrentUser 
             await AddressRules.ClearDefaultAsync(db, userId, ct);
             address.SetDefault(true);
         }
-        address.Update(input.ReceiverName, Identifiers.NormalisePhone(input.Phone)!, input.ProvinceCode, input.DistrictCode,
+        address.Update(input.ReceiverName, Identifiers.NormalisePhone(input.Phone)!, input.ProvinceCode,
             input.WardCode, input.Street, input.Lat, input.Lng, input.Type);
         await db.SaveChangesAsync(ct);
 
@@ -227,11 +230,12 @@ public sealed class ListAdminDivisionsHandler(IApplicationDbContext db)
 {
     public async Task<IReadOnlyList<AdminDivisionDto>> Handle(ListAdminDivisionsQuery request, CancellationToken ct)
     {
-        var query = db.AdminDivisions.AsNoTracking();
+        // Only units that exist today: 34 provinces, then the wards of one province (sorted by name for the picker)
+        var query = db.AdminDivisions.AsNoTracking().Where(d => d.IsActive);
         query = string.IsNullOrWhiteSpace(request.ParentCode)
             ? query.Where(d => d.Level == AdminDivisionLevel.Province)
-            : query.Where(d => d.ParentCode == request.ParentCode);
-        return await query.OrderBy(d => d.Code)
+            : query.Where(d => d.ParentCode == request.ParentCode && d.Level == AdminDivisionLevel.Ward);
+        return await query.OrderBy(d => d.Level == AdminDivisionLevel.Province ? d.Code : d.Name).ThenBy(d => d.Code)
             .Select(d => new AdminDivisionDto(d.Code, d.Name, d.Level, d.ParentCode))
             .ToListAsync(ct);
     }

@@ -64,7 +64,7 @@ test.describe('Kênh Người Bán', () => {
         name: shopName,
         type: 'Personal',
         description: 'Shop kiểm thử đầu cuối',
-        warehouse: { contactName: 'Kho', phone: seller.phone, provinceCode: '01', districtCode: '001', wardCode: '00001', street: '1 Phố Thử' },
+        warehouse: { contactName: 'Kho', phone: seller.phone, provinceCode: '01', wardCode: '00004', street: '1 Phố Thử' },
         personal: { legalName: 'Người Bán E2E', idCardNumber: '001200012345', frontAssetId: front.id, backAssetId: back.id },
         bank: { bankCode: 'VCB', accountNo: '0011002233445', accountName: 'NGUOI BAN E2E' },
       },

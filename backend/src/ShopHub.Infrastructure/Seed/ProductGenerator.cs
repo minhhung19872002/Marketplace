@@ -1,138 +1,191 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
+using ShopHub.Application.Features.Media;
 using ShopHub.Domain.Catalog;
+using ShopHub.Domain.Media;
 using ShopHub.Domain.Shops;
 using ShopHub.Infrastructure.Persistence;
 
 namespace ShopHub.Infrastructure.Seed;
 
 /// <summary>
-/// Tops the sample catalogue up to ~1,000 products (~4,000 SKUs) across every leaf category, deterministically
-/// (fixed random seed). Products go through the same domain rules as a seller's (SetVariants, attribute checks,
-/// submit → approve); images reuse the already-processed seed photos of the same industry.
+/// The sample catalogue: ~1,000 listings (~2,500 SKUs) built from Seed/Data/product-models.json — 188 real models, each
+/// with its own studio photos, placed in the leaf category it shows (never another item's photo). A model is sold by
+/// several shops of its industry, like on a real marketplace: each listing gets a natural name (the model's name, plus
+/// one shop wording that fits the industry), its own price, discount and stock. Deterministic (fixed random seed);
+/// products go through the same domain rules as a seller's (SetVariants, attribute checks, submit → approve).
 /// </summary>
-public sealed class ProductGenerator(ShopHubDbContext db, IClock clock, ILogger<ProductGenerator> logger)
+public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage, IImageProcessor images, IClock clock, ILogger<ProductGenerator> logger)
 {
     public const int Target = 1000;
 
-    private static readonly string[] Qualifiers =
-        ["Cao Cấp", "Chính Hãng", "Giá Tốt", "Phong Cách Hàn Quốc", "Mẫu Mới 2026", "Siêu Bền", "Thời Trang", "Tiện Lợi", "Nhập Khẩu", "Bán Chạy", "Phiên Bản Đặc Biệt", "Basic"];
+    private const string Resource = "ShopHub.Infrastructure.Seed.Data.";
 
-    private static readonly string[] Suffixes = ["", "", "Loại 1", "Size Lớn", "Màu Mới", "Combo 2", "Hàng Có Sẵn", "Freesize"];
-
-    // Price band (VND) per top-level industry
-    private static readonly Dictionary<string, (long Min, long Max)> PriceBands = new()
+    // Wording a shop adds to a model's name, per industry — only words that make sense for that kind of item.
+    // "*" marks a second-hand listing (condition Used).
+    private static readonly Dictionary<string, string[]> Wordings = new()
     {
-        ["Thời Trang Nam"] = (59_000, 899_000), ["Thời Trang Nữ"] = (69_000, 1_200_000), ["Điện Thoại & Phụ Kiện"] = (29_000, 15_000_000),
-        ["Máy Tính & Laptop"] = (49_000, 25_000_000), ["Thiết Bị Điện Tử"] = (79_000, 5_000_000), ["Máy Ảnh & Quay Phim"] = (99_000, 30_000_000),
-        ["Đồng Hồ"] = (99_000, 6_000_000), ["Giày Dép Nam"] = (59_000, 1_900_000), ["Giày Dép Nữ"] = (59_000, 1_900_000),
-        ["Túi Ví Nữ"] = (79_000, 2_500_000), ["Mẹ & Bé"] = (39_000, 3_000_000), ["Nhà Cửa & Đời Sống"] = (29_000, 4_000_000),
-        ["Sắc Đẹp"] = (39_000, 1_500_000), ["Sức Khỏe"] = (59_000, 2_000_000), ["Thể Thao & Du Lịch"] = (49_000, 3_000_000),
-        ["Ô Tô & Xe Máy"] = (39_000, 3_500_000), ["Đồ Chơi"] = (29_000, 2_000_000), ["Bách Hóa Online"] = (15_000, 600_000),
+        ["Điện Thoại & Phụ Kiện"] = ["Chính Hãng", "Bảo Hành 12 Tháng", "Nguyên Seal", "*Đã Qua Sử Dụng 99%", "Bản Quốc Tế"],
+        ["Máy Tính & Laptop"] = ["Chính Hãng", "Bảo Hành 12 Tháng", "*Hàng Trưng Bày 99%", "Nguyên Seal"],
+        ["Thiết Bị Điện Tử"] = ["Chính Hãng", "Bảo Hành 12 Tháng", "Fullbox", "*Đã Qua Sử Dụng"],
+        ["Đồng Hồ"] = ["Fullbox", "Chính Hãng", "Bảo Hành 2 Năm", "*Đã Qua Sử Dụng"],
+        ["Thời Trang Nam"] = ["Form Rộng", "Vải Mềm Mát", "Phong Cách Hàn Quốc", "Hàng Thiết Kế", "Mẫu Mới"],
+        ["Thời Trang Nữ"] = ["Phong Cách Hàn Quốc", "Hàng Thiết Kế", "Mẫu Mới", "Vải Mềm Mát"],
+        ["Giày Dép Nam"] = ["Đế Êm", "Full Size", "Mẫu Mới", "Hàng Có Sẵn"],
+        ["Giày Dép Nữ"] = ["Đế Êm", "Full Size", "Mẫu Mới", "Hàng Có Sẵn"],
+        ["Túi Ví Nữ"] = ["Hàng Thiết Kế", "Mẫu Mới", "Hàng Có Sẵn"],
+        ["Nhà Cửa & Đời Sống"] = ["Hàng Có Sẵn", "Cao Cấp", "Loại 1", "Giao Nhanh"],
+        ["Sắc Đẹp"] = ["Chính Hãng", "Hàng Có Sẵn", "Date Mới"],
+        ["Sức Khỏe"] = ["Chính Hãng", "Date Mới"],
+        ["Thể Thao & Du Lịch"] = ["Chính Hãng", "Loại Tốt", "Hàng Có Sẵn"],
+        ["Ô Tô & Xe Máy"] = ["Hàng Có Sẵn", "Giao Toàn Quốc"],
+        ["Bách Hóa Online"] = ["Loại 1", "Hàng Mới Về", "Giao Nhanh"],
+        ["Thú Cưng"] = ["Hàng Mới Về", "Date Mới"],
     };
 
-    private static readonly Dictionary<string, (string Tier, string[] Options)?> VariantByIndustry = new()
+    // How likely buyers browse an industry: more listings where marketplaces have many sellers
+    private static readonly Dictionary<string, int> Popularity = new()
     {
-        ["Thời Trang Nam"] = ("Kích Cỡ", ["S", "M", "L", "XL"]), ["Thời Trang Nữ"] = ("Kích Cỡ", ["S", "M", "L"]),
-        ["Giày Dép Nam"] = ("Size", ["39", "40", "41", "42", "43"]), ["Giày Dép Nữ"] = ("Size", ["35", "36", "37", "38", "39"]),
-        ["Điện Thoại & Phụ Kiện"] = ("Màu Sắc", ["Đen", "Trắng", "Xanh"]), ["Máy Tính & Laptop"] = ("Màu Sắc", ["Đen", "Bạc"]),
-        ["Thiết Bị Điện Tử"] = ("Màu Sắc", ["Đen", "Trắng", "Xanh", "Hồng"]), ["Đồng Hồ"] = ("Màu Dây", ["Đen", "Nâu", "Bạc"]),
-        ["Túi Ví Nữ"] = ("Màu Sắc", ["Đen", "Be", "Nâu", "Đỏ"]), ["Thể Thao & Du Lịch"] = ("Màu Sắc", ["Đen", "Xanh", "Cam"]),
-        ["Sắc Đẹp"] = ("Loại", ["Mini", "Tiêu chuẩn"]), ["Ô Tô & Xe Máy"] = ("Size", ["M", "L", "XL"]),
-        ["Máy Ảnh & Quay Phim"] = null, ["Mẹ & Bé"] = null, ["Nhà Cửa & Đời Sống"] = ("Màu Sắc", ["Trắng", "Xám"]),
-        ["Sức Khỏe"] = null, ["Đồ Chơi"] = null, ["Bách Hóa Online"] = null,
+        ["Điện Thoại & Phụ Kiện"] = 6, ["Thời Trang Nam"] = 6, ["Thời Trang Nữ"] = 6, ["Sắc Đẹp"] = 5, ["Nhà Cửa & Đời Sống"] = 3,
+        ["Giày Dép Nam"] = 6, ["Giày Dép Nữ"] = 6, ["Túi Ví Nữ"] = 6, ["Máy Tính & Laptop"] = 5, ["Thiết Bị Điện Tử"] = 6,
+        ["Đồng Hồ"] = 4, ["Thể Thao & Du Lịch"] = 3, ["Bách Hóa Online"] = 3, ["Ô Tô & Xe Máy"] = 2, ["Sức Khỏe"] = 4, ["Thú Cưng"] = 4,
     };
 
-    public async Task GenerateAsync(CancellationToken ct)
+    /// <param name="shopSells">Shop name → the top-level industries it sells (from catalog-seed.json).</param>
+    public async Task GenerateAsync(IReadOnlyDictionary<string, IReadOnlyList<string>> shopSells, CancellationToken ct)
     {
         var existing = await db.Products.IgnoreQueryFilters().CountAsync(ct);
         if (existing >= Target) return;
         var rng = new Random(2026 + existing);
         var now = clock.UtcNow;
 
+        var models = await ReadAsync<List<ModelSeed>>("product-models.json", ct);
         var categories = await db.Categories.AsNoTracking().ToListAsync(ct);
-        var parents = categories.Select(c => c.ParentId).Where(p => p is not null).ToHashSet();
-        var leaves = categories.Where(c => !parents.Contains(c.Id) && c.Level == 3).OrderBy(c => c.Name).ToList();
-        string TopOf(Category c)
-        {
-            var cur = c;
-            while (cur.ParentId is { } pid) cur = categories.First(x => x.Id == pid);
-            return cur.Name;
-        }
-
         var shops = await db.Shops.AsNoTracking().Where(s => s.Status == ShopStatus.Active).OrderBy(s => s.Name).ToListAsync(ct);
-        if (shops.Count == 0 || leaves.Count == 0) return;
+        if (shops.Count == 0) return;
         var brands = await db.Brands.AsNoTracking().ToDictionaryAsync(b => b.Name, b => b.Id, ct);
         var attributes = await db.CategoryAttributes.AsNoTracking().ToListAsync(ct);
+        var usedNames = await db.Products.IgnoreQueryFilters().Select(p => new { p.ShopId, p.Name }).ToListAsync(ct);
+        var taken = usedNames.Select(x => (x.ShopId, x.Name)).ToHashSet();
 
-        // Seed photos grouped by industry, to reuse on generated products of the same industry
-        var photos = await (from p in db.Products.AsNoTracking()
-                            from m in p.Media
-                            where m.Type == MediaType.Image && m.SortOrder == 0
-                            select new { p.CategoryId, m.Url, m.AssetId }).ToListAsync(ct);
-        var photosByTop = photos.GroupBy(x => TopOf(categories.First(c => c.Id == x.CategoryId))).ToDictionary(g => g.Key, g => g.ToList());
-        var anyPhotos = photos.ToList();
-
-        var toCreate = Target - existing;
-        var created = 0;
-        for (var i = 0; created < toCreate; i++)
+        // Photos: processed once per model (3 WebP sizes in MinIO) and shared by every listing of the model
+        var owner = shops[0].OwnerId;
+        var photos = new Dictionary<int, List<(Guid Asset, string Url)>>();
+        foreach (var model in models)
         {
-            var leaf = leaves[i % leaves.Count];
-            var top = TopOf(leaf);
-            var shop = shops[rng.Next(shops.Count)];
-            var name = $"{leaf.Name} {Qualifiers[rng.Next(Qualifiers.Length)]} {Suffixes[rng.Next(Suffixes.Length)]}".Trim();
-            if (name.Length > Product.MaxNameLength) name = name[..Product.MaxNameLength];
+            var list = new List<(Guid, string)>();
+            foreach (var file in model.Images)
+            {
+                var key = $"product/seed/{Path.GetFileNameWithoutExtension(file)}";
+                var bytes = await ReadBytesAsync($"ProductImages.{file}", ct);
+                var processed = images.Process(bytes, ImageSizes.Public);
+                foreach (var v in processed.Variants)
+                    await storage.PutAsync(Buckets.Products, ImageSizes.Key(key, v.MaxSide), v.WebP, "image/webp", ct);
+                var asset = new MediaAsset(owner, MediaKind.Image, "product", Buckets.Products, key, "image/webp",
+                    processed.Variants.Sum(v => (long)v.WebP.Length), processed.Width, processed.Height, null, now);
+                db.MediaAssets.Add(asset);
+                list.Add((asset.Id, storage.PublicUrl(Buckets.Products, ImageSizes.Key(key, ImageSizes.Large))));
+            }
+            photos[model.Key] = list;
+        }
+        await db.SaveChangesAsync(ct);
+
+        // Every model once (a Mall shop of its industry first), then more listings weighted by industry popularity
+        var plan = new List<(ModelSeed Model, int Copy)>();
+        var copies = models.ToDictionary(m => m.Key, _ => 0);
+        foreach (var model in models) plan.Add((model, copies[model.Key]++));
+        var weighted = models.SelectMany(m => Enumerable.Repeat(m, Popularity.GetValueOrDefault(Top(m), 3))).ToList();
+        while (plan.Count < Target - existing)
+        {
+            var model = weighted[rng.Next(weighted.Count)];
+            if (copies[model.Key] >= 8) continue;
+            plan.Add((model, copies[model.Key]++));
+        }
+
+        var created = 0;
+        foreach (var (model, copy) in plan)
+        {
+            var top = Top(model);
+            var leaf = ResolvePath(categories, model.Category);
+            var sellers = shops.Where(s => shopSells.GetValueOrDefault(s.Name)?.Contains(top) == true).ToList();
+            if (sellers.Count == 0) sellers = shops;
+            var malls = sellers.Where(s => s.Type == ShopType.Mall).ToList();
+            var shop = copy == 0 && malls.Count > 0 ? malls[rng.Next(malls.Count)] : sellers[rng.Next(sellers.Count)];
+
+            var wordings = Wordings.GetValueOrDefault(top) ?? [];
+            string name;
+            var used = false;
+            var attempt = 0;
+            do
+            {
+                var wording = copy == 0 && attempt == 0 || wordings.Length == 0 ? null : wordings[rng.Next(wordings.Length)];
+                used = wording?.StartsWith('*') == true;
+                name = wording is null ? model.Name : $"{model.Name} - {wording.TrimStart('*')}";
+                if (name.Length > Product.MaxNameLength) name = name[..Product.MaxNameLength].TrimEnd();
+                attempt++;
+            } while (taken.Contains((shop.Id, name)) && attempt < 12);
+            if (taken.Contains((shop.Id, name))) continue;
+            taken.Add((shop.Id, name));
 
             var product = new Product(shop.Id);
             var brandId = shop.Type == ShopType.Mall && shop.Name.StartsWith("Mall ", StringComparison.Ordinal)
                 ? brands.GetValueOrDefault(shop.Name["Mall ".Length..]) : (Guid?)null;
             product.SetInfo(leaf.Id, brandId == Guid.Empty ? null : brandId, name, Slug.From(name),
-                $"<p><strong>{name}</strong> — hàng mới về tại {shop.Name}.</p><ul><li>Đổi trả trong 7 ngày nếu lỗi do nhà sản xuất.</li><li>Hỗ trợ thanh toán khi nhận hàng.</li></ul>",
-                rng.Next(10) == 0 ? ProductCondition.Used : ProductCondition.New, 100 + rng.Next(3000), 200, 150, 80, false, 0);
+                Description(model, top, shop.Name, used), used ? ProductCondition.Used : ProductCondition.New, model.WeightG, 200, 150, 80, false, 0);
 
-            // Valid values for every attribute of the leaf (required ones always filled)
+            // The model's attributes; every other required attribute of the leaf gets a valid value
             var values = new List<(Guid, IReadOnlyList<string>)>();
             foreach (var a in attributes.Where(a => a.CategoryId == leaf.Id))
             {
-                if (!a.IsRequired && rng.Next(3) == 0) continue;
-                IReadOnlyList<string> v = a.InputType switch
+                IReadOnlyList<string>? v = a.Name == "Xuất xứ" ? [model.Origin] : model.Attributes.GetValueOrDefault(a.Name);
+                if (v is null)
                 {
-                    AttributeInputType.SingleSelect => [a.Options[rng.Next(a.Options.Count)]],
-                    AttributeInputType.MultiSelect => a.Options.OrderBy(_ => rng.Next()).Take(1 + rng.Next(Math.Min(2, a.Options.Count))).ToList(),
-                    AttributeInputType.Number => [(1 + rng.Next(48)).ToString()],
-                    _ => ["Khác"],
-                };
+                    if (!a.IsRequired) continue;
+                    v = a.InputType switch
+                    {
+                        AttributeInputType.SingleSelect or AttributeInputType.MultiSelect => [a.Options.Contains("Khác") ? "Khác" : a.Options[0]],
+                        AttributeInputType.Number => ["12"],
+                        _ => ["Khác"],
+                    };
+                }
                 values.Add((a.Id, v));
             }
             product.SetAttributes(values);
 
-            var (lo, hi) = PriceBands.GetValueOrDefault(top, (49_000L, 999_000L));
-            var basePrice = RoundPrice(lo + (long)(rng.NextDouble() * rng.NextDouble() * (hi - lo)));
-            var discount = rng.Next(4) == 0 ? 0 : 5 + rng.Next(50);
-            var original = RoundPrice(basePrice * 100 / (100 - discount));
-            var variant = VariantByIndustry.GetValueOrDefault(top);
+            // Price around the model's list price; most listings run a discount
+            var price = RoundPrice((long)(model.Price * (0.9 + rng.NextDouble() * 0.22)));
+            var discount = rng.Next(10) < 6 ? 5 + rng.Next(36) : 0;
+            if (used) price = RoundPrice(price * 7 / 10);
+            long Original(long p) => discount == 0 ? p : RoundPrice(p * 100 / (100 - discount));
+            int Stock() => 10 + rng.Next(390);
+            var soldOut = rng.Next(25) == 0;
             var tiers = new List<TierSpec>();
             var skus = new List<SkuSpec>();
-            int Stock() => rng.Next(20) == 0 ? 0 : 5 + rng.Next(300);
-            if (variant is { } v2 && rng.Next(5) > 0)
+            if (model.Variant is { } variant)
             {
-                tiers.Add(new TierSpec(v2.Tier, v2.Options.Select(o => new OptionSpec(o, null)).ToList()));
-                foreach (var o in v2.Options)
-                    skus.Add(new SkuSpec(o, null, null, basePrice, Math.Max(original, basePrice), Stock(), null, true));
+                tiers.Add(new TierSpec(variant.Tier, variant.Options.Select(o => new OptionSpec(o.Name, null)).ToList()));
+                foreach (var o in variant.Options)
+                {
+                    var p = o.Delta is { } delta ? RoundPrice(price + delta) : RoundPrice(price * 2 * 95 / 100);
+                    skus.Add(new SkuSpec(o.Name, null, null, p, Original(p), soldOut ? 0 : Stock(), null, true));
+                }
             }
             else
             {
-                skus.Add(new SkuSpec(null, null, null, basePrice, Math.Max(original, basePrice), Stock(), null, true));
+                skus.Add(new SkuSpec(null, null, null, price, Original(price), soldOut ? 0 : Stock(), null, true));
             }
             var deltas = product.SetVariants(tiers, skus);
 
-            var pool = photosByTop.GetValueOrDefault(top) ?? anyPhotos;
-            var photo = pool[rng.Next(pool.Count)];
-            product.SetMedia([new MediaSpec(MediaType.Image, photo.AssetId, photo.Url, null)]);
+            // Covers differ between listings of a model: the photo order turns with the copy number
+            var shots = photos[model.Key];
+            var media = shots.Skip(copy % shots.Count).Concat(shots.Take(copy % shots.Count))
+                .Select(p => new MediaSpec(MediaType.Image, p.Asset, p.Url, null)).ToList();
+            product.SetMedia(media);
             product.SubmitForReview(now, null);
-            product.Approve(now.AddMinutes(-rng.Next(60 * 24 * 60)));
+            product.Approve(now.AddMinutes(-rng.Next(60 * 24 * 90)));
 
             db.Products.Add(product);
             foreach (var (sku, delta) in deltas)
@@ -147,8 +200,65 @@ public sealed class ProductGenerator(ShopHubDbContext db, IClock clock, ILogger<
         }
         await db.SaveChangesAsync(ct);
         db.ChangeTracker.Clear();
-        logger.LogInformation("Generated {Count} sample product(s)", created);
+        logger.LogInformation("Generated {Count} sample product(s) from {Models} models", created, models.Count);
     }
 
-    private static long RoundPrice(long price) => Math.Max(1000, (price + 500) / 1000 * 1000);
+    private static string Top(ModelSeed m) => m.Category.Split('/')[0];
+
+    private static string Description(ModelSeed m, string top, string shop, bool used)
+    {
+        var lines = new List<string>
+        {
+            $"<p><strong>{m.Name}</strong> — {(used ? "hàng đã qua sử dụng, ngoại hình đẹp, đã kiểm tra kỹ trước khi giao" : "hàng mới, đóng gói nguyên vẹn")}.</p>",
+            "<ul>",
+        };
+        foreach (var (k, v) in m.Attributes) lines.Add($"<li>{k}: {string.Join(", ", v)}{(k is "Khối lượng" ? " g" : k is "Hạn sử dụng" ? " ngày" : "")}</li>");
+        lines.Add($"<li>Xuất xứ: {m.Origin}</li>");
+        if (m.Variant is { } v2) lines.Add($"<li>{v2.Tier}: {string.Join(" / ", v2.Options.Select(o => o.Name))}</li>");
+        lines.Add("</ul>");
+        lines.Add(top switch
+        {
+            "Bách Hóa Online" or "Thú Cưng" => "<p>Bảo quản nơi khô ráo, thoáng mát. Hàng tươi giao trong ngày tại nội thành.</p>",
+            "Thời Trang Nam" or "Thời Trang Nữ" => "<p>Giặt tay hoặc giặt máy ở chế độ nhẹ, không dùng chất tẩy. Bảng size chi tiết trong ảnh, inbox shop để được tư vấn.</p>",
+            "Điện Thoại & Phụ Kiện" or "Máy Tính & Laptop" or "Thiết Bị Điện Tử" => "<p>Kiểm tra máy khi nhận hàng. Lỗi phần cứng do nhà sản xuất được đổi mới trong 7 ngày.</p>",
+            _ => "<p>Đổi trả trong 7 ngày nếu sản phẩm lỗi do nhà sản xuất.</p>",
+        });
+        lines.Add($"<p>{shop} cảm ơn bạn đã tin chọn!</p>");
+        return string.Join("", lines);
+    }
+
+    private static Category ResolvePath(IReadOnlyList<Category> all, string path)
+    {
+        Category? current = null;
+        foreach (var name in path.Split('/'))
+            current = all.FirstOrDefault(c => c.Name == name && c.ParentId == current?.Id)
+                ?? throw new InvalidOperationException($"Không tìm thấy danh mục \"{path}\" trong dữ liệu gieo.");
+        return current!;
+    }
+
+    private static long RoundPrice(long price) => price >= 1_000_000 ? Math.Max(10_000, (price + 5_000) / 10_000 * 10_000) : Math.Max(1_000, (price + 500) / 1_000 * 1_000);
+
+    private static async Task<T> ReadAsync<T>(string name, CancellationToken ct)
+    {
+        await using var stream = typeof(ProductGenerator).Assembly.GetManifestResourceStream(Resource + name)
+            ?? throw new InvalidOperationException($"Thiếu tài nguyên {name}.");
+        return await JsonSerializer.DeserializeAsync<T>(stream, new JsonSerializerOptions(JsonSerializerDefaults.Web), ct)
+               ?? throw new InvalidOperationException($"Tài nguyên {name} rỗng.");
+    }
+
+    private static async Task<byte[]> ReadBytesAsync(string name, CancellationToken ct)
+    {
+        await using var stream = typeof(ProductGenerator).Assembly.GetManifestResourceStream(Resource + name)
+            ?? throw new InvalidOperationException($"Thiếu tài nguyên {name}.");
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, ct);
+        return ms.ToArray();
+    }
+
+    private sealed record ModelSeed(int Key, string Category, string Name, long Price, VariantSeed? Variant,
+        Dictionary<string, List<string>> Attributes, string Origin, int WeightG, List<string> Images);
+
+    private sealed record VariantSeed(string Tier, List<VariantOptionSeed> Options);
+
+    private sealed record VariantOptionSeed(string Name, long? Delta);
 }

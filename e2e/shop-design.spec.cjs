@@ -191,7 +191,7 @@ test.describe('Thiết lập & trang trí shop', () => {
     await dialog.getByLabel('Tên kho').fill('Kho Hà Nội');
     await dialog.getByLabel('Người liên hệ').fill('Thủ Kho');
     await dialog.getByLabel('Số điện thoại kho').fill(shop.seller.phone);
-    for (const [label, option] of [['Tỉnh', 'Thành phố Hà Nội'], ['Quận', 'Quận Ba Đình'], ['Phường', 'Phường Phúc Xá']]) {
+    for (const [label, option] of [['Tỉnh', 'Thành phố Hà Nội'], ['Phường', 'Phường Ba Đình']]) {
       await dialog.getByRole('combobox', { name: label, exact: true }).fill(option);
       await seller.locator('.ant-select-item-option', { hasText: option }).first().click();
     }

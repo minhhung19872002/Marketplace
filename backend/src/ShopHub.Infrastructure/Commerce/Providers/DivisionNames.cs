@@ -5,7 +5,8 @@ using ShopHub.Infrastructure.Persistence;
 
 namespace ShopHub.Infrastructure.Commerce.Providers;
 
-public record DivisionNames(string Province, string District, string Ward);
+/// <summary>District is null for a two-level address (since 2025-07-01) — carriers then locate the ward within the province.</summary>
+public record DivisionNames(string Province, string? District, string Ward);
 
 /// <summary>
 /// Names of a route point from ShopHub's administrative divisions (Tổng cục Thống kê codes). Carriers have their own
@@ -18,11 +19,12 @@ public sealed class DivisionNameResolver(ShopHubDbContext db)
 
     public async Task<DivisionNames?> NamesAsync(RoutePoint p, CancellationToken ct)
     {
-        var codes = new[] { p.ProvinceCode, p.DistrictCode, p.WardCode };
+        var codes = new[] { p.ProvinceCode, p.DistrictCode, p.WardCode }.OfType<string>().ToArray();
         var names = await db.AdminDivisions.AsNoTracking().Where(d => codes.Contains(d.Code)).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
-        return names.TryGetValue(p.ProvinceCode, out var province) && names.TryGetValue(p.DistrictCode, out var district)
-            ? new DivisionNames(province, district, names.GetValueOrDefault(p.WardCode) ?? "")
-            : null;
+        if (!names.TryGetValue(p.ProvinceCode, out var province)) return null;
+        string? district = null;
+        if (p.DistrictCode is not null && !names.TryGetValue(p.DistrictCode, out district)) return null;
+        return new DivisionNames(province, district, names.GetValueOrDefault(p.WardCode) ?? "");
     }
 
     /// <summary>"Thành phố Hồ Chí Minh" → "hochiminh", "Quận 1" → "1", "Phường Bến Nghé" → "bennghe".</summary>

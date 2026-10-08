@@ -20,6 +20,8 @@ export interface CategoryNode {
   isActive: boolean;
   isLeaf: boolean;
   children: CategoryNode[];
+  // Products on sale in the subtree
+  productCount: number;
 }
 
 export interface CategoryCrumb {

@@ -245,7 +245,7 @@ export interface ChatReportDetail {
 
 export const platformApi = {
   user: (id: string) => apiRequest<UserDetail>(`/admin/users/${id}`),
-  divisions: (parent?: string) => apiRequest<{ code: string; name: string; level: 'Province' | 'District' | 'Ward'; parentCode: string | null; childCount: number; addressCount: number }[]>(`/admin/divisions${parent ? `?parent=${encodeURIComponent(parent)}` : ''}`),
+  divisions: (parent?: string) => apiRequest<{ code: string; name: string; level: 'Province' | 'District' | 'Ward'; parentCode: string | null; childCount: number; addressCount: number; isActive: boolean }[]>(`/admin/divisions${parent ? `?parent=${encodeURIComponent(parent)}` : ''}`),
   addDivision: (body: { code: string; name: string; parentCode: string | null }) => apiCommand('/admin/divisions', { method: 'POST', body }),
   renameDivision: (code: string, name: string) => apiCommand(`/admin/divisions/${encodeURIComponent(code)}`, { method: 'PUT', body: { name } }),
   resetPassword: (id: string) => apiCommand<{ temporaryPassword: string }>(`/admin/users/${id}/reset-password`, { method: 'POST' }),

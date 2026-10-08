@@ -27,6 +27,9 @@ public sealed class LoadUserSeeder(ShopHubDbContext db, ShopHubSettings settings
 
         // One hash for every load account: hashing 1.000 times would only slow the start-up down
         var hash = hasher.Hash(settings.LoadUserPassword);
+        // Hà Nội, first ward (two-level divisions since 2025-07-01)
+        var ward = await db.AdminDivisions.AsNoTracking().Where(d => d.ParentCode == "01" && d.Level == AdminDivisionLevel.Ward && d.IsActive)
+            .OrderBy(d => d.Code).Select(d => d.Code).FirstAsync(ct);
         var now = clock.UtcNow;
         foreach (var batch in missing.Chunk(200))
         {
@@ -35,7 +38,7 @@ public sealed class LoadUserSeeder(ShopHubDbContext db, ShopHubSettings settings
                 var user = User.Register(phone, null, hash, $"Khách tải {phone[^4..]}", now);
                 db.Users.Add(user);
                 var address = new Address(user.Id);
-                address.Update($"Khách tải {phone[^4..]}", phone, "01", "001", "00001", "1 Phố Thử Tải", null, null, AddressType.Home);
+                address.Update($"Khách tải {phone[^4..]}", phone, "01", ward, "1 Phố Thử Tải", null, null, AddressType.Home);
                 address.SetDefault(true);
                 db.Addresses.Add(address);
             }

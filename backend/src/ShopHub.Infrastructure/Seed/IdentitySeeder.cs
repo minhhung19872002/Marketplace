@@ -81,28 +81,50 @@ public sealed class IdentitySeeder(ShopHubDbContext db, IPasswordHasher hasher, 
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// Keeps iam.admin_divisions equal to the official list in admin-divisions-vn.json (two levels since 2025-07-01:
+    /// 34 provinces → wards). Runs once per database: when the table is empty or still holds active districts (the old
+    /// three-level list) — later admin edits (VI.8) are never overwritten. Codes in the file are inserted or take the
+    /// file's name / level / parent (a reused code may now name a merged unit); every other row — old districts, merged
+    /// wards and provinces — is kept inactive so addresses and orders made before still resolve.
+    /// </summary>
     private async Task SeedAdminDivisionsAsync(CancellationToken ct)
     {
-        if (await db.AdminDivisions.AnyAsync(ct)) return;
+        if (await db.AdminDivisions.AnyAsync(ct) && !await db.AdminDivisions.AnyAsync(d => d.Level == AdminDivisionLevel.District && d.IsActive, ct))
+            return;
 
         await using var stream = typeof(IdentitySeeder).Assembly
             .GetManifestResourceStream("ShopHub.Infrastructure.Seed.Data.admin-divisions-vn.json")
             ?? throw new InvalidOperationException("Thiếu tệp admin-divisions-vn.json trong assembly.");
         var rows = await JsonSerializer.DeserializeAsync<JsonElement[][]>(stream, cancellationToken: ct) ?? [];
-
-        // Parents first so the self-referencing foreign key is satisfied
-        var units = rows
-            .Select(r => new AdminDivision(r[0].GetString()!, r[1].GetString()!, (AdminDivisionLevel)r[2].GetInt32(),
-                r[3].ValueKind == JsonValueKind.Null ? null : r[3].GetString()))
+        var official = rows
+            .Select(r => (Code: r[0].GetString()!, Name: r[1].GetString()!, Level: (AdminDivisionLevel)r[2].GetInt32(),
+                Parent: r[3].ValueKind == JsonValueKind.Null ? null : r[3].GetString()))
             .OrderBy(u => u.Level)
             .ToList();
-        foreach (var level in units.GroupBy(u => u.Level))
+
+        var existing = await db.AdminDivisions.ToDictionaryAsync(d => d.Code, ct);
+
+        var codes = official.Select(o => o.Code).ToHashSet();
+        // Parents first so the self-referencing foreign key is satisfied (provinces, then wards)
+        foreach (var level in official.GroupBy(o => o.Level))
         {
-            db.AdminDivisions.AddRange(level);
+            foreach (var o in level)
+            {
+                if (existing.TryGetValue(o.Code, out var unit)) unit.Sync(o.Name, o.Level, o.Parent);
+                else db.AdminDivisions.Add(new AdminDivision(o.Code, o.Name, o.Level, o.Parent));
+            }
             await db.SaveChangesAsync(ct);
-            db.ChangeTracker.Clear();
         }
-        logger.LogInformation("Seeded {Count} administrative divisions", units.Count);
+        var retired = 0;
+        foreach (var unit in existing.Values.Where(d => d.IsActive && !codes.Contains(d.Code)))
+        {
+            unit.Retire();
+            retired++;
+        }
+        await db.SaveChangesAsync(ct);
+        db.ChangeTracker.Clear();
+        logger.LogInformation("Administrative divisions synced: {Count} active, {Retired} retired", official.Count, retired);
     }
 
     private async Task SeedAdminAsync(CancellationToken ct)

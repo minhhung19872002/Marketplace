@@ -39,6 +39,12 @@ public static class ParameterKeys
     public const string SiteSocialLinkedin = "SITE.SOCIAL_LINKEDIN";
     public const string SiteSocialTiktok = "SITE.SOCIAL_TIKTOK";
     public const string SiteSocialYoutube = "SITE.SOCIAL_YOUTUBE";
+    public const string SiteSocialZalo = "SITE.SOCIAL_ZALO";
+    // Footer badge "Đã thông báo Bộ Công Thương": shown only with the real online.gov.vn registration link
+    public const string SiteMoitUrl = "SITE.MOIT_URL";
+    // Footer "Tải ứng dụng": store links; empty = that store button hidden
+    public const string SiteAppStoreUrl = "SITE.APP_STORE_URL";
+    public const string SiteGooglePlayUrl = "SITE.GOOGLE_PLAY_URL";
     // Zalo Official Account id: the official "Chia sẻ qua Zalo" button needs one (E4); empty = button hidden
     public const string SiteZaloOaId = "SITE.ZALO_OA_ID";
     public const string ShopLowStockThreshold = "SHOP.LOW_STOCK_THRESHOLD";
@@ -236,6 +242,14 @@ public static class ParameterCatalog
             "Kênh TikTok", "Liên kết https tới TikTok của sàn; để trống thì ẩn biểu tượng ở chân trang."),
         new(ParameterKeys.SiteSocialYoutube, "", ParameterDataType.String, ParameterGroups.Site,
             "Kênh YouTube", "Liên kết https tới YouTube của sàn; để trống thì ẩn biểu tượng ở chân trang."),
+        new(ParameterKeys.SiteSocialZalo, "", ParameterDataType.String, ParameterGroups.Site,
+            "Trang Zalo", "Liên kết https tới trang Zalo (zalo.me/…) của sàn; để trống thì ẩn biểu tượng ở chân trang."),
+        new(ParameterKeys.SiteMoitUrl, "", ParameterDataType.String, ParameterGroups.Site,
+            "Liên kết đăng ký Bộ Công Thương", "Liên kết https tới hồ sơ của sàn trên online.gov.vn. Chỉ khi có liên kết này chân trang mới hiện huy hiệu \"Đã thông báo Bộ Công Thương\" — không nhập khi sàn chưa được xác nhận."),
+        new(ParameterKeys.SiteAppStoreUrl, "", ParameterDataType.String, ParameterGroups.Site,
+            "Liên kết App Store", "Liên kết https tới ứng dụng trên App Store; để trống thì ẩn nút ở chân trang."),
+        new(ParameterKeys.SiteGooglePlayUrl, "", ParameterDataType.String, ParameterGroups.Site,
+            "Liên kết Google Play", "Liên kết https tới ứng dụng trên Google Play; để trống thì ẩn nút ở chân trang."),
         new(ParameterKeys.SiteZaloOaId, "", ParameterDataType.String, ParameterGroups.Site,
             "Mã Zalo Official Account", "Mã OA của sàn trên Zalo — nút \"Chia sẻ qua Zalo\" ở trang sản phẩm chỉ hiện khi đã nhập mã này."),
         new(ParameterKeys.ShopStaffInviteDays, "7", ParameterDataType.Int, ParameterGroups.Shop,

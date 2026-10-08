@@ -5,16 +5,15 @@ import { ApiError } from '../api/http'
 import { logisticsApi, type ShippingChannel, type Warehouse, type WarehouseBody } from '../api/logistics'
 import { sellerApi } from '../api/seller'
 
-type Draft = { id?: string; name: string; contactName: string; phone: string; provinceCode?: string; districtCode?: string; wardCode?: string; street: string;
+type Draft = { id?: string; name: string; contactName: string; phone: string; provinceCode?: string; wardCode?: string; street: string;
   isPickupDefault: boolean; isReturnDefault: boolean }
 
 const WarehouseForm = ({ draft, saving, onSave, onCancel }: { draft: Draft; saving: boolean; onSave: (d: Draft) => void; onCancel: () => void }) => {
   const [form] = Form.useForm<Draft>()
   const province = Form.useWatch('provinceCode', form) ?? draft.provinceCode
-  const district = Form.useWatch('districtCode', form) ?? draft.districtCode
+  // Two levels since 2025-07-01: province → ward
   const provinces = useQuery({ queryKey: ['div', ''], queryFn: () => sellerApi.divisions(), staleTime: Infinity })
-  const districts = useQuery({ queryKey: ['div', province], queryFn: () => sellerApi.divisions(province), enabled: !!province, staleTime: Infinity })
-  const wards = useQuery({ queryKey: ['div', district], queryFn: () => sellerApi.divisions(district), enabled: !!district, staleTime: Infinity })
+  const wards = useQuery({ queryKey: ['div', province], queryFn: () => sellerApi.divisions(province), enabled: !!province, staleTime: Infinity })
   return (
     <Modal open title={draft.id ? 'Sửa kho hàng' : 'Thêm kho hàng'} okText="Lưu" cancelText="Huỷ" confirmLoading={saving}
       onOk={() => form.submit()} onCancel={onCancel} destroyOnClose>
@@ -33,15 +32,10 @@ const WarehouseForm = ({ draft, saving, onSave, onCancel }: { draft: Draft; savi
         <Form.Item name="provinceCode" rules={[{ required: true, message: 'Chọn tỉnh/thành.' }]}>
           <Select placeholder="Tỉnh/Thành phố" showSearch optionFilterProp="label" aria-label="Tỉnh"
             options={provinces.data?.map((p) => ({ value: p.code, label: p.name }))}
-            onChange={() => form.setFieldsValue({ districtCode: undefined, wardCode: undefined })} />
-        </Form.Item>
-        <Form.Item name="districtCode" rules={[{ required: true, message: 'Chọn quận/huyện.' }]}>
-          <Select placeholder="Quận/Huyện" showSearch optionFilterProp="label" disabled={!province} aria-label="Quận"
-            options={districts.data?.map((p) => ({ value: p.code, label: p.name }))}
             onChange={() => form.setFieldsValue({ wardCode: undefined })} />
         </Form.Item>
         <Form.Item name="wardCode" rules={[{ required: true, message: 'Chọn phường/xã.' }]}>
-          <Select placeholder="Phường/Xã" showSearch optionFilterProp="label" disabled={!district} aria-label="Phường"
+          <Select placeholder="Phường/Xã" showSearch optionFilterProp="label" disabled={!province} aria-label="Phường"
             options={wards.data?.map((p) => ({ value: p.code, label: p.name }))} />
         </Form.Item>
         <Form.Item name="street" rules={[{ required: true, message: 'Nhập số nhà, tên đường.' }]}>
@@ -60,7 +54,7 @@ const WarehouseForm = ({ draft, saving, onSave, onCancel }: { draft: Draft; savi
 
 const toBody = (d: Draft): WarehouseBody => ({
   name: d.name.trim(),
-  address: { contactName: d.contactName, phone: d.phone, provinceCode: d.provinceCode ?? '', districtCode: d.districtCode ?? '', wardCode: d.wardCode ?? '',
+  address: { contactName: d.contactName, phone: d.phone, provinceCode: d.provinceCode ?? '', wardCode: d.wardCode ?? '',
     street: d.street },
   isPickupDefault: d.isPickupDefault,
   isReturnDefault: d.isReturnDefault,

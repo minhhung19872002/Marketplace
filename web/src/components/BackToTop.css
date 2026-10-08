@@ -1,19 +1,16 @@
 .back-to-top {
-  position: fixed;
-  right: 20px;
-  bottom: 30px;
-  width: 42px;
-  height: 42px;
-  border-radius: 4px;
-  border: 1px solid #eee;
-  background: #fff;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--sh-surface);
   color: var(--sh-primary);
-  font-size: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 90;
+  box-shadow: var(--sh-shadow-md);
   transition: background 0.15s;
 }
 
 .back-to-top:hover {
-  background: #fff5f1;
+  background: var(--sh-primary-soft);
 }

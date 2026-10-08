@@ -455,18 +455,24 @@ public sealed class SetGatewayEnabledHandler(ISender sender, ISystemParameters p
 public record SocialLinkDto(string Name, string Url);
 
 public record SiteInfoDto(string PlatformName, string Hotline, string SupportEmail, string LegalName, string LegalAddress, string TaxCode, string BusinessLicense,
-    IReadOnlyList<SocialLinkDto> Social, string? ZaloOaId);
+    IReadOnlyList<SocialLinkDto> Social, string? ZaloOaId, string? MoitUrl, string? AppStoreUrl, string? GooglePlayUrl, IReadOnlyList<string> Carriers);
 
 public record SiteInfoQuery : IRequest<SiteInfoDto>;
 
 /// <summary>Platform identity, legal entity and social links for header / footer — every value from SITE.* parameters.</summary>
-public sealed class SiteInfoHandler(ISystemParameters parameters) : IRequestHandler<SiteInfoQuery, SiteInfoDto>
+public sealed class SiteInfoHandler(ISystemParameters parameters, IApplicationDbContext db) : IRequestHandler<SiteInfoQuery, SiteInfoDto>
 {
     private static readonly (string Name, string Key)[] Networks =
     [
         ("Facebook", ParameterKeys.SiteSocialFacebook), ("Instagram", ParameterKeys.SiteSocialInstagram), ("LinkedIn", ParameterKeys.SiteSocialLinkedin),
-        ("TikTok", ParameterKeys.SiteSocialTiktok), ("YouTube", ParameterKeys.SiteSocialYoutube),
+        ("TikTok", ParameterKeys.SiteSocialTiktok), ("YouTube", ParameterKeys.SiteSocialYoutube), ("Zalo", ParameterKeys.SiteSocialZalo),
     ];
+
+    private async Task<string?> HttpsAsync(string key, CancellationToken ct)
+    {
+        var url = (await parameters.GetStringAsync(key, ct)).Trim();
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps ? uri.ToString() : null;
+    }
 
     public async Task<SiteInfoDto> Handle(SiteInfoQuery request, CancellationToken ct)
     {
@@ -474,9 +480,10 @@ public sealed class SiteInfoHandler(ISystemParameters parameters) : IRequestHand
         foreach (var (name, key) in Networks)
         {
             // Only a real https address becomes a link (an empty value hides the icon)
-            var url = (await parameters.GetStringAsync(key, ct)).Trim();
-            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps) social.Add(new SocialLinkDto(name, uri.ToString()));
+            if (await HttpsAsync(key, ct) is { } url) social.Add(new SocialLinkDto(name, url));
         }
+        // "Đơn vị vận chuyển" of the footer: the carriers buyers can actually pick
+        var carriers = await db.Carriers.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.Name).Select(c => c.Name).ToListAsync(ct);
         return new SiteInfoDto(
             await parameters.GetStringAsync(ParameterKeys.SitePlatformName, ct),
             await parameters.GetStringAsync(ParameterKeys.SiteHotline, ct),
@@ -486,6 +493,8 @@ public sealed class SiteInfoHandler(ISystemParameters parameters) : IRequestHand
             await parameters.GetStringAsync(ParameterKeys.SiteTaxCode, ct),
             await parameters.GetStringAsync(ParameterKeys.SiteBusinessLicense, ct),
             social,
-            (await parameters.GetStringAsync(ParameterKeys.SiteZaloOaId, ct)).Trim() is { Length: > 0 } oa ? oa : null);
+            (await parameters.GetStringAsync(ParameterKeys.SiteZaloOaId, ct)).Trim() is { Length: > 0 } oa ? oa : null,
+            await HttpsAsync(ParameterKeys.SiteMoitUrl, ct), await HttpsAsync(ParameterKeys.SiteAppStoreUrl, ct),
+            await HttpsAsync(ParameterKeys.SiteGooglePlayUrl, ct), carriers);
     }
 }

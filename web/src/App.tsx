@@ -118,9 +118,12 @@ function App() {
                 </Suspense>
               </main>
               <Footer />
-              <BackToTop />
               <Toaster />
-              <ChatWidget />
+              {/* One floating stack bottom-right (P0-6): back-to-top above chat, never on top of each other */}
+              <div className="fab-stack">
+                <BackToTop />
+                <ChatWidget />
+              </div>
             </div>
           </ChatProvider>
           </Router>

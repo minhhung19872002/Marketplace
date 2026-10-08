@@ -11,6 +11,7 @@ import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { UserAvatar } from './AvatarEditor';
 import { cartBadge, recentLines } from '../lib/cart';
 import './Header.css';
+import { Bell, CircleHelp, Store, TrendingUp, UserRound, Heart, ShoppingCart } from 'lucide-react';
 
 // The seller centre is its own app under /seller (full page load, not a client route)
 const SELLER_URL = '/seller/';
@@ -88,9 +89,9 @@ const Header = () => {
           </nav>
           <nav className="header-top-links">
             <Link to="/thong-bao" className="header-top-link" data-testid="notifications-link">
-              🔔 Thông Báo{(unread?.total ?? 0) > 0 && <span className="header-noti-badge" data-testid="notifications-badge">{unread!.total}</span>}
+              <Bell size={14} aria-hidden /> Thông Báo{(unread?.total ?? 0) > 0 && <span className="header-noti-badge" data-testid="notifications-badge">{unread!.total}</span>}
             </Link>
-            <Link to="/tro-giup" className="header-top-link" data-testid="help-link">❓ Hỗ Trợ</Link>
+            <Link to="/tro-giup" className="header-top-link" data-testid="help-link"><CircleHelp size={14} aria-hidden /> Hỗ Trợ</Link>
             {isLoggedIn && user ? (
               <div className="header-user" ref={userRef}>
                 <button
@@ -177,7 +178,7 @@ const Header = () => {
                         navigate(`/shop/${shop.slug}`);
                       }}
                     >
-                      🏪 <span>Shop: {shop.name}</span>
+                      <Store size={14} className="header-suggest-icon" aria-hidden /> <span>Shop: {shop.name}</span>
                       {shop.isMall && <span className="header-suggest-mall">Mall</span>}
                     </button>
                   ))}
@@ -213,7 +214,7 @@ const Header = () => {
                     <div className="header-suggest-title">Tìm kiếm phổ biến</div>
                     {hotKeywords.map((k) => (
                       <button key={k} className="header-suggest-item" onClick={() => goSearch(k)}>
-                        🔥 <span>{k}</span>
+                        <TrendingUp size={14} className="header-suggest-icon" aria-hidden /> <span>{k}</span>
                       </button>
                     ))}
                   </div>
@@ -235,17 +236,17 @@ const Header = () => {
           {/* Phones: the top bar is hidden, so notifications and the account sit here */}
           {isLoggedIn && (
             <Link to="/thong-bao" className="header-icon-link header-mobile-only" aria-label="Thông báo" data-testid="mobile-notifications">
-              <span className="header-heart">🔔</span>
+              <span className="header-heart"><Bell size={22} aria-hidden /></span>
               {(unread?.total ?? 0) > 0 && <span className="header-cart-badge">{unread!.total}</span>}
             </Link>
           )}
           <Link to={isLoggedIn ? '/tai-khoan' : '/dang-nhap'} className="header-icon-link header-mobile-only"
             aria-label={isLoggedIn ? 'Tài khoản của tôi' : 'Đăng nhập'} data-testid="mobile-account">
-            <span className="header-heart">{isLoggedIn && user ? user.fullName.charAt(0).toUpperCase() : '👤'}</span>
+            <span className="header-heart">{isLoggedIn && user ? user.fullName.charAt(0).toUpperCase() : <UserRound size={22} aria-hidden />}</span>
           </Link>
           {/* Yêu thích */}
           <Link to="/yeu-thich" className="header-icon-link" aria-label="Yêu thích" data-testid="wishlist-link">
-            <span className="header-heart">♡</span>
+            <span className="header-heart"><Heart size={22} aria-hidden /></span>
             {wishCount > 0 && <span className="header-cart-badge">{wishCount}</span>}
           </Link>
 
@@ -263,7 +264,7 @@ const Header = () => {
             <div className="header-cart-preview" data-testid="cart-preview">
               {items.length === 0 ? (
                 <div className="header-cart-preview-empty">
-                  <div className="header-cart-preview-empty-icon">🛒</div>
+                  <div className="header-cart-preview-empty-icon"><ShoppingCart size={48} strokeWidth={1.25} aria-hidden /></div>
                   Chưa có sản phẩm
                 </div>
               ) : (

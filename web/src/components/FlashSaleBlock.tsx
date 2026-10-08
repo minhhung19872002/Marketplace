@@ -7,6 +7,7 @@ import { formatClock } from '../lib/datetime';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import Countdown from './Countdown';
 import './FlashSaleBlock.css';
+import { Zap } from 'lucide-react';
 
 /**
  * Flash Sale of the platform: the running slot (or the next one) with a countdown on the server's clock and a real
@@ -20,7 +21,7 @@ export const FlashSaleBoard = ({ board, compact = false, full = false }: { board
   return (
     <section className="flash-sale" data-testid="flash-sale">
       <div className="flash-sale-head">
-        <span className="flash-sale-title">⚡ FLASH SALE</span>
+        <span className="flash-sale-title"><Zap size={22} fill="currentColor" aria-hidden /> FLASH SALE</span>
         <span className="flash-sale-when">
           {slot.running ? 'Kết thúc sau' : `Bắt đầu lúc ${formatClock(slot.startAt)} — còn`}
           <Countdown endAt={slot.running ? slot.endAt : slot.startAt} skewMs={skew}

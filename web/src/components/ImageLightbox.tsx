@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { handleImgError } from '../lib/image';
 import './ImageLightbox.css';
+import { X } from 'lucide-react';
 
 interface Props {
   images: string[];
@@ -43,7 +44,7 @@ const ImageLightbox = ({ images, index, alt, onIndex, onClose }: Props) => {
         touchX.current = null;
         if (start != null && end != null && Math.abs(end - start) > 40 && count > 1) go(end < start ? 1 : -1);
       }}>
-      <button ref={closeRef} type="button" className="lightbox-close" onClick={onClose} aria-label="Đóng" data-testid="lightbox-close">✕</button>
+      <button ref={closeRef} type="button" className="lightbox-close" onClick={onClose} aria-label="Đóng" data-testid="lightbox-close"><X size={22} aria-hidden /></button>
       {count > 1 && <button type="button" className="lightbox-nav lightbox-prev" onClick={() => go(-1)} aria-label="Ảnh trước">‹</button>}
       <img className="lightbox-image" src={images[index]} alt={alt} onError={handleImgError} data-testid="lightbox-image" />
       {count > 1 && <button type="button" className="lightbox-nav lightbox-next" onClick={() => go(1)} aria-label="Ảnh sau" data-testid="lightbox-next">›</button>}

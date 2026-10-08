@@ -16,6 +16,7 @@ import ShopVouchers from '../components/ShopVouchers';
 import { marketingApi } from '../api/marketing';
 import './ShopPage.css';
 import { usePageTitle } from '../lib/pageTitle';
+import { Check, Plus } from 'lucide-react';
 
 const TABS: { key: ProductSort; label: string }[] = [
   { key: 'BestSelling', label: 'Phổ Biến' },
@@ -137,7 +138,7 @@ const ShopPage = () => {
             </div>
             <div className="shop-actions">
               <button className={`shop-follow ${isFollowing ? 'following' : ''}`} onClick={onFollow} disabled={follow.isPending} data-testid="shop-follow">
-                {isFollowing ? '✓ Đang Theo Dõi' : '+ Theo Dõi'}
+                {isFollowing ? <><Check size={16} aria-hidden /> Đang Theo Dõi</> : <><Plus size={16} aria-hidden /> Theo Dõi</>}
               </button>
               <ChatNowButton shopId={shop.id} className="shop-follow" />
             </div>
@@ -145,7 +146,7 @@ const ShopPage = () => {
           </div>
           <div className="shop-stats">
             <div data-testid="shop-rating">
-              <strong>{shop.ratingCount > 0 ? `${shop.ratingAvg.toFixed(1)} ★` : '—'}</strong>
+              <strong>{shop.ratingCount > 0 ? `${shop.ratingAvg.toFixed(1)}/5` : '—'}</strong>
               <span>Đánh Giá ({formatSold(shop.ratingCount)})</span>
             </div>
             <div><strong>{formatSold(shop.productCount)}</strong><span>Sản Phẩm</span></div>

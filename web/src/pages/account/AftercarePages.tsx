@@ -19,6 +19,8 @@ import { ContactShopButton } from '../../components/chat/Chat';
 import { handleImgError, imageOrPlaceholder } from '../../lib/image';
 import { ConfirmButton } from '../../components/ConfirmDialog';
 import QueryState from '../../components/QueryState';
+import { Star, Play } from 'lucide-react';
+import { Stars as StarsView } from '../../components/ui';
 
 /** Pick photos / a short video; each file is uploaded right away and kept as an asset id. */
 const MediaPicker = ({ purpose, value, onChange, max, testId }: {
@@ -69,7 +71,7 @@ const MediaPicker = ({ purpose, value, onChange, max, testId }: {
 const Stars = ({ value, onChange }: { value: number; onChange: (n: number) => void }) => (
   <span className="review-stars" role="radiogroup" aria-label="Số sao">
     {[1, 2, 3, 4, 5].map((n) => (
-      <button key={n} type="button" className={n <= value ? 'on' : ''} onClick={() => onChange(n)} aria-label={`${n} sao`} data-testid={`star-${n}`}>★</button>
+      <button key={n} type="button" className={n <= value ? 'on' : ''} onClick={() => onChange(n)} aria-label={`${n} sao`} data-testid={`star-${n}`}><Star size={28} fill="currentColor" strokeWidth={0} aria-hidden /></button>
     ))}
   </span>
 );
@@ -144,7 +146,7 @@ export const OrderReviewPage = () => {
           </div>
           {item.review && editing !== item.orderItemId ? (
             <div className="review-done" data-testid="review-done">
-              <span className="review-stars-static">{'★'.repeat(item.review.rating)}{'☆'.repeat(5 - item.review.rating)}</span>
+              <StarsView value={item.review.rating} size={14} />
               <p>{item.review.content}</p>
               {item.canEdit && <button className="account-btn-outline" onClick={() => setEditing(item.orderItemId)}>Sửa đánh giá (1 lần)</button>}
             </div>
@@ -328,7 +330,7 @@ export const ReturnDetailPage = () => {
       <div className="media-picker">
         {data.evidence.map((e, i) => (
           <a key={i} href={e.url} target="_blank" rel="noreferrer" className="media-picker-item" title={e.party === 'Buyer' ? 'Người mua' : 'Shop'}>
-            {e.type === 'Image' ? <img src={e.url} alt="" onError={handleImgError} /> : <span>▶ Video</span>}
+            {e.type === 'Image' ? <img src={e.url} alt="" onError={handleImgError} /> : <span><Play size={14} aria-hidden /> Video</span>}
           </a>
         ))}
       </div>

@@ -26,6 +26,8 @@ import type { ProductPage, PublicSku } from '../types';
 import './ProductDetail.css';
 import { usePageTitle } from '../lib/pageTitle';
 import { toast } from '../lib/toast';
+import { Zap, Store, Heart, ShoppingCart } from 'lucide-react';
+import { Stars } from '../components/ui';
 
 const priceRange = (min: number, max: number) => (min === max ? formatPrice(min) : `${formatPrice(min)} - ${formatPrice(max)}`);
 
@@ -197,7 +199,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               {product.ratingCount > 0 ? (
                 <>
                   <span className="stat-rating">
-                    {product.ratingAvg.toFixed(1)} <span className="stat-stars">★★★★★</span>
+                    {product.ratingAvg.toFixed(1)} <Stars value={product.ratingAvg} size={14} />
                   </span>
                   <span className="stat-divider" />
                   <span className="stat-count">{formatSold(product.ratingCount)} Đánh Giá</span>
@@ -211,7 +213,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
 
             {flash && deals.data && receivedAt > 0 && (
               <div className="pd-flash" data-testid="pd-flash">
-                <span className="pd-flash-title">⚡ {flash.platform ? 'FLASH SALE' : 'FLASH SALE CỦA SHOP'}</span>
+                <span className="pd-flash-title"><Zap size={18} fill="currentColor" aria-hidden /> {flash.platform ? 'FLASH SALE' : 'FLASH SALE CỦA SHOP'}</span>
                 <span>Kết thúc sau <Countdown endAt={flash.endAt} skewMs={clockSkew(deals.data.serverTime, receivedAt)} /></span>
                 <span className="pd-flash-sold">Đã bán {flash.sold}/{flash.quota} · tối đa {flash.perUserLimit} sản phẩm/người</span>
               </div>
@@ -355,13 +357,13 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                 disabled={!product.purchasable || (sku != null && sku.available <= 0)}
                 data-testid="add-to-cart"
               >
-                🛒 Thêm Vào Giỏ Hàng
+                <ShoppingCart size={18} aria-hidden /> Thêm Vào Giỏ Hàng
               </button>
               <button className="btn-buy-now" onClick={() => void buyNow()} disabled={!product.purchasable || busy} data-testid="buy-now">
                 Mua Ngay
               </button>
               <button className={`btn-wishlist ${liked ? 'liked' : ''}`} onClick={() => toggle(product.id)} data-testid="detail-heart" aria-label="Yêu thích">
-                {liked ? '♥ Đã Thích' : '♡ Yêu Thích'} ({formatSold(product.likeCount)})
+                <Heart size={16} fill={liked ? 'currentColor' : 'none'} aria-hidden /> {liked ? 'Đã Thích' : 'Yêu Thích'} ({formatSold(product.likeCount)})
               </button>
             </div>
             <ShareProduct title={product.name} />
@@ -382,12 +384,12 @@ const ProductView = ({ product }: { product: ProductPage }) => {
             </div>
             <div className="pd-shop-actions">
               <ChatNowButton shopId={product.shop.id} productId={product.id} className="pd-shop-chat" />
-              <Link to={`/shop/${product.shop.slug}`} className="pd-shop-view" data-testid="view-shop">🏪 Xem Shop</Link>
+              <Link to={`/shop/${product.shop.slug}`} className="pd-shop-view" data-testid="view-shop"><Store size={16} aria-hidden /> Xem Shop</Link>
             </div>
           </div>
           <div className="pd-shop-stats">
             <div data-testid="shop-rating">
-              <strong>{product.shop.ratingCount > 0 ? `${product.shop.ratingAvg.toFixed(1)} ★` : '—'}</strong>
+              <strong>{product.shop.ratingCount > 0 ? product.shop.ratingAvg.toFixed(1) : '—'}</strong>
               <span>Đánh Giá ({formatSold(product.shop.ratingCount)})</span>
             </div>
             <div><strong>{formatSold(product.shop.productCount)}</strong><span>Sản Phẩm</span></div>

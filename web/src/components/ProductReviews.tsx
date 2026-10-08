@@ -5,6 +5,7 @@ import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../lib/datetime';
 import { handleImgError } from '../lib/image';
+import { Stars } from './ui';
 
 type Filter = { rating?: number; withMedia?: boolean; withComment?: boolean; variant?: string };
 
@@ -68,7 +69,7 @@ const ProductReviews = ({ productId }: { productId: string }) => {
               <div className="pd-review-avatar">{r.reviewerName.charAt(0).toUpperCase()}</div>
               <div className="pd-review-body">
                 <div className="pd-review-name">{r.reviewerName}</div>
-                <div className="pd-review-stars">{'★'.repeat(r.rating)}<span className="pd-review-stars-off">{'★'.repeat(5 - r.rating)}</span></div>
+                <div className="pd-review-stars"><Stars value={r.rating} size={12} /></div>
                 <div className="pd-review-date">{formatDate(r.createdAt)}{r.variant && ` | Phân loại: ${r.variant}`}{r.edited && ' · đã sửa'}</div>
                 {r.tags.length > 0 && <div className="pd-review-tags">{r.tags.join(' · ')}</div>}
                 {r.content && <p className="pd-review-text">{r.content}</p>}

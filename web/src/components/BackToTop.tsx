@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './BackToTop.css';
+import { ArrowUp } from 'lucide-react';
 
 const BackToTop = () => {
   const [visible, setVisible] = useState(false);
@@ -18,7 +19,7 @@ const BackToTop = () => {
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="Lên đầu trang"
     >
-      ▲
+      <ArrowUp size={20} aria-hidden />
     </button>
   );
 };

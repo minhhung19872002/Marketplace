@@ -12,5 +12,5 @@ export const categoryNames = (nodes: CategoryNode[], out = new Map<string, strin
 /** All rules of a Flash Sale slot, the category rule included (D6). */
 export const flashCriteriaText = (s: { minDiscountBp: number; minRating: number; categoryIds: string[] }, names: Map<string, string>): string => {
   const categories = s.categoryIds.length === 0 ? 'mọi ngành hàng' : `ngành: ${s.categoryIds.map((id) => names.get(id) ?? 'ngành đã ẩn').join(', ')}`
-  return `Giảm ≥ ${s.minDiscountBp / 100}% · đánh giá ≥ ${s.minRating}★ · ${categories}`
+  return `Giảm ≥ ${s.minDiscountBp / 100}% · đánh giá ≥ ${s.minRating} sao · ${categories}`
 }

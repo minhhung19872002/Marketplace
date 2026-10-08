@@ -87,7 +87,7 @@ export const AddressForm = ({ initial, onDone }: { initial: Address | null; onDo
         onChange={(e) => set('street', e.target.value)} aria-label="Địa chỉ cụ thể" />
       <div className="address-pin">
         <button type="button" className="account-btn-outline" onClick={() => setShowMap((v) => !v)} data-testid="address-pin-toggle">
-          {showMap ? 'Ẩn bản đồ' : form.lat != null ? '📍 Sửa vị trí đã ghim' : '📍 Ghim vị trí trên bản đồ (tuỳ chọn)'}
+          {showMap ? 'Ẩn bản đồ' : form.lat != null ? 'Sửa vị trí đã ghim' : 'Ghim vị trí trên bản đồ (tuỳ chọn)'}
         </button>
         {form.lat != null && form.lng != null && (
           <span className="address-pin-coords" data-testid="address-pin-coords">

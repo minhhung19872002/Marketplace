@@ -16,6 +16,7 @@ import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { AddressForm } from './account/AddressesPage';
 import './account/Account.css';
 import './Checkout.css';
+import { MapPin, Gift, CreditCard } from 'lucide-react';
 
 const newKey = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
@@ -131,7 +132,7 @@ const Checkout = () => {
         )}
 
         <div className="checkout-box checkout-address" data-testid="checkout-address">
-          <h2 className="checkout-box-title">📍 Địa Chỉ Nhận Hàng</h2>
+          <h2 className="checkout-box-title"><MapPin size={18} aria-hidden /> Địa Chỉ Nhận Hàng</h2>
           {quote.address ? (
             <div className="checkout-address-current">
               <strong>{quote.address.receiverName} · {quote.address.phone}</strong>
@@ -184,7 +185,7 @@ const Checkout = () => {
 
             {(shop.gifts ?? []).map((g) => (
               <div key={g.skuId} className="checkout-product checkout-gift" data-testid="checkout-gift">
-                <div className="cp-col-product"><div className="checkout-product-name">🎁 Quà tặng: {g.name}{g.variant && ` (${g.variant})`}</div></div>
+                <div className="cp-col-product"><div className="checkout-product-name"><Gift size={14} aria-hidden /> Quà tặng: {g.name}{g.variant && ` (${g.variant})`}</div></div>
                 <span className="cp-col-price">{formatPrice(0)}</span>
                 <span className="cp-col-qty">x{g.quantity}</span>
                 <span className="cp-col-total">{formatPrice(0)}</span>
@@ -255,7 +256,7 @@ const Checkout = () => {
         </div>
 
         <div className="checkout-box">
-          <h2 className="checkout-box-title">💳 Phương Thức Thanh Toán</h2>
+          <h2 className="checkout-box-title"><CreditCard size={18} aria-hidden /> Phương Thức Thanh Toán</h2>
           <div className="checkout-methods">
             {quote.paymentMethods.map((m) => (
               <label key={m.code} className={`checkout-method ${method === m.code ? 'active' : ''} ${m.available ? '' : 'disabled'}`} data-testid={`method-${m.code}`}>

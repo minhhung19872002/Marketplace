@@ -15,3 +15,6 @@ obj/
 # Production backups and HTTPS certificates never go to git
 backups/
 deploy/certs/
+
+# UI review screenshots (e2e/tools/ui-review.cjs)
+.ui-review/

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { storefrontApi } from '../api/storefront';
-import { isImageUrl } from '../lib/image';
+import CategoryIcon from './CategoryIcon';
 import './CategoryGrid.css';
 
 export const useCategoryTree = () => useQuery({ queryKey: ['categories'], queryFn: storefrontApi.categories, staleTime: 5 * 60_000 });
@@ -17,7 +17,7 @@ const CategoryGrid = () => {
       <div className="category-grid">
         {top.map((cat) => (
           <Link key={cat.id} to={`/danh-muc/${cat.slug}`} className="category-item" data-testid="category-item">
-            <span className="category-icon">{isImageUrl(cat.iconUrl) ? <img src={cat.iconUrl} alt="" /> : cat.iconUrl ?? '🛍️'}</span>
+            <span className="category-icon"><CategoryIcon icon={cat.iconUrl} /></span>
             <span className="category-name">{cat.name}</span>
           </Link>
         ))}

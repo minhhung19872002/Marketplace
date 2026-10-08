@@ -1,27 +1,25 @@
 import type { MouseEvent } from 'react';
 import type { ProductCard as Card } from '../types';
 import { Link } from 'react-router-dom';
+import { Heart, MapPin, Zap } from 'lucide-react';
 import { formatPrice, formatSold } from '../lib/money';
 import { handleImgError, imageOrPlaceholder } from '../lib/image';
 import { useWishlist } from '../context/WishlistContext';
+import { Stars } from './ui';
 import './ProductCard.css';
 import { productPath } from '../lib/urls';
 
-// Five stars, filled up to the rounded-down rating
-const Stars = ({ rating }: { rating: number }) => {
-  const full = Math.floor(rating);
-  return (
-    <span className="pc-stars" aria-label={`${rating.toFixed(1)} sao`}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <span key={i} className={i < full ? 'pc-star on' : 'pc-star'}>★</span>
-      ))}
-    </span>
-  );
-};
-
+/**
+ * Product tile of every grid. Fixed layout so all tiles of a row have the same height: square image with the Mall /
+ * Yêu thích / % badges on its corners (never inside the name), 2-line name, price line that wraps instead of cutting,
+ * rating + sold, ship-from province. Hover lifts the tile and shows "Tìm sản phẩm tương tự" (a sibling link — links
+ * cannot nest).
+ */
 const ProductCard = ({ product }: { product: Card }) => {
   const { has, toggle } = useWishlist();
   const liked = has(product.id);
+  const href = productPath(product.slug, product.shopId, product.id);
+  const showOriginal = product.originalPrice > product.minPrice;
 
   const handleHeart = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -30,40 +28,46 @@ const ProductCard = ({ product }: { product: Card }) => {
   };
 
   return (
-    <Link to={productPath(product.slug, product.shopId, product.id)} className={`product-card ${product.inStock ? '' : 'sold-out'}`} data-testid="product-card">
-      <div className="product-card-img">
-        <img src={imageOrPlaceholder(product.imageUrl)} alt={product.name} loading="lazy" onError={handleImgError} />
-        {product.discountPercent > 0 && (
-          <span className="product-card-discount">
-            {product.discountPercent}%<br />GIẢM
-          </span>
-        )}
-        {product.isMall && <span className="product-card-mall">Mall</span>}
-        {product.isFlashSale && <span className="product-card-flash" data-testid="product-card-flash">⚡ Flash Sale</span>}
-        {!product.inStock && <span className="product-card-soldout">Hết hàng</span>}
-        <button className={`product-card-heart ${liked ? 'liked' : ''}`} onClick={handleHeart} aria-label="Yêu thích" data-testid="card-heart">
-          {liked ? '♥' : '♡'}
-        </button>
-      </div>
-
-      <div className="product-card-body">
-        <h3 className="product-card-name" data-testid="product-card-name">
-          {product.isPreferred && !product.isMall && <span className="pc-name-tag">Yêu thích</span>}
-          {product.name}
-        </h3>
-
-        <div className="product-card-price-row">
-          <span className="product-card-price" data-testid="product-card-price">{formatPrice(product.minPrice)}</span>
-          {product.originalPrice > product.minPrice && <span className="product-card-original">{formatPrice(product.originalPrice)}</span>}
+    <div className={`product-card ${product.inStock ? '' : 'sold-out'}`}>
+      <Link to={href} className="product-card-link" data-testid="product-card">
+        <div className="product-card-img">
+          <img src={imageOrPlaceholder(product.imageUrl)} alt={product.name} loading="lazy" decoding="async" width={240} height={240} onError={handleImgError} />
+          <div className="product-card-flags">
+            {product.isMall && <span className="pc-flag pc-flag--mall">Mall</span>}
+            {product.isPreferred && !product.isMall && <span className="pc-flag pc-flag--preferred">Yêu thích</span>}
+          </div>
+          {product.discountPercent > 0 && (
+            <span className="product-card-discount" aria-label={`Giảm ${product.discountPercent}%`}>-{product.discountPercent}%</span>
+          )}
+          {product.isFlashSale && (
+            <span className="product-card-flash" data-testid="product-card-flash"><Zap size={12} fill="currentColor" aria-hidden /> Flash Sale</span>
+          )}
+          {!product.inStock && <span className="product-card-soldout">Hết hàng</span>}
+          <button type="button" className={`product-card-heart ${liked ? 'liked' : ''}`} onClick={handleHeart}
+            aria-label={liked ? 'Bỏ yêu thích' : 'Yêu thích'} aria-pressed={liked} data-testid="card-heart">
+            <Heart size={16} fill={liked ? 'currentColor' : 'none'} aria-hidden />
+          </button>
         </div>
 
-        <div className="product-card-meta">
-          {product.ratingCount > 0 ? <Stars rating={product.ratingAvg} /> : <span className="pc-no-rating">Chưa có đánh giá</span>}
-          <span className="product-card-sold">Đã bán {formatSold(product.soldCount)}</span>
+        <div className="product-card-body">
+          <h3 className="product-card-name" data-testid="product-card-name">{product.name}</h3>
+
+          <div className="product-card-price-row">
+            <span className="product-card-price price" data-testid="product-card-price">{formatPrice(product.minPrice)}</span>
+            {showOriginal && <span className="product-card-original price">{formatPrice(product.originalPrice)}</span>}
+          </div>
+
+          <div className="product-card-meta">
+            {product.ratingCount > 0 ? <Stars value={product.ratingAvg} size={11} /> : <span className="pc-no-rating">Chưa có đánh giá</span>}
+            <span className="product-card-sold">Đã bán {formatSold(product.soldCount)}</span>
+          </div>
+          <div className="product-card-location">
+            {product.provinceName && <><MapPin size={11} aria-hidden /> {product.provinceName}</>}
+          </div>
         </div>
-        {product.provinceName && <div className="product-card-location">📍 {product.provinceName}</div>}
-      </div>
-    </Link>
+      </Link>
+      <Link to={`${href}#san-pham-tuong-tu`} className="product-card-similar" tabIndex={-1}>Tìm sản phẩm tương tự</Link>
+    </div>
   );
 };
 

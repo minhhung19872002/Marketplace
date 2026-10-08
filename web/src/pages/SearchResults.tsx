@@ -11,6 +11,8 @@ import { BannerLink } from '../components/Banner';
 import QueryState from '../components/QueryState';
 import './SearchResults.css';
 import { usePageTitle } from '../lib/pageTitle';
+import { ArrowUp, ArrowDown, ArrowUpDown, ChevronDown, ChevronUp, ListFilter, BadgeCheck } from 'lucide-react';
+import { Stars } from '../components/ui';
 
 const SORTS: { key: ProductSort; label: string }[] = [
   { key: 'Relevance', label: 'Liên Quan' },
@@ -76,7 +78,7 @@ const FacetList = ({ title, values, selected, onToggle, testId }: FacetListProps
       </div>
       {values.length > FACET_LIMIT && (
         <button className="filter-cats-more" onClick={() => setExpanded((x) => !x)}>
-          {expanded ? 'Thu gọn ▴' : 'Thêm ▾'}
+          {expanded ? <>Thu gọn <ChevronUp size={14} aria-hidden /></> : <>Thêm <ChevronDown size={14} aria-hidden /></>}
         </button>
       )}
     </div>
@@ -196,7 +198,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
       <div className="container search-layout">
         <aside className="search-sidebar" data-testid="filter-sidebar">
           <div className="filter-title">
-            <span>☰ BỘ LỌC TÌM KIẾM</span>
+            <span><ListFilter size={16} aria-hidden /> BỘ LỌC TÌM KIẾM</span>
           </div>
 
           {!category && facets && (
@@ -278,7 +280,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
                   onClick={() => update((n) => (params.minRating === r ? n.delete('minRating') : n.set('minRating', String(r))))}
                   data-testid="filter-rating"
                 >
-                  <span className="filter-rating-stars">{'★'.repeat(r)}{'☆'.repeat(5 - r)}</span>
+                  <Stars value={r} size={14} />
                   {r < 5 && <span>trở lên</span>}
                 </button>
               ))}
@@ -319,7 +321,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
                   <button key={b.id} type="button" className={`category-brand ${params.brands?.includes(b.id) ? 'active' : ''}`}
                     onClick={() => toggleMulti('brands', b.id)} data-testid="category-brand">
                     {b.logoUrl ? <img src={b.logoUrl} alt="" onError={handleImgError} /> : null}
-                    <span>{b.name}{b.isVerified && ' ✓'}</span>
+                    <span>{b.name}{b.isVerified && <BadgeCheck size={14} className="brand-verified" aria-label="Đã xác minh" />}</span>
                   </button>
                 ))}
               </div>
@@ -337,7 +339,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
                   {relatedShop.isMall && <span className="related-shop-badge">Mall</span>}
                   <span className="related-shop-sub">
                     {formatCount(relatedShop.followerCount)} người theo dõi · {formatCount(relatedShop.productCount)} sản phẩm
-                    {relatedShop.ratingAvg > 0 && ` · ${relatedShop.ratingAvg.toFixed(1)} ★`}
+                    {relatedShop.ratingAvg > 0 && ` · ${relatedShop.ratingAvg.toFixed(1)}/5`}
                     {relatedShop.provinceName && ` · ${relatedShop.provinceName}`}
                   </span>
                 </span>
@@ -368,7 +370,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
               onClick={() => update((n) => n.set('sort', priceSort === 'asc' ? 'PriceDesc' : 'PriceAsc'))}
               data-testid="sort-price"
             >
-              Giá {priceSort === 'asc' ? '↑' : priceSort === 'desc' ? '↓' : '⇅'}
+              Giá {priceSort === 'asc' ? <ArrowUp size={14} aria-hidden /> : priceSort === 'desc' ? <ArrowDown size={14} aria-hidden /> : <ArrowUpDown size={14} aria-hidden />}
             </button>
             {data && totalPages > 1 && (
               <span className="search-mini-pager">

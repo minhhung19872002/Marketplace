@@ -10,6 +10,7 @@ import { formatPrice } from '../../lib/money';
 import { formatDateTime } from '../../lib/datetime';
 import { handleImgError, imageOrPlaceholder } from '../../lib/image';
 import './Chat.css';
+import { TriangleAlert, ImagePlus, MessageCircle } from 'lucide-react';
 
 interface ChatState {
   open: boolean;
@@ -167,7 +168,7 @@ export const ChatThread = ({ conversation, productId, onProductSent }: { convers
         {more && messages.length > 0 && <button className="chat-older" onClick={older}>Xem tin cũ hơn</button>}
         {messages.map((m) => (
           <div key={m.id} className={`chat-msg chat-msg-${m.senderRole.toLowerCase()}`} data-testid="chat-message">
-            {m.flagged && <span className="chat-warning">⚠ Tin này có thông tin liên hệ ngoài sàn — giao dịch ngoài ShopHub không được bảo vệ.</span>}
+            {m.flagged && <span className="chat-warning"><TriangleAlert size={14} aria-hidden /> Tin này có thông tin liên hệ ngoài sàn — giao dịch ngoài ShopHub không được bảo vệ.</span>}
             <Card m={m} />
             <small>{formatDateTime(m.createdAt)}</small>
           </div>
@@ -189,7 +190,7 @@ export const ChatThread = ({ conversation, productId, onProductSent }: { convers
         if (await send({ type: 'Text', text: text.trim() })) setText('');
       }}>
         <label className="chat-attach" title="Gửi ảnh">
-          📷
+          <ImagePlus size={18} aria-hidden />
           <input type="file" accept="image/*" hidden onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file) return;
@@ -304,7 +305,7 @@ export const ChatWidget = () => {
         </div>
       ) : (
         <button className="chat-launcher" onClick={() => chat.show()} data-testid="chat-launcher">
-          💬 Chat{(unread.data ?? 0) > 0 && <em className="chat-unread">{unread.data}</em>}
+          <MessageCircle size={18} aria-hidden /> Chat{(unread.data ?? 0) > 0 && <em className="chat-unread">{unread.data}</em>}
         </button>
       )}
     </div>
@@ -331,7 +332,7 @@ export const ChatNowButton = ({ shopId, productId, className }: { shopId: string
         } catch (e) {
           setError(e instanceof ApiError ? e.message : 'Không mở được chat.');
         }
-      }}>💬 Chat Ngay</button>
+      }}><MessageCircle size={16} aria-hidden /> Chat Ngay</button>
       {error && <span className="chat-error" role="alert">{error}</span>}
     </>
   );

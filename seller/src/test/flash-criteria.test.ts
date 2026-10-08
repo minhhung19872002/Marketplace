@@ -8,10 +8,10 @@ describe('flash sale criteria', () => {
 
   it('lists the categories with the discount and rating rules', () => {
     expect(flashCriteriaText({ minDiscountBp: 1500, minRating: 4.5, categoryIds: ['c-dt', 'c-mt'] }, names))
-      .toBe('Giảm ≥ 15% · đánh giá ≥ 4.5★ · ngành: Điện Thoại & Phụ Kiện, Máy Tính & Laptop');
+      .toBe('Giảm ≥ 15% · đánh giá ≥ 4.5 sao · ngành: Điện Thoại & Phụ Kiện, Máy Tính & Laptop');
   });
 
   it('says every category when the slot has none', () => {
-    expect(flashCriteriaText({ minDiscountBp: 1000, minRating: 0, categoryIds: [] }, names)).toBe('Giảm ≥ 10% · đánh giá ≥ 0★ · mọi ngành hàng');
+    expect(flashCriteriaText({ minDiscountBp: 1000, minRating: 0, categoryIds: [] }, names)).toBe('Giảm ≥ 10% · đánh giá ≥ 0 sao · mọi ngành hàng');
   });
 });

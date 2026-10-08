@@ -1,21 +1,32 @@
 .feature-shortcuts {
-  background: #fff;
-  border-radius: 4px;
-  margin-top: 16px;
-  padding: 20px 10px;
+  margin-top: var(--sh-space-4);
+  padding: var(--sh-space-5) var(--sh-space-3);
+  background: var(--sh-surface);
+  border-radius: var(--sh-radius-sm);
+  box-shadow: var(--sh-shadow-sm);
 }
 
+/* One row of 10 on desktop; scrolls sideways on smaller screens instead of wrapping into a ragged grid */
 .feature-shortcuts-grid {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  gap: 12px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(84px, 1fr);
+  gap: var(--sh-space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.feature-shortcuts-grid::-webkit-scrollbar {
+  display: none;
 }
 
 .feature-shortcut {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--sh-space-2);
+  padding: var(--sh-space-1) 0;
+  border-radius: var(--sh-radius-md);
   text-align: center;
   transition: transform 0.15s;
 }
@@ -25,33 +36,35 @@
 }
 
 .feature-shortcut-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border);
+  border-radius: var(--sh-radius-lg);
+  background: var(--sh-surface);
 }
+
+.feature-shortcut-icon img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.feature-shortcut-icon--primary { color: var(--sh-primary); background: var(--sh-primary-soft); }
+.feature-shortcut-icon--mall { color: var(--sh-mall); background: var(--sh-danger-soft); }
+.feature-shortcut-icon--amber { color: var(--sh-warning); background: var(--sh-warning-soft); }
+.feature-shortcut-icon--teal { color: var(--sh-success); background: var(--sh-success-soft); }
+.feature-shortcut-icon--violet { color: var(--sh-tone-violet); background: var(--sh-info-soft); }
+.feature-shortcut-icon--tech { color: var(--sh-info); background: var(--sh-info-soft); }
 
 .feature-shortcut-label {
+  max-width: 88px;
+  color: var(--text);
   font-size: 12px;
-  color: #555;
   line-height: 1.3;
-  max-width: 84px;
 }
 
-@media (max-width: 1024px) {
-  .feature-shortcuts-grid {
-    grid-template-columns: repeat(5, 1fr);
-    row-gap: 20px;
-  }
-}
-
-@media (max-width: 600px) {
-  .feature-shortcuts-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
+.feature-shortcut:hover .feature-shortcut-label {
+  color: var(--sh-primary);
 }

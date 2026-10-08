@@ -15,6 +15,7 @@ import QueryState from '../components/QueryState';
 import { useShopVouchers } from '../stores/shopVouchers';
 import { ConfirmButton } from '../components/ConfirmDialog';
 import './CartPage.css';
+import { ShoppingCart, ChevronDown } from 'lucide-react';
 
 /** "Phân loại: …" with a picker of the product's other SKUs (change variant without leaving the cart). */
 const VariantPicker = ({ line, onPick }: { line: CartLine; onPick: (skuId: string) => void }) => {
@@ -24,7 +25,7 @@ const VariantPicker = ({ line, onPick }: { line: CartLine; onPick: (skuId: strin
   return (
     <span className="cart-variant">
       <button type="button" className="cart-item-variant" onClick={() => setOpen((v) => !v)} data-testid="cart-variant">
-        Phân loại: {line.variant} ▾
+        Phân loại: {line.variant} <ChevronDown size={14} aria-hidden />
       </button>
       {open && data && (
         <span className="cart-variant-menu">
@@ -118,7 +119,7 @@ const CartPage = () => {
       <div className="cart-page">
         <div className="container">
           <div className="cart-empty" data-testid="cart-empty">
-            <div className="cart-empty-icon">🛒</div>
+            <div className="cart-empty-icon"><ShoppingCart size={56} strokeWidth={1.25} aria-hidden /></div>
             <p>Giỏ hàng của bạn còn trống</p>
             <Link to="/" className="cart-empty-btn">Mua Sắm Ngay</Link>
           </div>

@@ -8,6 +8,7 @@ import { ApiError } from '../api/http'
 import { addDaysIso, vnTodayIso } from '../lib/datetime'
 import { formatNumber, formatPercentBp, formatPrice } from '../lib/money'
 import { palette } from '../theme'
+import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
 
 const FIGURES: { key: keyof PeriodFigures; label: string; kind: 'money' | 'count' | 'bp' }[] = [
   { key: 'sales', label: 'Doanh số', kind: 'money' },
@@ -22,7 +23,7 @@ const show = (v: number, kind: 'money' | 'count' | 'bp') => (kind === 'money' ? 
 const Change = ({ now, before }: { now: number; before: number }) => {
   if (before === 0) return <Typography.Text type="secondary">kỳ trước: 0</Typography.Text>
   const pct = Math.round(((now - before) * 1000) / before) / 10
-  return <span style={{ color: pct >= 0 ? palette.up : palette.down }}>{pct >= 0 ? '▲' : '▼'} {formatNumber(Math.abs(pct))}% so với kỳ trước</span>
+  return <span style={{ color: pct >= 0 ? palette.up : palette.down }}>{pct >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {formatNumber(Math.abs(pct))}% so với kỳ trước</span>
 }
 
 const PENALTY_ALERT = { None: 'success', Restricted: 'info', CampaignBan: 'warning', Locked: 'error' } as const

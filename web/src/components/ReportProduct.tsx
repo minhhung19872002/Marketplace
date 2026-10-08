@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { REPORT_REASONS, contentApi, type ProductReportReason } from '../api/content';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
+import { Flag } from 'lucide-react';
 
 /** "Báo cáo sản phẩm vi phạm" (spec II.4): signed-in buyers, one open report per product. */
 const ReportProduct = ({ productId }: { productId: string }) => {
@@ -27,7 +28,7 @@ const ReportProduct = ({ productId }: { productId: string }) => {
     <>
       <button type="button" className="pd-report" data-testid="report-product"
         onClick={() => (isLoggedIn ? setOpen(true) : navigate('/dang-nhap', { state: { from: location.pathname } }))}>
-        ⚑ Báo cáo sản phẩm
+        <Flag size={13} aria-hidden /> Báo cáo sản phẩm
       </button>
       {open && (
         <div className="pd-report-backdrop" role="dialog" aria-modal="true" aria-label="Báo cáo sản phẩm">

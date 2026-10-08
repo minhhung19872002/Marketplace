@@ -68,7 +68,7 @@ const FlashTab = () => {
         }}
         columns={[
           { title: 'Khung giờ', render: (_, s) => `${formatDateTime(s.startAt)} – ${formatDateTime(s.endAt)}` },
-          { title: 'Tiêu chí', render: (_, s) => `Giảm ≥ ${s.minDiscountBp / 100}% · ≥ ${s.minRating}★${s.categoryIds.length > 0 ? ` · ${s.categoryIds.length} ngành hàng` : ''}` },
+          { title: 'Tiêu chí', render: (_, s) => `Giảm ≥ ${s.minDiscountBp / 100}% · ≥ ${s.minRating} sao${s.categoryIds.length > 0 ? ` · ${s.categoryIds.length} ngành hàng` : ''}` },
           { title: 'Đăng ký', render: (_, s) => `${s.items.filter((i) => i.status === 'Pending').length} chờ / ${s.items.length}` },
           { title: 'Trạng thái', dataIndex: 'state' },
         ]} />

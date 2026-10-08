@@ -26,6 +26,52 @@
   --sh-tone-orange: #f69113;
   --sh-tone-teal: #26aa99;
   --sh-tone-violet: #7c3aed;
+
+  /* Design system — bright brand orange for decoration only (no text on it: white on it is 3.6:1) */
+  --sh-primary-bright: #ee4d2d;
+  --sh-primary-border: #f3b3a3;
+  --sh-surface-muted: #fafafa;
+  --sh-surface-sunken: #f5f5f5;
+  --sh-text-strong: #222;
+  --sh-border-strong: #d9d9d9;
+  --sh-success: #0f7b4a;
+  --sh-success-soft: #e8f6ee;
+  --sh-warning: #9a5b00;
+  --sh-warning-soft: #fff7e6;
+  --sh-danger: #c0262d;
+  --sh-danger-soft: #fdecec;
+  --sh-info: #1f5fb8;
+  --sh-info-soft: #eaf2fd;
+  --sh-mall: #b5121b;
+  --sh-preferred: #c93d19;
+  --sh-on-dark: #fff;
+  --sh-scrim-top: rgba(0, 0, 0, 0);
+  --sh-scrim-bottom: rgba(0, 0, 0, 0.62);
+  /* Radius / shadow / spacing (4px scale) */
+  --sh-radius-sm: 4px;
+  --sh-radius-md: 8px;
+  --sh-radius-lg: 12px;
+  --sh-radius-pill: 999px;
+  --sh-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 1px rgba(0, 0, 0, 0.04);
+  --sh-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --sh-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.16);
+  --sh-space-1: 4px;
+  --sh-space-2: 8px;
+  --sh-space-3: 12px;
+  --sh-space-4: 16px;
+  --sh-space-5: 20px;
+  --sh-space-6: 24px;
+  --sh-space-8: 32px;
+  /* Typography */
+  --sh-font-h1: 600 24px/28px var(--sh-font);
+  --sh-font-h2: 600 16px/22px var(--sh-font);
+  --sh-font-body: 400 14px/20px var(--sh-font);
+  --sh-font-caption: 400 12px/16px var(--sh-font);
+  --sh-font: 'Be Vietnam Pro', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  --sh-container: 1200px;
+  /* Header heights (sticky offsets) */
+  --sh-header-full: 120px;
+  --sh-header-compact: 64px;
 }
 
 .tone-primary { background: var(--sh-tone-primary); }
@@ -68,7 +114,7 @@ img {
 
 .container {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--sh-container);
   margin: 0 auto;
   padding: 0 12px;
 }
@@ -93,4 +139,23 @@ img {
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--sh-focus) !important;
   outline-offset: 2px;
+}
+
+/* Prices line up digit by digit */
+.price,
+[data-price] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Anchors land below the sticky header */
+:where([id]) {
+  scroll-margin-top: calc(var(--sh-header-compact) + var(--sh-space-3));
+}
+
+/* Section title — UPPERCASE, letter-spaced (design system H2) */
+.sh-section-title {
+  font: var(--sh-font-h2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sh-text-strong);
 }

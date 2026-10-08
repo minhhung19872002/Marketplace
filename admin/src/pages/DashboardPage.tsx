@@ -10,6 +10,7 @@ import RangePicker, { lastDays } from '../components/RangePicker'
 import { P, can } from '../permissions'
 import { formatNumber, formatPercentBp, formatPrice } from '../lib/money'
 import { palette } from '../theme'
+import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
 
 const HEALTH = {
   Healthy: { text: 'Hoạt động', color: 'success' },
@@ -34,7 +35,7 @@ const Change = ({ now, before, lowerIsBetter }: { now: number; before: number; l
   if (before === 0) return <Typography.Text type="secondary">kỳ trước: 0</Typography.Text>
   const pct = Math.round(((now - before) * 1000) / before) / 10
   const good = lowerIsBetter ? pct <= 0 : pct >= 0
-  return <span style={{ color: good ? palette.up : palette.down }}>{pct >= 0 ? '▲' : '▼'} {formatNumber(Math.abs(pct))}% so với kỳ trước</span>
+  return <span style={{ color: good ? palette.up : palette.down }}>{pct >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {formatNumber(Math.abs(pct))}% so với kỳ trước</span>
 }
 
 const DashboardPage = ({ permissions }: { permissions: string[] }) => {

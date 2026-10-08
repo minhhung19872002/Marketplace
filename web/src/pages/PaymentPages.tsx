@@ -8,6 +8,7 @@ import { formatDateTime } from '../lib/datetime';
 import { goTo } from '../lib/navigation';
 import QueryState from '../components/QueryState';
 import './PaymentPages.css';
+import { X, Check } from 'lucide-react';
 
 const useSecondsLeft = (until: string | null | undefined) => {
   const [now, setNow] = useState(() => Date.now());
@@ -110,13 +111,13 @@ export const PaymentResultPage = () => {
     <div className="container payment-result" data-testid="payment-result">
       {paid && (
         <>
-          <div className="payment-result-icon ok">✓</div>
+          <div className="payment-result-icon ok"><Check size={36} aria-hidden /></div>
           <h1 data-testid="payment-state">Thanh toán thành công</h1>
         </>
       )}
       {expired && (
         <>
-          <div className="payment-result-icon fail">✕</div>
+          <div className="payment-result-icon fail"><X size={36} aria-hidden /></div>
           <h1 data-testid="payment-state">Đơn hàng đã huỷ do quá hạn thanh toán</h1>
           <p>Hàng đã giữ, voucher và xu đã được trả lại.</p>
         </>
@@ -170,7 +171,7 @@ export const OrderSuccessPage = () => {
 
   return (
     <div className="container payment-result" data-testid="order-success">
-      <div className="payment-result-icon ok">✓</div>
+      <div className="payment-result-icon ok"><Check size={36} aria-hidden /></div>
       <h1>Đặt hàng thành công</h1>
       <p>
         {data.orders.length} đơn hàng · Tổng thanh toán <strong data-testid="success-total">{formatPrice(data.grandTotal)}</strong>

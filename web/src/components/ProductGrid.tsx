@@ -1,4 +1,5 @@
 import ProductCard from './ProductCard';
+import { EmptyState, ProductGridSkeleton } from './ui';
 import type { ProductCard as Card } from '../types';
 import './ProductGrid.css';
 
@@ -17,13 +18,9 @@ const ProductGrid = ({ title = 'GỢI Ý HÔM NAY', products, loading = false, e
       </div>
     )}
     {loading && products.length === 0 ? (
-      <div className="product-grid">
-        {Array.from({ length: 12 }, (_, i) => (
-          <div key={i} className="product-card product-card-skeleton" aria-hidden="true" />
-        ))}
-      </div>
+      <ProductGridSkeleton count={12} />
     ) : products.length === 0 ? (
-      <div className="product-grid-empty">{emptyText}</div>
+      <div className="product-grid-empty"><EmptyState title={emptyText} /></div>
     ) : (
       <div className="product-grid">
         {products.map((p) => (

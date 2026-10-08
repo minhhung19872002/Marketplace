@@ -1,0 +1,193 @@
+/* Design system primitives (button, badge, skeleton, empty state, stars). Colours come from index.css tokens. */
+
+/* ---- Button ---- */
+.sh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sh-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--sh-radius-sm);
+  font: inherit;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  text-decoration: none;
+}
+.sh-btn:disabled,
+.sh-btn[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.sh-btn svg {
+  flex: none;
+}
+.sh-btn--sm { height: 32px; padding: 0 var(--sh-space-3); font-size: 13px; }
+.sh-btn--md { height: 40px; padding: 0 var(--sh-space-4); font-size: 14px; }
+.sh-btn--lg { height: 48px; padding: 0 var(--sh-space-6); font-size: 15px; }
+.sh-btn--block { width: 100%; }
+
+.sh-btn--primary {
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
+}
+.sh-btn--primary:hover:not(:disabled) {
+  background: var(--sh-primary-dark);
+}
+.sh-btn--outline {
+  background: var(--sh-primary-soft);
+  border-color: var(--sh-primary);
+  color: var(--sh-primary);
+}
+.sh-btn--outline:hover:not(:disabled) {
+  background: var(--sh-surface);
+}
+.sh-btn--secondary {
+  background: var(--sh-surface);
+  border-color: var(--sh-border-strong);
+  color: var(--text);
+}
+.sh-btn--secondary:hover:not(:disabled) {
+  border-color: var(--sh-primary);
+  color: var(--sh-primary);
+}
+.sh-btn--ghost {
+  background: transparent;
+  color: var(--text);
+}
+.sh-btn--ghost:hover:not(:disabled) {
+  background: var(--sh-surface-sunken);
+  color: var(--sh-primary);
+}
+
+/* ---- Badge ---- */
+.sh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+  text-transform: none;
+}
+.sh-badge--mall { background: var(--sh-mall); color: var(--sh-on-dark); }
+.sh-badge--preferred { background: var(--sh-preferred); color: var(--sh-on-dark); }
+.sh-badge--discount { background: var(--sh-warning-soft); color: var(--sh-danger); }
+.sh-badge--top { background: var(--sh-primary); color: var(--sh-on-primary); }
+.sh-badge--neutral { background: var(--sh-surface-sunken); color: var(--sh-text-muted); }
+.sh-badge--success { background: var(--sh-success-soft); color: var(--sh-success); }
+.sh-badge--outline { border: 1px solid var(--sh-primary); color: var(--sh-primary); background: var(--sh-surface); }
+
+/* ---- Skeleton ---- */
+.sh-skeleton {
+  display: block;
+  border-radius: var(--sh-radius-sm);
+  background: linear-gradient(90deg, var(--sh-skeleton) 25%, var(--sh-skeleton-shine) 37%, var(--sh-skeleton) 63%);
+  background-size: 400% 100%;
+  animation: sh-shimmer 1.4s ease infinite;
+}
+@keyframes sh-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sh-skeleton { animation: none; }
+}
+.sh-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sh-space-2);
+  padding-bottom: var(--sh-space-3);
+  background: var(--sh-surface);
+}
+.sh-skeleton-card > .sh-skeleton:first-child {
+  aspect-ratio: 1;
+  border-radius: 0;
+}
+.sh-skeleton-card > .sh-skeleton:not(:first-child) {
+  margin: 0 var(--sh-space-2);
+}
+
+/* ---- Empty state ---- */
+.sh-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sh-space-3);
+  padding: var(--sh-space-8) var(--sh-space-4);
+  text-align: center;
+  color: var(--sh-text-muted);
+}
+.sh-empty__art {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--sh-primary-soft);
+  color: var(--sh-primary);
+}
+.sh-empty__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--sh-text-strong);
+}
+.sh-empty__text {
+  max-width: 420px;
+  line-height: 1.5;
+}
+
+/* ---- Stars ---- */
+.sh-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: var(--star);
+  line-height: 0;
+}
+.sh-stars__off {
+  color: var(--sh-border-strong);
+}
+.sh-stars__half {
+  position: relative;
+  display: inline-flex;
+}
+.sh-stars__half > svg:last-child {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 50% 0 0);
+  color: var(--star);
+}
+
+/* ---- Section card (white block with an UPPERCASE header) ---- */
+.sh-section {
+  margin-top: var(--sh-space-4);
+  background: var(--sh-surface);
+  border-radius: var(--sh-radius-sm);
+  box-shadow: var(--sh-shadow-sm);
+}
+.sh-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sh-space-3);
+  min-height: 56px;
+  padding: 0 var(--sh-space-4);
+  border-bottom: 1px solid var(--border);
+}
+.sh-section__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--sh-primary);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.sh-section__more:hover {
+  text-decoration: underline;
+}

@@ -7,6 +7,7 @@ import { useUnreadNotifications } from '../context/NotificationsContext';
 import { formatDateTime } from '../lib/datetime';
 import QueryState from '../components/QueryState';
 import './Notifications.css';
+import { Bell, Gift, Package, Wallet, type LucideIcon } from 'lucide-react';
 
 const TABS: { key: NotificationCategory | null; label: string }[] = [
   { key: null, label: 'Tất Cả' },
@@ -16,7 +17,7 @@ const TABS: { key: NotificationCategory | null; label: string }[] = [
   { key: 'Activity', label: 'Hoạt Động' },
 ];
 
-const ICONS: Record<NotificationCategory, string> = { Order: '📦', Promotion: '🎁', Wallet: '💰', Activity: '🔔' };
+const ICONS: Record<NotificationCategory, LucideIcon> = { Order: Package, Promotion: Gift, Wallet: Wallet, Activity: Bell };
 
 const Notifications = () => {
   const navigate = useNavigate();
@@ -75,7 +76,7 @@ const Notifications = () => {
             emptyText={<p className="noti-empty" data-testid="noti-empty">Chưa có thông báo nào.</p>}>
             {(d) => d.items.map((n) => (
             <button key={n.id} className={`noti-item ${n.isRead ? '' : 'unread'}`} onClick={() => open(n)} data-testid="noti-item">
-              <span className="noti-icon">{ICONS[n.category]}</span>
+              <span className="noti-icon">{(() => { const Icon = ICONS[n.category]; return <Icon size={22} aria-hidden />; })()}</span>
               <span className="noti-body">
                 <span className="noti-item-title">{n.title}</span>
                 <span className="noti-item-desc">{n.body}</span>

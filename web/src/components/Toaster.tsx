@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useToasts, type Toast } from '../lib/toast';
 import './Toaster.css';
+import { X } from 'lucide-react';
 
 const LIFETIME_MS = 3500;
 
@@ -13,7 +14,7 @@ const Item = ({ t }: { t: Toast }) => {
   return (
     <div className={`toast toast-${t.kind}`} role={t.kind === 'error' ? 'alert' : 'status'} data-testid="toast">
       <span>{t.text}</span>
-      <button type="button" onClick={() => dismiss(t.id)} aria-label="Đóng thông báo">✕</button>
+      <button type="button" onClick={() => dismiss(t.id)} aria-label="Đóng thông báo"><X size={16} aria-hidden /></button>
     </div>
   );
 };

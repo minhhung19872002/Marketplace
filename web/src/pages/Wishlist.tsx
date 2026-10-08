@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import ProductGrid from '../components/ProductGrid';
 import QueryState from '../components/QueryState';
 import './Wishlist.css';
+import { Heart } from 'lucide-react';
 
 const Wishlist = () => {
   const { isLoggedIn, isChecking } = useAuth();
@@ -30,7 +31,7 @@ const Wishlist = () => {
           isEmpty={(d) => d.pages.every((p) => p.items.length === 0)}
           emptyText={
             <div className="wishlist-empty" data-testid="wishlist-empty">
-              <div className="wishlist-empty-icon">♡</div>
+              <div className="wishlist-empty-icon"><Heart size={56} strokeWidth={1.25} aria-hidden /></div>
               <p>Bạn chưa có sản phẩm yêu thích nào</p>
               <Link to="/" className="wishlist-empty-btn">Khám Phá Ngay</Link>
             </div>

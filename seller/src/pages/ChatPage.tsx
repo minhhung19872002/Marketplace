@@ -7,6 +7,7 @@ import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
 import { formatPrice } from '../lib/money'
 import { realtime, useRealtimeEvent } from '../lib/realtime'
+import { ShoppingOutlined, InboxOutlined, TagOutlined, WarningOutlined, PictureOutlined } from '@ant-design/icons'
 
 const FILTERS: { value: InboxFilter; label: string }[] = [
   { value: 'All', label: 'Tất cả' },
@@ -23,11 +24,11 @@ const Body = ({ m }: { m: ChatMessage }) => {
     case 'Image':
       return <a href={String(p.url ?? '')} target="_blank" rel="noreferrer"><img src={String(p.url ?? '')} alt="Ảnh" style={{ maxWidth: 200, maxHeight: 200 }} /></a>
     case 'Product':
-      return <span>🛍 <b>{String(p.name ?? m.body)}</b> · {formatPrice(Number(p.price ?? 0))}</span>
+      return <span><ShoppingOutlined /> <b>{String(p.name ?? m.body)}</b> · {formatPrice(Number(p.price ?? 0))}</span>
     case 'Order':
-      return <span>📦 Đơn <b>{String(p.code)}</b> · {String(p.status)} · {formatPrice(Number(p.total ?? 0))}</span>
+      return <span><InboxOutlined /> Đơn <b>{String(p.code)}</b> · {String(p.status)} · {formatPrice(Number(p.total ?? 0))}</span>
     case 'Voucher':
-      return <span>🎟 Voucher <b>{String(p.code)}</b></span>
+      return <span><TagOutlined /> Voucher <b>{String(p.code)}</b></span>
     default:
       return <span style={{ whiteSpace: 'pre-wrap' }}>{m.body}</span>
   }
@@ -129,7 +130,7 @@ const Thread = ({ shopId, conversation, quickReplies, staff }: {
         {messages.map((m) => (
           <div key={m.id} data-testid="chat-message"
             style={{ alignSelf: m.senderRole === 'Buyer' ? 'flex-start' : 'flex-end', maxWidth: '75%', display: 'flex', flexDirection: 'column', alignItems: m.senderRole === 'Buyer' ? 'flex-start' : 'flex-end' }}>
-            {m.flagged && <Typography.Text type="warning" style={{ fontSize: 11 }}>⚠ Có thông tin liên hệ ngoài sàn</Typography.Text>}
+            {m.flagged && <Typography.Text type="warning" style={{ fontSize: 11 }}><WarningOutlined /> Có thông tin liên hệ ngoài sàn</Typography.Text>}
             <div className={`chat-bubble chat-bubble-${m.senderRole.toLowerCase()}`}>
               <Body m={m} />
             </div>
@@ -160,7 +161,7 @@ const Thread = ({ shopId, conversation, quickReplies, staff }: {
           }
           return false
         }}>
-          <Button>📷</Button>
+          <Button icon={<PictureOutlined />} aria-label="Gửi ảnh" />
         </Upload>
         <Input value={text} onChange={(e) => onType(e.target.value)} maxLength={2000} placeholder="Nhập tin nhắn — gõ / để chọn câu trả lời nhanh"
           disabled={conversation.blockedByBuyer} data-testid="chat-input"

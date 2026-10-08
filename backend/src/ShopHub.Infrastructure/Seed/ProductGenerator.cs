@@ -90,8 +90,17 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
                 list.Add((asset.Id, storage.PublicUrl(Buckets.Products, ImageSizes.Key(key, ImageSizes.Large))));
             }
             photos[model.Key] = list;
+            // ~450 photos decode / resize / encode in a row: flush and collect every few models so the seed stays well
+            // under the API container's memory limit (Skia's native buffers do not press the GC on their own)
+            if (photos.Count % 20 == 0)
+            {
+                await db.SaveChangesAsync(ct);
+                db.ChangeTracker.Clear();
+                GC.Collect();
+            }
         }
         await db.SaveChangesAsync(ct);
+        db.ChangeTracker.Clear();
 
         // Every model once (a Mall shop of its industry first), then more listings weighted by industry popularity
         var plan = new List<(ModelSeed Model, int Copy)>();

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi, type Role } from '../api/admin'
 import { ApiError } from '../api/http'
 import { P, can } from '../permissions'
+import { ToneTag } from '../components/StatusTag'
 
 interface RoleForm {
   code: string
@@ -70,7 +71,7 @@ const RolesPage = ({ permissions }: { permissions: string[] }) => {
           {
             title: 'Quyền',
             dataIndex: 'permissions',
-            render: (ps: string[]) => (ps.includes('*') ? <Tag color="gold">Toàn quyền</Tag> : `${ps.length} quyền`),
+            render: (ps: string[]) => (ps.includes('*') ? <ToneTag tone="warning">Toàn quyền</ToneTag> : `${ps.length} quyền`),
           },
           { title: 'Số người', dataIndex: 'userCount' },
           {

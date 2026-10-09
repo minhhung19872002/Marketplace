@@ -55,7 +55,7 @@ test.describe('Trang người mua — phần bổ sung', () => {
 
     // Follow → listed in "Shop theo dõi"; "Đã xem" lists the product
     await page.getByTestId('shop-follow').click();
-    await expect(page.getByTestId('shop-follow')).toContainText('Đang Theo Dõi');
+    await expect(page.getByTestId('shop-follow')).toContainText('Đang theo dõi');
     await page.goto(`${BASE}/tai-khoan/shop-theo-doi`);
     await expect(page.getByTestId('followed-shop').filter({ hasText: shop.shopName })).toBeVisible();
     await page.goto(`${BASE}/tai-khoan/da-xem`);

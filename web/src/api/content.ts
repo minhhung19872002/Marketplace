@@ -23,6 +23,8 @@ export interface SiteInfo {
   googlePlayUrl: string | null;
   // Active carrier channels (footer "Đơn vị vận chuyển")
   carriers: string[];
+  // SITE.MODE: 'demo' shows the showcase notice above the header (G4-D)
+  mode?: 'demo' | 'live';
 }
 
 export type ProductReportReason = 'Counterfeit' | 'Prohibited' | 'WrongInfo' | 'Offensive' | 'IntellectualProperty' | 'Other';

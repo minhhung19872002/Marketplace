@@ -10,22 +10,22 @@ type FooterLink = { label: string; to?: string; href?: string };
 
 const COLUMNS: { title: string; links: FooterLink[] }[] = [
   {
-    title: 'Chăm Sóc Khách Hàng',
+    title: 'Chăm sóc khách hàng',
     links: [
-      { label: 'Trung Tâm Trợ Giúp', to: '/tro-giup' },
-      { label: 'Hướng Dẫn Mua Hàng', to: '/trang/huong-dan-mua-hang' },
-      { label: 'Hướng Dẫn Bán Hàng', to: '/tro-giup/tro-giup-dang-ky-ban-hang' },
-      { label: 'Trả Hàng & Hoàn Tiền', to: '/trang/chinh-sach-tra-hang' },
-      { label: 'Tra Cứu Vận Đơn', to: '/tra-cuu-van-don' },
+      { label: 'Trung tâm trợ giúp', to: '/tro-giup' },
+      { label: 'Hướng dẫn mua hàng', to: '/trang/huong-dan-mua-hang' },
+      { label: 'Hướng dẫn bán hàng', to: '/tro-giup/tro-giup-dang-ky-ban-hang' },
+      { label: 'Trả hàng & hoàn tiền', to: '/trang/chinh-sach-tra-hang' },
+      { label: 'Tra cứu vận đơn', to: '/tra-cuu-van-don' },
       { label: 'ShopHub Xu', to: '/tai-khoan/xu' },
     ],
   },
   {
     title: 'Về ShopHub',
     links: [
-      { label: 'Điều Khoản Sử Dụng', to: '/trang/dieu-khoan-su-dung' },
-      { label: 'Quy Chế Hoạt Động', to: '/trang/quy-che-hoat-dong' },
-      { label: 'Chính Sách Bảo Mật', to: '/trang/chinh-sach-bao-mat' },
+      { label: 'Điều khoản sử dụng', to: '/trang/dieu-khoan-su-dung' },
+      { label: 'Quy chế hoạt động', to: '/trang/quy-che-hoat-dong' },
+      { label: 'Chính sách bảo mật', to: '/trang/chinh-sach-bao-mat' },
       { label: 'ShopHub Mall', to: '/tim-kiem?mall=true' },
       { label: 'Flash Sale', to: '/flash-sale' },
       { label: 'Kênh Người Bán', href: '/seller/' },
@@ -76,13 +76,13 @@ const Footer = () => {
         ))}
 
         <div className="footer-col">
-          <h2 className="footer-col-title">Thanh Toán</h2>
+          <h2 className="footer-col-title">Thanh toán</h2>
           <ul className="footer-chips" aria-label="Phương thức thanh toán">
             {PAYMENTS.map((p) => <li key={p} className="footer-chip">{p}</li>)}
           </ul>
           {s && s.carriers.length > 0 && (
             <>
-              <h2 className="footer-col-title footer-col-title--spaced">Đơn Vị Vận Chuyển</h2>
+              <h2 className="footer-col-title footer-col-title--spaced">Đơn vị vận chuyển</h2>
               <ul className="footer-chips" aria-label="Đơn vị vận chuyển" data-testid="footer-carriers">
                 {s.carriers.map((c) => <li key={c} className="footer-chip">{c}</li>)}
               </ul>
@@ -94,7 +94,7 @@ const Footer = () => {
           {/* Social links come from SITE.SOCIAL_* parameters; none set → no block (E8) */}
           {s && s.social.length > 0 && (
             <div data-testid="footer-social">
-              <h2 className="footer-col-title">Theo Dõi Chúng Tôi</h2>
+              <h2 className="footer-col-title">Theo dõi chúng tôi</h2>
               <ul className="footer-social">
                 {s.social.map((n) => {
                   const Icon = SOCIAL_ICONS[n.name] ?? Globe;
@@ -107,7 +107,7 @@ const Footer = () => {
               </ul>
             </div>
           )}
-          <h2 className={`footer-col-title ${s && s.social.length > 0 ? 'footer-col-title--spaced' : ''}`}>Tải Ứng Dụng {platform}</h2>
+          <h2 className={`footer-col-title ${s && s.social.length > 0 ? 'footer-col-title--spaced' : ''}`}>Tải ứng dụng {platform}</h2>
           <div className="footer-app">
             <Link to="/tai-ung-dung" className="footer-qr" aria-label="Tải ứng dụng">
               {qr ? <img src={qr} alt="Mã QR tải ứng dụng" width={84} height={84} /> : <Smartphone size={40} aria-hidden />}

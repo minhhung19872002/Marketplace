@@ -39,10 +39,10 @@ const matching = (skus: PublicSku[], picked: (string | null)[]) =>
 
 /** The shop block's figures that have data (G2-A5): a count of 0 or a rating nobody gave is left out, not shown as "0". */
 export const shopFacts = (shop: ProductPage['shop']) => [
-  ...(shop.ratingCount > 0 ? [{ key: 'rating', value: shop.ratingAvg.toFixed(1), label: `Đánh Giá (${formatSold(shop.ratingCount)})` }] : []),
-  ...(shop.productCount > 0 ? [{ key: 'products', value: formatSold(shop.productCount), label: 'Sản Phẩm' }] : []),
-  ...(shop.followerCount > 0 ? [{ key: 'followers', value: formatSold(shop.followerCount), label: 'Người Theo Dõi' }] : []),
-  { key: 'joined', value: formatDate(shop.joinedAt), label: 'Tham Gia' },
+  ...(shop.ratingCount > 0 ? [{ key: 'rating', value: shop.ratingAvg.toFixed(1), label: `Đánh giá (${formatSold(shop.ratingCount)})` }] : []),
+  ...(shop.productCount > 0 ? [{ key: 'products', value: formatSold(shop.productCount), label: 'Sản phẩm' }] : []),
+  ...(shop.followerCount > 0 ? [{ key: 'followers', value: formatSold(shop.followerCount), label: 'Người theo dõi' }] : []),
+  { key: 'joined', value: formatDate(shop.joinedAt), label: 'Tham gia' },
 ];
 
 /** Long descriptions fold to a fixed height with "Xem thêm" (G2-B2). */
@@ -258,7 +258,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
 
   const quantityRow = (
     <div className="product-detail-row pd-quantity-row">
-      <span className="row-label">Số Lượng</span>
+      <span className="row-label">Số lượng</span>
       <div className="quantity-control">
         <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))} aria-label="Giảm">−</button>
         <input
@@ -302,7 +302,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               <ShareProduct title={product.name} />
               <button type="button" className={`btn-wishlist ${liked ? 'liked' : ''}`} onClick={() => toggle(product.id)} data-testid="detail-heart"
                 aria-pressed={liked} aria-label="Yêu thích">
-                <Heart size={18} fill={liked ? 'currentColor' : 'none'} aria-hidden /> {liked ? 'Đã Thích' : 'Yêu Thích'} ({formatSold(product.likeCount)})
+                <Heart size={18} fill={liked ? 'currentColor' : 'none'} aria-hidden /> {liked ? 'Đã thích' : 'Yêu thích'} ({formatSold(product.likeCount)})
               </button>
             </div>
           </div>
@@ -323,12 +323,12 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                       <li className="stat-rating">
                         {product.ratingAvg.toFixed(1)} <Stars value={product.ratingAvg} size={14} />
                       </li>
-                      <li className="stat-count">{formatSold(product.ratingCount)} Đánh Giá</li>
+                      <li className="stat-count">{formatSold(product.ratingCount)} đánh giá</li>
                     </>
                   ) : (
                     <li className="stat-count">Chưa có đánh giá</li>
                   )}
-                  <li className="stat-sold">{formatSold(product.soldCount)} Đã Bán</li>
+                  <li className="stat-sold">{formatSold(product.soldCount)} đã bán</li>
                 </ul>
               </div>
               <span className="stat-report"><ReportProduct productId={product.id} /></span>
@@ -345,7 +345,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
 
             {(deals.data?.offers.length ?? 0) > 0 && (
               <div className="product-detail-row" data-testid="pd-offers">
-                <span className="row-label">Ưu Đãi Shop</span>
+                <span className="row-label">Ưu đãi shop</span>
                 <span className="pd-offers">
                   {deals.data!.offers.map((o) => (
                     <span key={o.promotionId} className="pd-offer-block">
@@ -370,13 +370,13 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               </div>
             )}
 
-            <ShopVouchers shopId={product.shop.id} compact rowLabel="Voucher Của Shop" moreTo={`/shop/${product.shop.slug}`} />
+            <ShopVouchers shopId={product.shop.id} compact rowLabel="Voucher của shop" moreTo={`/shop/${product.shop.slug}`} />
 
             <ProductShipping productId={product.id} />
 
             {product.isPreorder && (
               <div className="product-detail-row">
-                <span className="row-label">Đặt Trước</span>
+                <span className="row-label">Đặt trước</span>
                 <span>Hàng đặt trước — chuẩn bị trong {product.preorderDays} ngày</span>
               </div>
             )}
@@ -403,10 +403,10 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                 disabled={!product.purchasable || (sku != null && sku.available <= 0)}
                 data-testid="add-to-cart"
               >
-                <ShoppingCart size={20} aria-hidden /> Thêm Vào Giỏ Hàng
+                <ShoppingCart size={20} aria-hidden /> Thêm vào giỏ hàng
               </button>
               <button type="button" className="btn-buy-now" onClick={() => void buyNow()} disabled={!product.purchasable || busy} data-testid="buy-now">
-                Mua Ngay
+                Mua ngay
               </button>
             </div>
           </div>
@@ -426,7 +426,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
             </div>
             <div className="pd-shop-actions">
               <ChatNowButton shopId={product.shop.id} productId={product.id} className="pd-shop-chat" />
-              <Link to={`/shop/${product.shop.slug}`} className="pd-shop-view" data-testid="view-shop"><Store size={16} aria-hidden /> Xem Shop</Link>
+              <Link to={`/shop/${product.shop.slug}`} className="pd-shop-view" data-testid="view-shop"><Store size={16} aria-hidden /> Xem shop</Link>
             </div>
           </div>
           <div className="pd-shop-stats">
@@ -527,7 +527,7 @@ const ShopBestSellers = ({ productId }: { productId: string }) => {
   if (top.length === 0) return null;
   return (
     <aside className="pd-aside" aria-labelledby="pd-aside-title" data-testid="shop-best-sellers">
-      <h2 id="pd-aside-title" className="pd-aside-title">Top Sản Phẩm Bán Chạy</h2>
+      <h2 id="pd-aside-title" className="pd-aside-title">Top sản phẩm bán chạy</h2>
       {top.map((p) => (
         <Link key={p.id} to={productPath(p.slug, p.shopId, p.id)} className="pd-aside-item">
           <img src={imageOrPlaceholder(p.imageUrl)} srcSet={imageSrcSet(p.imageUrl)} sizes="200px" alt="" loading="lazy" width={160} height={160} onError={handleImgError} />

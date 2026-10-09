@@ -333,6 +333,11 @@
 @media (hover: none) {
   .sh-carousel__arrow { display: none; }
 }
+/* Without a page margin wider than the overhang the outside arrows pushed the page sideways (G4-A1: 2 px at 800) */
+@media (max-width: 1239px) {
+  .sh-carousel__arrow--prev { left: 2px; }
+  .sh-carousel__arrow--next { right: 2px; }
+}
 @media (max-width: 1023px) {
   :where(.sh-carousel) { --carousel-item: calc((100% - 3 * 10px) / 4); }
 }

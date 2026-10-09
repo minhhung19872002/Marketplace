@@ -7,6 +7,7 @@ import { platformApi } from '../api/platform'
 import { P, can } from '../permissions'
 import { formatDateTime } from '../lib/datetime'
 import { formatPrice } from '../lib/money'
+import { ToneTag } from './StatusTag'
 
 /** VI.2 user detail: orders, reviews, violations, devices; reset password; link to the user's audit trail. */
 const UserDetailDrawer = ({ userId, onClose, permissions }: { userId: string | null; onClose: () => void; permissions: string[] }) => {
@@ -70,7 +71,7 @@ const UserDetailDrawer = ({ userId, onClose, permissions }: { userId: string | n
                 { title: 'Thiết bị', dataIndex: 'device', render: (v: string | null) => v ?? 'Không rõ' },
                 { title: 'IP', dataIndex: 'ip' },
                 { title: 'Đăng nhập', dataIndex: 'signedInAt', render: (v: string) => formatDateTime(v) },
-                { title: 'Phiên', dataIndex: 'active', render: (v: boolean) => (v ? <Tag color="green">Đang mở</Tag> : <Tag>Đã đóng</Tag>) },
+                { title: 'Phiên', dataIndex: 'active', render: (v: boolean) => (v ? <ToneTag tone="success">Đang mở</ToneTag> : <Tag>Đã đóng</Tag>) },
               ]} />
           </div>
         </Space>

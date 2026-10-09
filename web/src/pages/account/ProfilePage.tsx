@@ -80,7 +80,7 @@ const ProfilePage = () => {
     <>
       <div className="account-card">
         <div className="account-card-head">
-          <h1 className="account-card-title">Hồ Sơ Của Tôi</h1>
+          <h1 className="account-card-title">Hồ sơ của tôi</h1>
           <p className="account-card-sub">Quản lý thông tin hồ sơ để bảo mật tài khoản</p>
         </div>
         {notice && <div className="account-notice" role="status">{notice}</div>}
@@ -137,7 +137,7 @@ const ProfilePage = () => {
 
       <div className="account-card">
         <div className="account-card-head">
-          <h2 className="account-card-title">Đổi Số Điện Thoại / Email</h2>
+          <h2 className="account-card-title">Đổi số điện thoại / email</h2>
           <p className="account-card-sub">Mã xác thực sẽ được gửi tới số điện thoại hoặc email mới</p>
         </div>
         <div className="account-form">

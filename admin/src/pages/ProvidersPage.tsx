@@ -1,7 +1,8 @@
-import { App, Card, InputNumber, Switch, Table, Tag, Typography } from 'antd'
+import { App, Card, InputNumber, Switch, Table, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../api/http'
 import { platformApi, type CarrierRow, type GatewayRow } from '../api/platform'
+import { ToneTag } from '../components/StatusTag'
 
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.message : fallback)
 
@@ -35,7 +36,7 @@ const ProvidersPage = () => {
         <Table<CarrierRow> rowKey="id" loading={data.isLoading} dataSource={data.data?.carriers ?? []} pagination={false}
           columns={[
             { title: 'Kênh', render: (_, c) => <span>{c.name} <Typography.Text type="secondary">({c.code})</Typography.Text></span> },
-            { title: 'Hãng', render: (_, c) => <Tag color={c.providerConfigured ? 'green' : 'default'}>{c.provider}{c.providerConfigured ? '' : ' — chưa cấu hình khoá'}</Tag> },
+            { title: 'Hãng', render: (_, c) => <ToneTag tone={c.providerConfigured ? 'success' : 'default'}>{c.provider}{c.providerConfigured ? '' : ' — chưa cấu hình khoá'}</ToneTag> },
             { title: 'Đang bật', render: (_, c) => <Switch checked={c.isActive} onChange={(v) => carrier.mutate({ ...c, isActive: v })} /> },
             { title: 'Thu hộ COD', render: (_, c) => <Switch checked={c.supportsCod} onChange={(v) => carrier.mutate({ ...c, supportsCod: v })} /> },
             {

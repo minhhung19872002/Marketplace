@@ -313,7 +313,7 @@ export const ChatWidget = () => {
 };
 
 /** "Chat ngay" on the product page / shop page; guests go to sign-in first. */
-export const ChatNowButton = ({ shopId, productId, className, testId = 'chat-now', label = 'Chat Ngay' }:
+export const ChatNowButton = ({ shopId, productId, className, testId = 'chat-now', label = 'Chat ngay' }:
   { shopId: string; productId?: string; className?: string; testId?: string; label?: string }) => {
   const { isLoggedIn } = useAuth();
   const chat = useChat();
@@ -365,8 +365,8 @@ export const ChatStats = ({ shopId }: { shopId: string }) => {
   if (!stats.data || stats.data.conversations === 0) return null;
   return (
     <>
-      <div><strong data-testid="chat-response-rate">{stats.data.responseRatePercent}%</strong><span>Tỉ Lệ Phản Hồi</span></div>
-      <div><strong>{stats.data.responseTime}</strong><span>Thời Gian Phản Hồi</span></div>
+      <div><strong data-testid="chat-response-rate">{stats.data.responseRatePercent}%</strong><span>Tỉ lệ phản hồi</span></div>
+      <div><strong>{stats.data.responseTime}</strong><span>Thời gian phản hồi</span></div>
     </>
   );
 };

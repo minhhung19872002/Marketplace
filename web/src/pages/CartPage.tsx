@@ -123,7 +123,17 @@ const CartPage = () => {
         <div className="container">
           <div className="cart-empty" data-testid="cart-empty">
             <EmptyState icon={ShoppingCart} title="Giỏ hàng của bạn còn trống" text="Thêm sản phẩm bạn thích để mua cùng lúc và dùng voucher của shop."
-              action={<Link to="/" className="cart-empty-btn">Mua Sắm Ngay</Link>} />
+              action={
+                <span className="cart-empty-actions">
+                  <Link to="/" className="cart-empty-btn">Mua sắm ngay</Link>
+                  {/* A guest's cart may be waiting in their account (G4-A4) */}
+                  {!isLoggedIn && (
+                    <Link to="/dang-nhap" state={{ from: '/gio-hang' }} className="cart-empty-btn cart-empty-btn--outline" data-testid="cart-empty-login">
+                      Đăng nhập để xem giỏ hàng của bạn
+                    </Link>
+                  )}
+                </span>
+              } />
           </div>
           <YouMayLike />
         </div>
@@ -147,18 +157,18 @@ const CartPage = () => {
   return (
     <div className="cart-page">
       <div className="container">
-        <h1 className="cart-title">Giỏ Hàng</h1>
+        <h1 className="cart-title">Giỏ hàng</h1>
         {error && <div className="cart-error" role="alert" data-testid="cart-error">{error}</div>}
 
         <div className="cart-header-row">
           <span className="cart-col-check">
             <input type="checkbox" checked={allSelected} onChange={() => run(() => select(!allSelected))} aria-label="Chọn tất cả" data-testid="select-all" />
           </span>
-          <span className="cart-col-product">Sản Phẩm</span>
-          <span className="cart-col-price">Đơn Giá</span>
-          <span className="cart-col-qty">Số Lượng</span>
-          <span className="cart-col-total">Số Tiền</span>
-          <span className="cart-col-action">Thao Tác</span>
+          <span className="cart-col-product">Sản phẩm</span>
+          <span className="cart-col-price">Đơn giá</span>
+          <span className="cart-col-qty">Số lượng</span>
+          <span className="cart-col-total">Số tiền</span>
+          <span className="cart-col-action">Thao tác</span>
         </div>
 
         {cart.shops.map((shop) => {
@@ -251,7 +261,7 @@ const CartPage = () => {
         <div className="cart-footer">
           <div className="cart-footer-left">
             <input type="checkbox" checked={allSelected} onChange={() => run(() => select(!allSelected))} aria-label="Chọn tất cả" />
-            <button className="cart-select-all-btn" onClick={() => run(() => select(!allSelected))}>Chọn Tất Cả ({lines.length})</button>
+            <button className="cart-select-all-btn" onClick={() => run(() => select(!allSelected))}>Chọn tất cả ({lines.length})</button>
             <ConfirmButton className="cart-clear" message={`Xoá ${selected.length} sản phẩm đã chọn khỏi giỏ hàng?`} confirmLabel="Xoá"
               onConfirm={() => run(() => remove(selected.map((l) => l.skuId)))} disabled={selected.length === 0} testId="cart-clear">Xóa</ConfirmButton>
           </div>
@@ -259,7 +269,7 @@ const CartPage = () => {
             <span className="cart-summary-label">Tổng thanh toán ({cart.selectedQuantity} sản phẩm):</span>
             <span className="cart-summary-total" data-testid="cart-total">{formatPrice(cart.selectedSubtotal)}</span>
             <button className="cart-checkout" onClick={checkout} disabled={selected.length === 0} data-testid="checkout">
-              Mua Hàng{cart.selectedQuantity > 0 ? ` (${cart.selectedQuantity})` : ''}
+              Mua hàng{cart.selectedQuantity > 0 ? ` (${cart.selectedQuantity})` : ''}
             </button>
           </div>
         </div>

@@ -71,7 +71,7 @@ export interface Overview {
   previous: Kpis
   gmvSeries: ChartPoint[]
   orderSeries: ChartPoint[]
-  pending: { shopsToReview: number; productsToReview: number; openDisputes: number; pendingWithdrawals: number; openProductReports: number; openReviewReports: number }
+  pending: { shopsToReview: number; productsToReview: number; openDisputes: number; pendingWithdrawals: number; openProductReports: number; openReviewReports: number; openChatReports?: number }
   // Configuration that needs an admin soon (e.g. no holidays for next year)
   warnings: string[] | null
 }
@@ -243,7 +243,26 @@ export interface ChatReportDetail {
   totalMessages: number
 }
 
+// Kiểm tra trước khi mở bán (G4-D): measured by the API, nothing ticked by hand
+export interface LaunchCheck {
+  id: string
+  group: string
+  title: string
+  status: 'Pass' | 'Warn' | 'Fail'
+  detail: string
+  blocking: boolean
+}
+
+export interface LaunchChecklist {
+  ready: boolean
+  passed: number
+  total: number
+  items: LaunchCheck[]
+  checkedAt: string
+}
+
 export const platformApi = {
+  launchChecklist: () => apiRequest<LaunchChecklist>('/admin/launch-checklist'),
   user: (id: string) => apiRequest<UserDetail>(`/admin/users/${id}`),
   divisions: (parent?: string) => apiRequest<{ code: string; name: string; level: 'Province' | 'District' | 'Ward'; parentCode: string | null; childCount: number; addressCount: number; isActive: boolean }[]>(`/admin/divisions${parent ? `?parent=${encodeURIComponent(parent)}` : ''}`),
   addDivision: (body: { code: string; name: string; parentCode: string | null }) => apiCommand('/admin/divisions', { method: 'POST', body }),

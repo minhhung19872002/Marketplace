@@ -10,6 +10,17 @@ import './ProductCard.css';
 import { productPath } from '../lib/urls';
 
 /**
+ * Short label of the campaign chip on the photo (G4-A2): the sale date when the name has one ("Siêu Sale 10.10" →
+ * "10.10"), else the name itself up to two words — the chip never cuts its text, the full name is its tooltip.
+ */
+export const campaignChip = (name: string): string => {
+  const date = name.match(/\b\d{1,2}\.\d{1,2}\b/);
+  if (date) return date[0];
+  const words = name.trim().split(/\s+/);
+  return words.length > 2 ? words.slice(0, 2).join(' ') : name.trim();
+};
+
+/**
  * Product tile of every grid. Fixed layout so all tiles of a row have the same height: square image with the Mall /
  * Yêu thích / % badges on its corners (never inside the name), 2-line name, price line that wraps instead of cutting,
  * rating + sold, ship-from province. Hover lifts the tile and shows "Tìm sản phẩm tương tự" (a sibling link — links
@@ -34,7 +45,7 @@ const ProductCard = ({ product, showFrame = false }: { product: Card; showFrame?
           <img src={imageOrPlaceholder(product.imageUrl)} srcSet={imageSrcSet(product.imageUrl)} sizes="(max-width: 640px) 50vw, 200px" alt={product.name} loading="lazy" decoding="async" width={240} height={240} onError={handleImgError} />
           {/* Campaign frame (e.g. 10.10): only on the campaign's own page — elsewhere it hid the photo (G3 B3), a chip says it */}
           {showFrame && product.frameUrl && <img className="product-card-frame" src={product.frameUrl} alt="" aria-hidden loading="lazy" width={240} height={240} />}
-          {!showFrame && product.campaignName && <span className="product-card-campaign" data-testid="product-card-campaign">{product.campaignName}</span>}
+          {!showFrame && product.campaignName && <span className="product-card-campaign" data-testid="product-card-campaign" title={product.campaignName}>{campaignChip(product.campaignName)}</span>}
           <div className="product-card-flags">
             {product.isMall && <span className="pc-flag pc-flag--mall">Mall</span>}
             {product.isPreferred && !product.isMall && <span className="pc-flag pc-flag--preferred">Yêu thích</span>}
@@ -68,7 +79,8 @@ const ProductCard = ({ product, showFrame = false }: { product: Card; showFrame?
           </div>
 
           <div className="product-card-meta">
-            {product.ratingCount > 0 ? <Stars value={product.ratingAvg} size={11} /> : <span className="pc-no-rating">Chưa có đánh giá</span>}
+            {/* No rating yet: only the sold count — "Chưa có đánh giá" was cut to "Chưa có …" on narrow tiles (G4-A2) */}
+            {product.ratingCount > 0 && <Stars value={product.ratingAvg} size={11} />}
             <span className="product-card-sold">Đã bán {formatSold(product.soldCount)}</span>
           </div>
           <div className="product-card-location">

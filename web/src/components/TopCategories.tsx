@@ -7,9 +7,12 @@ import Carousel from './ui/Carousel';
 import { Section } from './ui';
 import './TopCategories.css';
 
-/** The sales line of a top tile: units of the last 30 days when there are any ("Bán 23+ / tháng"), else the total. */
-export const topSoldLine = (monthlySold: number, soldCount: number): string =>
-  monthlySold > 0 ? `Bán ${formatSold(monthlySold)}+ / tháng` : `Đã bán ${formatSold(soldCount)}`;
+/**
+ * The sales line of a top tile. One wording for the whole row (G4-A1): units of the last 30 days ("Bán 23+ / tháng")
+ * when every tile has some, else the all-time total on every tile ("Đã bán 120").
+ */
+export const topSoldLine = (monthlySold: number, soldCount: number, monthly: boolean): string =>
+  monthly ? `Bán ${formatSold(monthlySold)}+ / tháng` : `Đã bán ${formatSold(soldCount)}`;
 
 // "Tìm kiếm hàng đầu" (G2-B1): one sliding row, 6 tiles per view — the best seller of each industry
 const TopCategories = () => {
@@ -32,6 +35,7 @@ const TopCategories = () => {
     );
   }
   if (data.length === 0) return null;
+  const monthly = data.every((t) => t.monthlySold > 0);
 
   return (
     <Section title="Tìm kiếm hàng đầu" more={{ to: '/tim-kiem?sort=BestSelling' }} className="top-categories">
@@ -42,7 +46,7 @@ const TopCategories = () => {
               <span className="top-category-image">
                 <span className="top-category-badge">TOP</span>
                 <img src={imageOrPlaceholder(product.imageUrl)} srcSet={imageSrcSet(product.imageUrl)} sizes="200px" alt={category.name} loading="lazy" width={200} height={200} onError={handleImgError} />
-                <span className="top-category-sold">{topSoldLine(monthlySold, product.soldCount)}</span>
+                <span className="top-category-sold">{topSoldLine(monthlySold, product.soldCount, monthly)}</span>
               </span>
               <span className="top-category-name">{category.name}</span>
             </Link>

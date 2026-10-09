@@ -13,7 +13,7 @@ test.describe('Trang chi tiết sản phẩm', () => {
     await expect(page.getByTestId('lightbox-image')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('lightbox')).toHaveCount(0);
-    await expect(page.getByTestId('shop-rating')).toContainText('Đánh Giá');
+    await expect(page.getByTestId('shop-rating')).toContainText('Đánh giá');
   });
 
   test('Mua ngay: sang thẳng thanh toán chỉ với dòng ấy, dòng khác trong giỏ không bị đặt kèm', async ({ page, request }) => {

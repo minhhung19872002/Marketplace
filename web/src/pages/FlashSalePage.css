@@ -1,5 +1,7 @@
 .flash-page {
-  padding: 16px 0 32px;
+  /* Top / bottom only: the .container side padding stays (G4-A3 — the title touched the left edge) */
+  padding-top: 16px;
+  padding-bottom: 32px;
 }
 
 .flash-page-title {
@@ -9,10 +11,8 @@
 }
 
 .flash-page-slots {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  --carousel-item: 132px;
+  margin-bottom: 4px;
 }
 
 .flash-page-slot {

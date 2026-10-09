@@ -14,7 +14,7 @@ test.describe('Khoá tài khoản cắt phiên ngay', () => {
     const { userId } = await addAddressViaApi(request, buyer);
     await loginInBrowser(page, buyer);
     await page.goto(`${BASE}/tai-khoan/ho-so`);
-    await expect(page.getByRole('heading', { name: /Hồ Sơ/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Hồ sơ/i })).toBeVisible();
 
     const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
     await apiAs(request, admin.accessToken, 'POST', `/admin/users/${userId}/lock`, { reason: 'Kiểm thử khoá phiên' });

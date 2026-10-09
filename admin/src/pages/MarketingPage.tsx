@@ -1,12 +1,19 @@
 import { useState } from 'react'
 import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd'
+import { CloseOutlined, EditOutlined, ExportOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
 import { POSITION_LABEL, SEGMENT_LABEL, marketingApi, type Broadcast, type BroadcastSegment, type Banner, type BannerPosition, type Campaign, type CampaignBlock, type CampaignRegistration, type RegistrationStatus, type FlashItem, type FlashSlot } from '../api/marketing'
 import { ApiError } from '../api/http'
-import { formatPrice } from '../lib/money'
+import { formatNumber, formatPrice } from '../lib/money'
 import { formatDateTime } from '../lib/datetime'
 import CategoryPicker from '../components/CategoryPicker'
+import DataTable from '../components/DataTable'
+import PageHeader from '../components/PageHeader'
+import RowActions from '../components/RowActions'
+import StatusTag from '../components/StatusTag'
+import { APPROVAL_STATUS, ON_OFF, SCHEDULE_STATE } from '../lib/status'
 
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : fallback)
 
@@ -46,21 +53,22 @@ const FlashTab = () => {
   }
   return (
     <>
-      <Button type="primary" onClick={() => setOpen(true)} style={{ marginBottom: 12 }}>Mở khung Flash Sale</Button>
-      <Table<FlashSlot> rowKey="id" loading={slots.isLoading} dataSource={slots.data ?? []} pagination={false}
+      <DataTable<FlashSlot> rowKey="id" loading={slots.isPending} error={slots.error} dataSource={slots.data ?? []} paging="client"
+        actions={<Button type="primary" icon={<PlusOutlined aria-hidden />} onClick={() => setOpen(true)}>Mở khung Flash Sale</Button>}
+        emptyText="Chưa có khung Flash Sale nào"
         expandable={{
           expandedRowRender: (s) => (
             <Table<FlashItem> size="small" rowKey="id" pagination={false} dataSource={s.items} columns={[
               { title: 'Phân loại', render: (_, i) => `${i.productName}${i.variant ? ` - ${i.variant}` : ''}` },
               { title: 'Giá', render: (_, i) => `${formatPrice(i.flashPrice)} (gốc ${formatPrice(i.basePrice)})` },
               { title: 'Suất', render: (_, i) => `${i.sold}/${i.quota} · ${i.perUserLimit}/người` },
-              { title: 'Trạng thái', render: (_, i) => <Tag color={i.status === 'Approved' ? 'green' : i.status === 'Rejected' ? 'red' : 'gold'}>{i.status}</Tag> },
+              { title: 'Trạng thái', render: (_, i) => <StatusTag map={APPROVAL_STATUS} value={i.status} /> },
               {
-                title: '', render: (_, i) => i.status === 'Pending' && (
-                  <Space>
-                    <Button size="small" type="primary" onClick={() => approve.mutate(i.id)}>Duyệt</Button>
-                    <Button size="small" danger onClick={() => reject(i)}>Từ chối</Button>
-                  </Space>
+                title: '', align: 'right', render: (_, i) => i.status === 'Pending' && (
+                  <RowActions name={i.productName}
+                    primary={<Button size="small" type="primary" onClick={() => approve.mutate(i.id)}>Duyệt</Button>}
+                    // Opens a dialog with the reason box: that is the confirmation
+                    items={[{ key: 'reject', icon: <CloseOutlined aria-hidden />, label: 'Từ chối', danger: true, onClick: () => reject(i) }]} />
                 ),
               },
             ]} />
@@ -70,7 +78,7 @@ const FlashTab = () => {
           { title: 'Khung giờ', render: (_, s) => `${formatDateTime(s.startAt)} – ${formatDateTime(s.endAt)}` },
           { title: 'Tiêu chí', render: (_, s) => `Giảm ≥ ${s.minDiscountBp / 100}% · ≥ ${s.minRating} sao${s.categoryIds.length > 0 ? ` · ${s.categoryIds.length} ngành hàng` : ''}` },
           { title: 'Đăng ký', render: (_, s) => `${s.items.filter((i) => i.status === 'Pending').length} chờ / ${s.items.length}` },
-          { title: 'Trạng thái', dataIndex: 'state' },
+          { title: 'Trạng thái', dataIndex: 'state', render: (v: string) => <StatusTag map={SCHEDULE_STATE} value={v} /> },
         ]} />
       <Modal title="Mở khung Flash Sale" open={open} onCancel={() => setOpen(false)} onOk={() => form.submit()} okText="Mở khung" confirmLoading={create.isPending} destroyOnClose>
         <Form form={form} layout="vertical" onFinish={(v) => create.mutate(v)} initialValues={{ date: dayjs().add(1, 'day'), hour: 12, minDiscount: 10, minRating: 0, categoryIds: [] }}>
@@ -123,15 +131,16 @@ const BannersTab = () => {
   }
   return (
     <>
-      <Button type="primary" onClick={() => edit()} style={{ marginBottom: 12 }}>Thêm banner</Button>
-      <Table<Banner> rowKey="id" loading={list.isLoading} dataSource={list.data ?? []} pagination={{ pageSize: 20 }}
+      <DataTable<Banner> rowKey="id" loading={list.isPending} error={list.error} dataSource={list.data ?? []} paging="client"
+        actions={<Button type="primary" icon={<PlusOutlined aria-hidden />} onClick={() => edit()}>Thêm banner</Button>}
+        emptyText="Chưa có banner nào"
         columns={[
           { title: 'Vị trí', dataIndex: 'position', render: (p: BannerPosition) => POSITION_LABEL[p] },
           { title: 'Tiêu đề', dataIndex: 'title' },
           { title: 'Liên kết', dataIndex: 'link' },
           { title: 'Thời gian', render: (_, b) => `${formatDateTime(b.startAt)} – ${formatDateTime(b.endAt)}` },
-          { title: '', dataIndex: 'isActive', render: (a: boolean) => (a ? <Tag color="green">Bật</Tag> : <Tag>Tắt</Tag>) },
-          { title: '', render: (_, b) => <Button size="small" onClick={() => edit(b)}>Sửa</Button> },
+          { title: 'Trạng thái', dataIndex: 'isActive', render: (a: boolean) => <StatusTag map={ON_OFF} value={a ? 'on' : 'off'} /> },
+          { title: '', key: 'actions', align: 'right', render: (_, b) => <RowActions name={b.title} primary={<Button size="small" icon={<EditOutlined aria-hidden />} onClick={() => edit(b)}>Sửa</Button>} /> },
         ]} />
       <Modal title={editing?.id ? 'Sửa banner' : 'Thêm banner'} open={!!editing} onCancel={() => setEditing(null)} onOk={() => form.submit()} okText="Lưu"
         confirmLoading={save.isPending} destroyOnClose>
@@ -185,22 +194,25 @@ const CampaignsTab = () => {
   }
   return (
     <>
-      <Button type="primary" onClick={() => edit()} style={{ marginBottom: 12 }}>Tạo chiến dịch</Button>
-      <Table<Campaign> rowKey="id" loading={list.isLoading} dataSource={list.data ?? []} pagination={false}
+      <DataTable<Campaign> rowKey="id" loading={list.isPending} error={list.error} dataSource={list.data ?? []} paging="client"
+        actions={<Button type="primary" icon={<PlusOutlined aria-hidden />} onClick={() => edit()}>Tạo chiến dịch</Button>}
+        emptyText="Chưa có chiến dịch nào"
         columns={[
-          { title: 'Tên', dataIndex: 'name' },
+          { title: 'Tên', dataIndex: 'name', render: (v: string) => <span className="cell-main">{v}</span> },
+          { title: 'Trạng thái', dataIndex: 'isActive', render: (a: boolean) => <StatusTag map={ON_OFF} value={a ? 'on' : 'off'} /> },
           { title: 'Trang', dataIndex: 'slug', render: (s: string) => <a href={`/su-kien/${s}`} target="_blank" rel="noreferrer">/su-kien/{s}</a> },
           { title: 'Thời gian', render: (_, c) => `${formatDateTime(c.startAt)} – ${formatDateTime(c.endAt)}` },
           { title: 'Khối', render: (_, c) => c.blocks.length },
           {
-            title: '',
+            title: '', key: 'actions', align: 'right',
             render: (_, c) => (
-              <Space>
-                <Button size="small" onClick={() => edit(c)}>Sửa</Button>
-                {c.blocks.some((b) => b.type === 'Registered') && (
-                  <Button size="small" onClick={() => setReviewing(c)} data-testid="campaign-registrations">Đăng ký của shop</Button>
-                )}
-              </Space>
+              <RowActions name={c.name}
+                primary={<Button size="small" icon={<EditOutlined aria-hidden />} onClick={() => edit(c)}>Sửa</Button>}
+                items={[
+                  { key: 'registrations', icon: <TeamOutlined aria-hidden />, label: 'Đăng ký của shop', testId: 'campaign-registrations',
+                    hidden: !c.blocks.some((b) => b.type === 'Registered'), onClick: () => setReviewing(c) },
+                  { key: 'open', icon: <ExportOutlined aria-hidden />, label: 'Mở trang sự kiện', onClick: () => window.open(`/su-kien/${c.slug}`, '_blank', 'noopener') },
+                ]} />
             ),
           },
         ]} />
@@ -277,7 +289,7 @@ const BroadcastsTab = () => {
   })
   return (
     <>
-      <Form form={form} layout="vertical" style={{ maxWidth: 640 }} initialValues={{ segment: 'Everyone' }}
+      <Form form={form} layout="vertical" style={{ maxWidth: 640, paddingTop: 4 }} initialValues={{ segment: 'Everyone' }}
         onFinish={(v) => modal.confirm({ title: `Gửi tới "${SEGMENT_LABEL[v.segment]}"?`, content: 'Thông báo khuyến mãi chỉ gửi cho người đã bật loại thông báo này.', onOk: () => send.mutateAsync(v) })}>
         <Form.Item name="segment" label="Nhóm người nhận">
           <Select options={(Object.keys(SEGMENT_LABEL) as BroadcastSegment[]).map((k) => ({ value: k, label: SEGMENT_LABEL[k] }))} />
@@ -287,28 +299,39 @@ const BroadcastsTab = () => {
         <Form.Item name="link" label="Liên kết (tùy chọn)"><Input placeholder="/su-kien/sale-10-10" /></Form.Item>
         <Button type="primary" htmlType="submit" loading={send.isPending}>Gửi thông báo</Button>
       </Form>
-      <Table<Broadcast> rowKey="id" style={{ marginTop: 16 }} loading={list.isLoading} dataSource={list.data ?? []} pagination={false}
+      <Typography.Title level={5} style={{ marginTop: 24 }}>Đã gửi</Typography.Title>
+      <DataTable<Broadcast> rowKey="id" loading={list.isPending} error={list.error} dataSource={list.data ?? []} paging="client"
+        emptyText="Chưa gửi thông báo nào"
         columns={[
           { title: 'Thời gian', dataIndex: 'createdAt', render: (v: string) => formatDateTime(v) },
           { title: 'Tiêu đề', dataIndex: 'title' },
-          { title: 'Nhóm', dataIndex: 'segment', render: (v: BroadcastSegment) => <Tag>{SEGMENT_LABEL[v]}</Tag> },
-          { title: 'Người nhận', dataIndex: 'recipients' },
-          { title: 'Bỏ qua (giới hạn ngày)', dataIndex: 'skippedToday' },
+          { title: 'Nhóm', dataIndex: 'segment', render: (v: BroadcastSegment) => <Tag bordered={false}>{SEGMENT_LABEL[v]}</Tag> },
+          { title: 'Người nhận', dataIndex: 'recipients', align: 'right', render: (v: number) => formatNumber(v) },
+          { title: 'Bỏ qua (giới hạn ngày)', dataIndex: 'skippedToday', align: 'right', render: (v: number) => formatNumber(v) },
         ]} />
     </>
   )
 }
 
-/** VI.6 Marketing của sàn: khung Flash Sale & duyệt đăng ký, banner / lối tắt / popup, chiến dịch. */
-const MarketingPage = () => (
-  <Card title="Marketing của sàn">
-    <Tabs destroyInactiveTabPane items={[
-      { key: 'flash', label: 'Flash Sale', children: <FlashTab /> },
-      { key: 'banners', label: 'Banner & lối tắt', children: <BannersTab /> },
-      { key: 'campaigns', label: 'Chiến dịch', children: <CampaignsTab /> },
-      { key: 'broadcasts', label: 'Thông báo đẩy', children: <BroadcastsTab /> },
-    ]} />
-  </Card>
-)
+const TABS = [
+  { key: 'flash', label: 'Flash Sale', children: <FlashTab /> },
+  { key: 'banners', label: 'Banner & lối tắt', children: <BannersTab /> },
+  { key: 'campaigns', label: 'Chiến dịch', children: <CampaignsTab /> },
+  { key: 'broadcasts', label: 'Thông báo đẩy', children: <BroadcastsTab /> },
+]
+
+/** VI.6 Marketing của sàn: khung Flash Sale & duyệt đăng ký, banner / lối tắt / popup, chiến dịch. The tab lives in the URL (?tab=). */
+const MarketingPage = () => {
+  const [params, setParams] = useSearchParams()
+  const tab = TABS.find((t) => t.key === params.get('tab'))?.key ?? 'flash'
+  return (
+    <>
+      <PageHeader title="Marketing" description="Khung Flash Sale và duyệt đăng ký của shop, banner và lối tắt trang chủ, chiến dịch, thông báo đẩy hàng loạt" />
+      <Card className="tabs-card">
+        <Tabs destroyInactiveTabPane activeKey={tab} onChange={(k) => setParams(k === 'flash' ? {} : { tab: k })} items={TABS} />
+      </Card>
+    </>
+  )
+}
 
 export default MarketingPage

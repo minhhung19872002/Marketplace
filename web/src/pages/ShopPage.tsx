@@ -100,9 +100,9 @@ const ShopPage = () => {
   const totalPages = listing ? Math.max(1, Math.ceil(listing.totalCount / listing.pageSize)) : 1;
   const tabs = [
     ...(hasDecoration ? [{ key: 'dao', label: 'Dạo' }] : []),
-    { key: 'tat-ca', label: 'Tất Cả Sản Phẩm' },
+    { key: 'tat-ca', label: 'Tất cả sản phẩm' },
     ...categories.map((c) => ({ key: `dm-${c.id}`, label: c.name })),
-    { key: 'ho-so', label: 'Hồ Sơ Shop' },
+    { key: 'ho-so', label: 'Hồ sơ shop' },
   ];
   const category = categories.find((c) => c.id === categoryId);
 
@@ -148,7 +148,7 @@ const ShopPage = () => {
             </div>
             <div className="shop-actions">
               <button className={`shop-follow ${isFollowing ? 'following' : ''}`} onClick={onFollow} disabled={follow.isPending} data-testid="shop-follow">
-                {isFollowing ? <><Check size={16} aria-hidden /> Đang Theo Dõi</> : <><Plus size={16} aria-hidden /> Theo Dõi</>}
+                {isFollowing ? <><Check size={16} aria-hidden /> Đang theo dõi</> : <><Plus size={16} aria-hidden /> Theo dõi</>}
               </button>
               <ChatNowButton shopId={shop.id} className="shop-chat" />
             </div>
@@ -157,11 +157,11 @@ const ShopPage = () => {
           <div className="shop-stats">
             <div data-testid="shop-rating">
               <strong>{shop.ratingCount > 0 ? `${shop.ratingAvg.toFixed(1)}/5` : '—'}</strong>
-              <span>Đánh Giá ({formatSold(shop.ratingCount)})</span>
+              <span>Đánh giá ({formatSold(shop.ratingCount)})</span>
             </div>
-            <div><strong>{formatSold(shop.productCount)}</strong><span>Sản Phẩm</span></div>
-            <div><strong data-testid="shop-followers">{formatSold(shop.followerCount)}</strong><span>Người Theo Dõi</span></div>
-            <div><strong>{formatDate(shop.joinedAt)}</strong><span>Tham Gia</span></div>
+            <div><strong>{formatSold(shop.productCount)}</strong><span>Sản phẩm</span></div>
+            <div><strong data-testid="shop-followers">{formatSold(shop.followerCount)}</strong><span>Người theo dõi</span></div>
+            <div><strong>{formatDate(shop.joinedAt)}</strong><span>Tham gia</span></div>
             <ChatStats shopId={shop.id} />
           </div>
         </div>

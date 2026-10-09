@@ -76,6 +76,7 @@ public static class DependencyInjection
         services.AddSingleton<Ops.IDatabaseDumper, Ops.PgDumpDumper>();
         services.AddScoped<Ops.BackupService>();
         services.AddScoped<Ops.BackupJob>();
+        services.AddScoped<Application.Features.Admin.ILaunchChecklist, Ops.LaunchChecklistService>();
         services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
         services.AddSingleton<IVideoInspector, Mp4VideoInspector>();
         services.AddSingleton<Application.Abstractions.IHtmlSanitizer, HtmlSanitizerAdapter>();
@@ -153,6 +154,7 @@ public static class DependencyInjection
         // Marketing: Flash Sale quota counters on Redis, reconciled from PostgreSQL
         services.AddScoped<IFlashSaleCounter, Marketing.RedisFlashSaleCounter>();
         services.AddScoped<Marketing.FlashReconcileJob>();
+        services.AddScoped<Marketing.FlashAutoOpenJob>();
         services.AddScoped<IOutboxHandler, Marketing.CashbackOrderEventHandler>();
         services.AddScoped<Marketing.CoinExpiryJob>();
         services.AddScoped<MarketingSeeder>();

@@ -34,7 +34,7 @@ test.describe('G2 — trang người mua', () => {
 
   test('Bộ lọc và sắp xếp nằm trên URL: mở lại link giữ nguyên, chip "Đang lọc" gỡ được', async ({ page }) => {
     await page.goto(`${BASE}/tim-kiem?q=ao&sort=PriceAsc&minRating=4`);
-    await expect(page.getByTestId('sort-price')).toContainText('Giá: Thấp đến Cao');
+    await expect(page.getByTestId('sort-price')).toContainText('Giá: thấp đến cao');
     const chip = page.getByTestId('active-filter').filter({ hasText: 'Từ 4 sao' });
     await expect(chip).toBeVisible();
     await expect(page.getByTestId('filter-rating').nth(1)).toHaveAttribute('aria-pressed', 'true');

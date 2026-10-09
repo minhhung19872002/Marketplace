@@ -63,7 +63,7 @@ const Banner = () => {
             <span className="banner-scrim" aria-hidden />
             <span className="banner-content">
               <span className="banner-title">{b.title}</span>
-              <span className="banner-cta">Mua Ngay</span>
+              <span className="banner-cta">Mua ngay</span>
             </span>
           </BannerLink>
         ))}

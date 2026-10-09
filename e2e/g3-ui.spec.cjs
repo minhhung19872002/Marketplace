@@ -61,7 +61,7 @@ test.describe('G3 — trang người mua', () => {
     const bar = await page.locator('.cart-footer').boundingBox();
     expect(bar.y + bar.height).toBeCloseTo(812, 0);
     expect(bar.height).toBeLessThanOrEqual(64);
-    await expect(page.getByTestId('checkout')).toHaveText(/Mua Hàng \(4\)/);
+    await expect(page.getByTestId('checkout')).toHaveText(/Mua hàng \(4\)/);
     const chat = await page.getByTestId('chat-launcher').boundingBox();
     expect(chat.y + chat.height).toBeLessThanOrEqual(bar.y);
   });

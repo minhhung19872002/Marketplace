@@ -1,12 +1,17 @@
 import { useState } from 'react'
-import { Alert, App as AntApp, Button, Checkbox, Descriptions, Drawer, Image, Input, Modal, Segmented, Space, Table, Tag, Typography } from 'antd'
+import { Alert, App as AntApp, Button, Checkbox, Descriptions, Drawer, Image, Input, Modal, Segmented, Space, Table, Typography } from 'antd'
+import { CheckOutlined, EditOutlined, EyeOutlined, LockOutlined, StopOutlined, UnlockOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { catalogApi, type ProductStatus, type ReviewRow } from '../api/catalog'
 import { ApiError } from '../api/http'
 import { platformApi } from '../api/platform'
 import { formatDateTime } from '../lib/datetime'
-import { formatPrice } from '../lib/money'
+import { formatNumber, formatPrice, formatRange } from '../lib/money'
+import { PRODUCT_STATUS } from '../lib/status'
 import { P, can } from '../permissions'
+import DataTable from '../components/DataTable'
+import RowActions from '../components/RowActions'
+import StatusTag, { ToneTag } from '../components/StatusTag'
 
 const STATUSES: { label: string; value: ProductStatus }[] = [
   { label: 'Chờ duyệt', value: 'PendingReview' },
@@ -58,11 +63,12 @@ const ProductReviewPage = ({ permissions }: { permissions: string[] }) => {
     onError: (e) => void message.error(e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : 'Thao tác thất bại.'),
   })
 
+  // Drawer header: every action as a button
   const actions = (id: string, s: ProductStatus) => (
     <Space wrap>
       {s === 'PendingReview' && can(permissions, P.ProductReview) && (
         <>
-          <Button size="small" type="primary" onClick={() => act.mutate({ id, action: 'approve' })} data-testid="approve">Duyệt</Button>
+          <Button size="small" type="primary" onClick={() => act.mutate({ id, action: 'approve' })}>Duyệt</Button>
           <Button size="small" onClick={() => setPending({ action: 'reject', id })}>Yêu cầu sửa</Button>
         </>
       )}
@@ -70,47 +76,74 @@ const ProductReviewPage = ({ permissions }: { permissions: string[] }) => {
       {s === 'Banned' && can(permissions, P.ProductBan) && <Button size="small" onClick={() => act.mutate({ id, action: 'unban' })}>Mở khoá</Button>}
     </Space>
   )
+  const canReview = can(permissions, P.ProductReview)
+  const canBan = can(permissions, P.ProductBan)
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>Duyệt sản phẩm</Typography.Title>
-      <Space wrap>
-        <Segmented options={STATUSES} value={status} onChange={(v) => { setStatus(v as ProductStatus); setPage(1) }} />
-        <Checkbox checked={flaggedOnly} onChange={(e) => { setFlaggedOnly(e.target.checked); setPage(1) }}>Chỉ sản phẩm bị gắn cờ</Checkbox>
-        <Input.Search placeholder="Tên sản phẩm" allowClear onSearch={(v) => { setSearch(v); setPage(1) }} style={{ width: 260 }} />
-        {can(permissions, P.ProductBan) && (
-          <Button danger disabled={selectedIds.length === 0} onClick={() => setBulkReason('')} data-testid="bulk-ban">
-            Khoá {selectedIds.length || ''} sản phẩm đã chọn
-          </Button>
+    <>
+      <DataTable<ReviewRow>
+        header={{ title: 'Duyệt sản phẩm', description: 'Hàng đợi sản phẩm người bán gửi duyệt; khoá sản phẩm vi phạm, kể cả hàng loạt' }}
+        search={{ value: search, onSearch: (v) => { setSearch(v); setPage(1) }, placeholder: 'Tên sản phẩm', width: 260 }}
+        filters={(
+          <>
+            <Segmented options={STATUSES} value={status} onChange={(v) => { setStatus(v as ProductStatus); setPage(1); setSelectedIds([]) }} />
+            <Checkbox checked={flaggedOnly} onChange={(e) => { setFlaggedOnly(e.target.checked); setPage(1) }}>Chỉ sản phẩm bị gắn cờ</Checkbox>
+          </>
         )}
-      </Space>
-      <Table<ReviewRow>
+        onReset={() => { setStatus('PendingReview'); setFlaggedOnly(false); setSearch(''); setPage(1); setSelectedIds([]) }}
+        toolbar={canBan && selectedIds.length > 0 && (
+          <>
+            <Typography.Text>Đã chọn {formatNumber(selectedIds.length)} sản phẩm</Typography.Text>
+            <Button size="small" danger icon={<LockOutlined aria-hidden />} onClick={() => setBulkReason('')} data-testid="bulk-ban">
+              Khoá {selectedIds.length} sản phẩm đã chọn
+            </Button>
+            <Button size="small" type="text" onClick={() => setSelectedIds([])}>Bỏ chọn</Button>
+          </>
+        )}
         rowKey="id"
-        rowSelection={can(permissions, P.ProductBan)
+        rowSelection={canBan
           ? { selectedRowKeys: selectedIds, onChange: (keys) => setSelectedIds((keys as string[]).slice(0, 100)), getCheckboxProps: (r) => ({ disabled: r.status === 'Banned' }) }
           : undefined}
         loading={queue.isPending}
+        fetching={queue.isFetching && !queue.isPending}
+        error={queue.error}
         dataSource={queue.data?.items}
-        locale={{ emptyText: 'Không có sản phẩm nào.' }}
-        pagination={{ current: page, pageSize: 20, total: queue.data?.totalCount, onChange: setPage, showTotal: (t) => `${t} sản phẩm` }}
+        emptyText={status === 'PendingReview' ? 'Không còn sản phẩm nào chờ duyệt' : 'Không có sản phẩm nào'}
+        paging={{ page, pageSize: 20, total: queue.data?.totalCount, onChange: setPage }}
         columns={[
           {
             title: 'Sản phẩm',
             render: (_, r) => (
-              <Space>
-                {r.imageUrl && <Image src={r.imageUrl} width={48} height={48} style={{ objectFit: 'cover' }} preview={false} />}
-                <div>
+              <Space align="start">
+                {r.imageUrl && <Image src={r.imageUrl} width={48} height={48} className="thumb" preview={false} />}
+                <div style={{ maxWidth: 420 }}>
                   <Typography.Link onClick={() => setViewing(r.id)}>{r.name}</Typography.Link>
-                  <div><Typography.Text type="secondary">{r.categoryPath.join(' › ')}</Typography.Text></div>
-                  {r.flags && <Tag color="red">{r.flags}</Tag>}
+                  <span className="cell-sub">{r.categoryPath.join(' › ')}</span>
+                  {r.flags && <ToneTag tone="error">{r.flags}</ToneTag>}
                 </div>
               </Space>
             ),
           },
           { title: 'Shop', dataIndex: 'shopName' },
-          { title: 'Giá', render: (_, r) => (r.minPrice === r.maxPrice ? formatPrice(r.minPrice) : `${formatPrice(r.minPrice)} – ${formatPrice(r.maxPrice)}`) },
-          { title: 'Gửi lúc', dataIndex: 'submittedAt', render: (v: string | null) => (v ? formatDateTime(v) : '—') },
-          { title: '', render: (_, r) => actions(r.id, r.status) },
+          { title: 'Giá', render: (_, r) => <span className="cell-money">{formatRange(r.minPrice, r.maxPrice)}</span> },
+          { title: 'Trạng thái', dataIndex: 'status', render: (v: ProductStatus) => <StatusTag map={PRODUCT_STATUS} value={v} /> },
+          { title: 'Gửi lúc', dataIndex: 'submittedAt', render: (v: string | null) => <span className="cell-nowrap">{v ? formatDateTime(v) : '—'}</span> },
+          {
+            title: '', key: 'actions', align: 'right',
+            render: (_, r) => (
+              <RowActions name={r.name}
+                primary={r.status === 'PendingReview' && canReview
+                  ? <Button size="small" type="primary" icon={<CheckOutlined aria-hidden />} onClick={() => act.mutate({ id: r.id, action: 'approve' })} data-testid="approve">Duyệt</Button>
+                  : <Button size="small" icon={<EyeOutlined aria-hidden />} onClick={() => setViewing(r.id)}>Xem</Button>}
+                items={[
+                  { key: 'view', icon: <EyeOutlined aria-hidden />, label: 'Xem chi tiết', onClick: () => setViewing(r.id), hidden: !(r.status === 'PendingReview' && canReview) },
+                  { key: 'reject', icon: <EditOutlined aria-hidden />, label: 'Yêu cầu sửa', onClick: () => setPending({ action: 'reject', id: r.id }), hidden: !(r.status === 'PendingReview' && canReview) },
+                  { key: 'unban', icon: <UnlockOutlined aria-hidden />, label: 'Mở khoá', onClick: () => act.mutate({ id: r.id, action: 'unban' }), hidden: !(r.status === 'Banned' && canBan) },
+                  // Opens the reason dialog: the reason is the confirmation
+                  { key: 'ban', icon: <StopOutlined aria-hidden />, label: 'Khoá sản phẩm', danger: true, onClick: () => setPending({ action: 'ban', id: r.id }), hidden: !(r.status !== 'Banned' && canBan) },
+                ]} />
+            ),
+          },
         ]}
       />
 
@@ -149,7 +182,7 @@ const ProductReviewPage = ({ permissions }: { permissions: string[] }) => {
         onOk={() => pending && act.mutate({ id: pending.id, action: pending.action, reason })}>
         <Input.TextArea rows={3} placeholder="Lý do (người bán sẽ nhận được)" value={reason} onChange={(e) => setReason(e.target.value)} />
       </Modal>
-    </Space>
+    </>
   )
 }
 

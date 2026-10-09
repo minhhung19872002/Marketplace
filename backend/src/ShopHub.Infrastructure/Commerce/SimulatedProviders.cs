@@ -148,6 +148,9 @@ public sealed class PaymentGatewayRegistry(IEnumerable<IPaymentGateway> gateways
         {
             off = [];
         }
-        return Online.Where(g => !off.Contains(g.Method.ToString(), StringComparer.OrdinalIgnoreCase)).ToList();
+        // Running for real (SITE.MODE = live): the simulated gateway never takes a payment (G4-D)
+        var live = !await Application.SystemConfig.SiteMode.IsDemoAsync(parameters, ct);
+        return Online.Where(g => !off.Contains(g.Method.ToString(), StringComparer.OrdinalIgnoreCase))
+            .Where(g => !(live && g.Method == PaymentMethod.Simulated)).ToList();
     }
 }

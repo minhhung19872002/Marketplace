@@ -1,14 +1,16 @@
 import { useState } from 'react'
-import { Alert, App, Button, Card, Drawer, Input, InputNumber, Space, Switch, Table, Tabs, Tag, Typography } from 'antd'
+import { Alert, App, Button, Card, Drawer, Input, InputNumber, Space, Switch, Table, Tabs, Typography } from 'antd'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../api/http'
 import { platformApi, type ChatReportRow, type ChatReportStatus } from '../api/platform'
 import { formatDateTime } from '../lib/datetime'
+import type { Tone } from '../lib/status'
+import { ToneTag } from '../components/StatusTag'
 
-const STATUS: Record<ChatReportStatus, { label: string; color?: string }> = {
-  Open: { label: 'Chờ xử lý', color: 'gold' },
-  Dismissed: { label: 'Không vi phạm' },
-  Penalized: { label: 'Đã phạt', color: 'red' },
+const STATUS: Record<ChatReportStatus, { label: string; tone: Tone }> = {
+  Open: { label: 'Chờ xử lý', tone: 'warning' },
+  Dismissed: { label: 'Không vi phạm', tone: 'default' },
+  Penalized: { label: 'Đã phạt', tone: 'error' },
 }
 
 /** Chat bị báo cáo: read the conversation (every opening is logged), dismiss or give the shop penalty points. */
@@ -63,7 +65,7 @@ const ChatReportsPage = () => {
           { title: 'Lý do', dataIndex: 'reason' },
           { title: 'Số báo cáo', dataIndex: 'reportsOnConversation', width: 100 },
           { title: 'Lúc', width: 160, render: (_, r) => formatDateTime(r.createdAt) },
-          { title: 'Trạng thái', width: 130, render: (_, r) => <Tag color={STATUS[r.status].color}>{STATUS[r.status].label}</Tag> },
+          { title: 'Trạng thái', width: 130, render: (_, r) => <ToneTag tone={STATUS[r.status].tone}>{STATUS[r.status].label}</ToneTag> },
           { title: '', width: 120, render: (_, r) => <Button size="small" onClick={() => open(r)} data-testid="chat-report-open">Xem hội thoại</Button> },
         ]}
       />
@@ -81,7 +83,7 @@ const ChatReportsPage = () => {
                 <div key={m.id} className={`chat-review-msg chat-review-${m.senderRole.toLowerCase()}`}>
                   <Typography.Text type="secondary">{m.senderRole === 'Buyer' ? 'Người mua' : m.senderRole === 'Shop' ? 'Shop' : 'Hệ thống'} · {formatDateTime(m.createdAt)}</Typography.Text>
                   <div>{m.type === 'Text' ? m.body : `[${m.type}] ${m.body}`}</div>
-                  {m.flagged && <Tag color="orange">Có thông tin liên hệ ngoài sàn</Tag>}
+                  {m.flagged && <ToneTag tone="warning">Có thông tin liên hệ ngoài sàn</ToneTag>}
                 </div>
               ))}
             </div>

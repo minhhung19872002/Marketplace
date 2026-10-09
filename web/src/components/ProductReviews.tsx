@@ -71,10 +71,10 @@ const ProductReviews = ({ productId }: { productId: string }) => {
   if (!data) return null;
   const { summary, reviews } = data;
   const chips: { label: string; f: Filter }[] = [
-    { label: 'Tất Cả', f: {} },
+    { label: 'Tất cả', f: {} },
     ...[5, 4, 3, 2, 1].map((n) => ({ label: `${n} Sao (${summary.byStar[String(n)] ?? 0})`, f: { rating: n } })),
-    { label: `Có Hình Ảnh / Video (${summary.withMedia})`, f: { withMedia: true } },
-    { label: `Có Bình Luận (${summary.withComment})`, f: { withComment: true } },
+    { label: `Có hình ảnh / video (${summary.withMedia})`, f: { withMedia: true } },
+    { label: `Có bình luận (${summary.withComment})`, f: { withComment: true } },
     // "Theo phân loại" (spec 3.11): the variants buyers reviewed
     ...(summary.variants ?? []).map((v) => ({ label: `Phân loại: ${v.variant} (${v.count})`, f: { variant: v.variant } })),
   ];

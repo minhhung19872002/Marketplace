@@ -1,14 +1,20 @@
 import { useState } from 'react'
-import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, Typography } from 'antd'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Switch } from 'antd'
+import { CopyOutlined, PlusOutlined, StopOutlined } from '@ant-design/icons'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
 import { promoApi, type PlatformVoucher, type VoucherAudience, type VoucherChannel, type VoucherType } from '../api/promo'
 import { catalogApi } from '../api/catalog'
 import CategoryPicker from '../components/CategoryPicker'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
+import { formatNumber, formatPrice } from '../lib/money'
+import { SCHEDULE_STATE } from '../lib/status'
+import DataTable from '../components/DataTable'
+import RowActions from '../components/RowActions'
+import StatusTag from '../components/StatusTag'
 
-const vnd = (v: number) => `₫${new Intl.NumberFormat('vi-VN').format(v)}`
+const vnd = formatPrice
 
 const TYPES: { value: VoucherType; label: string }[] = [
   { value: 'Amount', label: 'Giảm tiền' },
@@ -89,9 +95,11 @@ const VouchersPage = () => {
   const { message } = App.useApp()
   const queryClient = useQueryClient()
   const [q, setQ] = useState('')
+  const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm<FormValues>()
-  const list = useQuery({ queryKey: ['admin-vouchers', q], queryFn: () => promoApi.vouchers(q) })
+  const list = useQuery({ queryKey: ['admin-vouchers', q, page], queryFn: () => promoApi.vouchers(q, page), placeholderData: keepPreviousData })
+  const copyCode = (c: string) => navigator.clipboard.writeText(c).then(() => message.success(`Đã sao chép ${c}`), () => message.error('Không sao chép được.'))
 
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['admin-vouchers'] })
   const save = useMutation({
@@ -135,29 +143,40 @@ const VouchersPage = () => {
     })
 
   return (
-    <Card title="Voucher của sàn" extra={
-      <Space>
-        <Input.Search placeholder="Tìm mã / tên" allowClear onSearch={setQ} style={{ width: 220 }} />
-        <Button type="primary" onClick={() => setOpen(true)}>Tạo voucher</Button>
-      </Space>
-    }>
-      <Table<PlatformVoucher>
+    <>
+      <DataTable<PlatformVoucher>
+        header={{
+          title: 'Voucher của sàn',
+          description: 'Mã giảm giá do sàn phát hành và chịu chi phí; áp theo hạng thành viên, kênh, ngành hàng, sản phẩm',
+          actions: <Button type="primary" icon={<PlusOutlined aria-hidden />} onClick={() => setOpen(true)}>Tạo voucher</Button>,
+        }}
+        search={{ value: q, onSearch: (v) => { setQ(v); setPage(1) }, placeholder: 'Tìm mã / tên', width: 260 }}
+        onReset={() => { setQ(''); setPage(1) }}
         rowKey="id"
-        loading={list.isLoading}
+        loading={list.isPending}
+        fetching={list.isFetching && !list.isPending}
+        error={list.error}
         dataSource={list.data?.items ?? []}
-        pagination={false}
+        emptyText="Chưa có voucher nào"
+        paging={{ page, pageSize: 20, total: list.data?.totalCount, onChange: setPage }}
         columns={[
-          { title: 'Mã', dataIndex: 'code', render: (c: string) => <Typography.Text strong>{c}</Typography.Text> },
-          { title: 'Tên', dataIndex: 'name' },
-          { title: 'Ưu đãi', render: (_, v) => describe(v) },
-          { title: 'Đơn tối thiểu', dataIndex: 'minOrder', render: (m: number) => vnd(m) },
-          { title: 'Thời gian', render: (_, v) => `${formatDateTime(v.startAt)} – ${formatDateTime(v.endAt)}` },
-          { title: 'Đã dùng', render: (_, v) => `${v.usedCount}${v.totalQuota ? ` / ${v.totalQuota}` : ''}` },
-          { title: 'Trạng thái', dataIndex: 'state', render: (s: string) => <Tag color={s === 'Đang diễn ra' ? 'green' : 'default'}>{s}</Tag> },
+          { title: 'Mã', dataIndex: 'code', render: (c: string, v) => <><span className="cell-main">{c}</span><span className="cell-sub">{v.name}</span></> },
+          { title: 'Ưu đãi', render: (_, v) => <><span>{describe(v)}</span><span className="cell-sub">Đơn từ {vnd(v.minOrder)}</span></> },
+          { title: 'Thời gian', render: (_, v) => <><span className="cell-nowrap">{formatDateTime(v.startAt)}</span><span className="cell-sub">đến {formatDateTime(v.endAt)}</span></> },
+          { title: 'Đã dùng', align: 'right', render: (_, v) => <span className="cell-nowrap">{formatNumber(v.usedCount)}{v.totalQuota ? ` / ${formatNumber(v.totalQuota)}` : ''}</span> },
+          { title: 'Trạng thái', dataIndex: 'state', render: (s: string) => <StatusTag map={SCHEDULE_STATE} value={s} /> },
           {
-            title: '',
-            render: (_, v) => v.isActive && v.state !== 'Đã kết thúc' && (
-              <Button size="small" danger onClick={() => stop.mutate(v.id)}>Dừng</Button>
+            title: '', key: 'actions', align: 'right',
+            render: (_, v) => (
+              <RowActions name={v.code}
+                primary={<Button size="small" icon={<CopyOutlined aria-hidden />} onClick={() => copyCode(v.code)}>Sao chép mã</Button>}
+                items={[
+                  {
+                    key: 'stop', icon: <StopOutlined aria-hidden />, label: 'Dừng voucher', danger: true, hidden: !(v.isActive && v.state !== 'Đã kết thúc'),
+                    confirm: { title: `Dừng voucher ${v.code}?`, content: 'Người dùng không áp được mã này nữa; đơn đã dùng mã không bị ảnh hưởng.', okText: 'Dừng' },
+                    onClick: () => stop.mutateAsync(v.id).catch(() => undefined),
+                  },
+                ]} />
             ),
           },
         ]}
@@ -209,7 +228,7 @@ const VouchersPage = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+    </>
   )
 }
 

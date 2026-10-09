@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { marketingApi } from '../api/marketing';
 import { BannerLink } from './Banner';
 import CategoryIcon from './CategoryIcon';
+import Carousel from './ui/Carousel';
 import './CategoryShortcuts.css';
 
 const TONES = ['primary', 'mall', 'amber', 'teal', 'violet', 'tech'];
@@ -15,7 +16,7 @@ const CategoryShortcuts = () => {
   if (shortcuts.length === 0) return null;
   return (
     <section className="feature-shortcuts" aria-label="Lối tắt">
-      <div className="feature-shortcuts-grid">
+      <Carousel label="Lối tắt" className="feature-shortcuts-grid">
         {shortcuts.map((f, i) => (
           <BannerLink key={f.id} to={f.link} className="feature-shortcut" testId="feature-shortcut">
             <span className={`feature-shortcut-icon feature-shortcut-icon--${TONES[i % TONES.length]}`}>
@@ -24,7 +25,7 @@ const CategoryShortcuts = () => {
             <span className="feature-shortcut-label">{f.title}</span>
           </BannerLink>
         ))}
-      </div>
+      </Carousel>
     </section>
   );
 };

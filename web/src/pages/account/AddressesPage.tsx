@@ -133,7 +133,7 @@ const AddressesPage = () => {
   return (
     <div className="account-card">
       <div className="account-card-head account-card-head-row">
-        <h1 className="account-card-title">Địa Chỉ Của Tôi</h1>
+        <h1 className="account-card-title">Địa chỉ của tôi</h1>
         {!editing && (
           <button className="account-btn-primary" onClick={() => setEditing('new')} data-testid="address-add">
             + Thêm địa chỉ mới

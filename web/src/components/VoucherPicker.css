@@ -42,7 +42,8 @@
 .voucher-dialog {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  /* Above the floating Chat / back-to-top buttons (900), which sat on the dialog's list on phones (G4) */
+  z-index: 1000;
   display: grid;
   place-items: center;
   padding: 16px;

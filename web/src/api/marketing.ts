@@ -87,6 +87,11 @@ export interface CampaignBlock {
   vouchers: CampaignVoucher[] | null;
   flashSale: FlashBoard | null;
   products: ProductCard[] | null;
+  /**
+   * Banner block: the artwork already carries its headline / button (G4-A3). Not sent by the API yet — until it is,
+   * an image banner counts as one with text and only an image-less banner draws the title (see bannerOverlay).
+   */
+  hasTextInImage?: boolean;
 }
 
 export interface CampaignPage {

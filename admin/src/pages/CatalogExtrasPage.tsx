@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { App, Button, Card, Form, Input, Modal, Segmented, Space, Switch, Table, Tabs, Tag } from 'antd'
+import { App, Button, Card, Form, Input, Modal, Segmented, Space, Switch, Table, Tabs } from 'antd'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../api/http'
 import { REPORT_REASON_LABEL, platformApi, type Brand, type ProductReport } from '../api/platform'
 import { P, can } from '../permissions'
 import { formatDateTime } from '../lib/datetime'
+import { ToneTag } from '../components/StatusTag'
 
 const errorText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.fieldErrors[0]?.message ?? e.message : fallback)
 
@@ -28,7 +29,7 @@ const BrandsTab = () => {
         pagination={{ current: page, pageSize: 50, total: list.data?.totalCount ?? 0, onChange: setPage }}
         columns={[
           { title: 'Thương hiệu', dataIndex: 'name' },
-          { title: 'Chính hãng', dataIndex: 'isVerified', render: (v: boolean) => (v ? <Tag color="green">Đã xác minh</Tag> : null) },
+          { title: 'Chính hãng', dataIndex: 'isVerified', render: (v: boolean) => (v ? <ToneTag tone="success">Đã xác minh</ToneTag> : null) },
           { title: 'Số sản phẩm', dataIndex: 'productCount', align: 'right' },
           {
             title: '', key: 'x',

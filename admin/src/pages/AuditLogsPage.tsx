@@ -7,8 +7,9 @@ import { adminApi, type AuditLog } from '../api/admin'
 import { ApiError } from '../api/http'
 import { platformApi, saveBlob } from '../api/platform'
 import { formatDateTime, vnDayBoundsIso } from '../lib/datetime'
+import { ToneTag } from '../components/StatusTag'
 
-const ACTION_COLOR = { CREATE: 'green', UPDATE: 'blue', DELETE: 'red' } as const
+const ACTION_TONE = { CREATE: 'success', UPDATE: 'info', DELETE: 'error' } as const
 
 const pretty = (json: string | null) => {
   if (!json) return '—'
@@ -96,7 +97,7 @@ const AuditLogsPage = () => {
         }}
         columns={[
           { title: 'Thời điểm', dataIndex: 'occurredAt', render: (v: string) => formatDateTime(v) },
-          { title: 'Hành động', dataIndex: 'action', render: (a: AuditLog['action']) => <Tag color={ACTION_COLOR[a]}>{a}</Tag> },
+          { title: 'Hành động', dataIndex: 'action', render: (a: AuditLog['action']) => <ToneTag tone={ACTION_TONE[a]}>{a}</ToneTag> },
           { title: 'Đối tượng', render: (_, l) => <>{l.entity} <Typography.Text type="secondary" code>{l.entityId}</Typography.Text></> },
           {
             title: 'Người làm',

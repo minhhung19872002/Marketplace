@@ -127,7 +127,7 @@ test.describe('Thiết lập & trang trí shop', () => {
     await page.getByTestId('shop-nav').filter({ hasText: 'Áo mùa hè' }).click();
     await expect(page).toHaveURL(/tab=dm-/);
     await expect(page.locator('[data-testid="product-card"]')).toHaveCount(1);
-    await page.getByTestId('shop-nav').filter({ hasText: 'Hồ Sơ Shop' }).click();
+    await page.getByTestId('shop-nav').filter({ hasText: 'Hồ sơ shop' }).click();
     await expect(page.getByTestId('shop-profile')).toContainText('Shop kiểm thử đơn hàng');
   });
 

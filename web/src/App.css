@@ -28,6 +28,13 @@
   flex-wrap: wrap;
 }
 
+.breadcrumb-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* "ShopHub › Thời Trang Nam", never "ShopHub›Thời Trang Nam" (G4-A2) */
+  min-width: 0;
+}
+
 .breadcrumb a:hover {
   color: var(--sh-primary);
 }

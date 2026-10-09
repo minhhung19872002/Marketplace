@@ -32,7 +32,7 @@ const PasswordPage = () => {
   return (
     <div className="account-card">
       <div className="account-card-head">
-        <h1 className="account-card-title">Đổi Mật Khẩu</h1>
+        <h1 className="account-card-title">Đổi mật khẩu</h1>
         <p className="account-card-sub">Để bảo mật tài khoản, vui lòng không chia sẻ mật khẩu cho người khác. Các thiết bị khác sẽ bị đăng xuất.</p>
       </div>
       {notice && <div className="account-notice" role="status">{notice}</div>}

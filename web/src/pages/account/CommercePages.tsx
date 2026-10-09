@@ -379,7 +379,7 @@ export const VouchersPage = () => {
 
   return (
     <div className="account-card" data-testid="vouchers-page">
-      <h2 className="account-title">Ví Voucher</h2>
+      <h2 className="account-title">Ví voucher</h2>
       {message && <div className="account-message" role="status">{message}</div>}
       <div className="account-tabs">
         {WALLET_TABS.map((t) => (

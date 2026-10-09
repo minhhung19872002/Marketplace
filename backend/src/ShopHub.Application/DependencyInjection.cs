@@ -71,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<Features.Marketing.FlashSaleQuota>();
         services.AddScoped<Features.Marketing.DiscountQuota>();
         services.AddScoped<Features.Marketing.FlashSaleReconciler>();
+        services.AddScoped<Features.Marketing.FlashAutoOpener>();
         services.AddScoped<Features.Marketing.Membership>();
         services.AddScoped<Features.Marketing.CashbackService>();
         services.AddScoped<Features.Marketing.CoinExpiryService>();

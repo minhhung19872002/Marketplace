@@ -455,7 +455,9 @@ public sealed class SetGatewayEnabledHandler(ISender sender, ISystemParameters p
 public record SocialLinkDto(string Name, string Url);
 
 public record SiteInfoDto(string PlatformName, string Hotline, string SupportEmail, string LegalName, string LegalAddress, string TaxCode, string BusinessLicense,
-    IReadOnlyList<SocialLinkDto> Social, string? ZaloOaId, string? MoitUrl, string? AppStoreUrl, string? GooglePlayUrl, IReadOnlyList<string> Carriers);
+    IReadOnlyList<SocialLinkDto> Social, string? ZaloOaId, string? MoitUrl, string? AppStoreUrl, string? GooglePlayUrl, IReadOnlyList<string> Carriers,
+    // SITE.MODE: "demo" shows the showcase notice on the buyer site (G4-D)
+    string Mode = SiteMode.Live);
 
 public record SiteInfoQuery : IRequest<SiteInfoDto>;
 
@@ -495,6 +497,7 @@ public sealed class SiteInfoHandler(ISystemParameters parameters, IApplicationDb
             social,
             (await parameters.GetStringAsync(ParameterKeys.SiteZaloOaId, ct)).Trim() is { Length: > 0 } oa ? oa : null,
             await HttpsAsync(ParameterKeys.SiteMoitUrl, ct), await HttpsAsync(ParameterKeys.SiteAppStoreUrl, ct),
-            await HttpsAsync(ParameterKeys.SiteGooglePlayUrl, ct), carriers);
+            await HttpsAsync(ParameterKeys.SiteGooglePlayUrl, ct), carriers,
+            await SiteMode.IsDemoAsync(parameters, ct) ? SiteMode.Demo : SiteMode.Live);
     }
 }

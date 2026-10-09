@@ -15,9 +15,9 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ListFilter, S
 import { EmptyState, Pager, Skeleton, Stars } from '../components/ui';
 
 const SORTS: { key: ProductSort; label: string }[] = [
-  { key: 'Relevance', label: 'Liên Quan' },
-  { key: 'Newest', label: 'Mới Nhất' },
-  { key: 'BestSelling', label: 'Bán Chạy' },
+  { key: 'Relevance', label: 'Liên quan' },
+  { key: 'Newest', label: 'Mới nhất' },
+  { key: 'BestSelling', label: 'Bán chạy' },
 ];
 
 const FACET_LIMIT = 8;
@@ -74,7 +74,7 @@ export function activeFilters(sp: URLSearchParams, facets: SearchFacets | undefi
   const rating = num(sp.get('minRating'));
   if (rating) chips.push({ key: 'minRating', label: rating === 5 ? '5 sao' : `Từ ${rating} sao` });
   if (sp.get('mall') === 'true') chips.push({ key: 'mall', label: 'ShopHub Mall' });
-  if (sp.get('preferred') === 'true') chips.push({ key: 'preferred', label: 'Shop Yêu Thích' });
+  if (sp.get('preferred') === 'true') chips.push({ key: 'preferred', label: 'Shop yêu thích' });
   if (sp.get('inStock') === 'true') chips.push({ key: 'inStock', label: 'Còn hàng' });
   const condition = sp.get('condition');
   if (condition) chips.push({ key: 'condition', label: label(facets?.conditions, condition) });
@@ -154,16 +154,16 @@ const PriceSort = ({ value, onPick }: { value: '' | 'asc' | 'desc'; onPick: (sor
     <div className="search-price-sort" ref={box} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}>
       <button type="button" className={`search-price-sort-btn ${value ? 'active' : ''}`} onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open}
         data-testid="sort-price">
-        <span>{value === 'asc' ? 'Giá: Thấp đến Cao' : value === 'desc' ? 'Giá: Cao đến Thấp' : 'Giá'}</span>
+        <span>{value === 'asc' ? 'Giá: thấp đến cao' : value === 'desc' ? 'Giá: cao đến thấp' : 'Giá'}</span>
         <ChevronDown size={16} aria-hidden />
       </button>
       {open && (
         <div className="search-price-sort-menu" role="menu">
           <button type="button" role="menuitemradio" aria-checked={value === 'asc'} onClick={() => pick('PriceAsc')} data-testid="sort-price-asc">
-            Giá: Thấp đến Cao {value === 'asc' && <Check size={16} aria-hidden />}
+            Giá: thấp đến cao {value === 'asc' && <Check size={16} aria-hidden />}
           </button>
           <button type="button" role="menuitemradio" aria-checked={value === 'desc'} onClick={() => pick('PriceDesc')} data-testid="sort-price-desc">
-            Giá: Cao đến Thấp {value === 'desc' && <Check size={16} aria-hidden />}
+            Giá: cao đến thấp {value === 'desc' && <Check size={16} aria-hidden />}
           </button>
         </div>
       )}
@@ -325,7 +325,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
           ))}
           {!category && facets && (
             <FacetList
-              title="Theo Danh Mục"
+              title="Theo danh mục"
               values={facets.categories}
               selected={params.categoryId ? [params.categoryId] : []}
               onToggle={(v) => update((n) => (n.get('categoryId') === v ? n.delete('categoryId') : n.set('categoryId', v)))}
@@ -333,13 +333,13 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
             />
           )}
           {facets && (
-            <FacetList title="Nơi Bán" values={facets.provinces} selected={params.provinces ?? []} onToggle={(v) => toggleMulti('provinces', v)} testId="provinces" />
+            <FacetList title="Nơi bán" values={facets.provinces} selected={params.provinces ?? []} onToggle={(v) => toggleMulti('provinces', v)} testId="provinces" />
           )}
           {facets && (
-            <FacetList title="Thương Hiệu" values={facets.brands} selected={params.brands ?? []} onToggle={(v) => toggleMulti('brands', v)} testId="brands" />
+            <FacetList title="Thương hiệu" values={facets.brands} selected={params.brands ?? []} onToggle={(v) => toggleMulti('brands', v)} testId="brands" />
           )}
 
-          <FilterGroup title="Khoảng Giá">
+          <FilterGroup title="Khoảng giá">
             <form className="filter-price" onSubmit={applyPrice} noValidate>
               <span className="filter-price-field">
                 <span className="filter-price-currency" aria-hidden>₫</span>
@@ -357,7 +357,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
             {priceError && <div className="filter-error" role="alert" data-testid="price-error">{priceError}</div>}
           </FilterGroup>
 
-          <FilterGroup title="Loại Shop">
+          <FilterGroup title="Loại shop">
             <div className="filter-cats">
               <label className="filter-cat">
                 <input type="checkbox" checked={!!params.mall} onChange={(e) => setFlag('mall', e.target.checked)} data-testid="filter-mall" />
@@ -365,7 +365,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
               </label>
               <label className="filter-cat">
                 <input type="checkbox" checked={!!params.preferred} onChange={(e) => setFlag('preferred', e.target.checked)} />
-                <span>Shop Yêu Thích {facets && <span className="filter-count">({facets.shopTypes.find((s) => s.value === 'preferred')?.count ?? 0})</span>}</span>
+                <span>Shop yêu thích {facets && <span className="filter-count">({facets.shopTypes.find((s) => s.value === 'preferred')?.count ?? 0})</span>}</span>
               </label>
               <label className="filter-cat">
                 <input type="checkbox" checked={!!params.inStock} onChange={(e) => setFlag('inStock', e.target.checked)} data-testid="filter-in-stock" />
@@ -375,11 +375,11 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
           </FilterGroup>
 
           {facets && (facets.carriers?.length ?? 0) > 0 && (
-            <FacetList title="Đơn Vị Vận Chuyển" values={facets.carriers!} selected={params.carriers ?? []} onToggle={(v) => toggleMulti('carriers', v)}
+            <FacetList title="Đơn vị vận chuyển" values={facets.carriers!} selected={params.carriers ?? []} onToggle={(v) => toggleMulti('carriers', v)}
               testId="carriers" />
           )}
           {facets && (
-            <FilterGroup title="Dịch Vụ & Khuyến Mãi" testId="facet-services">
+            <FilterGroup title="Dịch vụ & khuyến mãi" testId="facet-services">
               <div className="filter-cats">
                 {([['freeship', 'Freeship Xtra'], ['voucher', 'Có voucher của shop'], ['cod', 'Thanh toán khi nhận hàng']] as const).map(([key, label]) => (
                   <label key={key} className="filter-cat">
@@ -393,7 +393,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
 
           {facets && facets.conditions.length > 1 && (
             <FacetList
-              title="Tình Trạng"
+              title="Tình trạng"
               values={facets.conditions}
               selected={params.condition ? [params.condition] : []}
               onToggle={(v) => update((n) => (n.get('condition') === v ? n.delete('condition') : n.set('condition', v)))}
@@ -401,7 +401,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
             />
           )}
 
-          <FilterGroup title="Đánh Giá">
+          <FilterGroup title="Đánh giá">
             <div className="filter-ratings">
               {[5, 4, 3].map((r) => (
                 <button
@@ -480,7 +480,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
                     {relatedShop.provinceName && ` · ${relatedShop.provinceName}`}
                   </span>
                 </span>
-                <span className="related-shop-view">Xem Shop ›</span>
+                <span className="related-shop-view">Xem shop ›</span>
               </Link>
             </div>
           )}
@@ -506,7 +506,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
 
           <div className="search-sort-bar">
             <button type="button" className="search-filter-open" onClick={() => setFiltersOpen(true)} data-testid="open-filters">
-              <ListFilter size={16} aria-hidden /> Lọc{chips.length > 0 && <span className="search-filter-count">{chips.length}</span>}
+              <ListFilter size={16} aria-hidden /> Bộ lọc{chips.length > 0 && <span className="search-filter-count">{chips.length}</span>}
             </button>
             <span className="search-sort-label">Sắp xếp theo</span>
             {SORTS.map((s) => (

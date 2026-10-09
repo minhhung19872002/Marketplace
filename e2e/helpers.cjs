@@ -37,8 +37,22 @@ async function registerViaApi(request, fullName = 'Khách Thử E2E') {
 
 // ---------- real catalogue lookups (seeded sample data, no fixed ids) ----------
 
+/**
+ * One API call, sent again after a short wait when the gateway answers 429: the e2e workers share one IP, so a busy
+ * moment can hit the gateway's rate limit (G4-C: the only cause of the flaky runs). Any other status is final.
+ */
+async function send(call) {
+  let res;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    res = await call();
+    if (res.status() !== 429) return res;
+    await new Promise((r) => setTimeout(r, 400 * 2 ** attempt));
+  }
+  return res;
+}
+
 async function api(request, path) {
-  const res = await request.get(`${BASE}/api${path}`);
+  const res = await send(() => request.get(`${BASE}/api${path}`));
   if (!res.ok()) throw new Error(`GET ${path} → ${res.status()}: ${await res.text()}`);
   return (await res.json()).data;
 }
@@ -90,13 +104,13 @@ async function addAddressViaApi(request, account) {
 
 /** Sign in through the API (for calls the UI does not expose, e.g. reading back totals). */
 async function apiLogin(request, identifier, password) {
-  const res = await request.post(`${BASE}/api/auth/login`, { data: { identifier, password } });
+  const res = await send(() => request.post(`${BASE}/api/auth/login`, { data: { identifier, password } }));
   if (!res.ok()) throw new Error(`POST /auth/login → ${res.status()}: ${await res.text()}`);
   return (await res.json()).data;
 }
 
 async function apiAs(request, token, method, path, data) {
-  const res = await request.fetch(`${BASE}/api${path}`, { method, headers: { Authorization: `Bearer ${token}` }, data });
+  const res = await send(() => request.fetch(`${BASE}/api${path}`, { method, headers: { Authorization: `Bearer ${token}` }, data }));
   if (!res.ok()) throw new Error(`${method} ${path} → ${res.status()}: ${await res.text()}`);
   return (await res.json()).data;
 }

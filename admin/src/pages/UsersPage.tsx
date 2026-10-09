@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { App as AntApp, Button, Checkbox, Input, InputNumber, Modal, Select, Space, Table, Tag, Typography } from 'antd'
+import { App as AntApp, Button, Checkbox, Input, InputNumber, Modal, Select, Space, Tag, Typography } from 'antd'
+import { DollarOutlined, KeyOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi, type AdminUser, type UserStatus } from '../api/admin'
 import { promoApi } from '../api/promo'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
 import { P, can } from '../permissions'
+import { USER_STATUS } from '../lib/status'
 import UserDetailDrawer from '../components/UserDetailDrawer'
+import DataTable from '../components/DataTable'
+import RowActions from '../components/RowActions'
+import StatusTag from '../components/StatusTag'
 
-const STATUS: Record<UserStatus, { text: string; color: string }> = {
-  Active: { text: 'Hoạt động', color: 'green' },
-  Locked: { text: 'Đã khoá', color: 'red' },
-  Deleted: { text: 'Đã xoá', color: 'default' },
-}
+const STATUSES = Object.keys(USER_STATUS) as UserStatus[]
 
 const UsersPage = ({ permissions }: { permissions: string[] }) => {
   const { message } = AntApp.useApp()
@@ -72,61 +73,57 @@ const UsersPage = ({ permissions }: { permissions: string[] }) => {
   })
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>Người dùng</Typography.Title>
-      <Space wrap>
-        <Input.Search placeholder="Tên, email, SĐT, tên đăng nhập" allowClear style={{ width: 300 }}
-          onSearch={(v) => { setQ(v); setPage(1) }} />
-        <Select<UserStatus> placeholder="Trạng thái" allowClear style={{ width: 160 }} value={status}
-          onChange={(v) => { setStatus(v); setPage(1) }}
-          options={(Object.keys(STATUS) as UserStatus[]).map((s) => ({ value: s, label: STATUS[s].text }))} />
-        <Checkbox checked={adminsOnly} onChange={(e) => { setAdminsOnly(e.target.checked); setPage(1) }}>Chỉ quản trị viên</Checkbox>
-      </Space>
-      <Table<AdminUser>
+    <>
+      <DataTable<AdminUser>
+        header={{ title: 'Người dùng', description: 'Tra cứu tài khoản người mua, người bán và quản trị; khoá, gán vai trò, tặng hoặc thu hồi xu' }}
+        search={{ value: q, onSearch: (v) => { setQ(v); setPage(1) }, placeholder: 'Tên, email, SĐT, tên đăng nhập' }}
+        filters={(
+          <>
+            <Select<UserStatus> placeholder="Mọi trạng thái" allowClear style={{ width: 160 }} value={status} aria-label="Lọc theo trạng thái"
+              onChange={(v) => { setStatus(v); setPage(1) }}
+              options={STATUSES.map((s) => ({ value: s, label: USER_STATUS[s].label }))} />
+            <Checkbox checked={adminsOnly} onChange={(e) => { setAdminsOnly(e.target.checked); setPage(1) }}>Chỉ quản trị viên</Checkbox>
+          </>
+        )}
+        onReset={() => { setQ(''); setStatus(undefined); setAdminsOnly(false); setPage(1) }}
         rowKey="id"
         loading={users.isPending}
+        fetching={users.isFetching && !users.isPending}
+        error={users.error}
         dataSource={users.data?.items}
-        pagination={{
-          current: page,
-          pageSize,
-          total: users.data?.totalCount,
-          showSizeChanger: true,
-          showTotal: (t) => `${t} người dùng`,
-          onChange: (p, s) => { setPage(p); setPageSize(s) },
-        }}
-        locale={{ emptyText: users.isError ? 'Không tải được danh sách.' : 'Không có người dùng phù hợp.' }}
+        emptyText="Không có người dùng phù hợp"
+        paging={{ page, pageSize, total: users.data?.totalCount, sizeChanger: true, onChange: (p, s) => { setPage(p); setPageSize(s) } }}
         columns={[
-          { title: 'Họ tên', dataIndex: 'fullName' },
-          { title: 'Liên hệ', render: (_, u) => [u.phone, u.email, u.username && `@${u.username}`].filter(Boolean).join(' · ') },
-          { title: 'Vai trò', dataIndex: 'roles', render: (rs: string[]) => rs.map((r) => <Tag key={r}>{r}</Tag>) },
+          { title: 'Họ tên', dataIndex: 'fullName', render: (v: string, u) => <><span className="cell-main">{v}</span>{u.username && <span className="cell-sub">@{u.username}</span>}</> },
+          { title: 'Liên hệ', render: (_, u) => <>{u.phone && <span className="cell-nowrap">{u.phone}</span>}{u.email && <span className="cell-sub">{u.email}</span>}</> },
+          { title: 'Vai trò', dataIndex: 'roles', render: (rs: string[]) => rs.map((r) => <Tag key={r} bordered={false}>{r}</Tag>) },
           {
             title: 'Trạng thái',
             dataIndex: 'status',
-            render: (s: UserStatus, u) => <Tag color={STATUS[s].color} title={u.lockReason ?? undefined}>{STATUS[s].text}</Tag>,
+            render: (s: UserStatus, u) => <StatusTag map={USER_STATUS} value={s} title={u.lockReason ?? undefined} />,
           },
-          { title: 'Tạo lúc', dataIndex: 'createdAt', render: (v: string) => formatDateTime(v) },
-          { title: 'Đăng nhập gần nhất', dataIndex: 'lastLoginAt', render: (v: string | null) => (v ? formatDateTime(v) : '—') },
+          { title: 'Tạo lúc', dataIndex: 'createdAt', render: (v: string) => <span className="cell-nowrap">{formatDateTime(v)}</span> },
+          { title: 'Đăng nhập gần nhất', dataIndex: 'lastLoginAt', render: (v: string | null) => <span className="cell-nowrap">{v ? formatDateTime(v) : '—'}</span> },
           {
-            title: '',
+            title: '', key: 'actions', align: 'right',
             render: (_, u) => (
-              <Space>
-                <Button size="small" onClick={() => setViewing(u.id)} data-testid="user-detail">Chi tiết</Button>
-                {can(permissions, P.UserLock) && u.status === 'Active' && (
-                  <Button size="small" danger onClick={() => setLocking(u)}>Khoá</Button>
-                )}
-                {can(permissions, P.UserLock) && u.status === 'Locked' && (
-                  <Button size="small" onClick={() => unlock.mutate(u.id)}>Mở khoá</Button>
-                )}
-                {can(permissions, P.UserAssignRole) && roles.data && (
-                  <Button size="small" onClick={() => {
-                    setAssigning(u)
-                    setRoleIds(roles.data.filter((r) => u.roles.includes(r.code)).map((r) => r.id))
-                  }}>Vai trò</Button>
-                )}
-                {can(permissions, P.CoinGrant) && (
-                  <Button size="small" onClick={() => setGranting(u)} data-testid="grant-coins">Xu</Button>
-                )}
-              </Space>
+              <RowActions name={u.fullName}
+                primary={<Button size="small" onClick={() => setViewing(u.id)} data-testid="user-detail">Chi tiết</Button>}
+                items={[
+                  {
+                    key: 'roles', icon: <KeyOutlined aria-hidden />, label: 'Gán vai trò', hidden: !(can(permissions, P.UserAssignRole) && roles.data),
+                    onClick: () => {
+                      setAssigning(u)
+                      setRoleIds((roles.data ?? []).filter((r) => u.roles.includes(r.code)).map((r) => r.id))
+                    },
+                  },
+                  { key: 'coins', icon: <DollarOutlined aria-hidden />, label: 'Tặng / thu hồi xu', testId: 'grant-coins', hidden: !can(permissions, P.CoinGrant), onClick: () => setGranting(u) },
+                  { key: 'unlock', icon: <UnlockOutlined aria-hidden />, label: 'Mở khoá', hidden: !(can(permissions, P.UserLock) && u.status === 'Locked'),
+                    confirm: { title: `Mở khoá tài khoản ${u.fullName}?`, okText: 'Mở khoá' }, onClick: () => unlock.mutateAsync(u.id).catch(() => undefined) },
+                  // Opens the reason dialog: the reason is the confirmation
+                  { key: 'lock', icon: <LockOutlined aria-hidden />, label: 'Khoá tài khoản', danger: true,
+                    hidden: !(can(permissions, P.UserLock) && u.status === 'Active'), onClick: () => setLocking(u) },
+                ]} />
             ),
           },
         ]}
@@ -154,7 +151,7 @@ const UsersPage = ({ permissions }: { permissions: string[] }) => {
         <Checkbox.Group value={roleIds} onChange={(v) => setRoleIds(v as string[])} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
           options={roles.data?.map((r) => ({ value: r.id, label: `${r.name} (${r.code})` })) ?? []} />
       </Modal>
-    </Space>
+    </>
   )
 }
 

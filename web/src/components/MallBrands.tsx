@@ -66,11 +66,14 @@ const MallBrands = () => {
       <div className="mall-brands-body">
         {slides.length > 0 && (
           <div className="mall-slides" aria-label="Banner ShopHub Mall">
-            {slides.map((b, i) => (
-              <BannerLink key={b.id} to={b.link} className={`mall-slide ${i === active ? 'active' : ''}`} label={b.title}>
-                <img src={b.imageUrl} alt="" loading="lazy" width={480} height={660} onError={handleImgError} />
-              </BannerLink>
-            ))}
+            {/* The dots sit under the artwork, never over the lines drawn at its bottom (G4-A1) */}
+            <div className="mall-slides-frame">
+              {slides.map((b, i) => (
+                <BannerLink key={b.id} to={b.link} className={`mall-slide ${i === active ? 'active' : ''}`} label={b.title}>
+                  <img src={b.imageUrl} alt="" loading="lazy" width={480} height={660} onError={handleImgError} />
+                </BannerLink>
+              ))}
+            </div>
             {slides.length > 1 && (
               <div className="mall-slide-dots">
                 {slides.map((b, i) => (
@@ -86,7 +89,7 @@ const MallBrands = () => {
             <Link key={s.id} to={`/shop/${s.slug}`} className="mall-brand" data-testid="mall-brand">
               <span className="mall-brand-photo">
                 <img src={imageOrPlaceholder(s.coverImageUrl)} srcSet={imageSrcSet(s.coverImageUrl)} sizes="200px" alt="" loading="lazy" width={200} height={200} onError={handleImgError} />
-                {s.logoUrl && <img className="mall-brand-logo" src={s.logoUrl} alt="" loading="lazy" width={48} height={48} onError={handleImgError} />}
+                {s.logoUrl && <img className="mall-brand-logo" src={s.logoUrl} alt="" loading="lazy" width={72} height={72} onError={handleImgError} />}
               </span>
               <span className="mall-brand-name">{s.name.replace(/^Mall /, '')}</span>
               <span className="mall-brand-offer">{mallOffer(s.maxDiscountPercent)}</span>

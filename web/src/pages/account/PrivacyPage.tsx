@@ -57,7 +57,7 @@ const PrivacyPage = () => {
     <>
       <div className="account-card">
         <div className="account-card-head">
-          <h1 className="account-card-title">Quyền Riêng Tư</h1>
+          <h1 className="account-card-title">Quyền riêng tư</h1>
           <p className="account-card-sub">Dữ liệu cá nhân của bạn được xử lý theo Chính sách bảo mật của ShopHub</p>
         </div>
         {notice && <div className="account-notice" role="status">{notice}</div>}

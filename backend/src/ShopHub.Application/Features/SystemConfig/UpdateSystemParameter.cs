@@ -39,7 +39,8 @@ public sealed class UpdateSystemParameterHandler(
             throw new ConflictException("Tham số vừa được người khác sửa. Vui lòng tải lại rồi thử lần nữa.", "STALE_VERSION");
 
         // Type check needs the stored data type, so it lives here rather than in the validator
-        var error = SystemParameter.Validate(parameter.DataType, request.Value);
+        var error = SystemParameter.Validate(parameter.DataType, request.Value)
+                    ?? (key == ParameterKeys.SiteMode && !SiteMode.IsValid(request.Value) ? "Chế độ chạy chỉ nhận \"demo\" hoặc \"live\"." : null);
         if (error is not null) throw new ValidationException([new ValidationFailure("value", error)]);
 
         parameter.SetValue(request.Value);

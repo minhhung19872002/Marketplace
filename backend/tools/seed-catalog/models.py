@@ -1,5 +1,5 @@
-# Sample catalogue: every model is one real studio photo set (dummyjson.com product id) placed in the leaf category it
-# shows, with a natural Vietnamese name, a list price in VND, a variant scheme that fits the item and the industry
+# Sample catalogue: every model of MODELS is one real studio photo set (dummyjson.com product id) placed in the leaf
+# category it shows, with a natural Vietnamese name, a list price in VND, a variant scheme that fits the item and the industry
 # attributes it needs. build.py turns this into Seed/Data/product-models.json + Seed/Data/ProductImages/.
 #
 # Fields: id (dummyjson), leaf ("Top/Mid/Leaf"), name, price (VND), variant (key of VARIANTS or None), attrs (name →
@@ -254,3 +254,199 @@ MODELS = [
 
 # New leaves (path → attribute set of their top category is reused); new top-level categories with their set
 NEW_TOPS = {PET: ('food', 500, 'pet')}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# OPEN_MODELS (key 195 on, G4-C): models whose photos are openly licensed (Wikimedia Commons / Openverse — CC0, public
+# domain, CC BY, CC BY-SA), found with find-photos.py and listed per key in photos.json; build.py credits them in
+# CREDITS.md. They fill the industries the dummyjson set has no / few photos for (Mẹ & Bé, Đồ Chơi, Máy Ảnh, Sức Khỏe,
+# Thú Cưng…) and add distinct items / brands to the main ones. Brands named here are added to catalog-seed.json.
+
+CAM = 'Máy Ảnh & Quay Phim'
+MB = 'Mẹ & Bé'
+TOY = 'Đồ Chơi'
+
+VARIANTS.update({
+    'bottle_color': ('Màu Sắc', [('Xanh Ngọc', 0), ('Hồng', 0)]),
+    'pacifier_color': ('Màu Sắc', [('Hồng', 0), ('Xanh Dương', 0)]),
+    'baby_shoes': ('Size', [('16', 0), ('17', 0), ('18', 0), ('19', 0)]),
+    'diaper_pack': ('Gói', [('Gói 1 Tã', 0), ('Combo 3 Tã', 150_000)]),
+    'mask_color': ('Màu Sắc', [('Xanh Dương', 0), ('Xanh Lá', 0)]),
+    'band_color': ('Màu Sắc', [('Xanh Ngọc', 0), ('Hồng', 0), ('Xanh Navy', 0)]),
+    'helmet_size': ('Kích Cỡ', [('M', 0), ('L', 0), ('XL', 50_000)]),
+})
+
+KID_0 = {'Độ tuổi khuyến nghị': ['0-12 tháng']}
+KID_1 = {'Độ tuổi khuyến nghị': ['1-3 tuổi']}
+KID_3 = {'Độ tuổi khuyến nghị': ['3-6 tuổi']}
+KID_6 = {'Độ tuổi khuyến nghị': ['6-12 tuổi']}
+
+OPEN_MODELS = [
+    # ---- Mẹ & Bé ----
+    m(195, f'{MB}/Đồ Dùng Cho Bé/Bình Sữa', 'Bình Sữa Silicone Cho Bé Chống Sặc 150ml', 249_000, 'bottle_color', KID_0, origin='Hàn Quốc', weight=200),
+    m(196, f'{MB}/Đồ Dùng Cho Bé/Xe Đẩy', 'Xe Đẩy Em Bé Gấp Gọn Có Mái Che Màu Đỏ', 2_890_000, None, KID_0, origin='Trung Quốc', weight=9_000),
+    m(197, f'{MB}/Đồ Dùng Cho Bé/Núm Ti Giả', 'Ti Giả Silicone Mềm Cho Bé Sơ Sinh Kèm Nắp', 89_000, 'pacifier_color', KID_0, origin='Thái Lan', weight=50),
+    m(198, f'{MB}/Tã & Bỉm/Tã Vải', 'Tã Vải Có Túi Chống Thấm Hoạ Tiết Vòng Tròn', 129_000, 'diaper_pack', KID_0, weight=150),
+    m(199, f'{MB}/Đồ Dùng Cho Bé/Ghế Ăn Dặm', 'Ghế Ăn Dặm Chân Gỗ Khay Rời Cho Bé', 1_690_000, None, KID_1, origin='Trung Quốc', weight=7_000),
+    m(200, f'{MB}/Đồ Dùng Cho Bé/Nôi & Cũi', 'Cũi Gỗ Thông Sơn Nâu Kèm Nệm Cho Bé', 2_450_000, None, KID_0, weight=18_000),
+    m(201, f'{MB}/Thời Trang Bé/Giày Tập Đi', 'Giày Tập Đi Cổ Cao Buộc Dây Cho Bé Xanh Navy', 159_000, 'baby_shoes', KID_1, origin='Trung Quốc', weight=200),
+    m(202, f'{MB}/Đồ Dùng Cho Bé/Ghế Ngồi Ô Tô', 'Ghế Ngồi Ô Tô Nâng Đệm Có Tựa Lưng Cho Bé', 2_190_000, None, KID_3, origin='Khác', weight=6_000),
+    m(203, f'{MB}/Đồ Dùng Cho Bé/Xe Đẩy', 'Xe Đẩy Ba Trong Một Kèm Nôi Và Ghế Ngồi Ô Tô', 8_990_000, None, KID_0, origin='Mỹ', weight=14_000),
+
+    # ---- Đồ Chơi ----
+    m(204, f'{TOY}/Đồ Chơi Lắp Ráp/Lego & Xếp Hình', 'Bộ Khối Gỗ Xếp Hình Màu Pastel Cho Bé', 189_000, None, KID_1, weight=900),
+    m(205, f'{TOY}/Đồ Chơi Vận Động/Xe Tập Đi', 'Xe Tập Đi Gỗ Kèm Bộ Khối Xếp Hình', 590_000, None, KID_1, weight=3_500),
+    m(206, f'{TOY}/Đồ Chơi Lắp Ráp/Lego & Xếp Hình', 'Bộ Khối Gỗ Chữ Cái Tiếng Anh Cho Bé', 149_000, None, KID_3, weight=700),
+    m(207, f'{TOY}/Đồ Chơi Lắp Ráp/Lego & Xếp Hình', 'Bộ Khối Xốp Ghép Hình Lập Phương Nhiều Màu', 129_000, None, KID_3, origin='Trung Quốc', weight=300),
+    m(208, f'{TOY}/Đồ Chơi Vận Động/Xe Đạp Trẻ Em', 'Xe Đạp Trẻ Em Màu Đỏ Có Bánh Phụ', 1_590_000, None, KID_3, origin='Khác', weight=9_000),
+    m(209, f'{TOY}/Đồ Chơi Vận Động/Xe Đạp Trẻ Em', 'Xe Thăng Bằng Khung Gỗ Sồi Bánh Đỏ', 1_190_000, None, KID_1, origin='Khác', weight=3_500),
+    m(210, f'{TOY}/Đồ Chơi Mềm/Gấu Bông', 'Gấu Bông Teddy Mặc Áo Len Đỏ', 259_000, None, KID_1, origin='Trung Quốc', weight=500),
+    m(211, f'{TOY}/Đồ Chơi Mềm/Gấu Bông', 'Gấu Bông Lông Xù Phong Cách Cổ Điển', 329_000, None, KID_3, origin='Khác', weight=400),
+    m(212, f'{TOY}/Đồ Chơi Giáo Dục/Đồ Chơi Trí Tuệ', 'Khối Lập Phương Xoay 3x3 Sáu Màu Xoay Trơn', 69_000, None, KID_6, origin='Trung Quốc', weight=100),
+    m(213, f'{TOY}/Đồ Chơi Giáo Dục/Đồ Chơi Trí Tuệ', 'Khối Lập Phương Xoay 2x2 Cỡ Nhỏ Cho Bé', 49_000, None, KID_6, origin='Trung Quốc', weight=80),
+    m(214, f'{TOY}/Mô Hình/Xe Mô Hình', 'Xe Ô Tô Mô Hình Kim Loại Thể Thao Màu Cam', 159_000, None, KID_3, origin='Khác', weight=150),
+    m(215, f'{TOY}/Mô Hình/Xe Mô Hình', 'Xe Đua Mô Hình Cổ Điển Màu Xanh', 139_000, None, KID_3, origin='Khác', weight=150),
+    # ---- Máy Ảnh & Quay Phim ----
+    m(216, f'{CAM}/Máy Ảnh/Máy Ảnh Mirrorless', 'Máy Ảnh Mirrorless Sony Alpha Full Frame Kèm Ống Kính', 52_990_000, None, {'Bảo hành': ['24 tháng'], 'Kết nối': ['Wifi', 'Bluetooth', 'USB-C']}, origin='Nhật Bản', weight=1_200, brand='Sony'),
+    m(217, f'{CAM}/Máy Ảnh/Máy Ảnh Mirrorless', 'Máy Ảnh Mirrorless Canon EOS R10 Thân Máy', 21_490_000, None, {'Bảo hành': ['24 tháng'], 'Kết nối': ['Wifi', 'Bluetooth', 'USB-C']}, origin='Nhật Bản', weight=600, brand='Canon'),
+    m(218, f'{CAM}/Máy Ảnh/Máy Ảnh DSLR', 'Máy Ảnh DSLR Nikon D5300 Kèm Ống Kính Zoom 18-140mm', 14_990_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Wifi']}, origin='Nhật Bản', weight=1_100, brand='Nikon'),
+    m(219, f'{CAM}/Máy Ảnh/Máy Ảnh DSLR', 'Máy Ảnh DSLR Pentax K-7 Kèm Ống Kính Kit', 8_990_000, None, {'Bảo hành': ['6 tháng'], 'Kết nối': ['Có dây']}, origin='Nhật Bản', weight=1_000, brand='Pentax'),
+    m(220, f'{CAM}/Máy Ảnh/Máy Ảnh DSLR', 'Máy Ảnh DSLR Canon EOS 80D Kèm Ống Kính 18-135mm', 19_990_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Wifi', 'Bluetooth']}, origin='Nhật Bản', weight=1_300, brand='Canon'),
+    m(225, f'{CAM}/Máy Ảnh/Máy Ảnh Compact', 'Máy Ảnh Compact Nikon Coolpix Zoom Quang 10x Màu Đỏ', 3_490_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Có dây']}, origin='Nhật Bản', weight=250, brand='Nikon'),
+    m(226, f'{CAM}/Máy Ảnh/Máy Ảnh Compact', 'Máy Ảnh Compact Panasonic Lumix Cảm Biến Lớn Ống Kính Leica', 15_990_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Wifi']}, origin='Nhật Bản', weight=450, brand='Panasonic'),
+    m(227, f'{CAM}/Phụ Kiện Máy Ảnh/Chân Máy', 'Chân Máy Ảnh Carbon Gập Gọn Du Lịch Bốn Khúc Chân', 4_290_000, None, {'Bảo hành': ['12 tháng']}, origin='Khác', weight=1_100),
+    m(228, f'{CAM}/Phụ Kiện Máy Ảnh/Chân Máy', 'Chân Máy Bạch Tuộc Uốn Dẻo Cho Máy Ảnh Nhỏ', 249_000, None, {'Bảo hành': ['Không bảo hành']}, origin='Trung Quốc', weight=200),
+    m(229, f'{CAM}/Phụ Kiện Máy Ảnh/Ống Kính', 'Ống Kính Nikon AF 50mm f/1.4 Chụp Chân Dung', 7_490_000, None, {'Bảo hành': ['12 tháng']}, origin='Nhật Bản', weight=250, brand='Nikon'),
+    m(230, f'{CAM}/Phụ Kiện Máy Ảnh/Ống Kính', 'Ống Kính Canon RF 50mm f/1.2L Khẩu Lớn Cao Cấp', 54_990_000, None, {'Bảo hành': ['24 tháng']}, origin='Nhật Bản', weight=950, brand='Canon'),
+    m(231, f'{CAM}/Phụ Kiện Máy Ảnh/Thẻ Nhớ', 'Thẻ Nhớ SDHC Transcend 8GB Cho Máy Ảnh', 119_000, None, {'Bảo hành': ['24 tháng']}, origin='Khác', weight=20, brand='Transcend'),
+    m(232, f'{CAM}/Máy Quay/Máy Quay Phim', 'Máy Quay Phim Sony Handycam Ổ Cứng Zoom Quang Học', 5_990_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Có dây']}, origin='Nhật Bản', weight=400, brand='Sony'),
+    m(233, f'{CAM}/Máy Quay/Máy Quay Phim', 'Máy Quay Chuyên Nghiệp Panasonic Cầm Tay Kèm Micro', 39_900_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Có dây']}, origin='Nhật Bản', weight=2_400, brand='Panasonic'),
+
+    # ---- Thú Cưng ----
+    m(221, f'{PET}/Thức Ăn Thú Cưng/Thức Ăn Cho Mèo', 'Hạt Khô Cho Mèo Trưởng Thành Vị Cá Ngừ Túi 1.5kg', 189_000, None, {'Khối lượng': ['1.5'], 'Hạn sử dụng': ['18']}, origin='Thái Lan', weight=1_600),
+    m(222, f'{PET}/Thức Ăn Thú Cưng/Thức Ăn Cho Mèo', 'Bánh Thưởng Nhân Kem Cho Mèo Vị Gà Gói 60g', 39_000, None, {'Khối lượng': ['0.06'], 'Hạn sử dụng': ['12']}, origin='Thái Lan', weight=80),
+    m(223, f'{PET}/Thức Ăn Thú Cưng/Thức Ăn Cho Chó', 'Hạt Khô Cho Chó Trưởng Thành Vị Bò Túi 3kg', 329_000, None, {'Khối lượng': ['3'], 'Hạn sử dụng': ['18']}, origin='Việt Nam', weight=3_100),
+    m(234, f'{PET}/Thức Ăn Thú Cưng/Thức Ăn Cho Chó', 'Xương Gặm Da Bò Thắt Nút Làm Sạch Răng Cho Chó', 45_000, None, {'Khối lượng': ['0.1'], 'Hạn sử dụng': ['24']}, origin='Việt Nam', weight=120),
+    m(224, f'{PET}/Phụ Kiện Thú Cưng/Bát Ăn & Bình Nước', 'Bát Ăn Chậm Chống Nuốt Nhanh Cho Chó Mèo Màu Xanh Lá', 119_000, None, {'Khối lượng': ['0.3'], 'Hạn sử dụng': ['60']}, origin='Trung Quốc', weight=350),
+    m(235, f'{PET}/Phụ Kiện Thú Cưng/Vòng Cổ & Dây Dắt', 'Vòng Cổ Thắt Nơ Kẻ Caro Cho Chó Mèo', 79_000, None, {'Khối lượng': ['0.05'], 'Hạn sử dụng': ['60']}, weight=60),
+    m(236, f'{PET}/Phụ Kiện Thú Cưng/Vòng Cổ & Dây Dắt', 'Vòng Cổ Đính Hoa Vải Hoạ Tiết Ong Cho Chó Mèo', 89_000, None, {'Khối lượng': ['0.05'], 'Hạn sử dụng': ['60']}, weight=60),
+    m(237, f'{PET}/Phụ Kiện Thú Cưng/Giường & Nệm', 'Giường Sofa Có Bánh Xe Kèm Gối Cho Chó Mèo', 890_000, None, {'Khối lượng': ['6'], 'Hạn sử dụng': ['60']}, origin='Trung Quốc', weight=6_500),
+
+    # ---- Thời Trang Nam ----
+    m(241, f'{F}/Áo/Áo Thun', 'Áo Thun Nam Dài Tay In Hình Thuyền Buồm Trắng', 229_000, 'shirt', {'Chất liệu': ['Cotton'], 'Phong cách': ['Dạo phố']}, weight=280, brand='Indigo Saigon'),
+    m(242, f'{F}/Áo/Áo Thun', 'Áo Thun Nam Xanh Rêu In Chữ Đối Xứng', 189_000, 'shirt', {'Chất liệu': ['Cotton'], 'Phong cách': ['Basic', 'Dạo phố']}, weight=250, brand='Coton Việt'),
+    m(244, f'{F}/Áo/Áo Polo', 'Áo Polo Nam Đen Basic Thêu Ngực', 239_000, 'shirt', {'Chất liệu': ['Polyester'], 'Phong cách': ['Basic', 'Công sở']}, weight=280, brand='Indigo Saigon'),
+    m(245, f'{F}/Áo/Áo Sơ Mi', 'Áo Sơ Mi Nam Kẻ Caro Madras Dài Tay', 349_000, 'shirt', {'Chất liệu': ['Cotton'], 'Phong cách': ['Dạo phố']}, weight=300, brand='Linen Hội An'),
+    m(246, f'{F}/Quần/Quần Jean', 'Quần Jean Nam Ống Đứng Xanh Đậm Chỉ Vàng', 459_000, 'shirt', {'Chất liệu': ['Jean'], 'Phong cách': ['Basic', 'Dạo phố']}, weight=600, brand='Indigo Saigon'),
+    m(247, f'{F}/Quần/Quần Kaki', 'Quần Kaki Nam Xám Nhạt Dáng Slim', 369_000, 'shirt', {'Chất liệu': ['Kaki'], 'Phong cách': ['Công sở']}, weight=450, brand='Coton Việt'),
+    m(248, f'{F}/Quần/Quần Kaki', 'Quần Kaki Nam Xanh Navy Ống Đứng Công Sở', 389_000, 'shirt', {'Chất liệu': ['Kaki'], 'Phong cách': ['Công sở']}, weight=450, brand='Linen Hội An'),
+    m(249, f'{F}/Quần/Quần Short', 'Quần Short Jean Nam Xanh Wash Ngang Gối', 249_000, 'shirt', {'Chất liệu': ['Jean'], 'Phong cách': ['Dạo phố']}, weight=350, brand='Indigo Saigon'),
+    m(250, f'{F}/Quần/Quần Short', 'Quần Short Kaki Nam Vàng Nhạt Đi Biển', 219_000, 'shirt', {'Chất liệu': ['Kaki'], 'Phong cách': ['Dạo phố']}, weight=300, brand='Linen Hội An'),
+
+    # ---- Thời Trang Nữ ----
+    m(270, f'{W}/Áo Nữ/Áo Thun Nữ', 'Áo Thun Nữ Cổ Tròn Hồng Pastel Basic', 159_000, 'dress', {'Chất liệu': ['Cotton'], 'Phong cách': ['Basic']}, weight=200, brand='Coton Việt'),
+    m(271, f'{W}/Quần Nữ/Quần Jean Nữ', 'Quần Jean Nữ Skinny Đen Lưng Cao Nâng Mông', 389_000, 'dress', {'Chất liệu': ['Jean'], 'Phong cách': ['Dạo phố']}, weight=500, brand='Indigo Saigon'),
+    m(272, f'{W}/Quần Nữ/Quần Ống Rộng', 'Quần Ống Loe Nữ Vải Ánh Kim Vàng Champagne', 459_000, 'dress', {'Chất liệu': ['Khác'], 'Phong cách': ['Dự tiệc']}, weight=450, brand='Linen Hội An'),
+    # ---- Sức Khỏe ----
+    m(251, f'{K}/Thực Phẩm Chức Năng/Vitamin', 'Viên Uống Selen Và Vitamin E Tăng Đề Kháng Lọ 90 Viên', 259_000, None, {'Hạn sử dụng': ['24']}, origin='Khác', weight=150),
+    m(252, f'{K}/Thực Phẩm Chức Năng/Dầu Cá & Omega-3', 'Viên Dầu Cá Omega-3 1000mg Hộp 120 Viên Nang Mềm', 389_000, None, {'Hạn sử dụng': ['24']}, origin='Mỹ', weight=250),
+    m(253, f'{K}/Thiết Bị Y Tế/Máy Đo Huyết Áp', 'Máy Đo Huyết Áp Bắp Tay Microlife Màn Hình Lớn', 1_090_000, None, {'Hạn sử dụng': ['60']}, origin='Khác', weight=700, brand='Microlife'),
+    m(254, f'{K}/Thiết Bị Y Tế/Máy Đo Huyết Áp', 'Máy Đo Huyết Áp Cổ Tay Điện Tử Tự Động', 690_000, None, {'Hạn sử dụng': ['60']}, origin='Trung Quốc', weight=300),
+    m(255, f'{K}/Thiết Bị Y Tế/Máy Đo Huyết Áp', 'Bộ Đo Huyết Áp Cơ Đồng Hồ Kim Kèm Bóp Hơi', 390_000, None, {'Hạn sử dụng': ['60']}, origin='Trung Quốc', weight=500),
+    m(256, f'{K}/Thiết Bị Y Tế/Nhiệt Kế', 'Nhiệt Kế Điện Tử Đầu Mềm Đo Nhanh Chống Nước', 129_000, None, {'Hạn sử dụng': ['60']}, origin='Trung Quốc', weight=50),
+    m(257, f'{K}/Thiết Bị Y Tế/Nhiệt Kế', 'Nhiệt Kế Hồng Ngoại Đo Tai Và Trán Cho Cả Gia Đình', 590_000, None, {'Hạn sử dụng': ['60']}, origin='Khác', weight=150),
+    m(258, f'{K}/Thiết Bị Y Tế/Máy Đo SpO2', 'Máy Đo Nồng Độ Oxy Máu SpO2 Kẹp Đầu Ngón Tay', 349_000, None, {'Hạn sử dụng': ['60']}, origin='Trung Quốc', weight=80),
+    m(259, f'{K}/Vật Tư Y Tế/Khẩu Trang', 'Khẩu Trang Y Tế 4 Lớp Kháng Khuẩn Hộp 50 Cái', 45_000, 'mask_color', {'Hạn sử dụng': ['36']}, weight=250),
+    m(238, f'{F}/Áo/Áo Khoác', 'Áo Khoác Bomber Nam Đỏ Có Túi Tay', 459_000, 'shirt', {'Chất liệu': ['Polyester'], 'Phong cách': ['Dạo phố']}, weight=600, brand='Indigo Saigon'),
+    m(239, f'{F}/Áo/Áo Khoác', 'Áo Khoác Phao Nam Vàng Mù Tạt Có Mũ Trùm', 689_000, 'shirt', {'Chất liệu': ['Polyester'], 'Phong cách': ['Dạo phố', 'Thể thao']}, weight=900, brand='Coton Việt'),
+    m(240, f'{F}/Áo/Áo Khoác', 'Áo Khoác Nỉ Nam Xanh Navy Cổ Đứng Khoá Kéo', 399_000, 'shirt', {'Chất liệu': ['Nỉ'], 'Phong cách': ['Basic', 'Dạo phố']}, weight=650, brand='Linen Hội An'),
+
+    # ---- Thời Trang Nữ (tiếp) ----
+    m(274, f'{W}/Áo Nữ/Áo Khoác Nữ', 'Áo Khoác Kaki Nữ Màu Be Tay Ngắn Cúc Đồng', 429_000, 'dress', {'Chất liệu': ['Kaki'], 'Phong cách': ['Dạo phố', 'Công sở']}, weight=400, brand='Linen Hội An'),
+    m(275, f'{W}/Áo Nữ/Áo Thun Nữ', 'Áo Thun Nữ Đen In Hoạ Tiết Vẽ Tay', 179_000, 'dress', {'Chất liệu': ['Cotton'], 'Phong cách': ['Dạo phố']}, weight=200, brand='Indigo Saigon'),
+    m(276, f'{W}/Quần Nữ/Quần Jean Nữ', 'Quần Jean Nữ Ống Suông Wash Nhạt Cạp Vừa', 359_000, 'dress', {'Chất liệu': ['Jean'], 'Phong cách': ['Basic', 'Dạo phố']}, weight=500, brand='Coton Việt'),
+
+    # ---- Giày Dép Nam ----
+    m(260, f'{GN}/Giày Tây/Giày Da Nam', 'Giày Tây Nam Oxford Da Bò Màu Bò Mũi Trơn', 1_290_000, 'men_shoes', {'Chất liệu': ['Da'], 'Phong cách': ['Công sở']}, weight=1_100),
+    m(261, f'{GN}/Giày Tây/Giày Da Nam', 'Giày Tây Nam Brogue Da Nâu Đục Lỗ Hoạ Tiết', 1_390_000, 'men_shoes', {'Chất liệu': ['Da'], 'Phong cách': ['Công sở', 'Dự tiệc']}, weight=1_100),
+    m(262, f'{GN}/Giày Tây/Giày Da Nam', 'Giày Tây Nam Oxford Da Đen Bóng Công Sở', 1_190_000, 'men_shoes', {'Chất liệu': ['Da'], 'Phong cách': ['Công sở']}, origin='Khác', weight=1_100),
+    m(263, f'{GN}/Giày Tây/Giày Lười Nam', 'Giày Lười Nam Penny Loafer Da Bò Màu Bò', 990_000, 'men_shoes', {'Chất liệu': ['Da'], 'Phong cách': ['Công sở', 'Dạo phố']}, weight=900),
+    m(264, f'{GN}/Giày Tây/Giày Lười Nam', 'Giày Lười Nam Da Lộn Nâu Chuông Tua Rua', 890_000, 'men_shoes', {'Chất liệu': ['Da'], 'Phong cách': ['Dạo phố']}, origin='Khác', weight=850),
+    m(266, f'{GN}/Dép Nam/Dép Xỏ Ngón Nam', 'Dép Xỏ Ngón Nam Đế Cao Su Trắng Quai Đen', 129_000, 'men_shoes', {'Chất liệu': ['Khác'], 'Phong cách': ['Basic']}, weight=300),
+    m(267, f'{GN}/Giày Thể Thao Nam/Giày Chạy Bộ', 'Giày Chạy Bộ Nam Có Đèn LED Ở Gót Chạy Đêm', 790_000, 'men_shoes', {'Chất liệu': ['Polyester'], 'Phong cách': ['Thể thao']}, origin='Trung Quốc', weight=750),
+
+    # ---- Giày Dép Nữ ----
+    m(268, f'{GW}/Giày Nữ/Bốt Nữ', 'Bốt Oxford Nữ Cổ Thấp Lót Lông Thủ Công', 1_590_000, 'women_shoes', {'Chất liệu': ['Da'], 'Phong cách': ['Dạo phố']}, origin='Khác', weight=900),
+    m(269, f'{GW}/Giày Nữ/Giày Loafer Nữ', 'Giày Loafer Nữ Da Bóng Nâu Đỏ Gót Vuông', 559_000, 'women_shoes', {'Chất liệu': ['Da PU'], 'Phong cách': ['Công sở']}, origin='Nhật Bản', weight=700),
+    m(273, f'{GW}/Dép Nữ/Dép Xỏ Ngón Nữ', 'Dép Xỏ Ngón Nữ Đế Trắng Quai Nâu Nhạt', 119_000, 'women_shoes', {'Chất liệu': ['Khác'], 'Phong cách': ['Basic']}, weight=250),
+    m(280, f'{GW}/Dép Nữ/Sandal Nữ', 'Sandal Nữ Da Bò Quai Hậu Kiểu Menorca', 459_000, 'women_shoes', {'Chất liệu': ['Da'], 'Phong cách': ['Dạo phố']}, origin='Khác', weight=500),
+    m(281, f'{GW}/Dép Nữ/Sandal Nữ', 'Sandal Đế Xuồng Nữ Quai Ngang Xanh Navy', 329_000, 'women_shoes', {'Chất liệu': ['Khác'], 'Phong cách': ['Dạo phố']}, weight=500),
+    m(298, f'{GW}/Giày Nữ/Giày Búp Bê', 'Giày Búp Bê Nữ Trắng Mũi Phối Màu Đế Xanh', 359_000, 'women_shoes', {'Chất liệu': ['Da PU'], 'Phong cách': ['Basic', 'Công sở']}, origin='Khác', weight=450),
+    m(299, f'{GW}/Giày Nữ/Giày Búp Bê', 'Giày Búp Bê Nữ Kẻ Caro Đỏ Đính Nơ', 259_000, 'women_shoes', {'Chất liệu': ['Khác'], 'Phong cách': ['Dạo phố']}, weight=400),
+    m(300, f'{GW}/Giày Nữ/Giày Búp Bê', 'Giày Bệt Nữ Da Đỏ Mũi Nhọn Đính Nơ', 489_000, 'women_shoes', {'Chất liệu': ['Da'], 'Phong cách': ['Công sở', 'Dự tiệc']}, origin='Khác', weight=450),
+
+    # ---- Túi Ví Nữ ----
+    m(277, f'{B}/Túi Xách/Túi Đeo Chéo', 'Túi Đeo Chéo Nữ Da Bê Mềm Màu Nâu Kem', 1_190_000, None, {'Chất liệu': ['Da'], 'Phong cách': ['Dạo phố', 'Công sở']}, origin='Khác', weight=500),
+    m(278, f'{B}/Ví Nữ/Ví Cầm Tay', 'Ví Cầm Tay Nữ Da Đen Kèm Dây Đeo Chéo', 289_000, None, {'Chất liệu': ['Da PU'], 'Phong cách': ['Dạo phố']}, origin='Trung Quốc', weight=250),
+    m(279, f'{B}/Túi Xách/Túi Đeo Chéo', 'Túi Đeo Chéo Vải Canvas In Hoạ Tiết Cành Hoa', 259_000, None, {'Chất liệu': ['Khác'], 'Phong cách': ['Dạo phố']}, origin='Khác', weight=350),
+    m(287, f'{B}/Túi Xách/Túi Xách Tay', 'Túi Dự Tiệc Nữ Da Ánh Bạc Quai Xích', 549_000, None, {'Chất liệu': ['Da PU'], 'Phong cách': ['Dự tiệc']}, origin='Khác', weight=400),
+    m(288, f'{B}/Túi Xách/Túi Xách Tay', 'Túi Rút Dây Móc Len Đen Tua Rua Thủ Công', 219_000, None, {'Chất liệu': ['Khác'], 'Phong cách': ['Dạo phố']}, weight=200),
+    m(289, f'{B}/Ví Nữ/Ví Cầm Tay', 'Ví Dài Nữ Da Màu Be Nhiều Ngăn Thẻ', 329_000, None, {'Chất liệu': ['Da PU'], 'Phong cách': ['Công sở']}, origin='Trung Quốc', weight=200),
+    m(290, f'{B}/Túi Xách/Túi Xách Tay', 'Túi Xách Nữ Da Vân Cá Sấu Nâu Bò Khoá Cài', 1_890_000, None, {'Chất liệu': ['Da'], 'Phong cách': ['Công sở', 'Dự tiệc']}, origin='Khác', weight=800),
+
+    # ---- Điện Thoại (tiếp) ----
+    m(282, f'{P}/Điện Thoại/Điện Thoại Phổ Thông', 'Điện Thoại Nokia 1280 Phổ Thông Pin Lâu Có Đèn Pin', 390_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Có dây']}, origin='Khác', weight=150, brand='Nokia'),
+    m(283, f'{P}/Điện Thoại/Điện Thoại Phổ Thông', 'Điện Thoại Nokia 8210 4G Màn Hình Lớn Xanh Đậm', 990_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Bluetooth', 'Có dây']}, origin='Khác', weight=180, brand='Nokia'),
+    m(284, f'{P}/Điện Thoại/Điện Thoại Phổ Thông', 'Điện Thoại Nokia 3310 Cổ Điển Xanh Dương', 590_000, None, {'Bảo hành': ['6 tháng'], 'Kết nối': ['Có dây']}, origin='Khác', weight=150, brand='Nokia'),
+    m(285, f'{P}/Điện Thoại/Điện Thoại Thông Minh', 'Điện Thoại Xiaomi Mi Note Pro Trắng Viền Vàng', 3_290_000, 'phone', {'Bảo hành': ['6 tháng'], 'Kết nối': ['Wifi', 'Bluetooth']}, origin='Trung Quốc', weight=350, brand='Xiaomi'),
+    m(286, f'{P}/Điện Thoại/Điện Thoại Thông Minh', 'Điện Thoại Xiaomi Redmi Note 15 Đen Camera Kép', 5_490_000, 'phone', {'Bảo hành': ['12 tháng'], 'Kết nối': ['Wifi', 'Bluetooth', 'USB-C']}, origin='Trung Quốc', weight=380, brand='Xiaomi'),
+
+    # ---- Thiết Bị Điện Tử ----
+    m(291, f'{E}/Thiết Bị Âm Thanh/Tai Nghe Bluetooth', 'Tai Nghe Bluetooth Sony Đeo Cổ Extra Bass', 1_290_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Bluetooth', 'USB-C']}, origin='Nhật Bản', weight=120, brand='Sony'),
+    m(292, f'{E}/Thiết Bị Âm Thanh/Tai Nghe Có Dây', 'Tai Nghe Chụp Tai Audio-Technica Kiểm Âm Có Dây', 2_490_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Có dây']}, origin='Nhật Bản', weight=350, brand='Audio-Technica'),
+    m(293, f'{E}/Thiết Bị Âm Thanh/Tai Nghe Có Dây', 'Tai Nghe Gaming Chụp Tai Có Micro Đỏ Đen', 590_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Có dây']}, origin='Trung Quốc', weight=400),
+    m(294, f'{E}/Thiết Bị Âm Thanh/Tai Nghe Bluetooth', 'Tai Nghe True Wireless Hộp Sạc Nhôm Xám', 690_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Bluetooth', 'USB-C']}, origin='Nhật Bản', weight=80),
+    m(295, f'{E}/Thiết Bị Âm Thanh/Loa Bluetooth', 'Loa Bluetooth Xách Tay Brionvega Phong Cách Cổ Điển', 3_990_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Bluetooth']}, origin='Khác', weight=1_500, brand='Brionvega'),
+    m(296, f'{E}/Thiết Bị Âm Thanh/Loa Bluetooth', 'Loa Bluetooth Mini Polk Nhỏ Gọn Âm Trầm Mạnh', 1_490_000, None, {'Bảo hành': ['12 tháng'], 'Kết nối': ['Bluetooth', 'USB-C']}, origin='Mỹ', weight=500, brand='Polk'),
+    m(297, f'{E}/Thiết Bị Đeo Thông Minh/Vòng Đeo Tay Thông Minh', 'Vòng Đeo Tay Thông Minh Fitbit Theo Dõi Sức Khoẻ', 1_190_000, 'band_color', {'Bảo hành': ['12 tháng'], 'Kết nối': ['Bluetooth']}, origin='Mỹ', weight=60, brand='Fitbit'),
+    m(243, f'{F}/Áo/Áo Thun', 'Áo Thun Nam Xanh Nhạt Cổ Tròn In Hoạ Tiết Nhỏ', 169_000, 'shirt', {'Chất liệu': ['Cotton'], 'Phong cách': ['Basic']}, weight=230, brand='Coton Việt'),
+    m(304, f'{F}/Áo/Áo Thun', 'Áo Thun Thể Thao Nam Xanh Đen Hoạ Tiết Tia Chớp', 199_000, 'shirt', {'Chất liệu': ['Polyester'], 'Phong cách': ['Thể thao']}, weight=200, brand='Indigo Saigon'),
+    m(305, f'{F}/Áo/Áo Thun', 'Áo Thun Nam Trơn Xám Than Cotton Dày Dặn', 149_000, 'shirt', {'Chất liệu': ['Cotton'], 'Phong cách': ['Basic']}, weight=250, brand='Linen Hội An'),
+    m(306, f'{F}/Áo/Áo Thun', 'Áo Thun Nam Đen Thêu Hoạ Tiết Chữ Thập Trắng', 189_000, 'shirt', {'Chất liệu': ['Cotton'], 'Phong cách': ['Basic', 'Dạo phố']}, weight=230, brand='Coton Việt'),
+
+    # ---- Ô Tô & Xe Máy ----
+    m(302, f'{X}/Phụ Kiện Ô Tô/Camera Hành Trình', 'Camera Hành Trình Ô Tô Màn Hình Kép Quay Trước Sau', 1_290_000, None, {'Chất liệu': ['Nhựa']}, origin='Trung Quốc', weight=300),
+    m(303, f'{X}/Phụ Kiện Xe Máy/Áo Mưa', 'Áo Mưa Poncho Vải Dù Rằn Ri Có Mũ Trùm', 189_000, None, {'Chất liệu': ['Nhựa']}, weight=450),
+    # ---- Nhà Cửa (đồ điện gia dụng) ----
+    m(307, f'{N}/Đồ Dùng Nhà Bếp/Thiết Bị Bếp Điện', 'Ấm Siêu Tốc Thuỷ Tinh Xanh Có Đèn Báo 1.7L', 359_000, None, {'Chất liệu': ['Thuỷ tinh'], 'Công suất': ['2000']}, origin='Trung Quốc', weight=1_300, brand='HomeLux'),
+    m(308, f'{N}/Đồ Dùng Nhà Bếp/Thiết Bị Bếp Điện', 'Ấm Đun Nước Siêu Tốc Russell Hobbs Vạch Nước Xanh', 790_000, None, {'Chất liệu': ['Nhựa'], 'Công suất': ['2200']}, origin='Khác', weight=1_200, brand='Russell Hobbs'),
+    m(309, f'{N}/Đồ Dùng Nhà Bếp/Thiết Bị Bếp Điện', 'Ấm Siêu Tốc Bosch Thân Kính Đế Xoay 1.7L', 1_190_000, None, {'Chất liệu': ['Thuỷ tinh'], 'Công suất': ['2400']}, origin='Khác', weight=1_400, brand='Bosch'),
+    m(310, f'{N}/Đồ Dùng Nhà Bếp/Nồi Cơm Điện', 'Nồi Cơm Điện Nắp Rời Lòng Inox Màu Bạc', 690_000, None, {'Chất liệu': ['Inox'], 'Công suất': ['700']}, origin='Khác', weight=3_000, brand='Bếp Việt'),
+    m(311, f'{N}/Đồ Dùng Nhà Bếp/Nồi Cơm Điện', 'Nồi Cơm Điện Tử Panasonic Màn Hình Cảm Ứng 1L', 1_890_000, None, {'Chất liệu': ['Nhựa'], 'Công suất': ['600']}, origin='Nhật Bản', weight=3_200, brand='Panasonic'),
+    m(312, f'{N}/Đồ Dùng Nhà Bếp/Nồi Cơm Điện', 'Nồi Hấp Điện Đa Năng Tatung Xanh Cốm Cổ Điển', 1_490_000, None, {'Chất liệu': ['Inox'], 'Công suất': ['800']}, origin='Khác', weight=3_500, brand='Tatung'),
+    m(313, f'{X}/Phụ Kiện Xe Máy/Mũ Bảo Hiểm', 'Mũ Bảo Hiểm Fullface Trắng Kính Chắn Gió Trong Suốt', 1_290_000, 'helmet_size', {'Chất liệu': ['Nhựa']}, origin='Khác', weight=1_500),
+    m(314, f'{X}/Phụ Kiện Xe Máy/Mũ Bảo Hiểm', 'Mũ Bảo Hiểm Lật Hàm Đen Bóng Kính Khói', 890_000, 'helmet_size', {'Chất liệu': ['Nhựa']}, origin='Trung Quốc', weight=1_600),
+
+    # ---- Sắc Đẹp ----
+    m(315, f'{S}/Trang Điểm/Son Môi', 'Son Thỏi Hồng Đất Chất Kem Mềm Môi', 159_000, None, {'Loại da phù hợp': ['Mọi loại da']}, origin='Hàn Quốc', weight=40, brand='Lumina Beauty'),
+
+    # ---- Nhà Cửa (nồi chảo) ----
+    m(317, f'{N}/Đồ Dùng Nhà Bếp/Nồi & Chảo', 'Bộ Chảo Gốm Chống Dính Nhiều Màu Đáy Từ', 890_000, 'pot', {'Chất liệu': ['Gốm sứ']}, origin='Khác', weight=1_200, brand='Kuhn Rikon'),
+    m(318, f'{N}/Đồ Dùng Nhà Bếp/Nồi & Chảo', 'Chảo Chống Dính Đen Cán Nhựa Cách Nhiệt', 199_000, 'pot', {'Chất liệu': ['Khác']}, weight=900, brand='Bếp Việt'),
+]
+
+# Brands of dummyjson models whose name already says the brand (the model lines above stay as they are)
+BRANDS = {
+    1: 'Essence', 6: 'Calvin Klein', 7: 'Chanel', 8: 'Dior', 9: 'Dolce & Gabbana', 10: 'Gucci', 18: 'Whiskas',
+    34: 'Nescafé', 78: 'Apple', 79: 'Asus', 80: 'Huawei', 81: 'Lenovo', 82: 'Dell', 88: 'Nike', 89: 'Nike',
+    90: 'Puma', 94: 'Longines', 95: 'Rolex', 96: 'Rolex', 97: 'Rolex', 98: 'Rolex', 99: 'Amazon', 100: 'Apple',
+    101: 'Apple', 102: 'Apple', 103: 'Apple', 104: 'Apple', 105: 'Apple', 106: 'Apple', 107: 'Beats', 108: 'Apple',
+    114: 'Kawasaki', 118: 'Attitude', 119: 'Olay', 120: 'Vaseline', 121: 'Apple', 122: 'Apple', 123: 'Apple',
+    124: 'Apple', 125: 'Oppo', 126: 'Oppo', 127: 'Oppo', 128: 'Realme', 129: 'Realme', 130: 'Realme', 131: 'Samsung',
+    132: 'Samsung', 133: 'Samsung', 134: 'Vivo', 135: 'Vivo', 136: 'Vivo', 148: 'Titleist', 159: 'Apple',
+    160: 'Samsung', 161: 'Samsung', 173: 'Heshe', 174: 'Prada', 186: 'Calvin Klein', 190: 'IWC', 191: 'Rolex',
+    192: 'Rolex',
+    # Nhà Cửa: house brands of the sample shops (fictional), so the industry's brand filter has real choices
+    11: 'Mộc An', 13: 'Mộc An', 15: 'Mộc An', 44: 'Mộc An', 47: 'Mộc An', 53: 'Mộc An', 51: 'HomeLux', 56: 'HomeLux',
+    61: 'HomeLux', 66: 'HomeLux', 12: 'HomeLux', 14: 'HomeLux', 48: 'Bếp Việt', 50: 'Bếp Việt', 52: 'Bếp Việt',
+    57: 'Bếp Việt', 64: 'Bếp Việt', 65: 'Bếp Việt', 68: 'Bếp Việt', 71: 'Bếp Việt',
+}

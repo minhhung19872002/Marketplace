@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { marketingApi, type CampaignVoucher } from '../api/marketing';
+import { marketingApi, type CampaignBlock, type CampaignVoucher } from '../api/marketing';
 import { walletApi } from '../api/commerce';
 import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
@@ -39,6 +39,17 @@ const VoucherTile = ({ v }: { v: CampaignVoucher }) => {
   );
 };
 
+/**
+ * Whether a banner block draws its title over the picture: never over artwork that has its own headline (the 10.10 banner
+ * says "SIÊU SALE 10.10" and has a button — a second title on top of it was noise, G4-A3). Without the backend flag an
+ * image banner is taken to carry text; the title then stays as the image's alt text.
+ */
+export const bannerOverlay = (b: CampaignBlock): boolean => {
+  if (!b.title) return false;
+  const hasImage = !!b.imageUrl && isImageUrl(b.imageUrl);
+  return !hasImage || b.hasTextInImage === false;
+};
+
 /** /su-kien/:slug — Ngày hội mua sắm built by the platform from blocks (spec II.13). */
 const CampaignPage = () => {
   const { slug = '' } = useParams();
@@ -63,9 +74,9 @@ const CampaignPage = () => {
       {data.blocks.map((b, i) => (
         <section key={i} className="campaign-block">
           {b.type === 'Banner' && (
-            <BannerLink to={b.link ?? '/'} className="campaign-banner">
-              {b.imageUrl && isImageUrl(b.imageUrl) && <img src={b.imageUrl} alt="" onError={handleImgError} />}
-              {b.title && <span>{b.title}</span>}
+            <BannerLink to={b.link ?? '/'} className={`campaign-banner ${bannerOverlay(b) ? 'campaign-banner--titled' : ''}`}>
+              {b.imageUrl && isImageUrl(b.imageUrl) && <img src={b.imageUrl} alt={bannerOverlay(b) ? '' : b.title ?? ''} onError={handleImgError} />}
+              {bannerOverlay(b) && <span>{b.title}</span>}
             </BannerLink>
           )}
           {b.type === 'Vouchers' && (

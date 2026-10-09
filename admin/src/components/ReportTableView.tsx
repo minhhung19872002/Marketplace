@@ -12,7 +12,8 @@ const ReportTableView = ({ table }: { table: ReportTable }) => (
     rowKey={(_, i) => String(i)}
     dataSource={table.rows.map((r) => ({ cells: r }))}
     pagination={table.rows.length > 50 ? { pageSize: 50 } : false}
-    scroll={{ x: true }}
+    scroll={{ x: 'max-content' }}
+    sticky={{ offsetHeader: 64 }}
     columns={table.columns.map((c, i) => ({
       title: c.title,
       align: c.kind === 'Text' ? 'left' : 'right',

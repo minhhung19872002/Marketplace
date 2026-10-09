@@ -1,9 +1,14 @@
 import { useMemo, useState } from 'react'
-import { App as AntApp, Button, Card, Checkbox, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Switch, Table, Tag, Tree, Typography } from 'antd'
+import { App as AntApp, Button, Card, Checkbox, Col, Empty, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Tree, Typography } from 'antd'
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { catalogApi, type AttributeInputType, type Brand, type CategoryAttribute, type CategoryNode } from '../api/catalog'
 import { ApiError } from '../api/http'
 import { platformApi } from '../api/platform'
+import DataTable from '../components/DataTable'
+import PageHeader from '../components/PageHeader'
+import RowActions from '../components/RowActions'
+import { ToneTag } from '../components/StatusTag'
 
 const INPUT_TYPES: { value: AttributeInputType; label: string }[] = [
   { value: 'SingleSelect', label: 'Chọn một' },
@@ -91,16 +96,17 @@ const CategoriesPage = () => {
   const toTree = (nodes: CategoryNode[]): TreeItem[] =>
     nodes.map((n) => ({
       key: n.id,
-      title: <span>{n.name} {!n.isActive && <Tag>Ẩn</Tag>} {n.isActive && !n.isVisible && <Tag color="orange">Ẩn với người mua</Tag>} <Typography.Text type="secondary">{n.commissionRateBp / 100}%</Typography.Text></span>,
+      title: <span>{n.name} {!n.isActive && <ToneTag tone="default">Ẩn</ToneTag>} {n.isActive && !n.isVisible && <ToneTag tone="warning">Ẩn với người mua</ToneTag>} <Typography.Text type="secondary">{n.commissionRateBp / 100}%</Typography.Text></span>,
       children: toTree(n.children),
     }))
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>Ngành hàng</Typography.Title>
-      <Row gutter={16}>
+    <>
+      <PageHeader title="Ngành hàng" description="Cây danh mục 3 cấp, phí cố định theo ngành, thuộc tính bắt buộc của từng danh mục lá và thương hiệu"
+        actions={<Button type="primary" icon={<PlusOutlined aria-hidden />} onClick={() => openCategory(null, null)}>Danh mục cấp 1</Button>} />
+      <Row gutter={[16, 16]}>
         <Col xs={24} lg={10}>
-          <Card title="Cây danh mục" extra={<Button size="small" onClick={() => openCategory(null, null)}>+ Danh mục cấp 1</Button>} loading={tree.isPending}>
+          <Card title="Cây danh mục" className="stat-card tree-card" loading={tree.isPending}>
             <Typography.Text type="secondary">Kéo thả để đổi vị trí hoặc chuyển sang danh mục cha khác (tối đa 3 cấp).</Typography.Text>
             <Tree treeData={toTree(tree.data ?? [])} onSelect={(keys) => setSelected(all.find((c) => c.id === keys[0]) ?? null)} height={560}
               draggable={{ icon: false }}
@@ -125,42 +131,39 @@ const CategoriesPage = () => {
         </Col>
         <Col xs={24} lg={14}>
           {selected ? (
-            <Card title={selected.name} extra={
+            <Card title={selected.name} className="stat-card" extra={
               <Space>
-                <Button size="small" onClick={() => openCategory(null, selected)}>Sửa</Button>
-                {selected.level < 3 && <Button size="small" onClick={() => openCategory(selected.id, null)}>+ Danh mục con</Button>}
+                <Button size="small" icon={<EditOutlined aria-hidden />} onClick={() => openCategory(null, selected)}>Sửa</Button>
+                {selected.level < 3 && <Button size="small" icon={<PlusOutlined aria-hidden />} onClick={() => openCategory(selected.id, null)}>Danh mục con</Button>}
               </Space>
             }>
               {selected.isLeaf ? (
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Space style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <Typography.Text strong>Thuộc tính ngành hàng</Typography.Text>
-                    <Button size="small" type="primary" onClick={() => openAttribute('new')}>+ Thuộc tính</Button>
-                  </Space>
-                  <Table<CategoryAttribute> size="small" rowKey="id" loading={attributes.isPending} dataSource={attributes.data} pagination={false}
-                    columns={[
-                      { title: 'Tên', dataIndex: 'name', render: (v: string, a) => <>{v}{a.isRequired && <Tag color="red">Bắt buộc</Tag>}</> },
-                      { title: 'Kiểu', dataIndex: 'inputType', render: (v: AttributeInputType) => INPUT_TYPES.find((t) => t.value === v)?.label },
-                      { title: 'Lựa chọn', render: (_, a) => (a.options.length ? a.options.join(', ') : a.unit ?? '—') },
-                      {
-                        title: '',
-                        render: (_, a) => (
-                          <Space>
-                            <Button size="small" onClick={() => openAttribute(a)}>Sửa</Button>
-                            <Popconfirm title="Xoá thuộc tính?" okText="Xoá" cancelText="Huỷ" onConfirm={() => deleteAttribute.mutate(a.id)}>
-                              <Button size="small" danger>Xoá</Button>
-                            </Popconfirm>
-                          </Space>
-                        ),
-                      },
-                    ]} />
-                </Space>
+                <DataTable<CategoryAttribute> size="small" rowKey="id" loading={attributes.isPending} error={attributes.error} dataSource={attributes.data}
+                  filters={<Typography.Text strong>Thuộc tính ngành hàng</Typography.Text>}
+                  actions={<Button size="small" type="primary" icon={<PlusOutlined aria-hidden />} onClick={() => openAttribute('new')}>Thuộc tính</Button>}
+                  emptyText="Danh mục này chưa có thuộc tính"
+                  columns={[
+                    { title: 'Tên', dataIndex: 'name', render: (v: string, a) => <Space size={6}>{v}{a.isRequired && <ToneTag tone="error">Bắt buộc</ToneTag>}</Space> },
+                    { title: 'Kiểu', dataIndex: 'inputType', render: (v: AttributeInputType) => INPUT_TYPES.find((t) => t.value === v)?.label },
+                    { title: 'Lựa chọn', render: (_, a) => (a.options.length ? a.options.join(', ') : a.unit ?? '—') },
+                    {
+                      title: '', key: 'actions', align: 'right',
+                      render: (_, a) => (
+                        <RowActions name={a.name}
+                          primary={<Button size="small" onClick={() => openAttribute(a)}>Sửa</Button>}
+                          items={[{
+                            key: 'delete', icon: <DeleteOutlined aria-hidden />, label: 'Xoá thuộc tính', danger: true,
+                            confirm: { title: `Xoá thuộc tính ${a.name}?`, okText: 'Xoá' }, onClick: () => deleteAttribute.mutateAsync(a.id).catch(() => undefined),
+                          }]} />
+                      ),
+                    },
+                  ]} />
               ) : (
-                <Typography.Text type="secondary">Chọn danh mục cấp cuối để khai báo thuộc tính.</Typography.Text>
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chọn danh mục cấp cuối để khai báo thuộc tính" />
               )}
             </Card>
           ) : (
-            <Card><Typography.Text type="secondary">Chọn một danh mục bên trái.</Typography.Text></Card>
+            <Card className="stat-card"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chọn một danh mục bên trái để xem và sửa" /></Card>
           )}
           <BrandsCard />
         </Col>
@@ -194,7 +197,7 @@ const CategoriesPage = () => {
           <Form.Item label="Thứ tự" name="sortOrder"><InputNumber min={0} /></Form.Item>
         </Form>
       </Modal>
-    </Space>
+    </>
   )
 }
 
@@ -212,12 +215,14 @@ const BrandsCard = () => {
   })
 
   return (
-    <Card title="Thương hiệu" style={{ marginTop: 16 }} extra={<Button size="small" onClick={() => { setEditing('new'); setName(''); setVerified(true) }}>+ Thương hiệu</Button>}>
-      <Input.Search placeholder="Tìm thương hiệu" allowClear onSearch={setSearch} style={{ marginBottom: 12 }} />
-      <Table<Brand> size="small" rowKey="id" dataSource={brands.data} pagination={false}
+    <Card title="Thương hiệu" className="stat-card" style={{ marginTop: 16 }}>
+      <DataTable<Brand> size="small" rowKey="id" dataSource={brands.data} loading={brands.isPending} error={brands.error} paging="client"
+        search={{ value: search, onSearch: setSearch, placeholder: 'Tìm thương hiệu', width: 220 }}
+        actions={<Button size="small" icon={<PlusOutlined aria-hidden />} onClick={() => { setEditing('new'); setName(''); setVerified(true) }}>Thương hiệu</Button>}
+        emptyText="Không có thương hiệu phù hợp"
         columns={[
-          { title: 'Tên', dataIndex: 'name', render: (v: string, b) => <>{v} {b.isVerified && <Tag color="blue">Chính hãng</Tag>}</> },
-          { title: '', render: (_, b) => <Button size="small" onClick={() => { setEditing(b); setName(b.name); setVerified(b.isVerified) }}>Sửa</Button> },
+          { title: 'Tên', dataIndex: 'name', render: (v: string, b) => <Space size={6}>{v}{b.isVerified && <ToneTag tone="info">Chính hãng</ToneTag>}</Space> },
+          { title: '', key: 'actions', align: 'right', render: (_, b) => <RowActions name={b.name} primary={<Button size="small" onClick={() => { setEditing(b); setName(b.name); setVerified(b.isVerified) }}>Sửa</Button>} /> },
         ]} />
       <Modal title={editing === 'new' ? 'Thêm thương hiệu' : 'Sửa thương hiệu'} open={!!editing} onCancel={() => setEditing(null)}
         okText="Lưu" cancelText="Huỷ" onOk={() => save.mutate()} okButtonProps={{ disabled: !name.trim(), loading: save.isPending }}>

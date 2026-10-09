@@ -12,7 +12,7 @@ using ShopHub.Infrastructure.Persistence;
 namespace ShopHub.Infrastructure.Seed;
 
 /// <summary>
-/// The sample catalogue: ~1,000 listings (~2,500 SKUs) built from Seed/Data/product-models.json — 188 real models, each
+/// The sample catalogue: ~1,000 listings (~2,500 SKUs) built from Seed/Data/product-models.json — 309 models (188 from dummyjson, 121 licensed photos, see tools/seed-catalog/CREDITS.md), each
 /// with its own studio photos, placed in the leaf category it shows (never another item's photo). A model is sold by
 /// several shops of its industry, like on a real marketplace: each listing gets a natural name (the model's name, plus
 /// one shop wording that fits the industry), its own price, discount and stock. Deterministic (fixed random seed);
@@ -44,6 +44,9 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
         ["Ô Tô & Xe Máy"] = ["Hàng Có Sẵn", "Giao Toàn Quốc"],
         ["Bách Hóa Online"] = ["Giá Tốt", "Hàng Mới Về", "Giao Nhanh"],
         ["Thú Cưng"] = ["Hàng Mới Về", "Date Mới"],
+        ["Mẹ & Bé"] = ["Chính Hãng", "An Toàn Cho Bé", "Hàng Có Sẵn"],
+        ["Đồ Chơi"] = ["Hàng Có Sẵn", "Quà Tặng Cho Bé", "Mẫu Mới"],
+        ["Máy Ảnh & Quay Phim"] = ["Chính Hãng", "Bảo Hành 12 Tháng", "*Đã Qua Sử Dụng 98%"],
     };
 
     // How likely buyers browse an industry: more listings where marketplaces have many sellers
@@ -52,6 +55,7 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
         ["Điện Thoại & Phụ Kiện"] = 6, ["Thời Trang Nam"] = 6, ["Thời Trang Nữ"] = 6, ["Sắc Đẹp"] = 5, ["Nhà Cửa & Đời Sống"] = 3,
         ["Giày Dép Nam"] = 6, ["Giày Dép Nữ"] = 6, ["Túi Ví Nữ"] = 6, ["Máy Tính & Laptop"] = 5, ["Thiết Bị Điện Tử"] = 6,
         ["Đồng Hồ"] = 4, ["Thể Thao & Du Lịch"] = 3, ["Bách Hóa Online"] = 3, ["Ô Tô & Xe Máy"] = 2, ["Sức Khỏe"] = 4, ["Thú Cưng"] = 4,
+        ["Mẹ & Bé"] = 4, ["Đồ Chơi"] = 3, ["Máy Ảnh & Quay Phim"] = 3,
     };
 
     /// <param name="shopSells">Shop name → the top-level industries it sells (from catalog-seed.json).</param>
@@ -140,8 +144,10 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
             taken.Add((shop.Id, name));
 
             var product = new Product(shop.Id);
-            var brandId = shop.Type == ShopType.Mall && shop.Name.StartsWith("Mall ", StringComparison.Ordinal)
-                ? brands.GetValueOrDefault(shop.Name["Mall ".Length..]) : (Guid?)null;
+            // The model's own brand (G4-C: ≥ 3 brands per main industry); else a Mall shop's brand name
+            var brandId = model.Brand is { Length: > 0 } own && brands.TryGetValue(own, out var ownId) ? ownId
+                : shop.Type == ShopType.Mall && shop.Name.StartsWith("Mall ", StringComparison.Ordinal)
+                    ? brands.GetValueOrDefault(shop.Name["Mall ".Length..]) : (Guid?)null;
             product.SetInfo(leaf.Id, brandId == Guid.Empty ? null : brandId, name, Slug.From(name),
                 Description(model, top, shop.Name, used), used ? ProductCondition.Used : ProductCondition.New, model.WeightG, 200, 150, 80, false, 0);
 
@@ -265,7 +271,7 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
     }
 
     private sealed record ModelSeed(int Key, string Category, string Name, long Price, VariantSeed? Variant,
-        Dictionary<string, List<string>> Attributes, string Origin, int WeightG, List<string> Images);
+        Dictionary<string, List<string>> Attributes, string Origin, int WeightG, List<string> Images, string? Brand = null);
 
     private sealed record VariantSeed(string Tier, List<VariantOptionSeed> Options);
 

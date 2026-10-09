@@ -12,6 +12,8 @@ interface Props {
   rows?: number;
   /** Custom properties for the caller's CSS (e.g. a column count) */
   style?: CSSProperties;
+  /** Role of the track: a row of tabs (Flash Sale slots) is a "tablist", not a carousel region */
+  trackRole?: 'region' | 'tablist';
 }
 
 /**
@@ -19,7 +21,7 @@ interface Props {
  * that has more to show, the edges fade out. Keyboard: the row is focusable, ← / → scroll by one screen.
  * Children are the slides; their width comes from the caller (CSS grid-auto-columns via --carousel-item).
  */
-const Carousel = ({ label, children, className, testId, rows = 1, style }: Props) => {
+const Carousel = ({ label, children, className, testId, rows = 1, style, trackRole = 'region' }: Props) => {
   const track = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: true });
 
@@ -53,7 +55,7 @@ const Carousel = ({ label, children, className, testId, rows = 1, style }: Props
     <div className={['sh-carousel', !edges.start && 'has-prev', !edges.end && 'has-next', className].filter(Boolean).join(' ')} data-testid={testId} style={style}>
       <div className="sh-carousel__track" ref={track} onScroll={measure} onKeyDown={onKey} tabIndex={0}
         style={rows > 1 ? { gridTemplateRows: `repeat(${rows}, auto)` } : undefined}
-        role="region" aria-roledescription="carousel" aria-label={label}>
+        role={trackRole} aria-roledescription={trackRole === 'region' ? 'carousel' : undefined} aria-label={label}>
         {children}
       </div>
       {!edges.start && (

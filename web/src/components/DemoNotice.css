@@ -1,0 +1,12 @@
+.demo-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 16px;
+  background: var(--sh-surface-muted, var(--sh-bg));
+  color: var(--sh-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}

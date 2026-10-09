@@ -128,14 +128,14 @@ const Header = () => {
         <div className="container header-top-inner">
           <nav className="header-top-links">
             <a href={SELLER_URL} className="header-top-link">Kênh Người Bán</a>
-            <a href={`${SELLER_URL}dang-ky-ban-hang`} className="header-top-link">Trở thành Người bán</a>
+            <a href={`${SELLER_URL}dang-ky-ban-hang`} className="header-top-link">Trở thành người bán</a>
             <Link to="/tai-ung-dung" className="header-top-link" data-testid="app-link">Tải ứng dụng</Link>
           </nav>
           <nav className="header-top-links">
             <Link to="/thong-bao" className="header-top-link" data-testid="notifications-link">
-              <Bell size={14} aria-hidden /> Thông Báo{(unread?.total ?? 0) > 0 && <span className="header-noti-badge" data-testid="notifications-badge">{badgeCount(unread!.total)}</span>}
+              <Bell size={14} aria-hidden /> Thông báo{(unread?.total ?? 0) > 0 && <span className="header-noti-badge" data-testid="notifications-badge">{badgeCount(unread!.total)}</span>}
             </Link>
-            <Link to="/tro-giup" className="header-top-link" data-testid="help-link"><CircleHelp size={14} aria-hidden /> Hỗ Trợ</Link>
+            <Link to="/tro-giup" className="header-top-link" data-testid="help-link"><CircleHelp size={14} aria-hidden /> Hỗ trợ</Link>
             {isLoggedIn && user ? (
               <div className="header-user" ref={userRef}>
                 <button
@@ -148,9 +148,9 @@ const Header = () => {
                 </button>
                 {showUserMenu && (
                   <div className="header-user-dropdown">
-                    <Link to="/tai-khoan/ho-so" onClick={() => setShowUserMenu(false)}>Tài Khoản Của Tôi</Link>
-                    <Link to="/yeu-thich" onClick={() => setShowUserMenu(false)}>Sản Phẩm Yêu Thích</Link>
-                    <Link to="/gio-hang" onClick={() => setShowUserMenu(false)}>Giỏ Hàng</Link>
+                    <Link to="/tai-khoan/ho-so" onClick={() => setShowUserMenu(false)}>Tài khoản của tôi</Link>
+                    <Link to="/yeu-thich" onClick={() => setShowUserMenu(false)}>Sản phẩm yêu thích</Link>
+                    <Link to="/gio-hang" onClick={() => setShowUserMenu(false)}>Giỏ hàng</Link>
                     <button
                       onClick={async () => {
                         setShowUserMenu(false);
@@ -159,16 +159,16 @@ const Header = () => {
                       }}
                       data-testid="logout"
                     >
-                      Đăng Xuất
+                      Đăng xuất
                     </button>
                   </div>
                 )}
               </div>
             ) : (
               <>
-                <Link to="/dang-ky" className="header-top-link">Đăng Ký</Link>
+                <Link to="/dang-ky" className="header-top-link">Đăng ký</Link>
                 <span className="header-top-sep">|</span>
-                <Link to="/dang-nhap" className="header-top-link" data-testid="login-link">Đăng Nhập</Link>
+                <Link to="/dang-nhap" className="header-top-link" data-testid="login-link">Đăng nhập</Link>
               </>
             )}
           </nav>
@@ -339,7 +339,7 @@ const Header = () => {
                 </div>
               ) : (
                 <>
-                  <div className="header-cart-preview-title">Sản Phẩm Mới Thêm</div>
+                  <div className="header-cart-preview-title">Sản phẩm mới thêm</div>
                   <div className="header-cart-preview-list">
                     {items.map((it) => (
                       <Link key={it.skuId} to={`/san-pham/${it.productId}`} className="header-cart-preview-item">
@@ -351,7 +351,7 @@ const Header = () => {
                   </div>
                   <div className="header-cart-preview-footer">
                     <span>{badge} sản phẩm · {formatPrice(totalPrice)}</span>
-                    <Link to="/gio-hang" className="header-cart-preview-btn">Xem Giỏ Hàng</Link>
+                    <Link to="/gio-hang" className="header-cart-preview-btn">Xem giỏ hàng</Link>
                   </div>
                 </>
               )}

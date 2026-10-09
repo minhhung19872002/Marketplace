@@ -1,6 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { App as AntApp, Button, Layout, Menu, Result, Space, Spin, Typography } from 'antd'
+import { App as AntApp, Avatar, Button, Dropdown, Layout, Menu, Result, Space, Spin, Tooltip } from 'antd'
+import {
+  AppstoreOutlined, AuditOutlined, BarChartOutlined, CarOutlined, CommentOutlined, DashboardOutlined, DownOutlined,
+  FileSearchOutlined, FileTextOutlined, FireOutlined, GiftOutlined, KeyOutlined, LockOutlined, LogoutOutlined, MoonOutlined, NotificationOutlined,
+  ProfileOutlined, RightOutlined, SafetyCertificateOutlined, ScheduleOutlined, SettingOutlined, ShopOutlined, StarOutlined, SunOutlined, TeamOutlined,
+  WalletOutlined, WarningOutlined,
+} from '@ant-design/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from './api/admin'
 import { refreshSession } from './api/http'
@@ -12,6 +18,7 @@ import DashboardPage from './pages/DashboardPage'
 import UsersPage from './pages/UsersPage'
 import RolesPage from './pages/RolesPage'
 import ParametersPage from './pages/ParametersPage'
+import LaunchChecklistPage from './pages/LaunchChecklistPage'
 import AuditLogsPage from './pages/AuditLogsPage'
 import ProductReviewPage from './pages/ProductReviewPage'
 import ShopsPage from './pages/ShopsPage'
@@ -29,34 +36,57 @@ import ProvidersPage from './pages/ProvidersPage'
 import CatalogExtrasPage from './pages/CatalogExtrasPage'
 import JobsPage from './pages/JobsPage'
 import HotKeywordsPage from './pages/HotKeywordsPage'
+import { useThemeMode } from './stores/themeMode'
+import BrandMark from './components/BrandMark'
 import './App.css'
 
 const { Header, Sider, Content } = Layout
 
-// Menu entries appear only when the signed-in admin holds the permission (the API enforces it regardless)
-const MENU = [
-  { path: '/', label: 'Tổng quan', permission: null },
-  { path: '/bao-cao', label: 'Báo cáo', permission: P.ReportView },
-  { path: '/don-hang', label: 'Đơn hàng', permission: P.OrderView },
-  { path: '/duyet-san-pham', label: 'Duyệt sản phẩm', permission: P.ProductReview },
-  { path: '/bao-cao-san-pham', label: 'Thương hiệu & vi phạm', permission: P.ProductBan },
-  { path: '/shop', label: 'Shop', permission: P.ShopView },
-  { path: '/nganh-hang', label: 'Ngành hàng', permission: P.CategoryManage },
-  { path: '/voucher', label: 'Voucher của sàn', permission: P.VoucherManage },
-  { path: '/marketing', label: 'Marketing', permission: P.MarketingManage },
-  { path: '/tu-khoa-hot', label: 'Từ khoá hot', permission: P.HotKeywordManage },
-  { path: '/khieu-nai', label: 'Khiếu nại trả hàng', permission: P.DisputeResolve },
-  { path: '/bao-cao-danh-gia', label: 'Báo cáo đánh giá', permission: P.ReviewModerate },
-  { path: '/bao-cao-chat', label: 'Chat bị báo cáo', permission: P.ChatReview },
-  { path: '/tai-chinh', label: 'Tài chính', permission: P.FinanceLedgerView },
-  { path: '/nguoi-dung', label: 'Người dùng', permission: P.UserView },
-  { path: '/vai-tro', label: 'Vai trò & quyền', permission: P.RoleView },
-  { path: '/tham-so', label: 'Tham số hệ thống', permission: P.SystemParameterView },
-  { path: '/noi-dung', label: 'Nội dung & mẫu tin', permission: P.ContentManage },
-  { path: '/nha-cung-cap', label: 'Vận chuyển & cổng thanh toán', permission: P.ProviderManage },
-  { path: '/nhat-ky', label: 'Nhật ký thao tác', permission: P.AuditLogView },
-  { path: '/viec-nen', label: 'Việc nền', permission: P.JobDashboardView },
-] as const
+type MenuEntry = { path: string; label: string; icon: ReactNode; permission: string | null; anyOf?: string[] }
+
+// Ordered by how often an operator opens them, grouped Vận hành / Kinh doanh / Hệ thống. An entry appears only when the
+// signed-in admin holds the permission (the API enforces it regardless).
+const MENU: { group: string; items: MenuEntry[] }[] = [
+  {
+    group: 'Vận hành',
+    items: [
+      { path: '/', label: 'Tổng quan', icon: <DashboardOutlined aria-hidden />, permission: null },
+      { path: '/don-hang', label: 'Đơn hàng', icon: <ProfileOutlined aria-hidden />, permission: P.OrderView },
+      { path: '/duyet-san-pham', label: 'Duyệt sản phẩm', icon: <SafetyCertificateOutlined aria-hidden />, permission: P.ProductReview },
+      { path: '/shop', label: 'Shop', icon: <ShopOutlined aria-hidden />, permission: P.ShopView },
+      { path: '/khieu-nai', label: 'Khiếu nại trả hàng', icon: <AuditOutlined aria-hidden />, permission: P.DisputeResolve },
+      { path: '/nguoi-dung', label: 'Người dùng', icon: <TeamOutlined aria-hidden />, permission: P.UserView },
+      { path: '/bao-cao-san-pham', label: 'Sản phẩm vi phạm', icon: <WarningOutlined aria-hidden />, permission: null, anyOf: [P.ProductBan, P.BrandManage] },
+      { path: '/bao-cao-danh-gia', label: 'Báo cáo đánh giá', icon: <StarOutlined aria-hidden />, permission: P.ReviewModerate },
+      { path: '/bao-cao-chat', label: 'Chat bị báo cáo', icon: <CommentOutlined aria-hidden />, permission: P.ChatReview },
+    ],
+  },
+  {
+    group: 'Kinh doanh',
+    items: [
+      { path: '/voucher', label: 'Voucher của sàn', icon: <GiftOutlined aria-hidden />, permission: P.VoucherManage },
+      { path: '/marketing', label: 'Marketing', icon: <NotificationOutlined aria-hidden />, permission: P.MarketingManage },
+      { path: '/tai-chinh', label: 'Tài chính', icon: <WalletOutlined aria-hidden />, permission: P.FinanceLedgerView },
+      { path: '/bao-cao', label: 'Báo cáo', icon: <BarChartOutlined aria-hidden />, permission: P.ReportView },
+      { path: '/tu-khoa-hot', label: 'Từ khoá hot', icon: <FireOutlined aria-hidden />, permission: P.HotKeywordManage },
+    ],
+  },
+  {
+    group: 'Hệ thống',
+    items: [
+      { path: '/nganh-hang', label: 'Ngành hàng', icon: <AppstoreOutlined aria-hidden />, permission: P.CategoryManage },
+      { path: '/noi-dung', label: 'Nội dung & mẫu tin', icon: <FileTextOutlined aria-hidden />, permission: P.ContentManage },
+      { path: '/tham-so', label: 'Tham số hệ thống', icon: <SettingOutlined aria-hidden />, permission: P.SystemParameterView },
+      { path: '/kiem-tra-mo-ban', label: 'Kiểm tra trước khi mở bán', icon: <SafetyCertificateOutlined aria-hidden />, permission: P.SystemParameterView },
+      { path: '/vai-tro', label: 'Vai trò & quyền', icon: <KeyOutlined aria-hidden />, permission: P.RoleView },
+      { path: '/nhat-ky', label: 'Nhật ký thao tác', icon: <FileSearchOutlined aria-hidden />, permission: P.AuditLogView },
+      { path: '/nha-cung-cap', label: 'Vận chuyển & cổng thanh toán', icon: <CarOutlined aria-hidden />, permission: P.ProviderManage },
+      { path: '/viec-nen', label: 'Việc nền', icon: <ScheduleOutlined aria-hidden />, permission: P.JobDashboardView },
+    ],
+  },
+]
+
+const ENTRIES = MENU.flatMap((g) => g.items)
 
 const Forbidden = () => <Result status="403" title="Không có quyền" subTitle="Bạn không có quyền truy cập trang này." />
 
@@ -65,10 +95,13 @@ const Shell = () => {
   const location = useLocation()
   const queryClient = useQueryClient()
   const { user, clear } = useAuthStore()
+  const { mode, toggle } = useThemeMode()
   const me = useQuery({ queryKey: ['me'], queryFn: adminApi.me })
   const perms = me.data?.permissions ?? []
-  const items = MENU.filter((m) => m.permission === null || can(perms, m.permission))
+  const allowed = (m: MenuEntry) => (m.anyOf ? m.anyOf.some((c) => can(perms, c)) : m.permission === null || can(perms, m.permission))
+  const groups = MENU.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length > 0)
   const guard = (permission: string, element: JSX.Element) => (can(perms, permission) ? element : <Forbidden />)
+  const current = ENTRIES.find((m) => m.path !== '/' && (location.pathname === m.path || location.pathname.startsWith(`${m.path}/`)))?.path ?? '/'
 
   const logout = async () => {
     await adminApi.logout().catch(() => undefined)
@@ -84,25 +117,59 @@ const Shell = () => {
     )
   }
 
+  const themeLabel = mode === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'
+  const roles = me.data?.permissions.includes('*') ? 'Toàn quyền' : me.data?.roles.join(', ')
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={230} theme="light" breakpoint="lg" collapsedWidth={0}>
-        <Typography.Title level={4} className="brand">ShopHub</Typography.Title>
+      <Sider width={232} theme="light" breakpoint="lg" collapsedWidth={0} className="app-sider">
+        <div className="brand"><BrandMark /></div>
         <Menu
           mode="inline"
-          selectedKeys={[items.filter((m) => m.path !== '/' && (location.pathname === m.path || location.pathname.startsWith(`${m.path}/`))).map((m) => m.path)[0] ?? '/']}
-          items={items.map((m) => ({ key: m.path, label: m.label }))}
+          selectedKeys={[current]}
+          items={groups.map((g) => ({
+            type: 'group' as const,
+            key: g.group,
+            label: g.group,
+            children: g.items.map((m) => ({ key: m.path, label: m.label, icon: m.icon })),
+          }))}
           onClick={(e) => navigate(e.key)}
           data-testid="admin-menu"
         />
       </Sider>
       <Layout>
         <Header className="app-header">
-          <Typography.Text strong>Quản Trị Sàn</Typography.Text>
-          <Space>
-            <Typography.Text>{user?.fullName}</Typography.Text>
-            <Button size="small" onClick={() => navigate('/doi-mat-khau')}>Đổi mật khẩu</Button>
-            <Button size="small" onClick={logout} data-testid="logout">Đăng xuất</Button>
+          <span className="app-header-title">
+            {location.pathname === '/doi-mat-khau' ? 'Đổi mật khẩu' : (
+              <>
+                <span className="app-header-group">{MENU.find((g) => g.items.some((m) => m.path === current))?.group}</span>
+                <RightOutlined aria-hidden className="app-header-sep" />
+                {ENTRIES.find((m) => m.path === current)?.label}
+              </>
+            )}
+          </span>
+          <Space size="small">
+            <Tooltip title={themeLabel}>
+              <Button type="text" shape="circle" icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />} onClick={toggle}
+                aria-label={themeLabel} data-testid="theme-toggle" />
+            </Tooltip>
+            <Dropdown trigger={['click']} placement="bottomRight"
+              menu={{
+                items: [
+                  { key: 'who', disabled: true, label: <span className="user-menu-who"><b>{user?.fullName}</b>{roles && <small>{roles}</small>}</span> },
+                  { type: 'divider' },
+                  { key: 'password', icon: <LockOutlined aria-hidden />, label: 'Đổi mật khẩu', onClick: () => navigate('/doi-mat-khau') },
+                  { key: 'logout', icon: <LogoutOutlined aria-hidden />, danger: true, label: <span data-testid="logout">Đăng xuất</span>, onClick: () => void logout() },
+                ],
+              }}>
+              <Button type="text" className="user-menu-trigger" data-testid="user-menu" aria-label="Tài khoản">
+                <Avatar size="small" className="user-avatar">{(user?.fullName ?? '?').trim().charAt(0).toUpperCase()}</Avatar>
+                <span className="user-menu-text">
+                  <span className="user-menu-name">{user?.fullName}</span>
+                  {roles && <span className="user-menu-role">{roles}</span>}
+                </span>
+                <DownOutlined className="user-menu-caret" />
+              </Button>
+            </Dropdown>
           </Space>
         </Header>
         <Content className="app-content">
@@ -126,6 +193,7 @@ const Shell = () => {
             <Route path="/nguoi-dung" element={guard(P.UserView, <UsersPage permissions={perms} />)} />
             <Route path="/vai-tro" element={guard(P.RoleView, <RolesPage permissions={perms} />)} />
             <Route path="/tham-so" element={guard(P.SystemParameterView, <ParametersPage permissions={perms} />)} />
+            <Route path="/kiem-tra-mo-ban" element={guard(P.SystemParameterView, <LaunchChecklistPage />)} />
             <Route path="/nhat-ky" element={guard(P.AuditLogView, <AuditLogsPage />)} />
             <Route path="/viec-nen" element={guard(P.JobDashboardView, <JobsPage permissions={perms} />)} />
             <Route path="/doi-mat-khau" element={<ChangePasswordPage forced={false} />} />

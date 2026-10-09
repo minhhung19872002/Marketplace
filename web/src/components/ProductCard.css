@@ -88,16 +88,15 @@
   position: absolute;
   right: 0;
   bottom: 0;
-  max-width: 55%;
-  overflow: hidden;
+  max-width: 100%;
   padding: 2px 6px;
   border-top-left-radius: var(--sh-radius-sm);
   background: var(--sh-primary-dark);
   color: var(--sh-on-primary);
   font-size: 10px;
   font-weight: 600;
+  line-height: 1.4;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .product-card-flash {
@@ -141,6 +140,11 @@
 .product-card-heart.liked,
 .product-card-heart:hover {
   color: var(--sh-primary);
+}
+
+/* The heart sits above the campaign chip, never on top of it (G4-A2: "10.10" was hidden on phones) */
+.product-card-campaign ~ .product-card-heart {
+  bottom: 26px;
 }
 
 /* Touch screens have no hover: keep the heart reachable */
@@ -210,15 +214,8 @@
 }
 
 .product-card-sold {
+  margin-left: auto;
   white-space: nowrap;
-}
-
-.pc-no-rating {
-  font-size: 11px;
-  color: var(--sh-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .product-card-location {

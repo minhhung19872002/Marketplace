@@ -47,6 +47,14 @@ public sealed class ReportsAdminController : ApiControllerBase
 [Route("api/admin")]
 public sealed class PlatformAdminController : ApiControllerBase
 {
+    // ---------- launch checklist (G4-D) ----------
+
+    /// <summary>"Kiểm tra trước khi mở bán": every item measured on the running system; Ready = all blocking items pass.</summary>
+    [HttpGet("launch-checklist")]
+    [RequirePermission(Permissions.SystemParameterView)]
+    [ProducesResponseType<ApiResponse<LaunchChecklistDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> LaunchChecklist(CancellationToken ct) => OkData(await Sender.Send(new LaunchChecklistQuery(), ct));
+
     // ---------- users ----------
 
     [HttpGet("users/{id:guid}")]

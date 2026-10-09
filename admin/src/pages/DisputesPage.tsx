@@ -1,10 +1,14 @@
 import { useState } from 'react'
-import { App, Button, Card, Descriptions, Drawer, Form, Image, Input, InputNumber, Radio, Space, Switch, Table, Tabs, Tag, Timeline } from 'antd'
+import { App, Button, Descriptions, Drawer, Form, Image, Input, InputNumber, Radio, Segmented, Space, Switch, Table, Tag, Timeline } from 'antd'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { aftercareApi, type DisputeInfo } from '../api/aftercare'
 import { ApiError } from '../api/http'
 import { formatPrice } from '../lib/money'
 import { formatDateTime } from '../lib/datetime'
+import { RETURN_STATUS } from '../lib/status'
+import DataTable from '../components/DataTable'
+import RowActions from '../components/RowActions'
+import StatusTag from '../components/StatusTag'
 
 interface DecideValues {
   decision: 'FavorBuyer' | 'FavorShop'
@@ -105,27 +109,41 @@ const DisputesPage = () => {
   const list = useQuery({ queryKey: ['disputes', open, page], queryFn: () => aftercareApi.disputes(open, page), placeholderData: keepPreviousData })
   const item = list.data?.items.find((d) => d.id === selected)
   return (
-    <Card title="Khiếu nại trả hàng / hoàn tiền">
-      <Tabs activeKey={open ? 'open' : 'closed'} onChange={(k) => { setOpen(k === 'open'); setPage(1) }}
-        items={[{ key: 'open', label: 'Chờ phân xử' }, { key: 'closed', label: 'Đã phân xử' }]} />
-      <Table<DisputeInfo>
+    <>
+      <DataTable<DisputeInfo>
+        header={{ title: 'Khiếu nại trả hàng', description: 'Sàn phân xử khi shop từ chối yêu cầu trả hàng / hoàn tiền; tiền hoàn theo phần người mua đã trả sau giảm giá' }}
+        filters={(
+          <Segmented value={open ? 'open' : 'closed'} onChange={(k) => { setOpen(k === 'open'); setPage(1) }}
+            options={[{ value: 'open', label: 'Chờ phân xử' }, { value: 'closed', label: 'Đã phân xử' }]} />
+        )}
         rowKey="id"
-        loading={list.isLoading}
+        loading={list.isPending}
+        fetching={list.isFetching && !list.isPending}
+        error={list.error}
         dataSource={list.data?.items ?? []}
-        onRow={(d) => ({ onClick: () => setSelected(d.id), style: { cursor: 'pointer' } })}
-        pagination={list.data && list.data.totalCount > list.data.pageSize
-          ? { current: page, pageSize: list.data.pageSize, total: list.data.totalCount, onChange: setPage } : false}
+        emptyText={open ? 'Không có khiếu nại nào chờ phân xử' : 'Chưa có khiếu nại nào được phân xử'}
+        onRow={(d) => ({ onClick: () => setSelected(d.id), className: 'ant-table-row-clickable' })}
+        paging={{ page, pageSize: list.data?.pageSize ?? 20, total: list.data?.totalCount, onChange: setPage }}
         columns={[
-          { title: 'Mã', dataIndex: 'code', render: (c: string) => <span data-testid="dispute-row">{c}</span> },
-          { title: 'Đơn', dataIndex: 'orderCode' },
-          { title: 'Shop', dataIndex: 'shopName' },
-          { title: 'Yêu cầu hoàn', dataIndex: 'requestedAmount', render: (v: number) => formatPrice(v) },
-          { title: 'Trạng thái', dataIndex: 'statusLabel', render: (s: string) => <Tag>{s}</Tag> },
-          { title: 'Ngày tạo', dataIndex: 'createdAt', render: (v: string) => formatDateTime(v) },
+          { title: 'Mã', dataIndex: 'code', render: (c: string) => <span className="cell-main" data-testid="dispute-row">{c}</span> },
+          { title: 'Đơn / shop', render: (_, d) => <><span>{d.orderCode}</span><span className="cell-sub">{d.shopName}</span></> },
+          { title: 'Hình thức', dataIndex: 'type', render: (t: DisputeInfo['type']) => (t === 'RefundOnly' ? 'Chỉ hoàn tiền' : 'Trả hàng & hoàn tiền') },
+          { title: 'Yêu cầu hoàn', dataIndex: 'requestedAmount', align: 'right', render: (v: number) => <span className="cell-money">{formatPrice(v)}</span> },
+          { title: 'Trạng thái', dataIndex: 'status', render: (s: string, d) => <StatusTag map={RETURN_STATUS} value={s} label={d.statusLabel} /> },
+          { title: 'Ngày tạo', dataIndex: 'createdAt', render: (v: string) => <span className="cell-nowrap">{formatDateTime(v)}</span> },
+          {
+            title: '', key: 'actions', align: 'right',
+            render: (_, d) => (
+              <RowActions name={d.code}
+                primary={<Button size="small" type={d.status === 'Disputed' ? 'primary' : 'default'} onClick={() => setSelected(d.id)}>
+                  {d.status === 'Disputed' ? 'Phân xử' : 'Xem'}
+                </Button>} />
+            ),
+          },
         ]}
       />
       {item && <DisputeDrawer item={item} onClose={() => setSelected(null)} />}
-    </Card>
+    </>
   )
 }
 

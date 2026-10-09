@@ -34,7 +34,8 @@ export interface PlatformVoucher extends Omit<PlatformVoucherInput, 'audience'> 
 }
 
 export const promoApi = {
-  vouchers: (q: string) => apiRequest<{ items: PlatformVoucher[]; totalCount: number }>(`/admin/vouchers?pageSize=100${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+  vouchers: (q: string, page = 1, pageSize = 20) =>
+    apiRequest<{ items: PlatformVoucher[]; totalCount: number }>(`/admin/vouchers?page=${page}&pageSize=${pageSize}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
   createVoucher: (body: PlatformVoucherInput) => apiCommand<PlatformVoucher>('/admin/vouchers', { method: 'POST', body }),
   stopVoucher: (id: string) => apiCommand<PlatformVoucher>(`/admin/vouchers/${id}/stop`, { method: 'POST' }),
   grantCoins: (userId: string, delta: number, reason: string) =>

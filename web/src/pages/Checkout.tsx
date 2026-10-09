@@ -132,7 +132,7 @@ const Checkout = () => {
   return (
     <div className="checkout-page">
       <div className="container">
-        <h1 className="checkout-title">Thanh Toán</h1>
+        <h1 className="checkout-title">Thanh toán</h1>
 
         {error && <div className="checkout-error" role="alert" data-testid="checkout-error">{error}</div>}
         {quote.problems.length > 0 && (
@@ -145,7 +145,7 @@ const Checkout = () => {
           <div className="checkout-main">
             {/* Envelope-striped address card (G2-B4); "Thay đổi" opens the address book */}
             <div className="checkout-box checkout-address" data-testid="checkout-address">
-              <h2 className="checkout-box-title"><MapPin size={18} aria-hidden /> Địa Chỉ Nhận Hàng</h2>
+              <h2 className="checkout-box-title"><MapPin size={18} aria-hidden /> Địa chỉ nhận hàng</h2>
               {quote.address ? (
                 <div className="checkout-address-current">
                   <strong>{quote.address.receiverName} · {quote.address.phone}</strong>
@@ -269,7 +269,7 @@ const Checkout = () => {
             </div>
 
             <div className="checkout-box">
-              <h2 className="checkout-box-title"><CreditCard size={18} aria-hidden /> Phương Thức Thanh Toán</h2>
+              <h2 className="checkout-box-title"><CreditCard size={18} aria-hidden /> Phương thức thanh toán</h2>
               <div className="checkout-methods" role="radiogroup" aria-label="Phương thức thanh toán">
                 {quote.paymentMethods.map((m) => {
                   const Icon = METHOD_ICONS[m.code] ?? CreditCard;
@@ -308,7 +308,7 @@ const Checkout = () => {
 
           {/* Summary on the right on wide screens; on phones it follows the page and "Đặt hàng" sticks to the bottom */}
           <aside className="checkout-box checkout-summary" data-testid="checkout-summary" aria-label="Tóm tắt đơn hàng">
-            <h2 className="checkout-box-title">Chi Tiết Thanh Toán</h2>
+            <h2 className="checkout-box-title">Chi tiết thanh toán</h2>
             <div className="checkout-summary-row"><span>Tổng tiền hàng ({itemCount} sản phẩm)</span><span>{formatPrice(quote.subtotal)}</span></div>
             <div className="checkout-summary-row"><span>Tổng tiền phí vận chuyển</span><span>{formatPrice(quote.shippingFee)}</span></div>
             {quote.shippingDiscount > 0 && <div className="checkout-summary-row"><span>Giảm giá phí vận chuyển</span><span>−{formatPrice(quote.shippingDiscount)}</span></div>}
@@ -333,7 +333,7 @@ const Checkout = () => {
             <div className="checkout-place-bar">
               <span className="checkout-place-bar-total">Tổng: <strong>{formatPrice(quote.grandTotal)}</strong></span>
               <button type="button" className="checkout-place" onClick={place} disabled={placeDisabled} data-testid="place-order">
-                {placing ? 'Đang đặt hàng…' : 'Đặt Hàng'}
+                {placing ? 'Đang đặt hàng…' : 'Đặt hàng'}
               </button>
             </div>
           </aside>
@@ -358,7 +358,7 @@ const AddressDialog = ({ addresses, current, onPick, onClose }: { addresses: Add
       <button type="button" className="voucher-dialog-backdrop" aria-label="Đóng" tabIndex={-1} onClick={onClose} />
       <div className="voucher-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="address-dialog-title" ref={panel} data-testid="address-dialog">
         <div className="voucher-dialog-head">
-          <h2 id="address-dialog-title">Địa Chỉ Của Tôi</h2>
+          <h2 id="address-dialog-title">Địa chỉ của tôi</h2>
           <button type="button" className="voucher-dialog-close" onClick={onClose} aria-label="Đóng"><X size={20} aria-hidden /></button>
         </div>
         <div className="voucher-dialog-list" role="radiogroup" aria-label="Địa chỉ nhận hàng">

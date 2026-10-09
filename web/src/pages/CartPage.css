@@ -253,6 +253,19 @@
   margin-bottom: 16px;
 }
 
+.cart-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 12px;
+}
+
+.cart-empty-btn.cart-empty-btn--outline {
+  border: 1px solid var(--sh-primary);
+  background: var(--sh-surface);
+  color: var(--sh-primary);
+}
+
 .cart-empty-btn {
   display: inline-block;
   margin-top: 20px;

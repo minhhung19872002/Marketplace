@@ -178,6 +178,18 @@ dịch vụ, log `json-file` xoay vòng (5 × 20 MB), output cache trang ngườ
 `deploy/nginx/gateway-https.conf` sinh từ `gateway.conf` và phải định tuyến y hệt — phép thử
 `The_https_gateway_routes_exactly_like_the_dev_gateway` và `NginxConfigParityTests` canh chuyện này.
 
+## Triển khai lên VM demo (shophub.bluestar.com.vn)
+
+`deploy/scripts/deploy-vm.sh` chạy từ máy dev, ở gốc repo: đóng gói commit hiện tại (`git archive`), rsync lên
+`~/apps/shophub` (không đè `.env`, `docker-compose.vm.yml`, `deploy/nginx/realip.conf`, `seed-accounts.txt`, `backups/`), build
+4 ảnh, `up -d`, tạo lại gateway, nối lại Caddy, chờ `/health/ready`.
+
+- **Mặc định giữ dữ liệu**: CSDL, MinIO, Meilisearch giữ nguyên, người đang đăng nhập không bị đăng xuất (L172).
+- `--reseed`: xoá mọi volume và nạp lại dữ liệu mẫu — chỉ khi dữ liệu mẫu đổi (mẫu sản phẩm, ảnh, bộ gieo). Script tự đặt
+  `SITE.PUBLIC_URL` và ghi mật khẩu mẫu mới vào `~/apps/shophub/seed-accounts.txt` (quyền 600).
+
+Trước khi bán thật: docs/09 (danh sách kiểm, chế độ `SITE.MODE`).
+
 ## Sao lưu & phục hồi
 
 | Gì | Làm gì | Ở đâu |
@@ -191,6 +203,8 @@ Chép `./backups` ra ngoài máy (rsync / object storage khác vùng) — bản 
 Phục hồi: `deploy/scripts/restore.sh backups/db/<tệp>.dump [--files]` — hỏi xác nhận (gõ `dong y`), dừng API,
 `pg_restore --clean`, tuỳ chọn chép lại tệp vào MinIO, bật API (API tự dựng lại chỉ mục Meilisearch khi số tài liệu lệch
 CSDL). Đã diễn tập trên CSDL dev: 489 đơn, 1.096 sản phẩm, tổng sổ cái 35.146.840 ₫ khớp trước / sau khôi phục.
+
+Diễn tập không đụng dữ liệu thật: `deploy/scripts/backup-drill.sh` (sao lưu → phục hồi vào CSDL tạm → so 11 chỉ số → sao / phục hồi thử MinIO vào bucket tạm). Với compose khác bản production đặt `SH_COMPOSE`, ví dụ trên VM: `SH_COMPOSE="docker compose -f docker-compose.yml -f docker-compose.vm.yml" deploy/scripts/backup-drill.sh`. `restore.sh` cũng đọc `SH_COMPOSE` và nhận `--yes` cho diễn tập có kịch bản.
 
 ## Giám sát
 

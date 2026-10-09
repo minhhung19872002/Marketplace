@@ -117,9 +117,18 @@ export const darkTheme: ThemeConfig = {
     borderRadius: radius.md,
     borderRadiusLG: radius.lg,
     borderRadiusSM: radius.sm,
+    // Secondary / hint / empty-state text at 4.5:1 or more on #000 and #141414 (G4-A: axe found 2.2–4.4:1 in dark mode)
+    colorTextSecondary: 'rgba(255, 255, 255, 0.68)',
+    colorTextTertiary: 'rgba(255, 255, 255, 0.62)',
+    colorTextDescription: 'rgba(255, 255, 255, 0.62)',
+    colorTextPlaceholder: 'rgba(255, 255, 255, 0.55)',
+    colorTextQuaternary: 'rgba(255, 255, 255, 0.55)',
+    colorTextDisabled: 'rgba(255, 255, 255, 0.5)',
     fontFamily: "'Be Vietnam Pro', Inter, system-ui, sans-serif",
   },
   components: {
+    // Selected tab text in the light tint: the AA brand colour is only 2.9:1 on the dark surface
+    Tabs: { itemSelectedColor: '#f07a55', itemActiveColor: '#f07a55', itemHoverColor: '#ff9c7a', inkBarColor: '#f07a55' },
     Layout: { headerBg: '#141414', siderBg: '#141414', bodyBg: '#000' },
     Menu: { itemSelectedBg: '#3a1d14', itemSelectedColor: '#f07a55', itemBorderRadius: radius.md, darkItemBg: '#141414' },
     Card: { borderRadiusLG: radius.lg },

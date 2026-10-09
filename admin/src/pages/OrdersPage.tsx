@@ -1,16 +1,20 @@
 import { useState } from 'react'
-import { App, Button, Card, Checkbox, Descriptions, Drawer, Input, InputNumber, Modal, Select, Space, Table, Tag, Timeline, Typography } from 'antd'
+import { App, Button, Checkbox, Descriptions, Drawer, Input, InputNumber, Modal, Select, Space, Table, Timeline, Typography } from 'antd'
+import { CopyOutlined, StopOutlined } from '@ant-design/icons'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../api/http'
 import { platformApi, type AdminOrderRow } from '../api/platform'
 import { P, can } from '../permissions'
 import { formatDateTime } from '../lib/datetime'
 import { formatPrice } from '../lib/money'
+import { ORDER_PAYMENT_STATUS, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, REFUND_STATUS } from '../lib/status'
+import DataTable from '../components/DataTable'
+import RowActions from '../components/RowActions'
+import StatusTag from '../components/StatusTag'
 
-const STATUS: Record<string, string> = {
-  PendingPayment: 'Chờ thanh toán', PendingConfirmation: 'Chờ xác nhận', ReadyToShip: 'Chờ lấy hàng', Shipping: 'Đang giao', Delivered: 'Đã giao',
-  Completed: 'Hoàn thành', Cancelled: 'Đã huỷ', DeliveryFailed: 'Giao thất bại', Returning: 'Đang hoàn về', Returned: 'Đã hoàn về',
-}
+const STATUS: Record<string, string> = Object.fromEntries(Object.entries(ORDER_STATUS).map(([k, v]) => [k, v.label]))
+// The admin may cancel only before the parcel leaves the shop
+const CANCELLABLE = ['PendingConfirmation', 'ReadyToShip']
 
 const ACTOR: Record<string, string> = { Buyer: 'Người mua', Seller: 'Shop', Admin: 'Sàn', System: 'Hệ thống', Carrier: 'Vận chuyển', Gateway: 'Cổng thanh toán' }
 
@@ -31,6 +35,7 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
   const intervene = can(permissions, P.OrderIntervene)
 
   const list = useQuery({ queryKey: ['admin-orders', q, status, page], queryFn: () => platformApi.orders({ q, status, page }), placeholderData: keepPreviousData })
+  const copyCode = (c: string) => navigator.clipboard.writeText(c).then(() => message.success(`Đã sao chép ${c}`), () => message.error('Không sao chép được.'))
   const detail = useQuery({ queryKey: ['admin-order', code], queryFn: () => platformApi.order(code!), enabled: !!code })
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
@@ -61,30 +66,60 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
     : 0
 
   return (
-    <Card title="Đơn hàng toàn sàn">
-      <Space wrap style={{ marginBottom: 12 }}>
-        <Input.Search allowClear placeholder="Mã đơn, mã vận đơn, SĐT / tên người mua, tên shop" style={{ width: 380 }}
-          onSearch={(v) => { setQ(v); setPage(1) }} data-testid="order-search" />
-        <Select allowClear placeholder="Trạng thái" style={{ width: 180 }} value={status} onChange={(v) => { setStatus(v); setPage(1) }}
-          options={Object.entries(STATUS).map(([value, label]) => ({ value, label }))} />
-      </Space>
-      <Table<AdminOrderRow> rowKey="id" loading={list.isLoading} dataSource={list.data?.items ?? []}
-        pagination={{ current: page, pageSize: 20, total: list.data?.totalCount ?? 0, onChange: setPage }}
-        onRow={(r) => ({ onClick: () => setCode(r.code), style: { cursor: 'pointer' } })}
+    <>
+      <DataTable<AdminOrderRow>
+        header={{ title: 'Đơn hàng', description: 'Tra cứu mọi đơn trên sàn, xem lịch sử, thanh toán, vận đơn và can thiệp khi cần' }}
+        search={{ value: q, onSearch: (v) => { setQ(v); setPage(1) }, placeholder: 'Mã đơn, mã vận đơn, SĐT / tên người mua, tên shop', testId: 'order-search', width: 380 }}
+        filters={(
+          <Select allowClear placeholder="Trạng thái" style={{ width: 180 }} value={status} onChange={(v) => { setStatus(v); setPage(1) }}
+            aria-label="Lọc theo trạng thái" options={Object.entries(STATUS).map(([value, label]) => ({ value, label }))} />
+        )}
+        onReset={() => { setQ(''); setStatus(undefined); setPage(1) }}
+        rowKey="id"
+        loading={list.isPending}
+        fetching={list.isFetching && !list.isPending}
+        error={list.error}
+        emptyText="Không có đơn hàng phù hợp"
+        dataSource={list.data?.items ?? []}
+        paging={{ page, pageSize: 20, total: list.data?.totalCount, onChange: setPage }}
+        onRow={(r) => ({ onClick: () => setCode(r.code), className: 'ant-table-row-clickable' })}
         columns={[
-          { title: 'Mã đơn', dataIndex: 'code' },
-          { title: 'Shop', dataIndex: 'shopName' },
-          { title: 'Người mua', dataIndex: 'buyerName' },
-          { title: 'Trạng thái', dataIndex: 'status', render: (s: string) => <Tag>{STATUS[s] ?? s}</Tag> },
-          { title: 'Thanh toán', render: (_, r) => `${r.paymentMethod} · ${r.paymentStatus}` },
-          { title: 'Tổng', dataIndex: 'grandTotal', align: 'right', render: (v: number) => formatPrice(v) },
-          { title: 'Đặt lúc', dataIndex: 'createdAt', render: (v: string) => formatDateTime(v) },
+          { title: 'Mã đơn', dataIndex: 'code', render: (v: string) => <span className="cell-main">{v}</span> },
+          { title: 'Shop / người mua', render: (_, r) => <><span className="cell-main">{r.shopName}</span><span className="cell-sub">{r.buyerName}</span></> },
+          { title: 'Trạng thái', dataIndex: 'status', render: (s: string) => <StatusTag map={ORDER_STATUS} value={s} /> },
+          {
+            title: 'Thanh toán',
+            render: (_, r) => (
+              <Space size={6}>
+                <span className="cell-nowrap">{PAYMENT_METHOD[r.paymentMethod] ?? r.paymentMethod}</span>
+                <StatusTag map={ORDER_PAYMENT_STATUS} value={r.paymentStatus} />
+              </Space>
+            ),
+          },
+          { title: 'Tổng', dataIndex: 'grandTotal', align: 'right', render: (v: number) => <span className="cell-money">{formatPrice(v)}</span> },
+          { title: 'Đặt lúc', dataIndex: 'createdAt', render: (v: string) => <span className="cell-nowrap">{formatDateTime(v)}</span> },
+          {
+            title: '', key: 'actions', align: 'right', fixed: 'right',
+            render: (_, r) => (
+              <RowActions name={r.code}
+                primary={<Button size="small" onClick={() => setCode(r.code)}>Chi tiết</Button>}
+                items={[
+                  { key: 'copy', icon: <CopyOutlined aria-hidden />, label: 'Sao chép mã đơn', onClick: () => copyCode(r.code) },
+                  {
+                    key: 'cancel', icon: <StopOutlined aria-hidden />, label: 'Huỷ đơn (can thiệp)', danger: true,
+                    hidden: !intervene || !CANCELLABLE.includes(r.status),
+                    // Opens the order with the reason dialog on top: the reason is the confirmation
+                    onClick: () => { setCode(r.code); setCancelReason('') },
+                  },
+                ]} />
+            ),
+          },
         ]} />
 
       <Drawer open={!!code} onClose={() => setCode(null)} width={760} title={`Đơn ${code ?? ''}`} destroyOnClose
         extra={intervene && d && (
           <Space>
-            {['PendingConfirmation', 'ReadyToShip'].includes(d.order.status) && (
+            {CANCELLABLE.includes(d.order.status) && (
               <Button danger onClick={() => setCancelReason('')} data-testid="admin-cancel-order" data-confirm="dialog">Huỷ đơn (can thiệp)</Button>
             )}
             {['Delivered', 'Completed'].includes(d.order.status) && d.lines.some((l) => l.refundable > 0) && (
@@ -99,8 +134,10 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
             <Descriptions column={2} size="small" bordered>
               <Descriptions.Item label="Shop">{d.order.shopName}</Descriptions.Item>
               <Descriptions.Item label="Người mua">{d.order.buyerName}</Descriptions.Item>
-              <Descriptions.Item label="Trạng thái">{STATUS[d.order.status] ?? d.order.status}</Descriptions.Item>
-              <Descriptions.Item label="Thanh toán">{d.order.paymentMethod} · {d.order.paymentStatus}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái"><StatusTag map={ORDER_STATUS} value={d.order.status} /></Descriptions.Item>
+              <Descriptions.Item label="Thanh toán">
+                <Space size={6}>{PAYMENT_METHOD[d.order.paymentMethod] ?? d.order.paymentMethod}<StatusTag map={ORDER_PAYMENT_STATUS} value={d.order.paymentStatus} /></Space>
+              </Descriptions.Item>
               <Descriptions.Item label="Tiền hàng">{formatPrice(d.subtotal)}</Descriptions.Item>
               <Descriptions.Item label="Giảm giá">−{formatPrice(d.shopDiscount + d.platformDiscount + d.shippingDiscount + d.coinUsed)}</Descriptions.Item>
               <Descriptions.Item label="Phí vận chuyển">{formatPrice(d.shippingFee)}</Descriptions.Item>
@@ -125,8 +162,8 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
               <Typography.Title level={5}>Thanh toán & hoàn tiền</Typography.Title>
               <Table size="small" rowKey="id" pagination={false} dataSource={d.payments}
                 columns={[
-                  { title: 'Cổng', dataIndex: 'method' },
-                  { title: 'Trạng thái', dataIndex: 'status' },
+                  { title: 'Cổng', dataIndex: 'method', render: (v: string) => PAYMENT_METHOD[v] ?? v },
+                  { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <StatusTag map={PAYMENT_STATUS} value={v} /> },
                   { title: 'Số tiền', dataIndex: 'amount', align: 'right', render: (v: number) => formatPrice(v) },
                   { title: 'Mã giao dịch', dataIndex: 'providerTxnId' },
                   { title: 'Lúc', dataIndex: 'createdAt', render: (v: string) => formatDateTime(v) },
@@ -134,7 +171,7 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
               <Table size="small" rowKey="id" pagination={false} dataSource={d.refunds} style={{ marginTop: 8 }} data-testid="admin-refunds"
                 columns={[
                   { title: 'Hoàn về', dataIndex: 'destination', render: (v: string) => (v === 'Wallet' ? 'Ví ShopHub' : 'Cổng thanh toán') },
-                  { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <Tag color={v === 'Failed' ? 'red' : v === 'Succeeded' ? 'green' : 'gold'}>{v}</Tag> },
+                  { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <StatusTag map={REFUND_STATUS} value={v} /> },
                   { title: 'Số tiền', dataIndex: 'amount', align: 'right', render: (v: number) => formatPrice(v) },
                   { title: 'Lý do', dataIndex: 'reason' },
                   {
@@ -199,7 +236,7 @@ const OrdersPage = ({ permissions }: { permissions: string[] }) => {
         okButtonProps={{ disabled: !refund?.reason.trim() }} confirmLoading={resolve.isPending} onCancel={() => setRefund(null)} onOk={() => resolve.mutate()}>
         <Input.TextArea rows={3} value={refund?.reason ?? ''} onChange={(e) => setRefund((r) => (r ? { ...r, reason: e.target.value } : r))} placeholder="Lý do" />
       </Modal>
-    </Card>
+    </>
   )
 }
 

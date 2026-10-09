@@ -84,7 +84,7 @@ const HomePage = () => {
                 disabled={recommendations.isFetchingNextPage}
                 data-testid="load-more"
               >
-                {recommendations.isFetchingNextPage ? 'Đang tải…' : 'Xem Thêm'}
+                {recommendations.isFetchingNextPage ? 'Đang tải…' : 'Xem thêm'}
               </button>
             </div>
           )}

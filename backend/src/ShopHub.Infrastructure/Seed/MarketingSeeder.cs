@@ -170,36 +170,29 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
 
         if (!await db.FlashSaleSlots.AnyAsync(ct))
         {
-            // Running: started a little before now, ends at the next 3-hour mark (Vietnam time); then back-to-back 3-hour
-            // slots for the next 7 days, so the demo home page keeps a live Flash Sale long after the seed (G3, decision #191)
+            // Running now: started a little before now, ends at the next 3-hour mark (Vietnam time), with sample buyers'
+            // orders (OrderSampleSeeder). The slots after it are opened — and, in demo mode, filled — by FlashAutoOpener,
+            // the hourly job that keeps the Flash Sale going after the seed (G4-C; replaces the seven days of G3, #191)
             var local = now.ToOffset(Vn);
             var end = new DateTimeOffset(local.Year, local.Month, local.Day, local.Hour, 0, 0, Vn).AddHours(3 - local.Hour % 3).ToUniversalTime();
-            var slots = new List<FlashSaleSlot> { new(FlashSaleOwner.Platform, null, now.AddMinutes(-10), end, 0, 0, [], now) };
-            for (var start = end; start < now.AddDays(7); start = start.AddHours(3))
-                slots.Add(new FlashSaleSlot(FlashSaleOwner.Platform, null, start, start.AddHours(3), 2_000, 0, [], now));
-            db.FlashSaleSlots.AddRange(slots);
-            var pool = products.Where(p => p.Sku is not null).Take(12).ToList();
+            var running = new FlashSaleSlot(FlashSaleOwner.Platform, null, now.AddMinutes(-10), end, 0, 0, [], now);
+            db.FlashSaleSlots.Add(running);
             var n = 0;
-            for (var s = 0; s < slots.Count; s++)
+            foreach (var p in products.Where(p => p.Sku is not null).Take(6))
             {
-                // Six items per slot, rotating through the pool (consecutive slots never share a SKU, so the price
-                // programmes never overlap)
-                for (var j = 0; j < Math.Min(6, pool.Count); j++)
-                {
-                    var p = pool[(s * 6 + j) % pool.Count];
-                    n++;
-                    // Never more units than the stock can deliver
-                    var quota = Math.Min(20 + (j + 1) * 5, p.Sku!.Available);
-                    // Discounts from 10 % to 50 % (not one flat rate)
-                    var off = 10 + (s + j + 1) * 17 % 41;
-                    var item = new FlashSaleItem(slots[s].Id, p.Sku.Id, p.Id, p.ShopId, Math.Max(1_000, p.Sku.Price * (100 - off) / 100 / 1_000 * 1_000), quota, 2, now);
-                    item.Approve(now);
-                    db.FlashSaleItems.Add(item);
-                    db.PricePrograms.Add(new PriceProgram(item.SkuId, item.ShopId, PriceProgramKind.PlatformFlash, item.Id, item.FlashPrice, slots[s].StartAt, slots[s].EndAt));
-                }
+                n++;
+                // Never more units than the stock can deliver; discounts from 10 % to 50 % (not one flat rate)
+                var quota = Math.Min(20 + n * 5, p.Sku!.Available);
+                var off = 10 + n * 17 % 41;
+                var item = new FlashSaleItem(running.Id, p.Sku.Id, p.Id, p.ShopId, Math.Max(1_000, p.Sku.Price * (100 - off) / 100 / 1_000 * 1_000), quota, 2, now);
+                item.Approve(now);
+                db.FlashSaleItems.Add(item);
+                db.PricePrograms.Add(new PriceProgram(item.SkuId, item.ShopId, PriceProgramKind.PlatformFlash, item.Id, item.FlashPrice, running.StartAt, running.EndAt));
             }
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("SEED flash sale: {Slots} slots over 7 days, {Items} items", slots.Count, n);
+            await using var scope = services.CreateAsyncScope();
+            var ahead = await scope.ServiceProvider.GetRequiredService<Application.Features.Marketing.FlashAutoOpener>().RunAsync(ct);
+            logger.LogInformation("SEED flash sale: running slot with {Items} items; {Opened} slots opened ahead, {Filled} filled", n, ahead.Opened, ahead.Filled);
         }
 
         if (!await db.Banners.AnyAsync(ct))
@@ -220,7 +213,13 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
 
         if (!await db.Campaigns.AnyAsync(ct))
         {
-            db.Campaigns.Add(new Campaign("Siêu Sale 10.10", "sieu-sale-10-10", now.AddMinutes(-1), now.AddMonths(2),
+            // Fixed dates, like a real 10.10 sale: 08/10 – 12/10 (Vietnam time) of this year, or of next year once it is over
+            // (G2-fix A3.12: the dates used to follow the seed day, "09/10 → 09/12")
+            var vnNow = now.ToOffset(Vn);
+            var year = vnNow > new DateTimeOffset(vnNow.Year, 10, 13, 0, 0, 0, Vn) ? vnNow.Year + 1 : vnNow.Year;
+            var saleStart = new DateTimeOffset(year, 10, 8, 0, 0, 0, Vn).ToUniversalTime();
+            var saleEnd = new DateTimeOffset(year, 10, 13, 0, 0, 0, Vn).ToUniversalTime();
+            db.Campaigns.Add(new Campaign("Siêu Sale 10.10", "sieu-sale-10-10", saleStart, saleEnd,
             [
                 new(CampaignBlockType.Banner, "Siêu Sale 10.10", await ArtAsync("event-1010.webp", ct), "/tim-kiem?sort=BestSelling", null, null, null, null, null),
                 new(CampaignBlockType.Vouchers, "Mã giảm giá của sàn", null, null, ["SHOPHUB50", "FREESHIP", "SALE12"], null, null, null, null),

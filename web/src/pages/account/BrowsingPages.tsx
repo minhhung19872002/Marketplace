@@ -13,7 +13,7 @@ export const ViewedPage = () => {
   const viewed = useQuery({ queryKey: ['viewed'], queryFn: () => storefrontApi.viewed() });
   return (
     <div className="account-card" data-testid="viewed-page">
-      <h2 className="account-title">Sản Phẩm Đã Xem</h2>
+      <h2 className="account-title">Sản phẩm đã xem</h2>
       <QueryState query={viewed} loading={<ProductGrid title="" products={[]} loading />}>
         {(products) => <ProductGrid title="" products={products} emptyText="Bạn chưa xem sản phẩm nào." />}
       </QueryState>
@@ -39,7 +39,7 @@ export const FollowedShopsPage = () => {
 
   return (
     <div className="account-card" data-testid="followed-shops-page">
-      <h2 className="account-title">Shop Đang Theo Dõi</h2>
+      <h2 className="account-title">Shop đang theo dõi</h2>
       {message && <div className="account-message" role="status">{message}</div>}
       <QueryState query={shops} isEmpty={(d) => d.length === 0} emptyText={<p className="account-empty">Bạn chưa theo dõi shop nào.</p>}>
         {(list) => (

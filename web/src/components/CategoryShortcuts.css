@@ -6,18 +6,10 @@
   box-shadow: var(--sh-shadow-sm);
 }
 
-/* One row of 10 on desktop; scrolls sideways on smaller screens instead of wrapping into a ragged grid */
+/* One row of 10 on desktop; on smaller screens the row scrolls inside itself (Carousel: arrows, no scrollbar)
+ * instead of wrapping into a ragged grid or pushing the page sideways (G4-A1) */
 .feature-shortcuts-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(84px, 1fr);
-  gap: var(--sh-space-2);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.feature-shortcuts-grid::-webkit-scrollbar {
-  display: none;
+  --carousel-item: minmax(84px, 1fr);
 }
 
 .feature-shortcut {

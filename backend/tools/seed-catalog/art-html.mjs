@@ -171,7 +171,8 @@ const benefit = (m) => {
   if (a['Khối lượng']?.[0]) return [`${Number(a['Khối lượng'][0]) >= 1000 ? `${Number(a['Khối lượng'][0]) / 1000}kg` : `${a['Khối lượng'][0]}g`}`, origin];
   return [m.category.split('/')[2], options || origin];
 };
-const covered = models.filter((m, i) => TOP_COLOUR[m.category.split('/')[0]] && i % 3 === 0);
+// Covers are drawn from the transparent dummyjson cut-outs only: the open-licence photos (key 195 on) have none
+const covered = models.filter((m, i) => TOP_COLOUR[m.category.split('/')[0]] && i % 3 === 0 && catalogue.some((p) => p.id === m.key));
 for (const m of covered) {
   const [bg, fg] = TOP_COLOUR[m.category.split('/')[0]];
   const [b1, b2] = benefit(m);

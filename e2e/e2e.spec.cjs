@@ -311,7 +311,7 @@ test.describe('ShopHub Marketplace', () => {
     await page.goto(`${BASE}/gio-hang`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="cart-empty"]')).toBeVisible();
-    await expect(page.locator('.cart-empty-btn')).toBeVisible();
+    await expect(page.locator('.cart-empty-btn', { hasText: 'Mua sắm ngay' })).toBeVisible();
   });
 
   test('Tìm "dien thoai" (không dấu) ra "Điện Thoại…"', async ({ page }) => {
@@ -415,7 +415,7 @@ test.describe('ShopHub Marketplace', () => {
     await page.goto(`${BASE}/shop/${first.slug}`);
     const before = Number((await page.locator('[data-testid="shop-followers"]').textContent()).replace(/[^\d]/g, ''));
     await page.locator('[data-testid="shop-follow"]').click();
-    await expect(page.locator('[data-testid="shop-follow"]')).toContainText('Đang Theo Dõi');
+    await expect(page.locator('[data-testid="shop-follow"]')).toContainText('Đang theo dõi');
     await expect(page.locator('[data-testid="shop-followers"]')).toHaveText(String(before + 1));
   });
 

@@ -18,7 +18,8 @@ namespace ShopHub.Application.Features.Reports;
 
 public record KpiDto(long Gmv, long Orders, long NewBuyers, long NewShops, long CancelRateBp, long ReturnRateBp, long FeeRevenue);
 
-public record PendingTasksDto(int ShopsToReview, int ProductsToReview, int OpenDisputes, int PendingWithdrawals, int OpenProductReports, int OpenReviewReports);
+public record PendingTasksDto(int ShopsToReview, int ProductsToReview, int OpenDisputes, int PendingWithdrawals, int OpenProductReports, int OpenReviewReports,
+    int OpenChatReports = 0);
 
 public record AdminOverviewDto(string Period, KpiDto Current, KpiDto Previous, IReadOnlyList<ChartPoint> GmvSeries, IReadOnlyList<ChartPoint> OrderSeries,
     PendingTasksDto Pending, IReadOnlyList<string>? Warnings = null);
@@ -49,7 +50,8 @@ public sealed class AdminOverviewHandler(IApplicationDbContext db, IClock clock,
             await db.Disputes.CountAsync(d => d.ClosedAt == null, ct),
             await db.Withdrawals.CountAsync(w => w.Status == WithdrawalStatus.Pending, ct),
             await db.ProductReports.CountAsync(r => r.Status == ProductReportStatus.Open, ct),
-            await db.ReviewReports.CountAsync(r => r.ResolvedAt == null, ct));
+            await db.ReviewReports.CountAsync(r => r.ResolvedAt == null, ct),
+            await db.ChatReports.CountAsync(r => r.Status == ChatReportStatus.Open, ct));
         // Configuration that will go wrong soon: deadlines next year would ignore Tết if the list stops this year
         var warnings = new List<string>();
         var nextYear = VietnamTime.Today(clock.UtcNow).Year + 1;

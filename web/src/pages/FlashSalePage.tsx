@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { marketingApi } from '../api/marketing';
 import { FlashSaleBoard } from '../components/FlashSaleBlock';
 import QueryState from '../components/QueryState';
+import Carousel from '../components/ui/Carousel';
 import { formatClock, formatDate } from '../lib/datetime';
 import './FlashSalePage.css';
 
@@ -22,7 +23,8 @@ const FlashSalePage = () => {
     <div className="container flash-page">
       <h1 className="flash-page-title">Flash Sale</h1>
       {slots.length > 0 && (
-        <div className="flash-page-slots" role="tablist" aria-label="Khung giờ Flash Sale">
+        // The slot bar scrolls inside itself with arrows, no browser scrollbar (G4-A3)
+        <Carousel className="flash-page-slots" trackRole="tablist" label="Khung giờ Flash Sale">
           {slots.map((s) => {
             const active = (slotId ?? current.data?.slot?.id) === s.id;
             return (
@@ -33,7 +35,7 @@ const FlashSalePage = () => {
               </button>
             );
           })}
-        </div>
+        </Carousel>
       )}
       <QueryState query={slotId ? chosen : current} loading={<p className="flash-page-empty">Đang tải…</p>}
         isEmpty={(b) => !b.slot || b.items.length === 0}

@@ -1,5 +1,7 @@
 .search-results {
-  padding: 20px 0 40px;
+  /* Top / bottom only: on the "Danh mục đang cập nhật" page this box is also the .container (G4-A3) */
+  padding-top: 20px;
+  padding-bottom: 40px;
   min-height: 50vh;
 }
 
@@ -267,9 +269,27 @@
   border-radius: 3px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .search-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Beside the 190 px sidebar the 6/5/4-column grid of the home page is too tight — names, the campaign chip and the
+   rating line were cut at 800–1024 (G4-A2): 5 columns from 1200 px, 3 from 768 px; phones keep 2 (sidebar in a sheet) */
+.search-layout .product-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 1199px) {
+  .search-layout .product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .search-layout .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -651,7 +671,7 @@
 }
 
 /* Phones: the sidebar becomes a sheet sliding up from the bottom */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .search-sort-bar {
     position: sticky;
     top: var(--sh-header-h, 56px);

@@ -25,6 +25,7 @@ public static class JobIds
     public const string BulkSweep = "seller.bulk-sweep";
     public const string PriceIndex = "search.price-index";
     public const string Backup = "sys.backup";
+    public const string FlashAutoOpen = "promo.flash-auto-open";
 
     /// <summary>The JOB.*_CRON parameter holding each job's schedule (Vietnam time).</summary>
     public static readonly IReadOnlyDictionary<string, string> ScheduleParameter = new Dictionary<string, string>
@@ -36,7 +37,7 @@ public static class JobIds
         [FlashReconcile] = ParameterKeys.JobFlashReconcileCron, [CoinExpiry] = ParameterKeys.JobCoinExpiryCron,
         [Reminders] = ParameterKeys.JobRemindersCron, [CartCleanup] = ParameterKeys.JobCartCleanupCron,
         [CarrierSync] = ParameterKeys.JobCarrierSyncCron, [BulkSweep] = ParameterKeys.JobBulkSweepCron, [PriceIndex] = ParameterKeys.JobPriceIndexCron,
-        [Backup] = ParameterKeys.JobBackupCron,
+        [Backup] = ParameterKeys.JobBackupCron, [FlashAutoOpen] = ParameterKeys.JobFlashAutoOpenCron,
     };
 
     // Jobs an admin may trigger on demand (POST /api/admin/job-runs/{id})
@@ -170,6 +171,12 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
             JobIds.LedgerCheck,
             j => j.RunJobAsync(),
             await parameters.GetStringAsync(ParameterKeys.JobLedgerCheckCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<Marketing.FlashAutoOpenJob>(
+            JobIds.FlashAutoOpen,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobFlashAutoOpenCron, ct),
             options);
 
         recurringJobs.AddOrUpdate<Marketing.FlashReconcileJob>(

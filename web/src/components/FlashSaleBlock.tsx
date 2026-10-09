@@ -55,7 +55,8 @@ export const FlashSaleBoard = ({ board, compact = false, full = false }: { board
           <Countdown endAt={slot.running ? slot.endAt : slot.startAt} skewMs={skew}
             onDone={() => void queryClient.invalidateQueries({ queryKey: ['flash-sale'] })} />
         </span>
-        {!compact && board.upcoming.length > 0 && (
+        {/* The /flash-sale page has its slot bar: no second list of the next slots there (G4-A3) */}
+        {!compact && !full && board.upcoming.length > 0 && (
           <span className="flash-sale-next">Khung sau: {board.upcoming.map((s) => formatClock(s.startAt)).join(' · ')}</span>
         )}
         {!full && <Link to="/flash-sale" className="flash-sale-all" data-testid="flash-sale-all">Xem tất cả <ChevronRight size={16} aria-hidden /></Link>}

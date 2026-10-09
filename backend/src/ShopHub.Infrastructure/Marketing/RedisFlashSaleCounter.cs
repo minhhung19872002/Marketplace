@@ -120,3 +120,10 @@ public sealed class CoinExpiryJob(Application.Features.Marketing.CoinExpiryServi
     [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 1800)]
     public Task RunJobAsync() => service.RunAsync(CancellationToken.None);
 }
+
+/// <summary>Opens the platform's Flash Sale slots ahead of time (G4-C, JOB.FLASH_AUTO_OPEN_CRON).</summary>
+public sealed class FlashAutoOpenJob(Application.Features.Marketing.FlashAutoOpener opener)
+{
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 300)]
+    public Task RunJobAsync() => opener.RunAsync(CancellationToken.None);
+}

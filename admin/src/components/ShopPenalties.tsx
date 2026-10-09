@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../api/http'
 import { platformApi, type Penalty, type PenaltyLevel } from '../api/platform'
 import { formatDateTime } from '../lib/datetime'
+import { ToneTag } from './StatusTag'
 
 const LEVEL: Record<PenaltyLevel, { text: string; type: 'success' | 'info' | 'warning' | 'error' }> = {
   None: { text: 'Không bị hạn chế', type: 'success' },
@@ -58,7 +59,7 @@ const ShopPenalties = ({ shopId, canEdit }: { shopId: string; canEdit: boolean }
           { title: 'Hết hạn', dataIndex: 'expiresAt', render: (v: string | null) => (v ? formatDateTime(v) : 'Không') },
           {
             title: 'Tính điểm', key: 'c',
-            render: (_, p) => p.revokedAt ? <Tag title={p.revokeReason ?? undefined}>Đã gỡ</Tag> : p.counts ? <Tag color="red">Đang tính</Tag> : <Tag>Hết hạn</Tag>,
+            render: (_, p) => p.revokedAt ? <Tag title={p.revokeReason ?? undefined}>Đã gỡ</Tag> : p.counts ? <ToneTag tone="error">Đang tính</ToneTag> : <Tag>Hết hạn</Tag>,
           },
           { title: '', key: 'x', render: (_, p) => canEdit && p.counts && <Button size="small" onClick={() => setRevoking(p)}>Gỡ</Button> },
         ]} />

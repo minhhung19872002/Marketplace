@@ -25,7 +25,7 @@ const Wishlist = () => {
   return (
     <div className="wishlist-page">
       <div className="container">
-        <h1 className="wishlist-title">Sản Phẩm Yêu Thích ({total})</h1>
+        <h1 className="wishlist-title">Sản phẩm yêu thích ({total})</h1>
 
         <QueryState query={query} loading={<ProductGrid title="" products={[]} loading />}
           isEmpty={(d) => d.pages.every((p) => p.items.length === 0)}
@@ -33,14 +33,14 @@ const Wishlist = () => {
             <div className="wishlist-empty" data-testid="wishlist-empty">
               <div className="wishlist-empty-icon"><Heart size={56} strokeWidth={1.25} aria-hidden /></div>
               <p>Bạn chưa có sản phẩm yêu thích nào</p>
-              <Link to="/" className="wishlist-empty-btn">Khám Phá Ngay</Link>
+              <Link to="/" className="wishlist-empty-btn">Khám phá ngay</Link>
             </div>
           }>
           {(d) => <ProductGrid title="" products={d.pages.flatMap((p) => p.items)} />}
         </QueryState>
         {query.hasNextPage && (
           <div className="home-load-more">
-            <button className="home-load-more-btn" onClick={() => void query.fetchNextPage()}>Xem Thêm</button>
+            <button className="home-load-more-btn" onClick={() => void query.fetchNextPage()}>Xem thêm</button>
           </div>
         )}
       </div>

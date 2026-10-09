@@ -14,7 +14,7 @@ const DevicesPage = () => {
   return (
     <div className="account-card">
       <div className="account-card-head">
-        <h1 className="account-card-title">Thiết Bị Đăng Nhập</h1>
+        <h1 className="account-card-title">Thiết bị đăng nhập</h1>
         <p className="account-card-sub">Đăng xuất từ xa các thiết bị bạn không nhận ra.</p>
       </div>
       <QueryState query={sessions} loading={<div className="account-skeleton" aria-busy="true" />}>

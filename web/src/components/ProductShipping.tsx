@@ -36,7 +36,7 @@ const ProductShipping = ({ productId }: { productId: string }) => {
 
   return (
     <div className="product-detail-row product-detail-row-top" data-testid="pd-shipping">
-      <span className="row-label">Vận Chuyển</span>
+      <span className="row-label">Vận chuyển</span>
       <div className="pd-shipping">
         <div className="pd-shipping-to">
           <Truck size={18} className="pd-shipping-icon" aria-hidden />

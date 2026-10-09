@@ -1,11 +1,13 @@
-import { App, Button, Card, Space, Table, Tag, Typography } from 'antd'
+import { App, Button, Card, Space, Table, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { jobsApi, type BackupRun, type JobRow } from '../api/jobs'
 import { ApiError } from '../api/http'
 import { P, can } from '../permissions'
 import { formatDateTime } from '../lib/datetime'
+import type { Tone } from '../lib/status'
+import { ToneTag } from '../components/StatusTag'
 
-const STATE_COLOR: Record<string, string> = { Succeeded: 'green', Failed: 'red', Processing: 'blue', Enqueued: 'gold' }
+const STATE_TONE: Record<string, Tone> = { Succeeded: 'success', Failed: 'error', Processing: 'processing', Enqueued: 'warning' }
 
 /** Việc nền (spec 6.4): schedules, next / last run, last failure; "Chạy ngay"; the Hangfire dashboard through a one-use ticket. */
 const JobsPage = ({ permissions }: { permissions: string[] }) => {
@@ -43,7 +45,7 @@ const JobsPage = ({ permissions }: { permissions: string[] }) => {
           { title: 'Lịch (cron)', dataIndex: 'cron', render: (v: string, r) => `${v}${r.timeZone ? ` · ${r.timeZone}` : ''}` },
           { title: 'Lần tới', dataIndex: 'nextExecution', render: (v: string | null) => (v ? formatDateTime(`${v}${v.endsWith('Z') ? '' : 'Z'}`) : '—') },
           { title: 'Lần gần nhất', dataIndex: 'lastExecution', render: (v: string | null) => (v ? formatDateTime(`${v}${v.endsWith('Z') ? '' : 'Z'}`) : '—') },
-          { title: 'Kết quả', dataIndex: 'lastState', render: (v: string | null) => (v ? <Tag color={STATE_COLOR[v]}>{v}</Tag> : '—') },
+          { title: 'Kết quả', dataIndex: 'lastState', render: (v: string | null) => (v ? <ToneTag tone={STATE_TONE[v] ?? 'default'}>{v}</ToneTag> : '—') },
           { title: 'Lỗi', dataIndex: 'lastError', render: (v: string | null) => v ?? '' },
           {
             title: '', render: (_, r) => canRun && r.runnable && (
@@ -61,7 +63,7 @@ const JobsPage = ({ permissions }: { permissions: string[] }) => {
           { title: 'Tệp', dataIndex: 'fileName', render: (v: string) => (backups.data?.files.some((f) => f.name === v) ? v : <Typography.Text delete>{v}</Typography.Text>) },
           { title: 'Cỡ', dataIndex: 'sizeBytes', align: 'right', render: (v: number | null) => (v === null ? '' : `${(v / 1024 / 1024).toFixed(1)} MB`) },
           { title: 'Bắt đầu', dataIndex: 'startedAt', render: (v: string) => formatDateTime(v) },
-          { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <Tag color={STATE_COLOR[v === 'Running' ? 'Processing' : v]}>{v === 'Succeeded' ? 'Thành công' : v === 'Failed' ? 'Thất bại' : 'Đang chạy'}</Tag> },
+          { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <ToneTag tone={STATE_TONE[v === 'Running' ? 'Processing' : v] ?? 'default'}>{v === 'Succeeded' ? 'Thành công' : v === 'Failed' ? 'Thất bại' : 'Đang chạy'}</ToneTag> },
           { title: 'Lỗi', dataIndex: 'error', render: (v: string | null) => v ?? '' },
         ]} />
     </Card>

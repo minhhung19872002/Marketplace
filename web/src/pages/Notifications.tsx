@@ -10,11 +10,11 @@ import './Notifications.css';
 import { Bell, Gift, Package, Wallet, type LucideIcon } from 'lucide-react';
 
 const TABS: { key: NotificationCategory | null; label: string }[] = [
-  { key: null, label: 'Tất Cả' },
-  { key: 'Order', label: 'Cập Nhật Đơn Hàng' },
-  { key: 'Promotion', label: 'Khuyến Mãi' },
-  { key: 'Wallet', label: 'Cập Nhật Ví' },
-  { key: 'Activity', label: 'Hoạt Động' },
+  { key: null, label: 'Tất cả' },
+  { key: 'Order', label: 'Cập nhật đơn hàng' },
+  { key: 'Promotion', label: 'Khuyến mãi' },
+  { key: 'Wallet', label: 'Cập nhật ví' },
+  { key: 'Activity', label: 'Hoạt động' },
 ];
 
 const ICONS: Record<NotificationCategory, LucideIcon> = { Order: Package, Promotion: Gift, Wallet: Wallet, Activity: Bell };
@@ -52,7 +52,7 @@ const Notifications = () => {
     <div className="noti-page">
       <div className="container">
         <div className="noti-head">
-          <h1 className="noti-title">Thông Báo</h1>
+          <h1 className="noti-title">Thông báo</h1>
           {(unread.data?.total ?? 0) > 0 && (
             <button className="noti-read-all" onClick={() => notificationsApi.readAll().then(refresh)} data-testid="noti-read-all">
               Đánh dấu đã đọc tất cả

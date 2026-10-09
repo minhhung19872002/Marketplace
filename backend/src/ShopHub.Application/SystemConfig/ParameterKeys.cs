@@ -128,6 +128,10 @@ public static class ParameterKeys
     public const string LogisticsSyncStaleMinutes = "LOGISTICS.SYNC_STALE_MINUTES";
     public const string ChatResponseWindowDays = "CHAT.RESPONSE_WINDOW_DAYS";
     public const string SitePublicUrl = "SITE.PUBLIC_URL";
+    public const string SiteMode = "SITE.MODE";
+    public const string FlashAutoOpenDays = "FLASH.AUTO_OPEN_DAYS";
+    public const string FlashAutoMinDiscountBp = "FLASH.AUTO_MIN_DISCOUNT_BP";
+    public const string JobFlashAutoOpenCron = "JOB.FLASH_AUTO_OPEN_CRON";
 }
 
 public static class ParameterGroups
@@ -383,6 +387,14 @@ public static class ParameterCatalog
             "Lịch nhắc việc", "Cron theo giờ Việt Nam: gửi thông báo: đơn sắp tự hoàn thành, voucher đã lưu sắp hết hạn, sản phẩm yêu thích đang giảm giá / có hàng lại (khuyến mãi tối đa 1 tin/ngày/người)."),
         new(ParameterKeys.ChatResponseWindowDays, "30", ParameterDataType.Int, ParameterGroups.Chat,
             "Kỳ tính tỉ lệ phản hồi chat (ngày)", "Tỉ lệ và thời gian phản hồi chat của shop tính trên các cuộc trò chuyện trong bấy nhiêu ngày gần nhất."),
+        new(ParameterKeys.SiteMode, "demo", ParameterDataType.String, ParameterGroups.Site,
+            "Chế độ chạy (demo / live)", "demo: site trình diễn — băng báo \"bản trình diễn\" trên trang người mua, cổng thanh toán giả lập được dùng, Flash Sale tự điền sản phẩm mẫu. live: chạy thật — ẩn cổng giả lập, Flash Sale chỉ mở khung để shop đăng ký. Mặc định demo; danh sách kiểm trước khi mở bán chặn cho tới khi chuyển sang live."),
+        new(ParameterKeys.FlashAutoOpenDays, "3", ParameterDataType.Int, ParameterGroups.Marketing,
+            "Tự mở khung Flash Sale trước (ngày)", "Việc nền mở sẵn các khung Flash Sale của sàn theo FLASH.SLOT_HOURS cho bấy nhiêu ngày tới; 0 = tắt (quản trị tự mở)."),
+        new(ParameterKeys.FlashAutoMinDiscountBp, "1000", ParameterDataType.Int, ParameterGroups.Marketing,
+            "Mức giảm tối thiểu của khung tự mở (‱)", "Tiêu chí đăng ký của các khung Flash Sale do việc nền mở (1000 = giảm từ 10%)."),
+        new(ParameterKeys.JobFlashAutoOpenCron, "5 * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch tự mở khung Flash Sale", "Cron theo giờ Việt Nam: mở các khung còn thiếu trong FLASH.AUTO_OPEN_DAYS ngày tới (không mở trùng)."),
         new(ParameterKeys.SitePublicUrl, "http://localhost:18000", ParameterDataType.String, ParameterGroups.Site,
             "Địa chỉ trang người mua", "Dùng để dựng liên kết tuyệt đối trong thư thông báo và địa chỉ quay về sau cổng thanh toán (VNPay, MoMo)."),
         new(ParameterKeys.PaymentDisabledMethods, "[]", ParameterDataType.Json, ParameterGroups.Payment,

@@ -151,7 +151,7 @@
 }
 
 .banner-dot {
-  min-width: 18px;
+  min-width: 24px; /* WCAG 2.5.8 tap target (Lighthouse target-size) */
 }
 
 /* G-VIS: small translucent white dots, the active one orange */

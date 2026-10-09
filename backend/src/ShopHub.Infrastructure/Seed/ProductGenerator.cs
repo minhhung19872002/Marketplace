@@ -62,7 +62,9 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
     public async Task GenerateAsync(IReadOnlyDictionary<string, IReadOnlyList<string>> shopSells, CancellationToken ct)
     {
         var existing = await db.Products.IgnoreQueryFilters().CountAsync(ct);
-        if (existing >= Target) return;
+        // Done once the catalogue is (nearly) full: a run that fell a few listings short (name clashes) must not add a
+        // fresh batch at every restart — G4: the VM grew 994 → 1,295 listings after one restart
+        if (existing >= Target * 9 / 10) return;
         var rng = new Random(2026 + existing);
         var now = clock.UtcNow;
 
@@ -111,7 +113,10 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
         var copies = models.ToDictionary(m => m.Key, _ => 0);
         foreach (var model in models) plan.Add((model, copies[model.Key]++));
         var weighted = models.SelectMany(m => Enumerable.Repeat(m, Popularity.GetValueOrDefault(Top(m), 3))).ToList();
-        while (plan.Count < Target - existing)
+        // Planned with some slack: listings whose name clashes in the chosen shop are skipped below
+        var needed = Target - existing;
+        var guard = 0;
+        while (plan.Count < needed + needed / 5 && guard++ < needed * 20)
         {
             var model = weighted[rng.Next(weighted.Count)];
             if (copies[model.Key] >= 8) continue;
@@ -121,6 +126,7 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
         var created = 0;
         foreach (var (model, copy) in plan)
         {
+            if (created >= needed) break;
             var top = Top(model);
             var leaf = ResolvePath(categories, model.Category);
             var sellers = shops.Where(s => shopSells.GetValueOrDefault(s.Name)?.Contains(top) == true).ToList();

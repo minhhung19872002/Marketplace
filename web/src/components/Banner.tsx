@@ -87,6 +87,15 @@ const Banner = () => {
   const main = data?.main ?? [];
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Slides whose image may load: the first, then one ahead of the slide shown. All six at once (~70 KB each) fought the
+  // first one for bandwidth on a phone — LCP 3.2 s → 5.3 s (G-VIS); the others arrive while the carousel turns
+  const [reach, setReach] = useState(0);
+  useEffect(() => {
+    if (!data) return undefined;
+    const timer = window.setTimeout(() => setReach((r) => Math.max(r, 1)), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data]);
+  useEffect(() => setReach((r) => Math.max(r, active + 1)), [active]);
 
   const next = useCallback(() => setActive((i) => (main.length === 0 ? 0 : (i + 1) % main.length)), [main.length]);
   const prev = () => setActive((i) => (main.length === 0 ? 0 : (i - 1 + main.length) % main.length));
@@ -113,8 +122,8 @@ const Banner = () => {
       <div className="banner-slider" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
         onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
         {main.map((b, i) => (
-          <BannerArt key={b.id} banner={b} to={b.link} className={`banner-slide ${i === active ? 'active' : ''}`}
-            titled={bannerShowsTitle(b, true)} cta="Mua ngay" eager={i === 0} />
+          <BannerArt key={b.id} banner={i <= reach ? b : { ...b, imageUrl: '' }} to={b.link}
+            className={`banner-slide ${i === active ? 'active' : ''}`} titled={bannerShowsTitle(b, true)} cta="Mua ngay" eager={i === 0} />
         ))}
 
         {main.length > 1 && (

@@ -12,7 +12,7 @@ import { CART_KEY } from '../context/CartContext';
 import { formatCount, formatPrice } from '../lib/money';
 import { formatDate } from '../lib/datetime';
 import { goTo } from '../lib/navigation';
-import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import { handleImgError, sizedImage } from '../lib/image';
 import { AddressForm } from './account/AddressesPage';
 import './account/Account.css';
 import './Checkout.css';
@@ -181,7 +181,7 @@ const Checkout = () => {
                 {shop.lines.map((it) => (
                   <div key={it.skuId} className="checkout-product" data-testid="checkout-item">
                     <div className="cp-col-product">
-                      <img src={imageOrPlaceholder(it.imageUrl)} alt={it.name} onError={handleImgError} />
+                      <img src={sizedImage(it.imageUrl, 200)} alt={it.name} onError={handleImgError} />
                       <div>
                         <div className="checkout-product-name">{it.name}</div>
                         {it.variant && <div className="checkout-product-variant">Phân loại: {it.variant}</div>}

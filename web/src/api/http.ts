@@ -1,5 +1,5 @@
 // The only module that talks HTTP. Every response follows { success, data, message, errors }.
-import { useAuthStore, type AuthResult } from '../stores/auth';
+import { mayHaveSession, useAuthStore, type AuthResult } from '../stores/auth';
 import { toast, toastFor } from '../lib/toast';
 
 const BASE = '/api';
@@ -109,11 +109,16 @@ let refreshing: Promise<boolean> | null = null;
 export function refreshSession(): Promise<boolean> {
   refreshing ??= (async () => {
     try {
+      // Never signed in here (or the session has expired): nothing to rotate, no request
+      if (!mayHaveSession()) throw new Error('no session');
       const result = await apiRequest<AuthResult>('/auth/refresh', { method: 'POST', body: {}, auth: false });
       useAuthStore.getState().setSession(result);
       return true;
-    } catch {
-      useAuthStore.getState().clear();
+    } catch (e) {
+      // Only a refusal of the token forgets the hint; a network / server failure or 429 (rate limit) keeps it, the
+      // cookie may still be good next time (L170)
+      if (e instanceof ApiError && [400, 401, 403].includes(e.status)) useAuthStore.getState().clear();
+      else useAuthStore.setState({ accessToken: null, user: null, status: 'anonymous' });
       return false;
     } finally {
       refreshing = null;

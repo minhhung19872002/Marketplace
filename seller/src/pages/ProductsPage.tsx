@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { App as AntApp, Button, Cascader, Drawer, Image, Input, InputNumber, Popconfirm, Space, Table, Tabs, Tag, Typography } from 'antd'
+import { App as AntApp, Button, Cascader, Drawer, Dropdown, Image, Input, InputNumber, Popconfirm, Space, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
+import type { MenuProps } from 'antd'
+import { CopyOutlined, DeleteOutlined, EditOutlined, EyeInvisibleOutlined, EyeOutlined, MoreOutlined, PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { sellerApi, type CategoryNode, type ProductRow, type ProductStatus, type ProductTab, type Sku } from '../api/seller'
 import { ApiError } from '../api/http'
 import { formatDateTime } from '../lib/datetime'
-import { formatPrice, formatRange } from '../lib/money'
+import { formatNumber, formatPrice, formatRange } from '../lib/money'
 
 const TABS: { key: ProductTab; label: string }[] = [
   { key: 'All', label: 'Tất cả' },
@@ -26,6 +28,12 @@ const STATUS: Record<ProductStatus, { text: string; color: string }> = {
   Banned: { text: 'Bị khoá', color: 'red' },
   Deleted: { text: 'Đã xoá', color: 'default' },
 }
+
+// A selling product with nothing left to sell reads "Hết hàng", not "Đang bán"
+const statusTag = (r: ProductRow) =>
+  r.status === 'Active' && r.totalAvailable <= 0
+    ? <Tag color="orange">Hết hàng</Tag>
+    : <Tag color={STATUS[r.status].color}>{STATUS[r.status].text}</Tag>
 
 const REASON: Record<string, string> = {
   SellerEdit: 'Sửa sản phẩm',
@@ -147,7 +155,7 @@ const toOptions = (nodes: CategoryNode[]): CategoryOption[] =>
 
 const ProductsPage = ({ shopId }: { shopId: string }) => {
   const navigate = useNavigate()
-  const { message } = AntApp.useApp()
+  const { message, modal } = AntApp.useApp()
   const queryClient = useQueryClient()
   // The tab lives in the URL (?tab=…), so the dashboard's links open the right one (D1)
   const [params, setParams] = useSearchParams()
@@ -201,11 +209,27 @@ const ProductsPage = ({ shopId }: { shopId: string }) => {
     onError: (e) => void message.error(errorText(e)),
   })
 
+  // Less frequent row actions sit in the "more" menu; Xoá still asks first
+  const rowMenu = (r: ProductRow): MenuProps['items'] => [
+    { key: 'copy', icon: <CopyOutlined aria-hidden />, label: <span data-testid="copy-product">Sao chép</span>, onClick: () => copy.mutate(r.id) },
+    ...(r.status === 'Active' ? [{ key: 'hide', icon: <EyeInvisibleOutlined aria-hidden />, label: 'Ẩn', onClick: () => action.mutate({ id: r.id, op: 'hide' }) }] : []),
+    ...(r.status === 'Hidden' ? [{ key: 'show', icon: <EyeOutlined aria-hidden />, label: 'Hiện', onClick: () => action.mutate({ id: r.id, op: 'show' }) }] : []),
+    ...(r.status !== 'Banned'
+      ? [{ type: 'divider' as const }, {
+          key: 'delete', icon: <DeleteOutlined aria-hidden />, danger: true, label: <span data-testid="delete-product">Xoá</span>,
+          onClick: () => modal.confirm({
+            title: 'Xoá sản phẩm này?', content: r.name, okText: 'Xoá', okButtonProps: { danger: true }, cancelText: 'Huỷ',
+            onOk: () => action.mutateAsync({ id: r.id, op: 'delete' }).catch(() => undefined),
+          }),
+        }]
+      : []),
+  ]
+
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Space style={{ justifyContent: 'space-between', width: '100%' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>Sản phẩm</Typography.Title>
-        <Button type="primary" onClick={() => navigate('/san-pham/moi')} data-testid="add-product">+ Thêm sản phẩm</Button>
+        <Button type="primary" icon={<PlusOutlined aria-hidden />} onClick={() => navigate('/san-pham/moi')} data-testid="add-product">Thêm sản phẩm</Button>
       </Space>
       <Tabs activeKey={tab} onChange={(k) => { setTab(k as ProductTab); setPage(1) }} items={TABS.map((t) => ({ key: t.key, label: t.label }))} />
       <Space wrap>
@@ -265,24 +289,33 @@ const ProductsPage = ({ shopId }: { shopId: string }) => {
             ),
           },
           { title: 'Giá', render: (_, r) => formatRange(r.minPrice, r.maxPrice) },
-          { title: 'Kho', render: (_, r) => `${r.totalAvailable} / ${r.totalStock}` },
+          {
+            width: 140,
+            title: (
+              <Tooltip title="Khả dụng = tồn kho − số đang giữ cho đơn chưa giao (có thể bán ngay).">
+                <span>Khả dụng / Tồn <QuestionCircleOutlined /></span>
+              </Tooltip>
+            ),
+            render: (_, r) => (
+              <span className="stock-cell" data-testid="product-stock">
+                <span>Khả dụng: <b>{formatNumber(r.totalAvailable)}</b></span>
+                <small>Tồn kho: {formatNumber(r.totalStock)}</small>
+              </span>
+            ),
+          },
           { title: 'Đã bán', dataIndex: 'soldCount' },
-          { title: 'Trạng thái', dataIndex: 'status', render: (s: ProductStatus) => <Tag color={STATUS[s].color}>{STATUS[s].text}</Tag> },
+          { title: 'Trạng thái', dataIndex: 'status', render: (_: ProductStatus, r) => statusTag(r) },
           { title: 'Cập nhật', render: (_, r) => formatDateTime(r.updatedAt ?? r.createdAt) },
           {
             title: '',
             render: (_, r) => (
-              <Space wrap>
-                {r.status !== 'Banned' && <Button size="small" onClick={() => navigate(`/san-pham/${r.id}`)}>Sửa</Button>}
-                <Button size="small" loading={copy.isPending && copy.variables === r.id} onClick={() => copy.mutate(r.id)} data-testid="copy-product">Sao chép</Button>
+              <Space size={4}>
+                {r.status !== 'Banned' && <Button size="small" icon={<EditOutlined aria-hidden />} onClick={() => navigate(`/san-pham/${r.id}`)}>Sửa</Button>}
                 {r.status === 'Draft' && <Button size="small" type="primary" onClick={() => action.mutate({ id: r.id, op: 'submit' })}>Gửi duyệt</Button>}
-                {r.status === 'Active' && <Button size="small" onClick={() => action.mutate({ id: r.id, op: 'hide' })}>Ẩn</Button>}
-                {r.status === 'Hidden' && <Button size="small" onClick={() => action.mutate({ id: r.id, op: 'show' })}>Hiện</Button>}
-                {r.status !== 'Banned' && (
-                  <Popconfirm title="Xoá sản phẩm này?" okText="Xoá" cancelText="Huỷ" onConfirm={() => action.mutate({ id: r.id, op: 'delete' })}>
-                    <Button size="small" danger>Xoá</Button>
-                  </Popconfirm>
-                )}
+                <Dropdown trigger={['click']} placement="bottomRight" menu={{ items: rowMenu(r) }}>
+                  <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`Thao tác khác: ${r.name}`} data-testid="product-more"
+                    loading={copy.isPending && copy.variables === r.id} />
+                </Dropdown>
               </Space>
             ),
           },

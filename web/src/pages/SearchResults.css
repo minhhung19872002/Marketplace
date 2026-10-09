@@ -74,13 +74,49 @@
   gap: 6px;
 }
 
+.filter-cat-text {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.filter-cat-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.filter-cat-text .filter-count {
+  flex: none;
+}
+
+/* Price range (G3 C6): two fields with the ₫ sign inside, one height with the apply button */
+.filter-price-field {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.filter-price-currency {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  transform: translateY(-50%);
+  color: var(--sh-text-muted);
+  font-size: 12px;
+  pointer-events: none;
+}
+
 .filter-price input {
   width: 100%;
   min-width: 0;
-  border: 1px solid #d5d5d5;
-  border-radius: 2px;
-  padding: 6px 8px;
-  font-size: 12px;
+  height: 32px;
+  border: 1px solid var(--sh-border-strong);
+  border-radius: var(--sh-radius-sm);
+  padding: 0 8px 0 20px;
+  background: var(--sh-surface);
+  font-size: 13px;
   -moz-appearance: textfield;
 }
 
@@ -150,8 +186,27 @@
 }
 
 .search-results-title {
+  min-width: 0;
   font-size: 18px;
   font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* Phones (G3 C6): the heading takes the whole line, the count goes under it — never "tai / nghe" beside "24 sản / phẩm" */
+@media (max-width: 600px) {
+  .search-results-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .search-results-title {
+    font-size: 16px;
+  }
+
+  .search-results-count {
+    white-space: nowrap;
+  }
 }
 
 .search-results-count {
@@ -229,10 +284,12 @@
 
 .filter-price-apply {
   width: 100%;
+  height: 32px;
   margin-top: 8px;
-  padding: 6px 0;
+  padding: 0;
   border: none;
-  border-radius: 2px;
+  border-radius: var(--sh-radius-sm);
+  font-weight: 500;
   color: var(--sh-on-primary);
   background: var(--sh-primary);
   cursor: pointer;

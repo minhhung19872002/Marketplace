@@ -64,7 +64,8 @@ test.describe('Giao diện ở 375 px và 1366 × 768', () => {
       : route.continue());
     const pages = ['/', `/san-pham/${product.id}`, `/san-pham/${withVouchers.id}`, '/tim-kiem?q=ao', `/shop/${shopSlug}`, '/gio-hang', '/tra-cuu-van-don', '/tro-giup',
       '/trang/dieu-khoan-su-dung', '/dang-nhap', '/dang-ky', '/quen-mat-khau'];
-    const signedIn = ['/thanh-toan', '/tai-khoan/don-mua', '/tai-khoan/ho-so', '/tai-khoan/dia-chi', '/tai-khoan/vi', '/tai-khoan/xu',
+    // '/gio-hang' again once signed in with lines from two shops: the total bar overflowed by 6 px only then (G3 A1)
+    const signedIn = ['/gio-hang', '/thanh-toan', '/tai-khoan/don-mua', '/tai-khoan/ho-so', '/tai-khoan/dia-chi', '/tai-khoan/vi', '/tai-khoan/xu',
       '/tai-khoan/voucher', '/tai-khoan/thong-bao', '/thong-bao', '/yeu-thich', '/chat'];
     const problems = [];
     for (const path of pages) {
@@ -81,6 +82,9 @@ test.describe('Giao diện ở 375 px và 1366 × 768', () => {
     await expect(page.getByTestId('mobile-account')).toHaveAttribute('href', '/tai-khoan');
     const product2 = await apiAs(request, (await apiLogin(request, buyer.phone, buyer.password)).accessToken, 'GET', `/products/${product.id}`);
     await apiAs(request, (await apiLogin(request, buyer.phone, buyer.password)).accessToken, 'POST', '/cart/items', { skuId: product2.skus[0].id, quantity: 1 });
+    const other = withVouchers.shop.id !== product2.shop.id ? withVouchers : null;
+    const sku2 = other?.skus.find((k) => k.available > 2);
+    if (sku2) await apiAs(request, (await apiLogin(request, buyer.phone, buyer.password)).accessToken, 'POST', '/cart/items', { skuId: sku2.id, quantity: 2 });
     for (const path of signedIn) {
       await page.goto(`${BASE}${path}`);
       await page.waitForLoadState('networkidle');

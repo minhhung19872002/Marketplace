@@ -162,7 +162,6 @@ img {
 /* Section title — UPPERCASE, letter-spaced (design system H2) */
 .sh-section-title {
   font: var(--sh-font-h2);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--sh-text-strong);
 }

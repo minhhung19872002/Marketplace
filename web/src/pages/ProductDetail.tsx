@@ -23,7 +23,7 @@ import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { clockSkew, marketingApi } from '../api/marketing';
 import { formatPrice, formatSold } from '../lib/money';
 import { formatDate, formatSince } from '../lib/datetime';
-import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import { handleImgError, imageOrPlaceholder, imageSrcSet } from '../lib/image';
 import type { ProductPage, PublicSku } from '../types';
 import './ProductDetail.css';
 import { usePageTitle } from '../lib/pageTitle';
@@ -55,7 +55,7 @@ const Description = ({ html }: { html: string }) => {
   }, [html]);
   return (
     <div className="pd-section">
-      <h2 className="pd-section-title">MÔ TẢ SẢN PHẨM</h2>
+      <h2 className="pd-section-title">Mô tả sản phẩm</h2>
       {/* Description HTML is sanitised by the server when the seller saves it */}
       <div ref={box} id="pd-description" className={`pd-description ${long && !open ? 'is-folded' : ''}`} dangerouslySetInnerHTML={{ __html: html }} />
       {long && (
@@ -314,26 +314,29 @@ const ProductView = ({ product }: { product: ProductPage }) => {
               {product.name}
             </h1>
 
+            {/* Rating · reviews · sold wrap as one line; the dividers sit before each item and are clipped at a line start */}
             <div className="product-detail-stats">
-              {product.ratingCount > 0 ? (
-                <>
-                  <span className="stat-rating">
-                    {product.ratingAvg.toFixed(1)} <Stars value={product.ratingAvg} size={14} />
-                  </span>
-                  <span className="stat-divider" />
-                  <span className="stat-count">{formatSold(product.ratingCount)} Đánh Giá</span>
-                </>
-              ) : (
-                <span className="stat-count">Chưa có đánh giá</span>
-              )}
-              <span className="stat-divider" />
-              <span className="stat-sold">{formatSold(product.soldCount)} Đã Bán</span>
+              <div className="pd-stats-clip">
+                <ul className="pd-stats-list">
+                  {product.ratingCount > 0 ? (
+                    <>
+                      <li className="stat-rating">
+                        {product.ratingAvg.toFixed(1)} <Stars value={product.ratingAvg} size={14} />
+                      </li>
+                      <li className="stat-count">{formatSold(product.ratingCount)} Đánh Giá</li>
+                    </>
+                  ) : (
+                    <li className="stat-count">Chưa có đánh giá</li>
+                  )}
+                  <li className="stat-sold">{formatSold(product.soldCount)} Đã Bán</li>
+                </ul>
+              </div>
               <span className="stat-report"><ReportProduct productId={product.id} /></span>
             </div>
 
             {flash && deals.data && receivedAt > 0 && (
               <div className="pd-flash" data-testid="pd-flash">
-                <span className="pd-flash-title"><Zap size={18} fill="currentColor" aria-hidden /> {flash.platform ? 'FLASH SALE' : 'FLASH SALE CỦA SHOP'}</span>
+                <span className="pd-flash-title"><Zap size={18} fill="currentColor" aria-hidden /> {flash.platform ? 'Flash Sale' : 'Flash Sale của shop'}</span>
                 <span>Kết thúc sau <Countdown endAt={flash.endAt} skewMs={clockSkew(deals.data.serverTime, receivedAt)} /></span>
                 <span className="pd-flash-sold">Đã bán {flash.sold}/{flash.quota} · tối đa {flash.perUserLimit} sản phẩm/người</span>
               </div>
@@ -439,7 +442,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
         <div className="pd-lower">
           <div className="pd-lower-main">
             <div className="pd-section">
-              <h2 className="pd-section-title">CHI TIẾT SẢN PHẨM</h2>
+              <h2 className="pd-section-title">Chi tiết sản phẩm</h2>
               <table className="pd-specs" data-testid="pd-specs">
                 <tbody>
                   {leaf && (
@@ -527,7 +530,7 @@ const ShopBestSellers = ({ productId }: { productId: string }) => {
       <h2 id="pd-aside-title" className="pd-aside-title">Top Sản Phẩm Bán Chạy</h2>
       {top.map((p) => (
         <Link key={p.id} to={productPath(p.slug, p.shopId, p.id)} className="pd-aside-item">
-          <img src={imageOrPlaceholder(p.imageUrl)} alt="" loading="lazy" width={160} height={160} onError={handleImgError} />
+          <img src={imageOrPlaceholder(p.imageUrl)} srcSet={imageSrcSet(p.imageUrl)} sizes="200px" alt="" loading="lazy" width={160} height={160} onError={handleImgError} />
           <span className="pd-aside-name">{p.name}</span>
           <span className="pd-aside-price">{formatPrice(p.minPrice)}</span>
         </Link>
@@ -542,13 +545,13 @@ const Related = ({ id, shopSlug }: { id: string; shopSlug: string }) => {
   return (
     <div className="container pd-related">
       {(shop.data?.length ?? 0) > 0 && (
-        <Section title="CÁC SẢN PHẨM KHÁC CỦA SHOP" more={{ to: `/shop/${shopSlug}` }} testId="shop-other-products">
+        <Section title="Các sản phẩm khác của shop" more={{ to: `/shop/${shopSlug}` }} testId="shop-other-products">
           <div className="pd-related-row">
             <Carousel label="Các sản phẩm khác của shop">{shop.data!.map((p) => <ProductCard key={p.id} product={p} />)}</Carousel>
           </div>
         </Section>
       )}
-      {(related.data?.length ?? 0) > 0 && <ProductGrid title="CÓ THỂ BẠN CŨNG THÍCH" products={related.data!} />}
+      {(related.data?.length ?? 0) > 0 && <ProductGrid title="Có thể bạn cũng thích" products={related.data!} />}
     </div>
   );
 };

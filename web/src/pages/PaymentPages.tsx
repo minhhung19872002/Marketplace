@@ -204,5 +204,5 @@ export const OrderSuccessPage = () => {
 const AfterOrderSuggestions = () => {
   const { data } = useQuery({ queryKey: ['cart-suggestions'], queryFn: () => storefrontApi.recommendations(1, 12), staleTime: 60_000 });
   if (!data?.items.length) return null;
-  return <div className="container"><ProductGrid title="CÓ THỂ BẠN CŨNG THÍCH" products={data.items} /></div>;
+  return <div className="container"><ProductGrid title="Có thể bạn cũng thích" products={data.items} /></div>;
 };

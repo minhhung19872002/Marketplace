@@ -6,6 +6,18 @@ export const PLACEHOLDER_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(s
 
 export const imageOrPlaceholder = (url: string | null | undefined): string => url || PLACEHOLDER_IMAGE;
 
+// Uploaded photos are stored in three widths: {key}_200.webp, {key}_600.webp, {key}_1200.webp (MediaAsset)
+const SIZED = /_(200|600|1200)\.webp$/;
+const WIDTHS = [200, 600, 1200] as const;
+
+/** The stored variant of an uploaded photo closest to `width`; other URLs (emoji, signed, external) are kept. */
+export const sizedImage = (url: string | null | undefined, width: (typeof WIDTHS)[number]): string =>
+  url && SIZED.test(url) ? url.replace(SIZED, `_${width}.webp`) : imageOrPlaceholder(url);
+
+/** `srcSet` over the three stored widths, so phones stop downloading the 1200 px photo for a card (G3, mobile LCP). */
+export const imageSrcSet = (url: string | null | undefined): string | undefined =>
+  url && SIZED.test(url) ? WIDTHS.map((w) => `${url.replace(SIZED, `_${w}.webp`)} ${w}w`).join(', ') : undefined;
+
 /** onError handler: swap a broken image for the placeholder once (no loop if that fails too). */
 export const handleImgError = (e: SyntheticEvent<HTMLImageElement>): void => {
   const img = e.currentTarget;

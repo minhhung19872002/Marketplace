@@ -7,7 +7,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { storefrontApi } from '../api/storefront';
 import { useUnreadNotifications } from '../context/NotificationsContext';
 import { formatPrice } from '../lib/money';
-import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import { handleImgError, sizedImage } from '../lib/image';
 import { UserAvatar } from './AvatarEditor';
 import { cartBadge, recentLines } from '../lib/cart';
 import { badgeCount, highlightParts } from '../lib/text';
@@ -255,7 +255,7 @@ const Header = () => {
                       }}
                       data-testid="suggest-product"
                     >
-                      <img className="header-suggest-thumb" src={imageOrPlaceholder(p.imageUrl)} alt="" onError={handleImgError} />
+                      <img className="header-suggest-thumb" src={sizedImage(p.imageUrl, 200)} alt="" onError={handleImgError} />
                       <span><Highlight text={p.name} query={keyword} /></span>
                     </button>
                   ))}
@@ -343,7 +343,7 @@ const Header = () => {
                   <div className="header-cart-preview-list">
                     {items.map((it) => (
                       <Link key={it.skuId} to={`/san-pham/${it.productId}`} className="header-cart-preview-item">
-                        <img src={imageOrPlaceholder(it.imageUrl)} alt={it.name} onError={handleImgError} />
+                        <img src={sizedImage(it.imageUrl, 200)} alt={it.name} onError={handleImgError} />
                         <span className="header-cart-preview-name">{it.name}</span>
                         <span className="header-cart-preview-price">{formatPrice(it.price)}</span>
                       </Link>

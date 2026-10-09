@@ -69,8 +69,8 @@ public sealed class CardPricing(IApplicationDbContext db, PriceBook prices, IClo
                             where ids.Contains(r.ProductId) && r.Status == CampaignRegistrationStatus.Approved && c.IsActive
                                   && c.StartAt <= now && c.EndAt > now && c.FrameImageUrl != null
                             orderby c.StartAt descending
-                            select new { r.ProductId, c.FrameImageUrl }).ToListAsync(ct);
-        var frameOf = frames.GroupBy(f => f.ProductId).ToDictionary(g => g.Key, g => g.First().FrameImageUrl);
+                            select new { r.ProductId, c.FrameImageUrl, c.Name }).ToListAsync(ct);
+        var frameOf = frames.GroupBy(f => f.ProductId).ToDictionary(g => g.Key, g => g.First());
         return cards.Select(card =>
         {
             var labels = new List<string>();
@@ -86,7 +86,8 @@ public sealed class CardPricing(IApplicationDbContext db, PriceBook prices, IClo
                 if (label is not null && !labels.Contains(label)) labels.Add(label);
             }
             if (xtra.Contains(card.ShopId)) labels.Add("Freeship Xtra");
-            return card with { Labels = labels.Count > 0 ? labels.Take(2).ToList() : null, FrameUrl = frameOf.GetValueOrDefault(card.Id) };
+            var frame = frameOf.GetValueOrDefault(card.Id);
+            return card with { Labels = labels.Count > 0 ? labels.Take(2).ToList() : null, FrameUrl = frame?.FrameImageUrl, CampaignName = frame?.Name };
         }).ToList();
     }
 

@@ -5,7 +5,7 @@ import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
 import { useCountdown } from '../lib/useCountdown';
 import GoogleSignIn from '../components/GoogleSignIn';
-import './Auth.css';
+import LoginLayout from './LoginLayout';
 
 type Mode = 'password' | 'otp';
 
@@ -66,110 +66,98 @@ const Login = () => {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-hero">
-        <div className="container auth-hero-inner">
-          <div className="auth-hero-brand">
-            <h1>ShopHub</h1>
-            <p>Đăng nhập</p>
-            <span>Mua sắm tại ShopHub, sàn thương mại điện tử uy tín hàng đầu.</span>
-          </div>
-
-          <div className="auth-card">
-            <h2 className="auth-title">Đăng Nhập</h2>
-            <div className="auth-tabs" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'password'}
-                className={`auth-tab ${mode === 'password' ? 'active' : ''}`}
-                onClick={() => setMode('password')}
-              >
-                Mật khẩu
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'otp'}
-                className={`auth-tab ${mode === 'otp' ? 'active' : ''}`}
-                onClick={() => setMode('otp')}
-                data-testid="login-otp-tab"
-              >
-                Mã SMS
-              </button>
-            </div>
-
-            {error && <div className="auth-error" data-testid="auth-error">{error}</div>}
-            {info && <div className="auth-info">{info}</div>}
-
-            {mode === 'password' ? (
-              <form onSubmit={submitPassword} className="auth-form">
-                <input
-                  type="text"
-                  className="auth-input"
-                  placeholder="Số điện thoại / Email / Tên đăng nhập"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  aria-label="Tên đăng nhập"
-                  autoComplete="username"
-                />
-                <input
-                  type="password"
-                  className="auth-input"
-                  placeholder="Mật khẩu"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  aria-label="Mật khẩu"
-                  autoComplete="current-password"
-                />
-                <button type="submit" className="auth-submit" data-testid="login-submit" disabled={busy}>
-                  {busy ? 'ĐANG ĐĂNG NHẬP…' : 'ĐĂNG NHẬP'}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={submitOtp} className="auth-form">
-                <input
-                  type="tel"
-                  className="auth-input"
-                  placeholder="Số điện thoại"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  aria-label="Số điện thoại"
-                  autoComplete="tel"
-                />
-                <div className="auth-otp-row">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    className="auth-input"
-                    placeholder="Mã xác thực 6 số"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                    aria-label="Mã xác thực"
-                    autoComplete="one-time-code"
-                  />
-                  <button type="button" className="auth-otp-btn" onClick={sendCode} disabled={busy || resendIn > 0 || !phone.trim()}>
-                    {resendIn > 0 ? `Gửi lại (${resendIn}s)` : 'Gửi mã'}
-                  </button>
-                </div>
-                <button type="submit" className="auth-submit" disabled={busy || code.length !== 6}>
-                  ĐĂNG NHẬP
-                </button>
-              </form>
-            )}
-
-            <div className="auth-links">
-              <Link to="/quen-mat-khau">Quên mật khẩu</Link>
-            </div>
-            <GoogleSignIn text="signin_with" onSignedIn={(r) => { signIn(r); navigate(redirectTo, { replace: true }); }} />
-            <div className="auth-footer">
-              Bạn mới biết đến ShopHub? <Link to="/dang-ky">Đăng ký</Link>
-            </div>
-          </div>
-        </div>
+    <LoginLayout headline="Mua sắm thông minh hơn cùng ShopHub">
+      <h2 className="auth-title">Đăng nhập</h2>
+      <div className="auth-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'password'}
+          className={`auth-tab ${mode === 'password' ? 'active' : ''}`}
+          onClick={() => setMode('password')}
+        >
+          Mật khẩu
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'otp'}
+          className={`auth-tab ${mode === 'otp' ? 'active' : ''}`}
+          onClick={() => setMode('otp')}
+          data-testid="login-otp-tab"
+        >
+          Mã SMS
+        </button>
       </div>
-    </div>
+
+      {error && <div className="auth-error" data-testid="auth-error">{error}</div>}
+      {info && <div className="auth-info">{info}</div>}
+
+      {mode === 'password' ? (
+        <form onSubmit={submitPassword} className="auth-form">
+          <input
+            type="text"
+            className="auth-input"
+            placeholder="Số điện thoại / Email / Tên đăng nhập"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            aria-label="Tên đăng nhập"
+            autoComplete="username"
+          />
+          <input
+            type="password"
+            className="auth-input"
+            placeholder="Mật khẩu"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            aria-label="Mật khẩu"
+            autoComplete="current-password"
+          />
+          <button type="submit" className="auth-submit" data-testid="login-submit" disabled={busy}>
+            {busy ? 'Đang đăng nhập…' : 'Đăng nhập'}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={submitOtp} className="auth-form">
+          <input
+            type="tel"
+            className="auth-input"
+            placeholder="Số điện thoại"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            aria-label="Số điện thoại"
+            autoComplete="tel"
+          />
+          <div className="auth-otp-row">
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              className="auth-input"
+              placeholder="Mã xác thực 6 số"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              aria-label="Mã xác thực"
+              autoComplete="one-time-code"
+            />
+            <button type="button" className="auth-otp-btn" onClick={sendCode} disabled={busy || resendIn > 0 || !phone.trim()}>
+              {resendIn > 0 ? `Gửi lại (${resendIn}s)` : 'Gửi mã'}
+            </button>
+          </div>
+          <button type="submit" className="auth-submit" disabled={busy || code.length !== 6}>
+            Đăng nhập
+          </button>
+        </form>
+      )}
+
+      <div className="auth-links">
+        <Link to="/quen-mat-khau">Quên mật khẩu</Link>
+      </div>
+      <GoogleSignIn text="signin_with" onSignedIn={(r) => { signIn(r); navigate(redirectTo, { replace: true }); }} />
+      <div className="auth-footer">
+        Bạn mới biết đến ShopHub? <Link to="/dang-ky">Đăng ký</Link>
+      </div>
+    </LoginLayout>
   );
 };
 

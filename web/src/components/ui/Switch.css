@@ -1,0 +1,50 @@
+/* Toggle switch (G3). Colours come from index.css tokens. */
+.sh-switch {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--sh-radius-pill);
+  background: var(--sh-border-strong);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.sh-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-sm);
+  transition: transform 0.15s;
+}
+
+.sh-switch.is-on {
+  background: var(--sh-primary);
+}
+
+.sh-switch.is-on .sh-switch__thumb {
+  transform: translateX(20px);
+}
+
+.sh-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sh-switch:focus-visible {
+  outline: 2px solid var(--sh-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-switch,
+  .sh-switch__thumb {
+    transition: none;
+  }
+}

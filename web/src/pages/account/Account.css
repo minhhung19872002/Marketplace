@@ -450,8 +450,8 @@
 
 .order-card-status {
   color: var(--sh-primary);
-  text-transform: uppercase;
   font-size: 13px;
+  font-weight: 500;
 }
 
 .order-card-item {
@@ -1095,4 +1095,192 @@ img.header-user-avatar {
   background: var(--sh-warning-soft);
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* ---- G3: orders list on phones, order detail timeline, notification switches ---- */
+.account-tabs--scroll {
+  position: relative;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.account-tabs--scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.account-tabs--scroll .account-tab {
+  flex: 1 0 auto;
+  white-space: nowrap;
+}
+
+.order-detail-status {
+  color: var(--sh-primary);
+  font-weight: 500;
+}
+
+.order-stepper {
+  margin: var(--sh-space-6) 0 var(--sh-space-4);
+  padding-bottom: var(--sh-space-4);
+  border-bottom: 1px dashed var(--border);
+}
+
+.order-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: var(--sh-space-6);
+  padding: var(--sh-space-4) 0;
+  border-top: 1px dashed var(--border);
+}
+
+.order-detail-grid .order-detail-address {
+  padding: 0;
+  border-top: none;
+}
+
+.order-detail-address p {
+  margin: 2px 0;
+  color: var(--sh-text-muted);
+}
+
+.order-detail-address .order-detail-receiver {
+  color: var(--sh-text-strong);
+  font-weight: 500;
+}
+
+.order-detail-history {
+  padding-left: var(--sh-space-6);
+  border-left: 1px solid var(--border);
+}
+
+.order-detail-history h3,
+.order-detail-shipment h3 {
+  margin-bottom: var(--sh-space-3);
+  font-size: 15px;
+}
+
+.order-detail-shipment-meta {
+  margin-bottom: var(--sh-space-3);
+  color: var(--sh-text-muted);
+  font-size: 13px;
+}
+
+.order-detail-shipment-meta a {
+  color: var(--sh-primary);
+}
+
+@media (max-width: 768px) {
+  .order-detail-grid {
+    grid-template-columns: 1fr;
+    gap: var(--sh-space-4);
+  }
+  .order-detail-history {
+    padding-left: 0;
+    border-left: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .order-card-head,
+  .order-card-foot {
+    padding: var(--sh-space-2) var(--sh-space-3);
+  }
+  .order-card-item {
+    align-items: flex-start;
+    padding: var(--sh-space-2) var(--sh-space-3);
+  }
+  .order-card-item img {
+    width: 64px;
+    height: 64px;
+  }
+  .order-card-item > span {
+    gap: 2px;
+    font-size: 13px;
+  }
+  .order-card-foot {
+    flex-direction: column;
+    gap: 2px;
+    border-top: 1px solid var(--border);
+  }
+  .order-card-meta {
+    font-size: 12px;
+    color: var(--sh-text-muted);
+  }
+  .order-card-total {
+    align-self: flex-end;
+  }
+  .order-card-foot strong {
+    font-size: 16px;
+  }
+  .order-card-actions {
+    padding: 0 var(--sh-space-3) var(--sh-space-2);
+  }
+  .order-detail-head {
+    flex-direction: column;
+    gap: var(--sh-space-1);
+  }
+}
+
+/* Notification settings: table on wide screens, one card per type on phones */
+.notif-prefs-table th {
+  font-weight: 500;
+  color: var(--sh-text-muted);
+  font-size: 13px;
+}
+
+.notif-prefs-table td {
+  vertical-align: middle;
+}
+
+.notif-prefs-table td .sh-switch {
+  margin: 0 auto;
+  display: block;
+}
+
+.notif-prefs-cards {
+  display: none;
+  margin: var(--sh-space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notif-prefs-card {
+  margin-bottom: var(--sh-space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--sh-radius-md);
+}
+
+.notif-prefs-card h2 {
+  padding: var(--sh-space-3) var(--sh-space-4);
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.notif-prefs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sh-space-3);
+  padding: var(--sh-space-3) var(--sh-space-4);
+}
+
+.notif-prefs-row + .notif-prefs-row {
+  border-top: 1px solid var(--border);
+}
+
+.notif-prefs-row small {
+  display: block;
+  color: var(--sh-text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .notif-prefs-table {
+    display: none;
+  }
+  .notif-prefs-cards {
+    display: block;
+  }
 }

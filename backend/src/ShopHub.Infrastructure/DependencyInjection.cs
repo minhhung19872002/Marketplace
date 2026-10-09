@@ -105,6 +105,7 @@ public static class DependencyInjection
         services.AddSingleton<ISessionValidator, CachedSessionValidator>();
         services.AddScoped<IdentitySeeder>();
         services.AddScoped<OutboxDispatcher>();
+        services.AddScoped<OutboxContext>();
         services.AddScoped<OutboxCleanupJob>();
 
         // Commerce: carriers and payment gateways behind interfaces; the real ones are on only when their keys are set
@@ -113,6 +114,7 @@ public static class DependencyInjection
         AddRealProviders(services, settings.Providers);
         services.AddScoped<Commerce.CarrierSimulator>();
         services.AddScoped<Seed.OrderSampleSeeder>();
+        services.AddScoped<Seed.SampleActivitySeeder>();
         services.AddScoped<IOutboxHandler, OrderEventHandler>();
         services.AddScoped<IOutboxHandler, NotificationDeliveryHandler>();
         // Push: FCM HTTP v1 when the service-account key is set, else the simulated sender (logs only)

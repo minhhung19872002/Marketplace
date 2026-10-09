@@ -2,7 +2,7 @@ import { useState, type MouseEvent } from 'react';
 import { Play } from 'lucide-react';
 import ImageLightbox from './ImageLightbox';
 import Carousel from './ui/Carousel';
-import { handleImgError } from '../lib/image';
+import { handleImgError, imageSrcSet } from '../lib/image';
 import './ProductGallery.css';
 
 interface Props {
@@ -39,7 +39,7 @@ const ProductGallery = ({ images, alt, active, onActive, videoUrl }: Props) => {
       ) : (
         <button type="button" className={`pd-gallery-main ${lens ? 'is-zooming' : ''}`} onClick={() => setOpen(true)}
           onMouseMove={move} onMouseLeave={() => setLens(null)} aria-label="Phóng to ảnh" data-testid="pd-zoom">
-          <img src={current} alt={alt} onError={handleImgError} data-testid="pd-main-image" width={600} height={600} />
+          <img src={current} srcSet={imageSrcSet(current)} sizes="(max-width: 768px) 100vw, 450px" alt={alt} onError={handleImgError} data-testid="pd-main-image" width={600} height={600} />
           {lens && <span className="pd-gallery-lens" aria-hidden
             style={{ backgroundImage: `url("${current}")`, backgroundPosition: `${lens.x}% ${lens.y}%` }} />}
         </button>

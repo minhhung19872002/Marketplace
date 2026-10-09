@@ -18,6 +18,15 @@ public interface IOutboxHandler
 public record OutboxDispatchResult(int Processed, int Failed);
 
 /// <summary>
+/// The message being handled, for handlers that need more than its payload: a notification is dated when its event
+/// happened, not when the outbox got round to it (G3 A4 — the sample orders' notifications all carried the seed time).
+/// </summary>
+public sealed class OutboxContext
+{
+    public DateTimeOffset? OccurredAt { get; set; }
+}
+
+/// <summary>
 /// Delivers pending outbox messages at-least-once. Rows are claimed with FOR UPDATE SKIP LOCKED so parallel
 /// workers never pick the same message; a message whose handler keeps failing is retried until
 /// JOB.OUTBOX_MAX_ATTEMPTS and then left for manual handling (attempts/last_error stay visible).
@@ -27,6 +36,7 @@ public sealed class OutboxDispatcher(
     IEnumerable<IOutboxHandler> handlers,
     ISystemParameters parameters,
     IClock clock,
+    OutboxContext context,
     ILogger<OutboxDispatcher> logger)
 {
     private readonly Dictionary<string, List<IOutboxHandler>> _handlers = handlers.GroupBy(h => h.Type).ToDictionary(g => g.Key, g => g.ToList());
@@ -49,8 +59,11 @@ public sealed class OutboxDispatcher(
         }
     }
 
-    public async Task<OutboxDispatchResult> DispatchAsync(CancellationToken ct)
+    /// <param name="onlyTypes">Only these message types (the sample seeder delivers order events before the search index
+    /// exists — search messages must wait for it, G3 L169); null = all.</param>
+    public async Task<OutboxDispatchResult> DispatchAsync(CancellationToken ct, IReadOnlyCollection<string>? onlyTypes = null)
     {
+        var types = onlyTypes?.ToArray() ?? [];
         var batchSize = (int)await parameters.GetIntAsync(ParameterKeys.JobOutboxBatchSize, ct);
         var maxAttempts = (int)await parameters.GetIntAsync(ParameterKeys.JobOutboxMaxAttempts, ct);
 
@@ -58,7 +71,7 @@ public sealed class OutboxDispatcher(
         var batch = await db.OutboxMessages
             .FromSqlInterpolated($"""
                 SELECT * FROM sys.outbox_messages
-                WHERE processed_at IS NULL AND attempts < {maxAttempts}
+                WHERE processed_at IS NULL AND attempts < {maxAttempts} AND (cardinality({types}) = 0 OR type = ANY({types}))
                 ORDER BY CASE WHEN type = ANY({Urgent}) THEN 0 ELSE 1 END, occurred_at, id
                 LIMIT {batchSize}
                 FOR UPDATE SKIP LOCKED
@@ -74,6 +87,7 @@ public sealed class OutboxDispatcher(
                     throw new InvalidOperationException($"Không có bộ xử lý cho loại tin outbox '{message.Type}'.");
 
                 // A failure retries the whole message later: every handler is idempotent
+                context.OccurredAt = message.OccurredAt;
                 foreach (var handler in forType) await handler.HandleAsync(message.Payload, ct);
                 message.MarkProcessed(clock.UtcNow);
                 processed++;

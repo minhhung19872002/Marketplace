@@ -556,7 +556,12 @@ public record SellerDashboardDto(
     int ReturnsPending = 0,
     int ProcessedToday = 0,
     int LowStockThreshold = 0,
-    IReadOnlyList<AnnouncementDto>? Announcements = null);
+    IReadOnlyList<AnnouncementDto>? Announcements = null,
+    // The same figures for the period just before, up to the same time of day (G3 C10: "↑ 12% so với hôm qua") —
+    // yesterday until this hour, days 8–14 and days 31–60 ago
+    SalesFigureDto? Yesterday = null,
+    SalesFigureDto? Previous7Days = null,
+    SalesFigureDto? Previous30Days = null);
 
 public record SellerDashboardQuery(Guid ShopId) : IRequest<SellerDashboardDto>;
 
@@ -570,13 +575,17 @@ public sealed class SellerDashboardHandler(IApplicationDbContext db, SellerAcces
         var low = await LowStock.ThresholdAsync(db, parameters, request.ShopId, ct);
         var todayStart = new DateTimeOffset(VietnamTime.Today(clock.UtcNow).ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(7)).ToUniversalTime();
 
-        async Task<SalesFigureDto> Sales(DateTimeOffset since)
+        var now = clock.UtcNow;
+
+        async Task<SalesFigureDto> Sales(DateTimeOffset since, DateTimeOffset? until = null)
         {
+            var end = until ?? DateTimeOffset.MaxValue;
             // Revenue = goods value after the shop's own discount, of orders not cancelled / returned
-            var q = orders.Where(o => o.CreatedAt >= since && o.Status != OrderStatus.Cancelled && o.Status != OrderStatus.Returned
+            var q = orders.Where(o => o.CreatedAt >= since && o.CreatedAt < end && o.Status != OrderStatus.Cancelled && o.Status != OrderStatus.Returned
                                       && o.Status != OrderStatus.PendingPayment);
             // Lượt truy cập: product views of the shop; tỉ lệ chuyển đổi = buyers who ordered / distinct visitors
-            var views = db.ProductViews.AsNoTracking().Where(v => v.ViewedAt >= since && db.Products.Any(p => p.Id == v.ProductId && p.ShopId == request.ShopId));
+            var views = db.ProductViews.AsNoTracking().Where(v => v.ViewedAt >= since && v.ViewedAt < end
+                                                                && db.Products.Any(p => p.Id == v.ProductId && p.ShopId == request.ShopId));
             var visitors = await views.Select(v => v.UserId != null ? v.UserId.ToString() : v.SessionKey).Distinct().CountAsync(ct);
             var buyers = await q.Select(o => o.BuyerId).Distinct().CountAsync(ct);
             return new SalesFigureDto(await q.SumAsync(o => (long?)(o.Subtotal - o.ShopDiscount), ct) ?? 0, await q.CountAsync(ct), await views.CountAsync(ct),
@@ -604,7 +613,10 @@ public sealed class SellerDashboardHandler(IApplicationDbContext db, SellerAcces
                             && (n.RefType == "broadcast"
                                 || (n.RefType == "product" && db.Products.IgnoreQueryFilters().Any(p => p.Id == n.RefId && p.ShopId == request.ShopId))))
                 .OrderByDescending(n => n.CreatedAt).ThenBy(n => n.Id).Take(5)
-                .Select(n => new AnnouncementDto(n.Title, n.Body, n.Link, n.CreatedAt)).ToListAsync(ct));
+                .Select(n => new AnnouncementDto(n.Title, n.Body, n.Link, n.CreatedAt)).ToListAsync(ct),
+            await Sales(todayStart.AddDays(-1), now.AddDays(-1)),
+            await Sales(todayStart.AddDays(-13), now.AddDays(-7)),
+            await Sales(todayStart.AddDays(-59), now.AddDays(-30)));
     }
 }
 

@@ -8,9 +8,11 @@ interface ProductGridProps {
   products: Card[];
   loading?: boolean;
   emptyText?: string;
+  // The campaign's own page draws the campaign frame over the photos (G3 B3)
+  showFrames?: boolean;
 }
 
-const ProductGrid = ({ title = 'GỢI Ý HÔM NAY', products, loading = false, emptyText = 'Không tìm thấy sản phẩm nào phù hợp.' }: ProductGridProps) => (
+const ProductGrid = ({ title = 'Gợi ý hôm nay', products, loading = false, emptyText = 'Không tìm thấy sản phẩm nào phù hợp.', showFrames = false }: ProductGridProps) => (
   <section className="product-grid-section">
     {title && (
       <div className="product-grid-header">
@@ -24,7 +26,7 @@ const ProductGrid = ({ title = 'GỢI Ý HÔM NAY', products, loading = false, e
     ) : (
       <div className="product-grid">
         {products.map((p) => (
-          <ProductCard key={p.id} product={p} />
+          <ProductCard key={p.id} product={p} showFrame={showFrames} />
         ))}
       </div>
     )}

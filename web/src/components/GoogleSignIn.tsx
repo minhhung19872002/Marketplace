@@ -92,7 +92,7 @@ const GoogleSignIn = ({ onSignedIn, text = 'signin_with' }: { onSignedIn: (resul
             Tôi đồng ý với Điều khoản sử dụng và Chính sách xử lý dữ liệu cá nhân của ShopHub
           </label>
           <button type="button" className="auth-submit" disabled={!accepted || busy} onClick={() => void submit(pending, true)}>
-            TẠO TÀI KHOẢN VỚI GOOGLE
+            Tạo tài khoản với Google
           </button>
         </div>
       )}

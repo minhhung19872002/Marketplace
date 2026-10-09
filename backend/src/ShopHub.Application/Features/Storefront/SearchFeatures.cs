@@ -64,7 +64,10 @@ public sealed class SearchProductsHandler(IProductSearch search, IApplicationDbC
                 await db.SaveChangesAsync(ct);
             }
         }
-        return result with { Items = await pricing.ApplyAsync(result.Items, ct) };
+        // Ranked by relevance, the same item from several shops is spread out within the page (G3 B2); an explicit sort
+        // (price, newest, best selling) keeps its exact order
+        var items = r.Sort == ProductSort.Relevance ? ProductCards.Diversify(result.Items) : result.Items;
+        return result with { Items = await pricing.ApplyAsync(items.ToList(), ct) };
     }
 }
 

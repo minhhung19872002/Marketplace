@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { contentApi } from '../api/content';
+import { toast } from '../lib/toast';
+import { Check, Facebook, Link2, Share2 } from 'lucide-react';
 
 const ZALO_SDK = 'https://sp.zalo.me/plugins/sdk.js';
 
@@ -42,25 +44,34 @@ const ShareProduct = ({ title }: { title: string }) => {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      toast.success('Đã sao chép liên kết');
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopied(false);
+      toast.error('Không sao chép được liên kết, vui lòng thử lại.');
     }
   };
 
   return (
     <div className="pd-share" data-testid="pd-share">
-      <span>Chia sẻ:</span>
-      <button type="button" onClick={() => void copy()} data-testid="share-copy">{copied ? 'Đã sao chép' : 'Sao chép liên kết'}</button>
-      <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer"
-        data-testid="share-facebook">Facebook</a>
+      <span className="pd-share-label">Chia sẻ:</span>
+      {/* Round icon buttons (G3-C7); the label is the accessible name and the hover tooltip */}
+      <button type="button" className={`pd-share-btn pd-share-copy ${copied ? 'is-done' : ''}`} onClick={() => void copy()} data-testid="share-copy"
+        aria-label={copied ? 'Đã sao chép liên kết' : 'Sao chép liên kết'} title={copied ? 'Đã sao chép liên kết' : 'Sao chép liên kết'}>
+        {copied ? <Check size={16} aria-hidden /> : <Link2 size={16} aria-hidden />}
+      </button>
+      <a className="pd-share-btn pd-share-facebook" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`} target="_blank"
+        rel="noopener noreferrer" aria-label="Chia sẻ lên Facebook" title="Chia sẻ lên Facebook" data-testid="share-facebook">
+        <Facebook size={16} fill="currentColor" strokeWidth={0} aria-hidden />
+      </a>
       {zaloOaId && (
         <div className="zalo-share-button" data-href={url} data-oaid={zaloOaId} data-layout="1" data-color="blue" data-customize="false"
           data-testid="share-zalo" />
       )}
       {canShare && (
-        <button type="button" onClick={() => void navigator.share({ title, url }).catch(() => undefined)} data-testid="share-native">
-          Ứng dụng khác
+        <button type="button" className="pd-share-btn" onClick={() => void navigator.share({ title, url }).catch(() => undefined)} data-testid="share-native"
+          aria-label="Chia sẻ qua ứng dụng khác" title="Chia sẻ qua ứng dụng khác">
+          <Share2 size={16} aria-hidden />
         </button>
       )}
     </div>

@@ -250,7 +250,9 @@ test.describe('Thiết lập & trang trí shop', () => {
     await expect(seller.getByText('Đã xử lý 1/1 sản phẩm.')).toBeVisible();
     await expect(row).toContainText('Đã ẩn');
 
-    await row.getByTestId('copy-product').click();
+    // Sao chép sits in the row's "more" menu (rendered outside the row)
+    await row.getByTestId('product-more').click();
+    await seller.getByTestId('copy-product').click();
     await expect(seller.getByText('Đã tạo bản sao (bản nháp, tồn kho 0).')).toBeVisible();
     await expect(seller).toHaveURL(/\/seller\/san-pham\/[0-9a-f-]{36}$/);
   });

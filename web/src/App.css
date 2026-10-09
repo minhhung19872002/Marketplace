@@ -58,3 +58,21 @@
 .fab-stack > * {
   pointer-events: auto;
 }
+
+/* A page with a bar stuck to the bottom of the screen lifts the floating buttons above it (G3 C2, C4) */
+@media (max-width: 1023px) {
+  :root:has(.checkout-place-bar) {
+    --sh-fab-offset: 64px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root:has(.pd-mobile-bar, .cart-footer) {
+    --sh-fab-offset: 64px;
+  }
+
+  /* The page's last row can always scroll clear of the floating buttons */
+  main {
+    padding-bottom: 72px;
+  }
+}

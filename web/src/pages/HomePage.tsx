@@ -30,7 +30,7 @@ const RecentlyViewed = ({ isLoggedIn }: { isLoggedIn: boolean }) => {
   const items = viewed.data ?? [];
   if (items.length === 0) return null;
   return (
-    <Section title="SẢN PHẨM ĐÃ XEM" testId="viewed-section" className="home-viewed"
+    <Section title="Sản phẩm đã xem" testId="viewed-section" className="home-viewed"
       extra={<ConfirmButton className="home-viewed-clear" message="Xoá toàn bộ lịch sử sản phẩm đã xem?" confirmLabel="Xoá"
         onConfirm={() => clear.mutate()} disabled={clear.isPending} testId="viewed-clear">
         <Trash2 size={14} aria-hidden /> Xoá lịch sử
@@ -66,7 +66,7 @@ const HomePage = () => {
         {/* "Gợi ý hôm nay": the title bar stays under the header while the grid scrolls (G2-B1) */}
         <section className="home-daily" aria-labelledby="home-daily-title">
           <div className="home-daily-bar">
-            <h2 id="home-daily-title" className="home-daily-title">GỢI Ý HÔM NAY</h2>
+            <h2 id="home-daily-title" className="home-daily-title">Gợi ý hôm nay</h2>
           </div>
           <QueryState query={recommendations} loading={<ProductGridSkeleton count={12} />}>
             {(d) => (

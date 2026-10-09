@@ -5,21 +5,21 @@ import { ChevronRight, Flame, Zap } from 'lucide-react';
 import { clockSkew, marketingApi, type FlashBoard, type FlashBoardItem } from '../api/marketing';
 import { formatPrice } from '../lib/money';
 import { formatClock } from '../lib/datetime';
-import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import { handleImgError, imageOrPlaceholder, imageSrcSet } from '../lib/image';
 import Countdown from './Countdown';
 import Carousel from './ui/Carousel';
 import './FlashSaleBlock.css';
 
 /** Text of the progress bar: real units sold of the slot's quota (spec 3.10). */
 export const flashBarLabel = (i: Pick<FlashBoardItem, 'sold' | 'quota' | 'soldPercent'>): string =>
-  i.sold >= i.quota ? 'ĐÃ HẾT' : i.sold === 0 ? 'VỪA MỞ BÁN' : i.soldPercent >= 80 ? 'SẮP CHÁY HÀNG' : `ĐÃ BÁN ${i.sold}`;
+  i.sold >= i.quota ? 'Đã hết' : i.sold === 0 ? 'Vừa mở bán' : i.soldPercent >= 80 ? 'Sắp cháy hàng' : `Đã bán ${i.sold}`;
 
 const FlashItem = ({ i }: { i: FlashBoardItem }) => {
   const hot = i.sold < i.quota && i.soldPercent >= 80;
   return (
     <Link to={`/san-pham/${i.productId}`} className="flash-item" data-testid="flash-item">
       <span className="flash-item-image">
-        <img src={imageOrPlaceholder(i.imageUrl)} alt={i.name} loading="lazy" width={200} height={200} onError={handleImgError} />
+        <img src={imageOrPlaceholder(i.imageUrl)} srcSet={imageSrcSet(i.imageUrl)} sizes="200px" alt={i.name} loading="lazy" width={200} height={200} onError={handleImgError} />
         {i.discountPercent > 0 && <span className="flash-item-badge">-{i.discountPercent}%</span>}
       </span>
       <span className="flash-item-price price">{formatPrice(i.flashPrice)}</span>
@@ -49,7 +49,7 @@ export const FlashSaleBoard = ({ board, compact = false, full = false }: { board
   return (
     <section className="flash-sale" data-testid="flash-sale">
       <div className="flash-sale-head">
-        <h2 className="flash-sale-title"><Zap size={24} fill="currentColor" aria-hidden /> FLASH SALE</h2>
+        <h2 className="flash-sale-title"><Zap size={24} fill="currentColor" aria-hidden /> Flash Sale</h2>
         <span className="flash-sale-when">
           <span className="flash-sale-when-label">{slot.running ? 'Kết thúc sau' : `Bắt đầu lúc ${formatClock(slot.startAt)} — còn`}</span>
           <Countdown endAt={slot.running ? slot.endAt : slot.startAt} skewMs={skew}

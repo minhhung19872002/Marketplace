@@ -262,19 +262,6 @@
   border-radius: 3px;
 }
 
-@media (max-width: 768px) {
-  .cart-header-row {
-    display: none;
-  }
-  .cart-item {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .cart-item-product {
-    grid-column: 1 / -1;
-  }
-}
-
 .cart-error {
   margin-bottom: 12px;
   padding: 10px 14px;
@@ -498,4 +485,126 @@
 .cart-shop .checkout-voucher {
   justify-content: flex-start;
   gap: 16px;
+}
+
+/* Phones (G3 A1, C2): check box | photo | name, variation, price, −/+ ; the total bar sticks to the bottom in one row */
+@media (max-width: 767px) {
+  .cart-page {
+    padding-bottom: 96px;
+  }
+
+  .cart-header-row,
+  .cart-item-total {
+    display: none;
+  }
+
+  .cart-shop-head {
+    flex-wrap: wrap;
+    padding: 12px;
+  }
+
+  .cart-item {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'check product product'
+      '. price price'
+      '. qty action';
+    align-items: start;
+    gap: 6px 8px;
+    padding: 12px;
+  }
+
+  .cart-item > .cart-col-check { grid-area: check; padding-top: 26px; }
+  .cart-item-product { grid-area: product; align-items: flex-start; min-width: 0; }
+  .cart-item-price { grid-area: price; }
+  .cart-item-qty { grid-area: qty; justify-self: start; }
+  .cart-item > .cart-col-action { grid-area: action; align-self: center; }
+
+  /* Price and −/+ line up under the name, not under the photo */
+  .cart-item-price,
+  .cart-item-qty {
+    margin-left: 82px;
+  }
+
+  .cart-item-price {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 6px;
+    text-align: left;
+  }
+
+  .cart-item-textblock {
+    min-width: 0;
+  }
+
+  .cart-item-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .cart-footer {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 0;
+  }
+
+  .cart-footer-left {
+    gap: 6px;
+  }
+
+  .cart-footer-left .cart-clear {
+    display: none;
+  }
+
+  /* "Chọn Tất Cả (n)" → "Tất cả": the bar keeps one row at 360 px */
+  .cart-select-all-btn {
+    padding: 0;
+    font-size: 0;
+    white-space: nowrap;
+  }
+
+  .cart-select-all-btn::before {
+    content: 'Tất cả';
+    font-size: 13px;
+  }
+
+  .cart-summary {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  /* "Tổng thanh toán (n sản phẩm):" → "Tổng" next to the amount; the count goes on the button */
+  .cart-summary-label {
+    font-size: 0;
+  }
+
+  .cart-summary-label::before {
+    content: 'Tổng';
+    font-size: 13px;
+  }
+
+  .cart-summary-total {
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  .cart-checkout {
+    flex: none;
+    min-width: 0;
+    padding: 0 10px;
+    height: 40px;
+    white-space: nowrap;
+  }
 }

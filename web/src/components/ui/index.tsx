@@ -146,3 +146,6 @@ export const Pager = ({ page, total, onPage, testId, label = 'Phân trang' }: { 
     </nav>
   );
 };
+
+export { Timeline, type TimelineItem, type TimelineState } from './Timeline';
+export { Switch } from './Switch';

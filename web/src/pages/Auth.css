@@ -1,45 +1,80 @@
+/* G3: light page, benefits on the left, the form card on the right; only the card on phones */
 .auth-hero {
-  background: var(--sh-gradient-brand);
-  padding: 50px 0;
-  min-height: 60vh;
+  background: linear-gradient(180deg, var(--sh-primary-soft), var(--bg));
+  padding: 64px 0 88px;
 }
 
 .auth-hero-inner {
   display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 40px;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 64px;
+  max-width: 1080px;
   align-items: center;
 }
 
-.auth-hero-brand {
-  color: #fff;
-}
-
-.auth-hero-brand h1 {
-  font-size: 48px;
+.auth-benefits-title {
+  max-width: 460px;
+  margin-bottom: var(--sh-space-6);
+  font-size: 30px;
+  line-height: 1.25;
   font-weight: 700;
+  color: var(--sh-text-strong);
 }
 
-.auth-hero-brand p {
-  font-size: 26px;
-  margin: 10px 0 16px;
+.auth-benefits-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sh-space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.auth-hero-brand span {
-  font-size: 16px;
-  opacity: 0.95;
+.auth-benefits-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sh-space-4);
+  max-width: 480px;
+}
+
+.auth-benefits-list li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--sh-text-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.auth-benefits-list strong {
+  color: var(--sh-text-strong);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.auth-benefits-icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--sh-radius-md);
+  background: var(--sh-surface);
+  color: var(--sh-primary);
+  box-shadow: var(--sh-shadow-sm);
 }
 
 .auth-card {
-  background: #fff;
-  border-radius: 4px;
-  padding: 26px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  background: var(--sh-surface);
+  border-radius: var(--sh-radius-lg);
+  padding: var(--sh-space-8) 28px;
+  box-shadow: var(--sh-shadow-md);
 }
 
 .auth-title {
   font-size: 20px;
-  font-weight: 400;
+  font-weight: 600;
   margin-bottom: 20px;
 }
 
@@ -59,26 +94,25 @@
 }
 
 .auth-input {
-  border: 1px solid #dbdbdb;
-  border-radius: 2px;
+  border: 1px solid var(--sh-border-strong);
+  border-radius: var(--sh-radius-sm);
   padding: 11px 12px;
   font-size: 14px;
   outline: none;
 }
 
 .auth-input:focus {
-  border-color: #b7b7b7;
-  background: #fffdf5;
+  border-color: var(--sh-primary);
 }
 
 .auth-submit {
   background: var(--sh-primary);
   color: #fff;
   border: none;
-  padding: 11px;
-  border-radius: 2px;
+  padding: 12px;
+  border-radius: var(--sh-radius-sm);
   font-size: 15px;
-  text-transform: uppercase;
+  font-weight: 500;
   margin-top: 4px;
 }
 
@@ -90,8 +124,8 @@
   display: flex;
   justify-content: space-between;
   margin-top: 10px;
-  font-size: 12px;
-  color: #05a;
+  font-size: 13px;
+  color: var(--sh-primary);
 }
 
 .auth-links span {
@@ -162,11 +196,18 @@
 }
 
 @media (max-width: 768px) {
+  .auth-hero {
+    padding: var(--sh-space-4) 0 var(--sh-space-8);
+  }
   .auth-hero-inner {
     grid-template-columns: 1fr;
+    max-width: 440px;
   }
-  .auth-hero-brand {
-    text-align: center;
+  .auth-benefits {
+    display: none;
+  }
+  .auth-card {
+    padding: var(--sh-space-6) var(--sh-space-5);
   }
 }
 
@@ -280,13 +321,18 @@
 .auth-link-btn {
   background: none;
   border: none;
-  color: #05a;
+  color: var(--sh-primary);
   font-size: 13px;
   cursor: pointer;
 }
 
 .auth-links a {
-  color: #05a;
+  color: var(--sh-primary);
+}
+
+.auth-links a:hover,
+.auth-link-btn:hover {
+  text-decoration: underline;
 }
 
 .auth-google {

@@ -100,9 +100,12 @@
 }
 
 .home-popup-link img {
+  /* The whole artwork, never cropped (G3 A5: the 1:1 art was cut at the top by a 4:3 box) */
+  display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
 }
 
 .home-popup-link strong {
@@ -110,6 +113,33 @@
   color: var(--sh-primary);
   font-size: 17px;
   text-align: center;
+}
+
+/* Phones: a bottom sheet instead of a box in the middle of the page (G3 A5) */
+@media (max-width: 600px) {
+  .home-popup {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .home-popup-box {
+    max-width: none;
+    border-radius: var(--sh-radius-lg, 12px) var(--sh-radius-lg, 12px) 0 0;
+    animation: home-popup-up 0.25s ease-out;
+  }
+
+  .home-popup-link img {
+    max-height: 55vh;
+  }
+}
+
+@keyframes home-popup-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-popup-box { animation: none; }
 }
 
 .home-popup-close {

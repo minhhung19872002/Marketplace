@@ -115,10 +115,10 @@
 
 .banner-dots {
   position: absolute;
-  bottom: 10px;
+  bottom: 2px;
   left: 50%;
   display: flex;
-  gap: 8px;
+  gap: 0;
   opacity: 0;
   transform: translateX(-50%);
   transition: opacity 0.2s;
@@ -137,17 +137,28 @@
   }
 }
 
+/* A 24 px tap target around the 8 px dot (WCAG 2.5.8, G3 — Lighthouse target-size), same pattern as the Mall dots */
 .banner-dot {
-  width: 8px;
-  height: 8px;
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.banner-dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--sh-surface);
   opacity: 0.55;
 }
 
-.banner-dot.active {
+.banner-dot.active::before {
   width: 20px;
   border-radius: var(--sh-radius-pill);
   opacity: 1;
@@ -214,7 +225,6 @@
 .banner-side-kicker {
   font-size: 12px;
   opacity: 0.9;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 

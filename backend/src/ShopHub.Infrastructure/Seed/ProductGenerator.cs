@@ -37,12 +37,12 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
         ["Giày Dép Nam"] = ["Đế Êm", "Full Size", "Mẫu Mới", "Hàng Có Sẵn"],
         ["Giày Dép Nữ"] = ["Đế Êm", "Full Size", "Mẫu Mới", "Hàng Có Sẵn"],
         ["Túi Ví Nữ"] = ["Hàng Thiết Kế", "Mẫu Mới", "Hàng Có Sẵn"],
-        ["Nhà Cửa & Đời Sống"] = ["Hàng Có Sẵn", "Cao Cấp", "Loại 1", "Giao Nhanh"],
+        ["Nhà Cửa & Đời Sống"] = ["Hàng Có Sẵn", "Cao Cấp", "Bền Đẹp", "Giao Nhanh"],
         ["Sắc Đẹp"] = ["Chính Hãng", "Hàng Có Sẵn", "Date Mới"],
         ["Sức Khỏe"] = ["Chính Hãng", "Date Mới"],
-        ["Thể Thao & Du Lịch"] = ["Chính Hãng", "Loại Tốt", "Hàng Có Sẵn"],
+        ["Thể Thao & Du Lịch"] = ["Chính Hãng", "Chất Lượng Cao", "Hàng Có Sẵn"],
         ["Ô Tô & Xe Máy"] = ["Hàng Có Sẵn", "Giao Toàn Quốc"],
-        ["Bách Hóa Online"] = ["Loại 1", "Hàng Mới Về", "Giao Nhanh"],
+        ["Bách Hóa Online"] = ["Giá Tốt", "Hàng Mới Về", "Giao Nhanh"],
         ["Thú Cưng"] = ["Hàng Mới Về", "Date Mới"],
     };
 

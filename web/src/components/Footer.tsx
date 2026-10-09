@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import QRCode from 'qrcode';
 import { BadgeCheck, Facebook, Globe, Instagram, Linkedin, MessageCircle, Music2, Smartphone, Youtube, type LucideIcon } from 'lucide-react';
 import { contentApi } from '../api/content';
 import { currentYear } from '../lib/datetime';
@@ -46,7 +45,8 @@ const useQr = (url: string) => {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    QRCode.toDataURL(url, { margin: 1, width: 168 }).then((d) => alive && setSrc(d)).catch(() => alive && setSrc(null));
+    // Loaded on demand: the QR library stays out of the entry chunk (mobile LCP, G3)
+    import('qrcode').then(({ default: QRCode }) => QRCode.toDataURL(url, { margin: 1, width: 168 })).then((d) => alive && setSrc(d)).catch(() => alive && setSrc(null));
     return () => { alive = false; };
   }, [url]);
   return src;

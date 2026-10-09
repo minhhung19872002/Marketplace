@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationPrefsApi, type NotificationCategory, type NotificationChannel, type NotificationPref } from '../../api/chat';
 import { ApiError } from '../../api/http';
 import QueryState from '../../components/QueryState';
+import { Switch } from '../../components/ui/Switch';
 
 const CATEGORIES: { value: NotificationCategory; label: string }[] = [
   { value: 'Order', label: 'Cập nhật đơn hàng' },
@@ -41,37 +42,60 @@ const NotificationSettingsPage = () => {
   return (
     <div className="account-card">
       <div className="account-card-head">
-        <h1 className="account-card-title">Cài Đặt Thông Báo</h1>
+        <h1 className="account-card-title">Cài đặt thông báo</h1>
         <p className="account-card-sub">Chọn kênh nhận thông báo cho từng loại. Thông báo đơn hàng, ví và tài khoản luôn hiện trong app; khuyến mãi có thể tắt.</p>
       </div>
       <QueryState query={prefs} loading={<div className="account-skeleton" aria-busy="true" />}>
         {(loaded) => (
         <>
           {!loaded.hasEmail && <p className="account-card-sub">Bạn chưa có email — thông báo qua email sẽ không được gửi.</p>}
-          <table className="notif-prefs" data-testid="notification-prefs">
-            <thead>
-              <tr>
-                <th>Loại thông báo</th>
-                {CHANNELS.map((ch) => <th key={ch.value}>{ch.label}</th>)}
-              </tr>
-            </thead>
-            <tbody>
+          <div data-testid="notification-prefs">
+            <table className="notif-prefs notif-prefs-table">
+              <thead>
+                <tr>
+                  <th>Loại thông báo</th>
+                  {CHANNELS.map((ch) => <th key={ch.value}>{ch.label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {CATEGORIES.map((c) => (
+                  <tr key={c.value}>
+                    <td>{c.label}</td>
+                    {CHANNELS.map((ch) => {
+                      const p = find(c.value, ch.value);
+                      return (
+                        <td key={ch.value}>
+                          <Switch checked={p?.enabled ?? false} disabled={!p || p.locked} onChange={() => toggle(c.value, ch.value)}
+                            label={`${c.label} — ${ch.label}`} title={p?.locked ? 'Luôn bật' : undefined} />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* Phones: one card per notification type, one switch row per channel */}
+            <ul className="notif-prefs-cards">
               {CATEGORIES.map((c) => (
-                <tr key={c.value}>
-                  <td>{c.label}</td>
+                <li key={c.value} className="notif-prefs-card">
+                  <h2>{c.label}</h2>
                   {CHANNELS.map((ch) => {
                     const p = find(c.value, ch.value);
+                    const id = `notif-${c.value}-${ch.value}`;
                     return (
-                      <td key={ch.value}>
-                        <input type="checkbox" checked={p?.enabled ?? false} disabled={!p || p.locked}
-                          onChange={() => toggle(c.value, ch.value)} aria-label={`${c.label} — ${ch.label}`} />
-                      </td>
+                      <div key={ch.value} className="notif-prefs-row">
+                        <label htmlFor={id}>
+                          {ch.label}
+                          {p?.locked && <small>Luôn bật</small>}
+                        </label>
+                        <Switch id={id} checked={p?.enabled ?? false} disabled={!p || p.locked} onChange={() => toggle(c.value, ch.value)} />
+                      </div>
                     );
                   })}
-                </tr>
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </div>
           <button className="account-btn-primary" onClick={() => save.mutate()} disabled={save.isPending}>Lưu</button>
           {message && <p className="account-card-sub" role="status">{message}</p>}
         </>

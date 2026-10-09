@@ -6,7 +6,7 @@ import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContai
 import { analyticsApi, type Analytics, type Granularity, type PeriodFigures } from '../api/analytics'
 import { ApiError } from '../api/http'
 import { addDaysIso, vnTodayIso } from '../lib/datetime'
-import { formatNumber, formatPercentBp, formatPrice } from '../lib/money'
+import { formatNumber, formatPercent, formatPrice } from '../lib/money'
 import { palette } from '../theme'
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
 
@@ -18,12 +18,12 @@ const FIGURES: { key: keyof PeriodFigures; label: string; kind: 'money' | 'count
   { key: 'conversionBp', label: 'Tỉ lệ chuyển đổi', kind: 'bp' },
 ]
 
-const show = (v: number, kind: 'money' | 'count' | 'bp') => (kind === 'money' ? formatPrice(v) : kind === 'bp' ? formatPercentBp(v) : formatNumber(v))
+const show = (v: number, kind: 'money' | 'count' | 'bp') => (kind === 'money' ? formatPrice(v) : kind === 'bp' ? formatPercent(v / 100) : formatNumber(v))
 
 const Change = ({ now, before }: { now: number; before: number }) => {
   if (before === 0) return <Typography.Text type="secondary">kỳ trước: 0</Typography.Text>
   const pct = Math.round(((now - before) * 1000) / before) / 10
-  return <span style={{ color: pct >= 0 ? palette.up : palette.down }}>{pct >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {formatNumber(Math.abs(pct))}% so với kỳ trước</span>
+  return <span className={`trend ${pct >= 0 ? 'trend-up' : 'trend-down'}`}>{pct >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {formatPercent(Math.abs(pct), 1)} so với kỳ trước</span>
 }
 
 const PENALTY_ALERT = { None: 'success', Restricted: 'info', CampaignBan: 'warning', Locked: 'error' } as const
@@ -36,12 +36,12 @@ const Performance = ({ data }: { data: Analytics }) => {
         description={`${p.penalty.consequence} Ngưỡng: hạn chế hiển thị từ ${p.penalty.restrictAt} điểm, cấm tham gia chiến dịch từ ${p.penalty.campaignBanAt} điểm, khoá shop ở ${p.penalty.lockAt} điểm.`} />
       <Descriptions bordered column={1} size="small">
         <Descriptions.Item label="Tỉ lệ đơn không thành công (shop huỷ, hệ thống huỷ, giao thất bại)">
-          <Progress percent={p.failedRateBp / 100} size="small" style={{ maxWidth: 300 }} format={() => formatPercentBp(p.failedRateBp)} />
+          <Progress percent={p.failedRateBp / 100} size="small" style={{ maxWidth: 300 }} format={() => formatPercent(p.failedRateBp / 100)} />
         </Descriptions.Item>
         <Descriptions.Item label="Tỉ lệ giao hàng trễ hẹn">
-          <Progress percent={p.lateDeliveryRateBp / 100} size="small" style={{ maxWidth: 300 }} format={() => formatPercentBp(p.lateDeliveryRateBp)} />
+          <Progress percent={p.lateDeliveryRateBp / 100} size="small" style={{ maxWidth: 300 }} format={() => formatPercent(p.lateDeliveryRateBp / 100)} />
         </Descriptions.Item>
-        <Descriptions.Item label="Tỉ lệ phản hồi chat">{p.chatResponseRatePercent}% — phản hồi {p.chatResponseTime}</Descriptions.Item>
+        <Descriptions.Item label="Tỉ lệ phản hồi chat">{formatPercent(p.chatResponseRatePercent, 0)} — phản hồi {p.chatResponseTime}</Descriptions.Item>
       </Descriptions>
     </Space>
   )
@@ -119,7 +119,7 @@ const AnalyticsPage = ({ shopId }: { shopId: string }) => {
                     { title: 'Đã bán', dataIndex: 'sold', align: 'right' },
                     { title: 'Doanh số', dataIndex: 'sales', align: 'right', render: (v: number) => formatPrice(v) },
                     { title: 'Lượt xem', dataIndex: 'views', align: 'right' },
-                    { title: 'Chuyển đổi', dataIndex: 'conversionBp', align: 'right', render: (v: number) => formatPercentBp(v) },
+                    { title: 'Chuyển đổi', dataIndex: 'conversionBp', align: 'right', render: (v: number) => formatPercent(v / 100) },
                   ]} />
               ),
             },

@@ -170,27 +170,36 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
 
         if (!await db.FlashSaleSlots.AnyAsync(ct))
         {
-            // Running: started a little before now, ends at the next 3-hour mark (Vietnam time); then the following slot
+            // Running: started a little before now, ends at the next 3-hour mark (Vietnam time); then back-to-back 3-hour
+            // slots for the next 7 days, so the demo home page keeps a live Flash Sale long after the seed (G3, decision #191)
             var local = now.ToOffset(Vn);
             var end = new DateTimeOffset(local.Year, local.Month, local.Day, local.Hour, 0, 0, Vn).AddHours(3 - local.Hour % 3).ToUniversalTime();
-            var running = new FlashSaleSlot(FlashSaleOwner.Platform, null, now.AddMinutes(-10), end, 0, 0, [], now);
-            var next = new FlashSaleSlot(FlashSaleOwner.Platform, null, end, end.AddHours(3), 2_000, 0, [], now);
-            db.FlashSaleSlots.AddRange(running, next);
+            var slots = new List<FlashSaleSlot> { new(FlashSaleOwner.Platform, null, now.AddMinutes(-10), end, 0, 0, [], now) };
+            for (var start = end; start < now.AddDays(7); start = start.AddHours(3))
+                slots.Add(new FlashSaleSlot(FlashSaleOwner.Platform, null, start, start.AddHours(3), 2_000, 0, [], now));
+            db.FlashSaleSlots.AddRange(slots);
+            var pool = products.Where(p => p.Sku is not null).Take(12).ToList();
             var n = 0;
-            foreach (var p in products.Where(p => p.Sku is not null).Take(12))
+            for (var s = 0; s < slots.Count; s++)
             {
-                var slot = n++ % 2 == 0 ? running : next;
-                // Never more units than the stock can deliver
-                var quota = Math.Min(20 + n * 5, p.Sku!.Available);
-                // Discounts from 10 % to 50 % (not one flat rate)
-                var off = 10 + n * 17 % 41;
-                var item = new FlashSaleItem(slot.Id, p.Sku.Id, p.Id, p.ShopId, Math.Max(1_000, p.Sku.Price * (100 - off) / 100 / 1_000 * 1_000), quota, 2, now);
-                item.Approve(now);
-                db.FlashSaleItems.Add(item);
-                db.PricePrograms.Add(new PriceProgram(item.SkuId, item.ShopId, PriceProgramKind.PlatformFlash, item.Id, item.FlashPrice, slot.StartAt, slot.EndAt));
+                // Six items per slot, rotating through the pool (consecutive slots never share a SKU, so the price
+                // programmes never overlap)
+                for (var j = 0; j < Math.Min(6, pool.Count); j++)
+                {
+                    var p = pool[(s * 6 + j) % pool.Count];
+                    n++;
+                    // Never more units than the stock can deliver
+                    var quota = Math.Min(20 + (j + 1) * 5, p.Sku!.Available);
+                    // Discounts from 10 % to 50 % (not one flat rate)
+                    var off = 10 + (s + j + 1) * 17 % 41;
+                    var item = new FlashSaleItem(slots[s].Id, p.Sku.Id, p.Id, p.ShopId, Math.Max(1_000, p.Sku.Price * (100 - off) / 100 / 1_000 * 1_000), quota, 2, now);
+                    item.Approve(now);
+                    db.FlashSaleItems.Add(item);
+                    db.PricePrograms.Add(new PriceProgram(item.SkuId, item.ShopId, PriceProgramKind.PlatformFlash, item.Id, item.FlashPrice, slots[s].StartAt, slots[s].EndAt));
+                }
             }
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("SEED flash sale: 2 slots, {Items} items", n);
+            logger.LogInformation("SEED flash sale: {Slots} slots over 7 days, {Items} items", slots.Count, n);
         }
 
         if (!await db.Banners.AnyAsync(ct))

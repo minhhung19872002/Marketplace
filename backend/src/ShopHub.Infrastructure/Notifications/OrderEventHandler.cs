@@ -18,7 +18,7 @@ namespace ShopHub.Infrastructure.Notifications;
 /// Turns order events into in-app notifications for the buyer and for the shop's staff who handle orders (spec VII).
 /// Runs after the business transaction committed; a redelivered message creates nothing twice (dedupe key).
 /// </summary>
-public sealed class OrderEventHandler(ShopHubDbContext db, MessageTemplates templates, IClock clock) : IOutboxHandler
+public sealed class OrderEventHandler(ShopHubDbContext db, MessageTemplates templates, IClock clock, OutboxContext context) : IOutboxHandler
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private static readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
@@ -72,7 +72,8 @@ public sealed class OrderEventHandler(ShopHubDbContext db, MessageTemplates temp
         var buyer = await RenderAsync(buyerEvent, "BUYER");
         var seller = await RenderAsync(sellerEvent, "SHOP");
 
-        var now = clock.UtcNow;
+        // Dated when the event happened (never in the future), not when the outbox delivered it
+        var now = context.OccurredAt is { } at && at < clock.UtcNow ? at : clock.UtcNow;
         // Stable across processes (string.GetHashCode is randomised): same event + note → same key
         var noteHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(e.Note ?? "")))[..8];
         var key = $"order:{order.Id}:{e.Event}:{noteHash}";

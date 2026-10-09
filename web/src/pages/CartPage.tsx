@@ -8,7 +8,7 @@ import { ApiError } from '../api/http';
 import { checkoutApi, type CartLine, type CheckoutRequest } from '../api/commerce';
 import { struckPrice } from '../lib/cart';
 import { formatPrice } from '../lib/money';
-import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import { handleImgError, sizedImage } from '../lib/image';
 import { productPath } from '../lib/urls';
 import ProductGrid from '../components/ProductGrid';
 import VoucherPicker from '../components/VoucherPicker';
@@ -70,7 +70,7 @@ const SimilarProducts = ({ productId }: { productId: string }) => {
             emptyText={<span className="cart-similar-empty">Chưa có sản phẩm tương tự.</span>}>
           {(list) => list.slice(0, 6).map((p) => (
             <Link key={p.id} to={productPath(p.slug, p.shopId, p.id)} className="cart-similar-item" data-testid="cart-similar-item">
-              <img src={imageOrPlaceholder(p.imageUrl)} alt="" onError={handleImgError} />
+              <img src={sizedImage(p.imageUrl, 200)} alt="" onError={handleImgError} />
               <span className="cart-similar-name">{p.name}</span>
               <span className="cart-similar-price">{formatPrice(p.minPrice)}</span>
             </Link>
@@ -190,7 +190,7 @@ const CartPage = () => {
                     />
                   </span>
                   <div className="cart-col-product cart-item-product">
-                    <img src={imageOrPlaceholder(item.imageUrl)} alt={item.name} className="cart-item-img" onError={handleImgError} />
+                    <img src={sizedImage(item.imageUrl, 200)} alt={item.name} className="cart-item-img" onError={handleImgError} />
                     <div className="cart-item-textblock">
                       <Link to={`/san-pham/${item.productId}`} className="cart-item-name">{item.name}</Link>
                       <VariantPicker line={item} onPick={(skuId) => run(() => update(item.skuId, { skuId }))} />
@@ -258,7 +258,9 @@ const CartPage = () => {
           <div className="cart-summary">
             <span className="cart-summary-label">Tổng thanh toán ({cart.selectedQuantity} sản phẩm):</span>
             <span className="cart-summary-total" data-testid="cart-total">{formatPrice(cart.selectedSubtotal)}</span>
-            <button className="cart-checkout" onClick={checkout} disabled={selected.length === 0} data-testid="checkout">Mua Hàng</button>
+            <button className="cart-checkout" onClick={checkout} disabled={selected.length === 0} data-testid="checkout">
+              Mua Hàng{cart.selectedQuantity > 0 ? ` (${cart.selectedQuantity})` : ''}
+            </button>
           </div>
         </div>
 
@@ -299,7 +301,7 @@ const YouMayLike = () => {
   if (!suggestions.data?.items.length) return null;
   return (
     <div className="cart-suggestions" data-testid="cart-suggestions">
-      <ProductGrid title="CÓ THỂ BẠN CŨNG THÍCH" products={suggestions.data.items} />
+      <ProductGrid title="Có thể bạn cũng thích" products={suggestions.data.items} />
     </div>
   );
 };

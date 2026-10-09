@@ -82,6 +82,11 @@ export interface Dashboard {
   returnsPending: number
   processedToday: number
   lowStockThreshold: number
+  // Same figures for the period just before (yesterday, days 8–14, days 31–60) — not returned by the API yet; the
+  // dashboard shows the ↑/↓ comparison as soon as they are
+  yesterday?: SalesFigure
+  previous7Days?: SalesFigure
+  previous30Days?: SalesFigure
   announcements: { title: string; body: string; link: string | null; createdAt: string }[] | null
 }
 

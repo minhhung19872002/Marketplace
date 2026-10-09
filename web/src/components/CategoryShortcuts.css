@@ -69,5 +69,6 @@
   color: var(--sh-primary);
 }
 .feature-shortcuts--loading {
-  height: 112px;
+  /* Same height as the loaded row at every width (G3: measured 135 px), so nothing below jumps */
+  height: 135px;
 }

@@ -3,7 +3,7 @@ import type { ProductCard as Card } from '../types';
 import { Link } from 'react-router-dom';
 import { Heart, MapPin, Zap } from 'lucide-react';
 import { formatPrice, formatSold, priceParts } from '../lib/money';
-import { handleImgError, imageOrPlaceholder } from '../lib/image';
+import { handleImgError, imageOrPlaceholder, imageSrcSet } from '../lib/image';
 import { useWishlist } from '../context/WishlistContext';
 import { Stars } from './ui';
 import './ProductCard.css';
@@ -15,7 +15,7 @@ import { productPath } from '../lib/urls';
  * rating + sold, ship-from province. Hover lifts the tile and shows "Tìm sản phẩm tương tự" (a sibling link — links
  * cannot nest).
  */
-const ProductCard = ({ product }: { product: Card }) => {
+const ProductCard = ({ product, showFrame = false }: { product: Card; showFrame?: boolean }) => {
   const { has, toggle } = useWishlist();
   const liked = has(product.id);
   const href = productPath(product.slug, product.shopId, product.id);
@@ -31,9 +31,10 @@ const ProductCard = ({ product }: { product: Card }) => {
     <div className={`product-card ${product.inStock ? '' : 'sold-out'}`}>
       <Link to={href} className="product-card-link" data-testid="product-card">
         <div className="product-card-img">
-          <img src={imageOrPlaceholder(product.imageUrl)} alt={product.name} loading="lazy" decoding="async" width={240} height={240} onError={handleImgError} />
-          {/* Campaign frame (e.g. 10.10) — decoration only, the product's own photo stays the content */}
-          {product.frameUrl && <img className="product-card-frame" src={product.frameUrl} alt="" aria-hidden loading="lazy" width={240} height={240} />}
+          <img src={imageOrPlaceholder(product.imageUrl)} srcSet={imageSrcSet(product.imageUrl)} sizes="(max-width: 640px) 50vw, 200px" alt={product.name} loading="lazy" decoding="async" width={240} height={240} onError={handleImgError} />
+          {/* Campaign frame (e.g. 10.10): only on the campaign's own page — elsewhere it hid the photo (G3 B3), a chip says it */}
+          {showFrame && product.frameUrl && <img className="product-card-frame" src={product.frameUrl} alt="" aria-hidden loading="lazy" width={240} height={240} />}
+          {!showFrame && product.campaignName && <span className="product-card-campaign" data-testid="product-card-campaign">{product.campaignName}</span>}
           <div className="product-card-flags">
             {product.isMall && <span className="pc-flag pc-flag--mall">Mall</span>}
             {product.isPreferred && !product.isMall && <span className="pc-flag pc-flag--preferred">Yêu thích</span>}

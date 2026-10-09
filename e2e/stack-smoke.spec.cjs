@@ -8,13 +8,13 @@ test.describe('Stack smoke', () => {
 
   test('Kênh Người Bán mở màn hình đăng nhập', async ({ page }) => {
     await page.goto(`${BASE}/seller/`);
-    await expect(page.getByRole('heading', { name: 'ShopHub — Kênh Người Bán' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Đăng nhập Kênh Người Bán' })).toBeVisible();
     await expect(page.getByTestId('login-submit')).toBeVisible();
   });
 
   test('Quản Trị Sàn mở màn hình đăng nhập', async ({ page }) => {
     await page.goto(`${BASE}/admin/`);
-    await expect(page.getByRole('heading', { name: 'ShopHub — Quản Trị Sàn' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Đăng nhập quản trị sàn' })).toBeVisible();
     await expect(page.getByTestId('login-submit')).toBeVisible();
   });
 

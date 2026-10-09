@@ -100,3 +100,14 @@
     height: 52px;
   }
 }
+
+/* Loading placeholder: the loaded section is 300 px tall on phones, 308 px from tablets up (G3, CLS) */
+.category-grid-section--loading {
+  height: 300px;
+}
+
+@media (min-width: 768px) {
+  .category-grid-section--loading {
+    height: 308px;
+  }
+}

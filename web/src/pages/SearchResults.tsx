@@ -123,8 +123,9 @@ const FacetList = ({ title, values, selected, onToggle, testId }: FacetListProps
         {shown.map((v) => (
           <label key={v.value} className="filter-cat">
             <input type="checkbox" checked={selected.includes(v.value)} onChange={() => onToggle(v.value)} data-testid="facet-option" />
-            <span>
-              {v.label} <span className="filter-count">({v.count})</span>
+            {/* Name and count stay on one line: a long name is cut, the count never drops alone to the next line (G3 C6) */}
+            <span className="filter-cat-text" title={v.label}>
+              <span className="filter-cat-name">{v.label}</span> <span className="filter-count">({v.count})</span>
             </span>
           </label>
         ))}
@@ -174,7 +175,7 @@ const PriceSort = ({ value, onPick }: { value: '' | 'asc' | 'desc'; onPick: (sor
 const Suggestions = () => {
   const { data } = useQuery({ queryKey: ['home', 'recommendations', 'fallback'], queryFn: () => storefrontApi.recommendations(1, 12), staleTime: 5 * 60_000 });
   if (!data || data.items.length === 0) return null;
-  return <ProductGrid title="CÓ THỂ BẠN CŨNG THÍCH" products={data.items} />;
+  return <ProductGrid title="Có thể bạn cũng thích" products={data.items} />;
 };
 
 const SearchView = ({ category }: { category?: CategoryPage }) => {
@@ -311,7 +312,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
         {filtersOpen && <button type="button" className="search-sidebar-backdrop" aria-label="Đóng bộ lọc" onClick={() => setFiltersOpen(false)} tabIndex={-1} />}
         <aside className={`search-sidebar ${filtersOpen ? 'is-open' : ''}`} data-testid="filter-sidebar" aria-label="Bộ lọc tìm kiếm">
           <div className="filter-title">
-            <span><ListFilter size={16} aria-hidden /> BỘ LỌC TÌM KIẾM</span>
+            <span><ListFilter size={16} aria-hidden /> Bộ lọc tìm kiếm</span>
             <button type="button" className="filter-sheet-close" onClick={() => setFiltersOpen(false)} aria-label="Đóng bộ lọc"><X size={20} aria-hidden /></button>
           </div>
 
@@ -340,12 +341,18 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
 
           <FilterGroup title="Khoảng Giá">
             <form className="filter-price" onSubmit={applyPrice} noValidate>
-              <input type="number" min="0" step="1000" inputMode="numeric" placeholder="₫ TỪ" value={minDraft} onChange={(e) => setMinDraft(e.target.value)}
-                aria-label="Giá từ" aria-invalid={!!priceError} />
+              <span className="filter-price-field">
+                <span className="filter-price-currency" aria-hidden>₫</span>
+                <input type="number" min="0" step="1000" inputMode="numeric" placeholder="Từ" value={minDraft} onChange={(e) => setMinDraft(e.target.value)}
+                  aria-label="Giá từ" aria-invalid={!!priceError} />
+              </span>
               <span className="filter-price-sep" aria-hidden>—</span>
-              <input type="number" min="0" step="1000" inputMode="numeric" placeholder="₫ ĐẾN" value={maxDraft} onChange={(e) => setMaxDraft(e.target.value)}
-                aria-label="Giá đến" aria-invalid={!!priceError} />
-              <button type="submit" className="filter-price-apply" data-testid="price-apply">ÁP DỤNG</button>
+              <span className="filter-price-field">
+                <span className="filter-price-currency" aria-hidden>₫</span>
+                <input type="number" min="0" step="1000" inputMode="numeric" placeholder="Đến" value={maxDraft} onChange={(e) => setMaxDraft(e.target.value)}
+                  aria-label="Giá đến" aria-invalid={!!priceError} />
+              </span>
+              <button type="submit" className="filter-price-apply" data-testid="price-apply">Áp dụng</button>
             </form>
             {priceError && <div className="filter-error" role="alert" data-testid="price-error">{priceError}</div>}
           </FilterGroup>
@@ -426,8 +433,9 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
               />
             ))}
 
-          <button type="button" className="filter-clear" onClick={clearFilters} data-testid="filter-clear">
-            XOÁ TẤT CẢ
+          {/* Only drops filters from the URL (nothing saved is lost): no confirmation */}
+          <button type="button" className="filter-clear" onClick={clearFilters} data-testid="filter-clear" data-confirm="local">
+            Xoá tất cả
           </button>
           <button type="button" className="filter-sheet-apply" onClick={() => setFiltersOpen(false)}>
             Xem {data ? formatCount(data.totalCount) : ''} sản phẩm
@@ -457,7 +465,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
           {relatedShops.isLoading && <div className="related-shop related-shop--loading" aria-hidden />}
           {relatedShop && (
             <div className="related-shop" data-testid="related-shop">
-              <div className="related-shop-title">SHOP LIÊN QUAN ĐẾN “{keyword}”</div>
+              <div className="related-shop-title">Shop liên quan đến “{keyword}”</div>
               <Link to={`/shop/${relatedShop.slug}`} className="related-shop-card">
                 <span className="related-shop-logo">
                   {relatedShop.logoUrl ? <img src={relatedShop.logoUrl} alt="" onError={handleImgError} /> : relatedShop.name.charAt(0)}

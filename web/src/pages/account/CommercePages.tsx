@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ordersApi, walletApi, type OrderDetail, type OrderTab, type VoucherInfo, type WalletTab } from '../../api/commerce';
+import { ordersApi, walletApi, type OrderDetail, type OrderStatus, type OrderTab, type ShipmentEvent, type VoucherInfo, type WalletTab } from '../../api/commerce';
 import { CART_KEY } from '../../context/CartContext';
 import { marketingApi } from '../../api/marketing';
-import { ShipmentTimeline } from '../TrackingPage';
 import { ApiError } from '../../api/http';
 import { formatCount, formatPrice } from '../../lib/money';
 import { formatDate, formatDateTime } from '../../lib/datetime';
 import { ContactShopButton } from '../../components/chat/Chat';
-import { handleImgError, imageOrPlaceholder } from '../../lib/image';
+import { handleImgError, sizedImage } from '../../lib/image';
 import { usePageTitle } from '../../lib/pageTitle';
 import QueryState from '../../components/QueryState';
+import { Timeline, type TimelineItem } from '../../components/ui/Timeline';
 
 const ORDER_TABS: { key: OrderTab; label: string }[] = [
   { key: 'All', label: 'Tất cả' },
@@ -37,12 +37,22 @@ export const OrdersPage = () => {
   });
   const data = orders.data;
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / data.pageSize)) : 1;
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  // Keep the active tab visible in the single scrolling row (phones)
+  useEffect(() => {
+    const row = tabsRef.current;
+    const active = row?.querySelector<HTMLElement>(`[data-tab="${tab}"]`);
+    if (!row || !active || row.scrollWidth <= row.clientWidth) return;
+    row.scrollTo({ left: active.offsetLeft - (row.clientWidth - active.offsetWidth) / 2, behavior: 'smooth' });
+  }, [tab]);
 
   return (
     <div className="account-card" data-testid="orders-page">
-      <div className="account-tabs">
+      <div className="account-tabs account-tabs--scroll" role="tablist" aria-label="Trạng thái đơn hàng" ref={tabsRef}>
         {ORDER_TABS.map((t) => (
-          <button key={t.key} className={`account-tab ${tab === t.key ? 'active' : ''}`} onClick={() => { setTab(t.key); setPage(1); }}>
+          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} data-tab={t.key}
+            className={`account-tab ${tab === t.key ? 'active' : ''}`} onClick={() => { setTab(t.key); setPage(1); }}>
             {t.label}
           </button>
         ))}
@@ -60,7 +70,7 @@ export const OrdersPage = () => {
             </div>
             {o.firstItem && (
               <Link to={`/tai-khoan/don-mua/${o.code}`} className="order-card-item">
-                <img src={imageOrPlaceholder(o.firstItem.imageUrl)} alt="" onError={handleImgError} />
+                <img src={sizedImage(o.firstItem.imageUrl, 200)} alt="" onError={handleImgError} />
                 <span>
                   <span className="order-card-name">{o.firstItem.name}</span>
                   {o.firstItem.variant && <span className="order-card-variant">Phân loại: {o.firstItem.variant}</span>}
@@ -69,8 +79,8 @@ export const OrdersPage = () => {
               </Link>
             )}
             <div className="order-card-foot">
-              <span>Mã đơn <Link to={`/tai-khoan/don-mua/${o.code}`} data-testid="order-code">{o.code}</Link> · {formatDateTime(o.createdAt)}</span>
-              <span>Thành tiền: <strong>{formatPrice(o.grandTotal)}</strong></span>
+              <span className="order-card-meta">Mã đơn <Link to={`/tai-khoan/don-mua/${o.code}`} data-testid="order-code">{o.code}</Link> · {formatDateTime(o.createdAt)}</span>
+              <span className="order-card-total">Thành tiền: <strong>{formatPrice(o.grandTotal)}</strong></span>
             </div>
             <div className="order-card-actions">
               {o.status === 'PendingPayment' && <Link to={`/thanh-toan/ket-qua/${o.checkoutId}`} className="account-btn">Thanh toán ngay</Link>}
@@ -174,6 +184,55 @@ const OrderActions = ({ order }: { order: OrderDetail }) => {
   );
 };
 
+// Main flow of an order (G3 stepper); each step is reached when the history shows the order entering that status
+const FLOW: { label: string; status: OrderStatus | null }[] = [
+  { label: 'Đặt hàng', status: null },
+  { label: 'Đã xác nhận', status: 'ReadyToShip' },
+  { label: 'Đã giao cho ĐVVC', status: 'Shipping' },
+  { label: 'Đã giao', status: 'Delivered' },
+  { label: 'Hoàn thành', status: 'Completed' },
+];
+const TERMINAL: OrderStatus[] = ['Cancelled', 'DeliveryFailed', 'Returning', 'Returned'];
+
+const flowSteps = (order: OrderDetail): TimelineItem[] => {
+  const at = (status: OrderStatus | null) =>
+    status === null ? order.history[0]?.occurredAt : [...order.history].reverse().find((h) => h.to === status)?.occurredAt;
+  const times = FLOW.map((f) => at(f.status));
+  const reached = times.reduce((last, t, i) => (t ? i : last), 0);
+  const terminal = TERMINAL.includes(order.status);
+  const steps: TimelineItem[] = FLOW.map((f, i) => ({
+    key: f.label,
+    title: f.label,
+    time: times[i] && i <= reached ? formatDateTime(times[i]!) : undefined,
+    state: i < reached || (terminal && i === reached) ? 'done' : i === reached ? 'current' : 'upcoming',
+  }));
+  if (!terminal) return steps;
+  const last = order.history[order.history.length - 1];
+  return [
+    ...steps.slice(0, reached + 1),
+    { key: 'end', title: order.statusLabel, time: last ? formatDateTime(last.occurredAt) : undefined, state: 'current', tone: 'danger' },
+  ];
+};
+
+const historyItems = (order: OrderDetail): TimelineItem[] =>
+  [...order.history].reverse().map((h, i) => ({
+    key: `${h.occurredAt}-${i}`,
+    title: h.toLabel,
+    description: h.reason ?? undefined,
+    time: formatDateTime(h.occurredAt),
+    state: i === 0 ? 'current' : 'done',
+    tone: i === 0 && TERMINAL.includes(h.to) ? 'danger' : 'default',
+  }));
+
+const journeyItems = (events: ShipmentEvent[]): TimelineItem[] =>
+  [...events].reverse().map((e, i) => ({
+    key: `${e.occurredAt}-${i}`,
+    title: e.label,
+    description: [e.description !== e.label ? e.description : null, e.location].filter(Boolean).join(' · ') || undefined,
+    time: formatDateTime(e.occurredAt),
+    state: i === 0 ? 'current' : 'done',
+  }));
+
 /** /tai-khoan/don-mua/:code */
 export const OrderDetailPage = () => {
   const { code = '' } = useParams();
@@ -194,8 +253,9 @@ export const OrderDetailPage = () => {
     <div className="account-card" data-testid="order-detail">
       <div className="order-detail-head">
         <Link to="/tai-khoan/don-mua">‹ Trở lại</Link>
-        <span>Mã đơn hàng: <strong>{data.code}</strong> · <span data-testid="order-detail-status">{data.statusLabel}</span></span>
+        <span>Mã đơn hàng: <strong>{data.code}</strong> · <span className="order-detail-status" data-testid="order-detail-status">{data.statusLabel}</span></span>
       </div>
+      <Timeline items={flowSteps(data)} orientation="horizontal" label="Tiến trình đơn hàng" className="order-stepper" testId="order-stepper" />
       {data.status === 'PendingPayment' && data.paymentExpiresAt && (
         <div className="order-detail-alert">
           Vui lòng thanh toán trước {formatDateTime(data.paymentExpiresAt)}.{' '}
@@ -215,6 +275,21 @@ export const OrderDetailPage = () => {
       )}
       <OrderActions order={data} />
 
+      <div className="order-detail-grid">
+        <div className="order-detail-address">
+          <h3>Địa chỉ nhận hàng</h3>
+          <p className="order-detail-receiver">{data.address.receiverName}</p>
+          <p>{data.address.phone}</p>
+          <p>{data.address.fullAddress}</p>
+          <p>Vận chuyển: {data.carrierName ?? data.carrierCode} (dự kiến {data.expectedDeliveryDays === 0 ? 'trong ngày' : `${data.expectedDeliveryDays} ngày`})</p>
+          {data.buyerNote && <p>Lời nhắn: {data.buyerNote}</p>}
+        </div>
+        <div className="order-detail-history">
+          <h3>Lịch sử đơn hàng</h3>
+          <Timeline items={historyItems(data)} label="Lịch sử trạng thái đơn hàng" testId="order-timeline" />
+        </div>
+      </div>
+
       {data.parcels ? data.parcels.map((p) => (
         <div key={p.no} className="order-detail-shipment" data-testid="order-parcel">
           <h3>
@@ -223,47 +298,31 @@ export const OrderDetailPage = () => {
           </h3>
           {p.shipment ? (
             <>
-              <p>
+              <p className="order-detail-shipment-meta">
                 {p.shipment.carrierName ?? p.shipment.carrierCode} · Mã vận đơn{' '}
                 <Link to={`/tra-cuu-van-don/${p.shipment.trackingNo}`} data-testid="tracking-no">{p.shipment.trackingNo}</Link>
                 {' '}· Dự kiến giao: {formatDate(p.shipment.expectedDeliveryAt)}
               </p>
-              <ShipmentTimeline events={p.shipment.events} />
+              <Timeline items={journeyItems(p.shipment.events)} label="Hành trình vận đơn" testId="shipment-timeline" />
             </>
           ) : <p>Shop đang chuẩn bị kiện này.</p>}
         </div>
       )) : data.shipment && (
         <div className="order-detail-shipment">
-          <h3>
-            Vận chuyển: {data.shipment.carrierName ?? data.shipment.carrierCode} · Mã vận đơn{' '}
+          <h3>Hành trình vận đơn</h3>
+          <p className="order-detail-shipment-meta">
+            {data.shipment.carrierName ?? data.shipment.carrierCode} · Mã vận đơn{' '}
             <Link to={`/tra-cuu-van-don/${data.shipment.trackingNo}`} data-testid="tracking-no">{data.shipment.trackingNo}</Link>
-          </h3>
-          <p>Dự kiến giao: {formatDate(data.shipment.expectedDeliveryAt)}</p>
-          <ShipmentTimeline events={data.shipment.events} />
+            {' '}· Dự kiến giao: {formatDate(data.shipment.expectedDeliveryAt)}
+          </p>
+          <Timeline items={journeyItems(data.shipment.events)} label="Hành trình vận đơn" testId="shipment-timeline" />
         </div>
       )}
-
-      <ol className="order-timeline" data-testid="order-timeline">
-        {data.history.map((h, i) => (
-          <li key={i}>
-            <strong>{h.toLabel}</strong> <span>{formatDateTime(h.occurredAt)}</span>
-            {h.reason && <em> — {h.reason}</em>}
-          </li>
-        ))}
-      </ol>
-
-      <div className="order-detail-address">
-        <h3>Địa chỉ nhận hàng</h3>
-        <p>{data.address.receiverName} · {data.address.phone}</p>
-        <p>{data.address.fullAddress}</p>
-        <p>Vận chuyển: {data.carrierName ?? data.carrierCode} (dự kiến {data.expectedDeliveryDays === 0 ? 'trong ngày' : `${data.expectedDeliveryDays} ngày`})</p>
-        {data.buyerNote && <p>Lời nhắn: {data.buyerNote}</p>}
-      </div>
 
       <div className="order-detail-shop"><Link to={`/shop/${data.shopSlug}`}>{data.shopName}</Link></div>
       {data.items.map((i) => (
         <div key={i.id} className="order-card-item" data-testid="order-item">
-          <img src={imageOrPlaceholder(i.imageUrl)} alt="" onError={handleImgError} />
+          <img src={sizedImage(i.imageUrl, 200)} alt="" onError={handleImgError} />
           <span>
             <Link to={`/san-pham/${i.productId}`} className="order-card-name">{i.name}</Link>
             {i.variant && <span className="order-card-variant">Phân loại: {i.variant}</span>}

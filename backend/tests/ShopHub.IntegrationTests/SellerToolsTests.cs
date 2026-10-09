@@ -116,6 +116,13 @@ public class SellerToolsTests(ApiFactory factory)
         today.GetProperty("visitors").GetInt32().Should().Be(1);
         today.GetProperty("conversionBp").GetInt64().Should().Be(10_000);
         d.GetProperty("returnsPending").GetInt32().Should().Be(0);
+        // The period just before (G3 C10): today's order is not in yesterday / days 8–14 / days 31–60
+        foreach (var previous in new[] { "yesterday", "previous7Days", "previous30Days" })
+        {
+            d.GetProperty(previous).GetProperty("orders").GetInt32().Should().Be(0, previous);
+            d.GetProperty(previous).GetProperty("revenue").GetInt64().Should().Be(0, previous);
+        }
+        d.GetProperty("last7Days").GetProperty("orders").GetInt32().Should().BeGreaterThan(0);
         (await seller.PutAsJsonAsync($"/api/seller/shops/{store.ShopId}/low-stock-threshold", new { units = -1 })).StatusCode.Should().NotBe(HttpStatusCode.OK);
     }
 

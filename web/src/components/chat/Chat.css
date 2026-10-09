@@ -18,6 +18,33 @@
   box-shadow: var(--sh-shadow-md);
 }
 
+/* Phones: a round icon button, it covers less of the page (G3 C2, C4) */
+@media (max-width: 767px) {
+  .chat-launcher {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0;
+  }
+
+  .chat-launcher svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .chat-launcher .chat-unread {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    margin: 0;
+    font-size: 11px;
+    line-height: 18px;
+    box-shadow: var(--sh-shadow-sm);
+  }
+}
+
 .chat-unread {
   display: inline-block;
   min-width: 18px;

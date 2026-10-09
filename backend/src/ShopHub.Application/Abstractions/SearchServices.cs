@@ -56,8 +56,10 @@ public record ProductCardDto(
     // Short tags under the name, each backed by data: a running combo / add-on / gift programme, the shop's coin
     // cashback voucher, Freeship Xtra (set by CardPricing)
     IReadOnlyList<string>? Labels = null,
-    // Campaign frame over the photo when the product takes part in a running campaign that has one
-    string? FrameUrl = null);
+    // Campaign frame over the photo when the product takes part in a running campaign that has one — drawn only on the
+    // campaign's own page; every other grid shows a small chip with CampaignName instead (G3 B3)
+    string? FrameUrl = null,
+    string? CampaignName = null);
 
 public record FacetValue(string Value, string Label, int Count);
 

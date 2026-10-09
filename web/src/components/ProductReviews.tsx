@@ -51,7 +51,7 @@ const HelpfulButton = ({ review, onChanged }: { review: Review; onChanged: () =>
   );
 };
 
-/** "ĐÁNH GIÁ SẢN PHẨM" on the product page (G2-B2): star distribution, filters, photos in a viewer, "Hữu ích", pager. */
+/** "Đánh giá sản phẩm" on the product page (G2-B2): star distribution, filters, photos in a viewer, "Hữu ích", pager. */
 const ProductReviews = ({ productId }: { productId: string }) => {
   const { isLoggedIn } = useAuth();
   const queryClient = useQueryClient();
@@ -94,7 +94,7 @@ const ProductReviews = ({ productId }: { productId: string }) => {
   const pages = Math.max(1, Math.ceil(reviews.totalCount / reviews.pageSize));
   return (
     <div className="pd-section" data-testid="reviews" ref={top}>
-      <h2 className="pd-section-title">ĐÁNH GIÁ SẢN PHẨM</h2>
+      <h2 className="pd-section-title">Đánh giá sản phẩm</h2>
       <div className="pd-rating-summary">
         <div className="pd-rating-score">
           <span><span className="pd-rating-big" data-testid="rating-average">{summary.average.toFixed(1)}</span> <span className="pd-rating-outof">trên 5</span></span>

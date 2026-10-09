@@ -116,6 +116,8 @@ test.describe('Kênh Người Bán', () => {
     await expect(page.getByTestId('product-name').filter({ hasText: productName })).toBeVisible();
 
     // 3. Admin UI: approve from the review queue
+    // Đăng xuất sits in the header's user menu
+    await page.getByTestId('user-menu').click();
     await page.getByTestId('logout').click();
     await page.goto(`${BASE}/admin/`);
     await page.getByLabel('Tên đăng nhập').fill(ADMIN_USER);

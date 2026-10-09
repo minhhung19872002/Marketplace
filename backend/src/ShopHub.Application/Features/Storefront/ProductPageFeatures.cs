@@ -195,8 +195,10 @@ public sealed class RelatedProductsHandler(IApplicationDbContext db, CardPricing
         var rows = await ProductCards.Visible(db).AsNoTracking()
             .Where(p => p.Id != request.ProductId && p.CategoryId == product.CategoryId)
             .OrderByDescending(p => p.SoldCount).ThenByDescending(p => p.RatingAvg).ThenByDescending(p => p.PublishedAt).ThenBy(p => p.Id)
-            .Take(take).Select(ProductCards.Row(db)).ToListAsync(ct);
-        return await pricing.ApplyAsync(rows.Select(ProductCards.ToDto).ToList(), ct);
+            .Take(take * 3).Select(ProductCards.Row(db)).ToListAsync(ct);
+        // "Sản phẩm tương tự" (G3 B2): one card per item — the same item from other shops is not a different suggestion
+        var cards = rows.Select(ProductCards.ToDto).DistinctBy(c => ProductCards.ModelKey(c.Name)).Take(take).ToList();
+        return await pricing.ApplyAsync(cards, ct);
     }
 }
 
@@ -265,7 +267,9 @@ public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUse
             rows.AddRange(await BestSelling(first).Skip(offset).Take(Math.Min(take, firstCount - offset)).Select(ProductCards.Row(db)).ToListAsync(ct));
         if (rows.Count < take)
             rows.AddRange(await BestSelling(rest).Skip(Math.Max(0, offset - firstCount)).Take(take - rows.Count).Select(ProductCards.Row(db)).ToListAsync(ct));
-        return new PagedResult<ProductCardDto>(await pricing.ApplyAsync(rows.Select(ProductCards.ToDto).ToList(), ct), total, request.Page, request.PageSize);
+        // The same item from several shops is spread out, never twice in a row of the grid (G3 B2)
+        var cards = ProductCards.Diversify(rows.Select(ProductCards.ToDto).ToList());
+        return new PagedResult<ProductCardDto>(await pricing.ApplyAsync(cards.ToList(), ct), total, request.Page, request.PageSize);
     }
 
     /// <summary>Products in "Gợi ý hôm nay" at most (60 per "Xem thêm" × 20).</summary>

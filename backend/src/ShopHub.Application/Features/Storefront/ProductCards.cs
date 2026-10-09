@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using ShopHub.Application.Abstractions;
+using ShopHub.Application.Common;
 using ShopHub.Domain.Catalog;
 using ShopHub.Domain.Shops;
 
@@ -34,6 +35,46 @@ public static class ProductCards
                                      && (db.Shops.Any(s => s.Id == p.ShopId && s.MultiWarehouse) && p.WarehouseId != null && db.ShopWarehouses.Any(x => x.Id == p.WarehouseId && x.ShopId == p.ShopId) ? w.Id == p.WarehouseId : w.IsPickupDefault))
             .Select(w => db.AdminDivisions.Where(d => d.Code == w.ProvinceCode).Select(d => d.Name).FirstOrDefault())
             .FirstOrDefault());
+
+    /// <summary>
+    /// The same item listed by several shops ("Nước Ngọt Có Ga Chai 1.5L" and "Nước Ngọt Có Ga Chai 1.5L - Giao Nhanh"):
+    /// its name without what a shop appends after " - ", case and tones folded.
+    /// </summary>
+    public static string ModelKey(string name)
+    {
+        var cut = name.IndexOf(" - ", StringComparison.Ordinal);
+        return Slug.Fold(cut > 0 ? name[..cut] : name);
+    }
+
+    /// <summary>
+    /// G3 B2: a page of cards reordered so that the same item never shows twice within <paramref name="window"/> cards (a
+    /// row of the grid): each place takes the first waiting card whose item is not among the last window − 1 placed;
+    /// when every waiting item is that recent, the one placed longest ago goes in. Nothing is dropped and the order is
+    /// otherwise kept, so paging and counts stay exact.
+    /// </summary>
+    public static IReadOnlyList<ProductCardDto> Diversify(IReadOnlyList<ProductCardDto> cards, int window = 6)
+    {
+        if (cards.Count < 3) return cards;
+        var waiting = cards.Select(c => (Card: c, Key: ModelKey(c.Name))).ToList();
+        var placed = new List<ProductCardDto>(cards.Count);
+        var lastAt = new Dictionary<string, int>();
+        while (waiting.Count > 0)
+        {
+            int Last(string key) => lastAt.TryGetValue(key, out var at) ? at : int.MinValue;
+            var i = waiting.FindIndex(w => placed.Count - Last(w.Key) >= window);
+            if (i < 0)
+            {
+                // Every item left was shown within the window: take the one seen longest ago (first in order on a tie)
+                var oldest = waiting.Min(w => Last(w.Key));
+                i = waiting.FindIndex(w => Last(w.Key) == oldest);
+            }
+            var (card, key) = waiting[i];
+            waiting.RemoveAt(i);
+            lastAt[key] = placed.Count;
+            placed.Add(card);
+        }
+        return placed;
+    }
 
     public static ProductCardDto ToDto(ProductCardRow r) => new(r.Id, r.Name, r.Slug, r.ImageUrl, r.MinPrice, r.MaxPrice,
         Math.Max(r.OriginalPrice, r.MinPrice), DiscountPercent(r.MinPrice, r.OriginalPrice), r.RatingAvg, r.RatingCount, r.SoldCount,

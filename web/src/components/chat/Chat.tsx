@@ -304,7 +304,7 @@ export const ChatWidget = () => {
           <ChatPanel />
         </div>
       ) : (
-        <button className="chat-launcher" onClick={() => chat.show()} data-testid="chat-launcher">
+        <button className="chat-launcher" onClick={() => chat.show()} data-testid="chat-launcher" aria-label="Chat">
           <MessageCircle size={18} aria-hidden /> Chat{(unread.data ?? 0) > 0 && <em className="chat-unread">{unread.data}</em>}
         </button>
       )}

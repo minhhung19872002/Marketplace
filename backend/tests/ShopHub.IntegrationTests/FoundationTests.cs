@@ -302,6 +302,31 @@ public class FoundationTests(ApiFactory factory)
         parked.LastError.Should().Contain("Không có bộ xử lý");
     }
 
+    /// <summary>
+    /// L169: the sample seeder delivers only order events, before the search index exists — every other message is left
+    /// untouched (not even an attempt), so search syncs are not burnt to "parked" before the index is configured.
+    /// </summary>
+    [Fact]
+    public async Task Dispatch_limited_to_some_types_leaves_the_other_messages_untouched()
+    {
+        var id = await factory.WithDbAsync(async db =>
+        {
+            var message = new OutboxMessage("khong.co.bo.xu.ly.loc", "{}", DateTimeOffset.UtcNow);
+            db.OutboxMessages.Add(message);
+            await db.SaveChangesAsync();
+            return message.Id;
+        });
+
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<OutboxDispatcher>().DispatchAsync(CancellationToken.None, [OutboxTypes.OrderEvent]);
+
+        var untouched = await factory.WithDbAsync(db => db.OutboxMessages.AsNoTracking().SingleAsync(m => m.Id == id));
+        untouched.Attempts.Should().Be(0);
+        untouched.ProcessedAt.Should().BeNull();
+        await DispatchAsync();
+        (await factory.WithDbAsync(db => db.OutboxMessages.AsNoTracking().SingleAsync(m => m.Id == id))).Attempts.Should().Be(1, "không lọc thì vẫn xử lý");
+    }
+
     [Fact]
     public async Task Parallel_dispatchers_never_deliver_the_same_message_twice()
     {

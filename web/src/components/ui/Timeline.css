@@ -1,0 +1,195 @@
+/* Timeline (G3): vertical history list and horizontal stepper. Colours come from index.css tokens. */
+.sh-timeline {
+  --tl-dot: 12px;
+  --tl-line: var(--sh-border-strong);
+  --tl-on: var(--sh-success);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sh-timeline__item {
+  position: relative;
+}
+
+.sh-timeline__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 50%;
+  background: var(--sh-surface);
+  border: 2px solid var(--tl-line);
+  color: var(--sh-on-primary);
+}
+
+.sh-timeline__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sh-timeline__title {
+  font-weight: 500;
+  color: var(--sh-text-strong);
+}
+
+.sh-timeline__desc,
+.sh-timeline__time {
+  font: var(--sh-font-caption);
+  color: var(--sh-text-muted);
+}
+
+/* ---- Vertical ---- */
+.sh-timeline--vertical .sh-timeline__item {
+  display: flex;
+  gap: var(--sh-space-3);
+  padding-bottom: var(--sh-space-4);
+}
+
+.sh-timeline--vertical .sh-timeline__item:last-child {
+  padding-bottom: 0;
+}
+
+/* connecting line from this dot down to the next one */
+.sh-timeline--vertical .sh-timeline__item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--tl-dot) / 2 - 1px);
+  top: calc(var(--tl-dot) + 6px);
+  bottom: 2px;
+  width: 2px;
+  background: var(--tl-line);
+}
+
+.sh-timeline--vertical .sh-timeline__dot {
+  width: var(--tl-dot);
+  height: var(--tl-dot);
+  margin-top: 4px;
+}
+
+.sh-timeline--vertical .is-done .sh-timeline__dot {
+  border-color: var(--tl-line);
+  background: var(--tl-line);
+}
+
+.sh-timeline--vertical .is-done .sh-timeline__title {
+  font-weight: 400;
+  color: var(--sh-text-muted);
+}
+
+.sh-timeline--vertical .is-current .sh-timeline__dot {
+  border-color: var(--tl-on);
+  background: var(--tl-on);
+  box-shadow: 0 0 0 4px var(--sh-success-soft);
+}
+
+.sh-timeline--vertical .is-current .sh-timeline__title {
+  color: var(--tl-on);
+  font-weight: 600;
+}
+
+.sh-timeline--vertical .is-upcoming .sh-timeline__title {
+  color: var(--sh-text-muted);
+  font-weight: 400;
+}
+
+/* ---- Horizontal stepper ---- */
+.sh-timeline--horizontal {
+  --tl-dot: 36px;
+  display: flex;
+}
+
+.sh-timeline--horizontal .sh-timeline__item {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sh-space-2);
+  min-width: 0;
+  text-align: center;
+}
+
+/* line from the previous dot to this one; green once this step is reached */
+.sh-timeline--horizontal .sh-timeline__item:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--tl-dot) / 2 - 2px);
+  right: calc(50% + var(--tl-dot) / 2 + 4px);
+  left: calc(-50% + var(--tl-dot) / 2 + 4px);
+  height: 4px;
+  border-radius: var(--sh-radius-pill);
+  background: var(--tl-line);
+}
+
+.sh-timeline--horizontal .sh-timeline__item.is-done::before,
+.sh-timeline--horizontal .sh-timeline__item.is-current::before {
+  background: var(--tl-on);
+}
+
+.sh-timeline--horizontal .sh-timeline__dot {
+  width: var(--tl-dot);
+  height: var(--tl-dot);
+  border-width: 3px;
+}
+
+.sh-timeline--horizontal .is-done .sh-timeline__dot {
+  border-color: var(--tl-on);
+  background: var(--tl-on);
+}
+
+.sh-timeline--horizontal .is-current .sh-timeline__dot {
+  border-color: var(--tl-on);
+  background: var(--tl-on);
+  box-shadow: 0 0 0 5px var(--sh-success-soft);
+}
+
+.sh-timeline--horizontal .is-current .sh-timeline__title {
+  color: var(--tl-on);
+  font-weight: 600;
+}
+
+.sh-timeline--horizontal .is-upcoming .sh-timeline__title {
+  color: var(--sh-text-muted);
+  font-weight: 400;
+}
+
+.sh-timeline--horizontal .sh-timeline__body {
+  align-items: center;
+  padding: 0 var(--sh-space-1);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* Terminal step in the danger tone (cancelled, failed delivery, returned) */
+.sh-timeline .is-danger .sh-timeline__dot {
+  border-color: var(--sh-danger);
+  background: var(--sh-danger);
+  box-shadow: 0 0 0 4px var(--sh-danger-soft);
+}
+
+.sh-timeline .is-danger .sh-timeline__title {
+  color: var(--sh-danger);
+}
+
+.sh-timeline--horizontal .sh-timeline__item.is-danger::before {
+  background: var(--sh-danger);
+}
+
+@media (max-width: 600px) {
+  .sh-timeline--horizontal {
+    --tl-dot: 26px;
+  }
+  .sh-timeline--horizontal .sh-timeline__dot svg {
+    width: 13px;
+    height: 13px;
+  }
+  .sh-timeline--horizontal .sh-timeline__body {
+    font-size: 11px;
+    padding: 0 2px;
+  }
+  .sh-timeline--horizontal .sh-timeline__time {
+    display: none;
+  }
+}

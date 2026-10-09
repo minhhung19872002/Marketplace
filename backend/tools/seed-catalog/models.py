@@ -107,7 +107,7 @@ MODELS = [
     m(21, f'{G}/Thực Phẩm Tươi/Rau Củ', 'Dưa Leo Baby Hữu Cơ', 35_000, 'weight1kg', attrs={'Khối lượng': ['500'], 'Hạn sử dụng': ['5']}, weight=1_000),
     m(25, f'{G}/Thực Phẩm Tươi/Rau Củ', 'Ớt Chuông Xanh Đà Lạt', 39_000, 'weight1kg', attrs={'Khối lượng': ['500'], 'Hạn sử dụng': ['7']}, weight=1_000),
     m(26, f'{G}/Thực Phẩm Tươi/Rau Củ', 'Ớt Xanh Cay Tươi', 25_000, attrs={'Khối lượng': ['200'], 'Hạn sử dụng': ['7']}, weight=300),
-    m(35, f'{G}/Thực Phẩm Tươi/Rau Củ', 'Khoai Tây Đà Lạt Loại 1', 32_000, 'weight1kg', attrs={'Khối lượng': ['500'], 'Hạn sử dụng': ['20']}, weight=1_000),
+    m(35, f'{G}/Thực Phẩm Tươi/Rau Củ', 'Khoai Tây Đà Lạt Củ To', 32_000, 'weight1kg', attrs={'Khối lượng': ['500'], 'Hạn sử dụng': ['20']}, weight=1_000),
     m(37, f'{G}/Thực Phẩm Tươi/Rau Củ', 'Hành Tây Tím Lý Sơn', 29_000, 'weight1kg', attrs={'Khối lượng': ['500'], 'Hạn sử dụng': ['30']}, weight=1_000),
     m(17, f'{G}/Thực Phẩm Tươi/Thịt & Hải Sản', 'Thăn Bò Úc Cắt Steak 300g', 289_000, attrs={'Khối lượng': ['300'], 'Hạn sử dụng': ['5']}, origin='Khác', weight=400),
     m(19, f'{G}/Thực Phẩm Tươi/Thịt & Hải Sản', 'Gà Ta Nguyên Con Làm Sạch', 189_000, attrs={'Khối lượng': ['1500'], 'Hạn sử dụng': ['3']}, weight=1_600),

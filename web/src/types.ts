@@ -65,8 +65,10 @@ export interface ProductCard {
   isFlashSale?: boolean;
   // Tags under the name backed by data (combo / add-on / gift programme, Freeship Xtra)
   labels?: string[] | null;
-  // Campaign frame laid over the photo (product taking part in a running campaign)
+  // Campaign frame laid over the photo (product taking part in a running campaign) — on the campaign page only;
+  // elsewhere a small chip with the campaign's name (G3 B3)
   frameUrl?: string | null;
+  campaignName?: string | null;
 }
 
 // ---------- search ----------

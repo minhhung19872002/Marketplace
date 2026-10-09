@@ -433,6 +433,11 @@ test.describe('ShopHub Marketplace', () => {
     // A fresh browser (no remembered popup), unlike the returning visitor of the other tests (config storageState)
     const page = await (await browser.newContext({ storageState: { cookies: [], origins: [] } })).newPage();
     await page.goto(BASE);
+    // Not on arrival (G3 A5): only once the visitor scrolls (or after 8 s)
+    await expect(page.getByTestId('home-banners')).toBeVisible();
+    await page.waitForTimeout(1_500);
+    await expect(page.getByTestId('home-popup')).toHaveCount(0);
+    await page.mouse.wheel(0, 900);
     await expect(page.getByTestId('home-popup')).toBeVisible();
     await page.getByRole('button', { name: 'Đóng' }).click();
     await expect(page.getByTestId('home-popup')).toHaveCount(0);

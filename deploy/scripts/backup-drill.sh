@@ -1,6 +1,6 @@
 #!/bin/sh
 # Backup / restore drill (G4-D), run on the server from the repository root:
-#   SH_COMPOSE="docker compose -f docker-compose.yml -f docker-compose.vm.yml" deploy/scripts/backup-drill.sh
+#   SH_COMPOSE="docker compose -f docker-compose.yml -f docker-compose.vm.yml" [SH_DRILL_DIR=drill] deploy/scripts/backup-drill.sh
 # 1. takes a fresh dump exactly like the sys.backup job (pg_dump -Fc) and checks it with pg_restore --list;
 # 2. restores it into a scratch database (shophub_drill) next to the live one — the live data is never touched;
 # 3. compares row counts and money totals live vs restored (they must be equal: the dump is a consistent snapshot);
@@ -9,8 +9,10 @@
 set -eu
 compose=${SH_COMPOSE:-docker compose -f docker-compose.yml -f docker-compose.prod.yml}
 stamp=$(date +%Y%m%d-%H%M%S)
-dump="backups/db/drill-$stamp.dump"
-mkdir -p backups/db backups/minio-drill
+# Where the drill writes (the dump and the MinIO copy); ./backups may belong to root when Docker created it
+dir=${SH_DRILL_DIR:-backups}
+dump="$dir/db/drill-$stamp.dump"
+mkdir -p "$dir/db" "$dir/minio-drill"
 
 psql_live() { $compose exec -T postgres sh -c "psql -tA -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"$1\""; }
 psql_drill() { $compose exec -T postgres sh -c "psql -tA -U \"\$POSTGRES_USER\" -d shophub_drill -c \"$1\""; }
@@ -43,11 +45,11 @@ echo "   phục hồi:  $restored"
 ok=1
 [ "$live" = "$restored" ] || { echo "   LỆCH"; ok=0; }
 
-echo "4. Tệp MinIO → backups/minio-drill, rồi phục hồi thử vào bucket tạm sh-drill"
+echo "4. Tệp MinIO → $dir/minio-drill, rồi phục hồi thử vào bucket tạm sh-drill"
 # mc runs in the minio-init image (it carries the MC_HOST_sh alias); per bucket: objects live, files mirrored, objects
 # after copying the mirror back into a scratch bucket — the three must be equal
 # The mc image has no awk / find / sed: counts come from mc itself (it lists local folders too) and wc
-files=$($compose run --rm -T --no-deps -v "$PWD/backups/minio-drill:/drill" --entrypoint sh minio-init -c '
+files=$($compose run --rm -T --no-deps -v "$(cd "$dir" && pwd)/minio-drill:/drill" --entrypoint sh minio-init -c '
   mc mirror --overwrite --quiet sh/ /drill/ > /dev/null
   mc mb --ignore-existing sh/sh-drill > /dev/null
   for b in sh-products sh-reviews sh-kyc sh-chat sh-banners sh-returns; do

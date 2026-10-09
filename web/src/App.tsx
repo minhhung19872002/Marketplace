@@ -2,7 +2,6 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import Header from './components/Header'
-import DemoNotice from './components/DemoNotice'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
 import BackToTop from './components/BackToTop'
@@ -66,7 +65,6 @@ function App() {
           <ChatProvider>
             <ScrollToTop />
             <div className="App">
-              <DemoNotice />
               <Header />
               <main className="main-content">
                 <Suspense fallback={<PageLoader />}>

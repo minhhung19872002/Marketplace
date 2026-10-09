@@ -21,3 +21,4 @@ deploy/certs/
 
 # dotnet test loggers (trx)
 TestResults/
+drill/

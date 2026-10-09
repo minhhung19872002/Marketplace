@@ -1,21 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
-import { Info } from 'lucide-react';
 import { contentApi } from '../api/content';
 import './DemoNotice.css';
 
+const TEXT = 'Bản trình diễn: đơn hàng, thanh toán và vận chuyển đều là giả lập, không giao hàng thật.';
+
 /**
- * Thin strip above the header while the platform runs as a showcase (SITE.MODE = demo, G4-D): orders, payments and
- * deliveries are simulated, so nobody mistakes the demo for a real shop. Nothing is shown on a live site.
+ * Showcase notice while the platform runs as a demo (SITE.MODE = demo, G4-D), so nobody mistakes it for a real shop.
+ * It never pushes the page down (a strip above the header did: CLS 0.12): `badge` sits in the header's top bar, whose
+ * height is fixed, `line` in the footer. Nothing is shown on a live site.
  */
-const DemoNotice = () => {
+const DemoNotice = ({ variant }: { variant: 'badge' | 'line' }) => {
   const site = useQuery({ queryKey: ['site'], queryFn: contentApi.site, staleTime: 3_600_000 });
   if (site.data?.mode !== 'demo') return null;
-  return (
-    <div className="demo-notice" role="note" data-testid="demo-notice">
-      <Info size={14} aria-hidden />
-      <span>Bản trình diễn: đơn hàng, thanh toán và vận chuyển đều là giả lập, không giao hàng thật.</span>
-    </div>
-  );
+  return variant === 'badge'
+    ? <span className="demo-badge" title={TEXT} data-testid="demo-notice">Bản trình diễn</span>
+    : <p className="demo-line" role="note" data-testid="demo-notice-footer">{TEXT}</p>;
 };
 
 export default DemoNotice;

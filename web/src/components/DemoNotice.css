@@ -1,12 +1,18 @@
-.demo-notice {
-  display: flex;
+.demo-badge {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 4px 16px;
-  background: var(--sh-surface-muted, var(--sh-bg));
-  color: var(--sh-text-muted);
+  margin-left: 8px;
+  padding: 0 8px;
+  border: 1px solid currentColor;
+  border-radius: var(--sh-radius-pill, 999px);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.demo-line {
+  margin: 0 0 6px;
   font-size: 12px;
-  line-height: 1.4;
-  text-align: center;
+  font-weight: 500;
 }

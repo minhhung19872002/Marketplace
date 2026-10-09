@@ -5,6 +5,7 @@ import { BadgeCheck, Facebook, Globe, Instagram, Linkedin, MessageCircle, Music2
 import { contentApi } from '../api/content';
 import { currentYear } from '../lib/datetime';
 import './Footer.css';
+import DemoNotice from './DemoNotice';
 
 type FooterLink = { label: string; to?: string; href?: string };
 
@@ -123,6 +124,7 @@ const Footer = () => {
 
       <div className="footer-bottom">
         <div className="container footer-bottom-inner">
+          <DemoNotice variant="line" />
           <p className="footer-copy">© {currentYear()} {platform}. Tất cả các quyền được bảo lưu.</p>
           {s && (
             <div className="footer-legal" data-testid="footer-legal">

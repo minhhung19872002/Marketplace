@@ -18,7 +18,7 @@ rev=$(git rev-parse --short HEAD)
 git archive --format=tar HEAD | gzip | ssh "$host" "set -e
   new=\$(mktemp -d); tar xzf - -C \"\$new\"
   rsync -a --delete --exclude=.env --exclude=docker-compose.vm.yml --exclude=deploy/nginx/realip.conf --exclude=seed-accounts.txt \
-    --exclude=DEPLOY-VM.md --exclude=REVISION --exclude='*.log' --exclude=backups/ \"\$new\"/ ~/$dir/
+    --exclude=DEPLOY-VM.md --exclude=REVISION --exclude='*.log' --exclude=backups/ --exclude=drill/ \"\$new\"/ ~/$dir/
   rm -rf \"\$new\"; cd ~/$dir; echo $rev > REVISION
   c='docker compose -f docker-compose.yml -f docker-compose.vm.yml'
   COMPOSE_PARALLEL_LIMIT=1 \$c build api web admin seller 2>&1 | grep -E 'Built|ERROR' || true

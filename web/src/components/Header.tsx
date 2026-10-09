@@ -14,6 +14,7 @@ import { badgeCount, highlightParts } from '../lib/text';
 import { clearSearchHistory, pushSearchHistory, readSearchHistory } from '../lib/searchHistory';
 import './Header.css';
 import { Bell, CircleHelp, History, Search, Store, TrendingUp, UserRound, Heart, ShoppingCart } from 'lucide-react';
+import DemoNotice from './DemoNotice';
 
 // The seller centre is its own app under /seller (full page load, not a client route)
 const SELLER_URL = '/seller/';
@@ -130,6 +131,7 @@ const Header = () => {
             <a href={SELLER_URL} className="header-top-link">Kênh Người Bán</a>
             <a href={`${SELLER_URL}dang-ky-ban-hang`} className="header-top-link">Trở thành người bán</a>
             <Link to="/tai-ung-dung" className="header-top-link" data-testid="app-link">Tải ứng dụng</Link>
+            <DemoNotice variant="badge" />
           </nav>
           <nav className="header-top-links">
             <Link to="/thong-bao" className="header-top-link" data-testid="notifications-link">

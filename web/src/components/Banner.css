@@ -1,18 +1,29 @@
 .banner {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 6px;
-  margin-top: var(--sh-space-4);
+  /* G-VIS: main 797 × 235, side banners 398 × 115 with a 5 px gap (1200 px row) */
+  grid-template-columns: minmax(0, 797fr) minmax(0, 398fr);
+  gap: 5px;
+  padding-top: 30px;
 }
 
-/* ---- Main carousel: fixed 2.4:1 ---- */
+/* Every banner: the artwork fills its frame; a title (when drawn) sits on a scrim, vertically centred */
+.banner-art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  min-height: 0;
+  background: var(--sh-surface-sunken);
+}
+
+/* ---- Main carousel: fixed 797:235 ---- */
 .banner-slider {
   position: relative;
   overflow: hidden;
   /* The title size follows the slide width (cqi), not the window: the slide is 2/3 of the row on desktop */
   container-type: inline-size;
-  aspect-ratio: 2.4 / 1;
-  border-radius: var(--sh-radius-sm);
+  aspect-ratio: 797 / 235;
+  border-radius: 2px;
   background: var(--sh-tone-primary);
 }
 
@@ -114,26 +125,17 @@
 
 .banner-dots {
   position: absolute;
-  bottom: 2px;
+  bottom: 4px;
   left: 50%;
+  z-index: 2;
   display: flex;
   gap: 0;
-  opacity: 0;
   transform: translateX(-50%);
-  transition: opacity 0.2s;
 }
 
 .banner-slider:hover .banner-arrow,
-.banner-slider:hover .banner-dots,
-.banner-slider:focus-within .banner-arrow,
-.banner-slider:focus-within .banner-dots {
+.banner-slider:focus-within .banner-arrow {
   opacity: 1;
-}
-
-@media (hover: none) {
-  .banner-dots {
-    opacity: 1;
-  }
 }
 
 /* A 24 px tap target around the 8 px dot (WCAG 2.5.8, G3 — Lighthouse target-size), same pattern as the Mall dots */
@@ -148,26 +150,30 @@
   cursor: pointer;
 }
 
+.banner-dot {
+  min-width: 18px;
+}
+
+/* G-VIS: small translucent white dots, the active one orange */
 .banner-dot::before {
   content: '';
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--sh-tile-border);
   border-radius: 50%;
-  background: var(--sh-surface);
-  opacity: 0.55;
+  background: var(--sh-dot);
 }
 
 .banner-dot.active::before {
-  width: 20px;
-  border-radius: var(--sh-radius-pill);
-  opacity: 1;
+  border-color: transparent;
+  background: var(--sh-search-btn);
 }
 
 /* ---- Side banners ---- */
 .banner-side {
   display: grid;
   grid-template-rows: 1fr 1fr;
-  gap: 6px;
+  gap: 5px;
   min-height: 0;
 }
 
@@ -175,7 +181,7 @@
   position: relative;
   overflow: hidden;
   min-height: 0;
-  border-radius: var(--sh-radius-sm);
+  border-radius: 2px;
 }
 
 .banner-side-card {
@@ -277,4 +283,46 @@
   display: block;
   height: 100%;
   border-radius: var(--sh-radius-sm);
+}
+
+/* ---- Strip of 3 wide banners between Flash Sale and the categories (G-VIS) ---- */
+.home-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: var(--sh-section-gap);
+  padding: 6px;
+  background: var(--sh-surface);
+}
+
+.home-strip-item {
+  aspect-ratio: 390 / 105;
+  border-radius: 2px;
+}
+
+.home-strip-item .banner-title {
+  font-size: 15px;
+}
+
+.home-strip-item .banner-content {
+  max-width: 80%;
+  padding: 0 14px;
+}
+
+@media (max-width: 767px) {
+  .banner {
+    padding-top: var(--sh-space-2);
+  }
+
+  .home-strip {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .home-strip-item {
+    flex: 0 0 86%;
+    scroll-snap-align: start;
+  }
 }

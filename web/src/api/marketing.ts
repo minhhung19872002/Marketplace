@@ -7,6 +7,8 @@ export interface PublicBanner {
   title: string;
   imageUrl: string;
   link: string;
+  /** The artwork carries its own headline: no title is drawn over it (G-VIS). Optional until every API sends it. */
+  hasTextInImage?: boolean;
 }
 
 export interface HomeBanners {
@@ -18,6 +20,8 @@ export interface HomeBanners {
   pinnedKeywords: string[];
   // Portrait slides of the home "ShopHub Mall" block
   mall: PublicBanner[] | null;
+  // Strip of 3 wide banners between Flash Sale and the categories (G-VIS); absent on older APIs
+  strip?: PublicBanner[] | null;
 }
 
 export interface FlashBoardItem {
@@ -33,6 +37,10 @@ export interface FlashBoardItem {
   sold: number;
   soldPercent: number;
   perUserLimit: number;
+  // Shop badges and the running campaign of the product, when the API sends them (G-VIS)
+  isMall?: boolean;
+  isPreferred?: boolean;
+  campaignName?: string | null;
 }
 
 export interface FlashBoardSlot {

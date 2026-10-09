@@ -12,7 +12,7 @@ import './TopCategories.css';
  * when every tile has some, else the all-time total on every tile ("Đã bán 120").
  */
 export const topSoldLine = (monthlySold: number, soldCount: number, monthly: boolean): string =>
-  monthly ? `Bán ${formatSold(monthlySold)}+ / tháng` : `Đã bán ${formatSold(soldCount)}`;
+  monthly ? `Bán ${formatSold(monthlySold).replace(/\+$/, '')}+ / tháng` : `Đã bán ${formatSold(soldCount)}`;
 
 // "Tìm kiếm hàng đầu" (G2-B1): one sliding row, 6 tiles per view — the best seller of each industry
 const TopCategories = () => {

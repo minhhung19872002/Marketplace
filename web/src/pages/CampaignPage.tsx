@@ -7,10 +7,9 @@ import { ApiError } from '../api/http';
 import { useAuth } from '../context/AuthContext';
 import ProductGrid from '../components/ProductGrid';
 import { FlashSaleBoard } from '../components/FlashSaleBlock';
-import { BannerLink } from '../components/Banner';
+import { BannerArt, bannerShowsTitle } from '../components/Banner';
 import { formatPrice } from '../lib/money';
 import { formatDate } from '../lib/datetime';
-import { handleImgError, isImageUrl } from '../lib/image';
 import QueryState from '../components/QueryState';
 import './CampaignPage.css';
 
@@ -44,11 +43,8 @@ const VoucherTile = ({ v }: { v: CampaignVoucher }) => {
  * says "SIÊU SALE 10.10" and has a button — a second title on top of it was noise, G4-A3). Without the backend flag an
  * image banner is taken to carry text; the title then stays as the image's alt text.
  */
-export const bannerOverlay = (b: CampaignBlock): boolean => {
-  if (!b.title) return false;
-  const hasImage = !!b.imageUrl && isImageUrl(b.imageUrl);
-  return !hasImage || b.hasTextInImage === false;
-};
+// The campaign API does not send the flag yet: only an explicit "no text in the artwork" (false) draws the title on an image
+export const bannerOverlay = (b: CampaignBlock): boolean => bannerShowsTitle(b, b.hasTextInImage === false);
 
 /** /su-kien/:slug — Ngày hội mua sắm built by the platform from blocks (spec II.13). */
 const CampaignPage = () => {
@@ -74,10 +70,8 @@ const CampaignPage = () => {
       {data.blocks.map((b, i) => (
         <section key={i} className="campaign-block">
           {b.type === 'Banner' && (
-            <BannerLink to={b.link ?? '/'} className={`campaign-banner ${bannerOverlay(b) ? 'campaign-banner--titled' : ''}`}>
-              {b.imageUrl && isImageUrl(b.imageUrl) && <img src={b.imageUrl} alt={bannerOverlay(b) ? '' : b.title ?? ''} onError={handleImgError} />}
-              {bannerOverlay(b) && <span>{b.title}</span>}
-            </BannerLink>
+            // Same rendering as the home banners (G-VIS): artwork filling the frame, a title only when it has none
+            <BannerArt banner={b} to={b.link ?? '/'} className="campaign-banner" titled={bannerOverlay(b)} />
           )}
           {b.type === 'Vouchers' && (
             <>

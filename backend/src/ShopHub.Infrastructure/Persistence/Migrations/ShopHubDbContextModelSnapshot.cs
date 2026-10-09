@@ -3371,6 +3371,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("end_at");
 
+                    b.Property<bool>("HasTextInImage")
+                        .HasColumnType("boolean")
+                        .HasColumnName("has_text_in_image");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasMaxLength(500)

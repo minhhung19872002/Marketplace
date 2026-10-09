@@ -132,6 +132,8 @@ public static class ParameterKeys
     public const string FlashAutoOpenDays = "FLASH.AUTO_OPEN_DAYS";
     public const string FlashAutoMinDiscountBp = "FLASH.AUTO_MIN_DISCOUNT_BP";
     public const string JobFlashAutoOpenCron = "JOB.FLASH_AUTO_OPEN_CRON";
+    public const string DemoSalesBoostMaxUnits = "DEMO.SALES_BOOST_MAX_UNITS";
+    public const string JobDemoSalesBoostCron = "JOB.DEMO_SALES_BOOST_CRON";
 }
 
 public static class ParameterGroups
@@ -395,6 +397,10 @@ public static class ParameterCatalog
             "Mức giảm tối thiểu của khung tự mở (‱)", "Tiêu chí đăng ký của các khung Flash Sale do việc nền mở (1000 = giảm từ 10%)."),
         new(ParameterKeys.JobFlashAutoOpenCron, "5 * * * *", ParameterDataType.Cron, ParameterGroups.Job,
             "Lịch tự mở khung Flash Sale", "Cron theo giờ Việt Nam: mở các khung còn thiếu trong FLASH.AUTO_OPEN_DAYS ngày tới (không mở trùng)."),
+        new(ParameterKeys.DemoSalesBoostMaxUnits, "2000", ParameterDataType.Int, ParameterGroups.Marketing,
+            "Demo: số đã bán mục tiêu của sản phẩm bán chạy nhất", "Chỉ ở chế độ demo: việc nền đặt thêm đơn thật (qua đúng các lệnh đặt hàng / giao / nhận) cho 20% sản phẩm bán chạy, sản phẩm đứng đầu tới bấy nhiêu đơn vị, các sản phẩm sau giảm dần (≥ 100). 0 = tắt."),
+        new(ParameterKeys.JobDemoSalesBoostCron, "20 * * * *", ParameterDataType.Cron, ParameterGroups.Job,
+            "Lịch gieo doanh số demo", "Cron theo giờ Việt Nam: mỗi lượt chạy tối đa 4 phút, lượt sau làm tiếp; không làm gì khi SITE.MODE = live."),
         new(ParameterKeys.SitePublicUrl, "http://localhost:18000", ParameterDataType.String, ParameterGroups.Site,
             "Địa chỉ trang người mua", "Dùng để dựng liên kết tuyệt đối trong thư thông báo và địa chỉ quay về sau cổng thanh toán (VNPay, MoMo)."),
         new(ParameterKeys.PaymentDisabledMethods, "[]", ParameterDataType.Json, ParameterGroups.Payment,

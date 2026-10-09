@@ -6,7 +6,7 @@ const { BASE, api, apiAs, apiLogin, addAddressViaApi, findProduct, loginInBrowse
 const ADMIN_USER = process.env.SH_E2E_ADMIN_USER;
 const ADMIN_PASSWORD = process.env.SH_E2E_ADMIN_PASSWORD;
 
-const vnd = (n) => `₫${n.toLocaleString('vi-VN')}`;
+const vnd = (n) => `${n.toLocaleString('vi-VN')}₫`;
 const money = (text) => Number(String(text).replace(/[^\d]/g, ''));
 
 /** Two in-stock single-SKU products from two different shops that run a shop voucher, each ≥ ₫150.000. */

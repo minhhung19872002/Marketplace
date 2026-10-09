@@ -78,8 +78,8 @@ export interface ReconcileSource {
 export const FEE_TYPE_LABEL: Record<FeeType, string> = {
   Fixed: 'Phí cố định',
   Payment: 'Phí thanh toán',
-  FreeshipXtra: 'Phí dịch vụ Freeship Xtra',
-  VoucherXtra: 'Phí dịch vụ Voucher Xtra',
+  FreeshipXtra: 'Phí dịch vụ Freeship+',
+  VoucherXtra: 'Phí dịch vụ Voucher Plus',
 }
 
 export const ISSUE_LABEL: Record<string, string> = {

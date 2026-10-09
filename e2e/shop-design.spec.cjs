@@ -167,7 +167,7 @@ test.describe('Thiết lập & trang trí shop', () => {
     await expect(seller.getByTestId('bulk-message').first()).toHaveText('Đã cập nhật 0 SKU.');
   });
 
-  test('Chương trình dịch vụ: shop bật Freeship Xtra, thấy mức phí; tắt lại được', async ({ browser, request }) => {
+  test('Chương trình dịch vụ: shop bật Freeship+, thấy mức phí; tắt lại được', async ({ browser, request }) => {
     const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);
     const shop = await shopWithProduct(request, admin);
     const seller = await sellerLogin(browser, shop.seller);
@@ -175,11 +175,11 @@ test.describe('Thiết lập & trang trí shop', () => {
     await seller.getByRole('tab', { name: 'Chương trình dịch vụ' }).click();
     await expect(seller.getByText(/Phí dịch vụ 5%/)).toBeVisible();
     await seller.getByTestId('xtra-FreeshipXtra').click();
-    await expect(seller.getByText('Đã tham gia Freeship Xtra.')).toBeVisible();
+    await expect(seller.getByText('Đã tham gia Freeship+.')).toBeVisible();
     const state = await apiAs(request, shop.token, 'GET', `/seller/shops/${shop.shopId}/xtra`);
     expect(state.find((p) => p.program === 'FreeshipXtra').joined).toBe(true);
     await seller.getByTestId('xtra-FreeshipXtra').click();
-    await expect(seller.getByText('Đã rời Freeship Xtra.')).toBeVisible();
+    await expect(seller.getByText('Đã rời Freeship+.')).toBeVisible();
   });
   test('Đa kho: shop thêm kho Hà Nội, bật đa kho → đơn hai kho thành 2 kiện, người mua thấy 2 mã vận đơn', async ({ browser, page, request }) => {
     const admin = await apiLogin(request, ADMIN_USER, ADMIN_PASSWORD);

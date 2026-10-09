@@ -211,8 +211,8 @@ const VouchersPage = () => {
           </Space>
           <Space size="large">
             <Form.Item name="isPublic" label="Công khai" valuePropName="checked"><Switch /></Form.Item>
-            <Form.Item name="xtraOnly" label="Chỉ shop tham gia Xtra" valuePropName="checked"
-              tooltip="Miễn phí vận chuyển → chỉ shop Freeship Xtra; loại khác → chỉ shop Voucher Xtra">
+            <Form.Item name="xtraOnly" label="Chỉ shop tham gia Freeship+ / Voucher Plus" valuePropName="checked"
+              tooltip="Miễn phí vận chuyển → chỉ shop Freeship+; loại khác → chỉ shop Voucher Plus">
               <Switch data-testid="voucher-xtra" />
             </Form.Item>
           </Space>

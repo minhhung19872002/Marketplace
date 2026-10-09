@@ -26,6 +26,7 @@ public static class JobIds
     public const string PriceIndex = "search.price-index";
     public const string Backup = "sys.backup";
     public const string FlashAutoOpen = "promo.flash-auto-open";
+    public const string DemoSalesBoost = "demo.sales-boost";
 
     /// <summary>The JOB.*_CRON parameter holding each job's schedule (Vietnam time).</summary>
     public static readonly IReadOnlyDictionary<string, string> ScheduleParameter = new Dictionary<string, string>
@@ -38,12 +39,13 @@ public static class JobIds
         [Reminders] = ParameterKeys.JobRemindersCron, [CartCleanup] = ParameterKeys.JobCartCleanupCron,
         [CarrierSync] = ParameterKeys.JobCarrierSyncCron, [BulkSweep] = ParameterKeys.JobBulkSweepCron, [PriceIndex] = ParameterKeys.JobPriceIndexCron,
         [Backup] = ParameterKeys.JobBackupCron, [FlashAutoOpen] = ParameterKeys.JobFlashAutoOpenCron,
+        [DemoSalesBoost] = ParameterKeys.JobDemoSalesBoostCron,
     };
 
     // Jobs an admin may trigger on demand (POST /api/admin/job-runs/{id})
     public static readonly IReadOnlyList<string> Runnable =
         [OutboxDispatch, CounterRecompute, PaymentExpiry, OrderAutomation, CarrierSimulator, Settlement, LedgerCheck, FlashReconcile, CoinExpiry, Reminders,
-            CarrierSync, CartCleanup, Backup];
+            CarrierSync, CartCleanup, Backup, FlashAutoOpen, DemoSalesBoost];
 }
 
 /// <summary>Hangfire entry for <see cref="Application.Features.Orders.OrderAutomationService"/>.</summary>
@@ -171,6 +173,12 @@ public sealed class HangfireJobScheduler(IRecurringJobManager recurringJobs, ISy
             JobIds.LedgerCheck,
             j => j.RunJobAsync(),
             await parameters.GetStringAsync(ParameterKeys.JobLedgerCheckCron, ct),
+            options);
+
+        recurringJobs.AddOrUpdate<Ops.DemoSalesBoostJob>(
+            JobIds.DemoSalesBoost,
+            j => j.RunJobAsync(),
+            await parameters.GetStringAsync(ParameterKeys.JobDemoSalesBoostCron, ct),
             options);
 
         recurringJobs.AddOrUpdate<Marketing.FlashAutoOpenJob>(

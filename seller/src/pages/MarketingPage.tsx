@@ -296,8 +296,8 @@ const FlashTab = ({ shopId }: { shopId: string }) => {
 }
 
 const XTRA: Record<XtraProgram, { name: string; text: string }> = {
-  FreeshipXtra: { name: 'Freeship Xtra', text: 'Mã miễn phí vận chuyển của sàn dùng được cho đơn của shop — sàn tài trợ phí ship, shop trả phí dịch vụ trên doanh thu.' },
-  VoucherXtra: { name: 'Voucher Xtra', text: 'Voucher giảm giá Xtra của sàn dùng được cho sản phẩm của shop — sàn chịu phần giảm, shop trả phí dịch vụ.' },
+  FreeshipXtra: { name: 'Freeship+', text: 'Mã miễn phí vận chuyển của sàn dùng được cho đơn của shop — sàn tài trợ phí ship, shop trả phí dịch vụ trên doanh thu.' },
+  VoucherXtra: { name: 'Voucher Plus', text: 'Voucher giảm giá Voucher Plus của sàn dùng được cho sản phẩm của shop — sàn chịu phần giảm, shop trả phí dịch vụ.' },
 }
 
 /** Chương trình dịch vụ (spec 3.9): join / leave Freeship Xtra and Voucher Xtra; applies to orders placed from then on. */

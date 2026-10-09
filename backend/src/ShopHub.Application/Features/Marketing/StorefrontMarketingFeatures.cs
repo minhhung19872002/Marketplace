@@ -12,7 +12,7 @@ namespace ShopHub.Application.Features.Marketing;
 // ---------- Flash Sale board (home page) ----------
 
 public record FlashBoardItemDto(Guid ItemId, Guid ProductId, Guid SkuId, string Name, string? ImageUrl, long FlashPrice, long BasePrice, int DiscountPercent,
-    int Quota, int Sold, int SoldPercent, int PerUserLimit);
+    int Quota, int Sold, int SoldPercent, int PerUserLimit, bool IsMall = false, bool IsPreferred = false, string? CampaignName = null);
 
 public record FlashBoardSlotDto(Guid Id, DateTimeOffset StartAt, DateTimeOffset EndAt, bool Running);
 
@@ -35,15 +35,27 @@ public sealed class FlashBoardHandler(IApplicationDbContext db, IClock clock) : 
         var rows = await (from i in db.FlashSaleItems.AsNoTracking()
                           join p in ProductCards.Visible(db).AsNoTracking() on i.ProductId equals p.Id
                           join s in db.Skus.AsNoTracking() on i.SkuId equals s.Id
+                          join sh in db.Shops.AsNoTracking() on i.ShopId equals sh.Id
                           where i.SlotId == current.Id && i.Status == FlashItemStatus.Approved && s.IsActive
                           orderby i.Sold * 1.0 / i.Quota descending, i.CreatedAt
                           select new
                           {
                               i.Id, i.ProductId, i.SkuId, p.Name, i.FlashPrice, BasePrice = s.Price, i.Quota, i.Sold, i.PerUserLimit,
+                              IsMall = sh.Type == Domain.Shops.ShopType.Mall, sh.IsPreferred,
                               Image = p.Media.Where(m => m.Type == Domain.Catalog.MediaType.Image).OrderBy(m => m.SortOrder).Select(m => m.Url).FirstOrDefault(),
                           }).Take(60).ToListAsync(ct);
+        // The running campaign (with a frame) each product takes part in — same rule as the cards' frames (CardPricing)
+        var productIds = rows.Select(r => r.ProductId).Distinct().ToList();
+        var campaigns = (await (from r in db.CampaignRegistrations.AsNoTracking()
+                                join c in db.Campaigns.AsNoTracking() on r.CampaignId equals c.Id
+                                where productIds.Contains(r.ProductId) && r.Status == CampaignRegistrationStatus.Approved && c.IsActive
+                                      && c.StartAt <= now && c.EndAt > now && c.FrameImageUrl != null
+                                orderby c.StartAt descending
+                                select new { r.ProductId, c.Name }).ToListAsync(ct))
+            .GroupBy(c => c.ProductId).ToDictionary(g => g.Key, g => g.First().Name);
         var items = rows.Select(r => new FlashBoardItemDto(r.Id, r.ProductId, r.SkuId, r.Name, r.Image, r.FlashPrice, r.BasePrice,
-            ProductCards.DiscountPercent(r.FlashPrice, r.BasePrice), r.Quota, r.Sold, (int)Math.Floor(r.Sold * 100.0 / r.Quota), r.PerUserLimit)).ToList();
+            ProductCards.DiscountPercent(r.FlashPrice, r.BasePrice), r.Quota, r.Sold, (int)Math.Floor(r.Sold * 100.0 / r.Quota), r.PerUserLimit,
+            r.IsMall, r.IsPreferred, campaigns.GetValueOrDefault(r.ProductId))).ToList();
         return new FlashBoardDto(now, new FlashBoardSlotDto(current.Id, current.StartAt, current.EndAt, current.StartAt <= now),
             slots.Where(s => s.Id != current.Id).Select(s => new FlashBoardSlotDto(s.Id, s.StartAt, s.EndAt, s.StartAt <= now)).ToList(), items);
     }
@@ -167,10 +179,17 @@ public sealed class ShopOffersHandler(IApplicationDbContext db, IClock clock) : 
 
 // ---------- banners, shortcuts, popup ----------
 
-public record PublicBannerDto(Guid Id, string Title, string ImageUrl, string Link);
+public record PublicBannerDto(Guid Id, string Title, string ImageUrl, string Link)
+{
+    // The image is a designed graphic carrying its own text — the page draws no title over it (G-VIS). An init property, not a
+    // positional one: positional optional arguments are not allowed in the EF expression trees that build this DTO
+    public bool HasTextInImage { get; init; }
+}
 
+// Strip: three wide banners between the Flash Sale and the categories (BannerPosition.HomeStrip, G-VIS)
 public record HomeBannersDto(IReadOnlyList<PublicBannerDto> Main, IReadOnlyList<PublicBannerDto> Side, IReadOnlyList<PublicBannerDto> Shortcuts,
-    PublicBannerDto? Popup, int PopupFrequencyHours, IReadOnlyList<string> PinnedKeywords, IReadOnlyList<PublicBannerDto>? Mall = null);
+    PublicBannerDto? Popup, int PopupFrequencyHours, IReadOnlyList<string> PinnedKeywords, IReadOnlyList<PublicBannerDto>? Mall = null,
+    IReadOnlyList<PublicBannerDto>? Strip = null);
 
 public record HomeBannersQuery : IRequest<HomeBannersDto>;
 
@@ -181,12 +200,12 @@ public sealed class HomeBannersHandler(IApplicationDbContext db, ISystemParamete
         var now = clock.UtcNow;
         var rows = await db.Banners.AsNoTracking().Where(b => b.IsActive && b.StartAt <= now && b.EndAt > now && b.Position != BannerPosition.Category)
             .OrderBy(b => b.SortOrder).ThenByDescending(b => b.StartAt).ToListAsync(ct);
-        List<PublicBannerDto> Of(BannerPosition p) => rows.Where(b => b.Position == p).Select(b => new PublicBannerDto(b.Id, b.Title, b.ImageUrl, b.Link)).ToList();
+        List<PublicBannerDto> Of(BannerPosition p) => rows.Where(b => b.Position == p).Select(b => new PublicBannerDto(b.Id, b.Title, b.ImageUrl, b.Link) { HasTextInImage = b.HasTextInImage }).ToList();
         var pinned = (await parameters.GetStringAsync(ParameterKeys.SearchPinnedKeywords, ct))
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(10).ToList();
         return new HomeBannersDto(Of(BannerPosition.HomeMain), Of(BannerPosition.HomeSide).Take(2).ToList(), Of(BannerPosition.Shortcut).Take(10).ToList(),
             Of(BannerPosition.Popup).FirstOrDefault(), (int)await parameters.GetIntAsync(ParameterKeys.PopupFrequencyHours, ct), pinned,
-            Of(BannerPosition.Mall).Take(5).ToList());
+            Of(BannerPosition.Mall).Take(5).ToList(), Of(BannerPosition.HomeStrip).Take(3).ToList());
     }
 }
 

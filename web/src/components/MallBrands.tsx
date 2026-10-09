@@ -5,12 +5,12 @@ import { BadgeCheck, ChevronRight, RotateCcw, Truck } from 'lucide-react';
 import { storefrontApi } from '../api/storefront';
 import { marketingApi } from '../api/marketing';
 import { handleImgError, imageOrPlaceholder, imageSrcSet, isImageUrl } from '../lib/image';
-import { BannerLink } from './Banner';
+import { BannerArt, bannerShowsTitle } from './Banner';
 import './MallBrands.css';
 
-/** Offer line of a Mall cell: the shop's real deepest discount, else the Mall promise. */
-export const mallOffer = (maxDiscountPercent: number): string =>
-  maxDiscountPercent >= 5 ? `Giảm đến ${maxDiscountPercent}%` : 'Chính hãng 100%';
+/** Offer line of a Mall cell: the shop's running programme from the API, else its real deepest discount, else the Mall promise. */
+export const mallOffer = (maxDiscountPercent: number, offer?: string | null): string =>
+  offer?.trim() ? offer.trim() : maxDiscountPercent >= 5 ? `Giảm đến ${maxDiscountPercent}%` : 'Chính hãng 100%';
 
 /**
  * "ShopHub Mall" (G2-B1): portrait slides at the left (admin → Banner, position Mall), a 2 × 4 grid of official stores at
@@ -28,7 +28,7 @@ const MallBrandsSkeleton = () => (
         {Array.from({ length: 8 }, (_, i) => (
           <span key={i} className="mall-brand">
             <span className="mall-brand-photo sh-skeleton" />
-            <span className="mall-brand-name">&nbsp;</span>
+            <span className="mall-brand-pill">&nbsp;</span>
             <span className="mall-brand-offer">&nbsp;</span>
           </span>
         ))}
@@ -69,9 +69,7 @@ const MallBrands = () => {
             {/* The dots sit under the artwork, never over the lines drawn at its bottom (G4-A1) */}
             <div className="mall-slides-frame">
               {slides.map((b, i) => (
-                <BannerLink key={b.id} to={b.link} className={`mall-slide ${i === active ? 'active' : ''}`} label={b.title}>
-                  <img src={b.imageUrl} alt="" loading="lazy" width={480} height={660} onError={handleImgError} />
-                </BannerLink>
+                <BannerArt key={b.id} banner={b} to={b.link} className={`mall-slide ${i === active ? 'active' : ''}`} titled={bannerShowsTitle(b, false)} />
               ))}
             </div>
             {slides.length > 1 && (
@@ -87,19 +85,23 @@ const MallBrands = () => {
         <div className="mall-brands-grid">
           {shops.slice(0, 8).map((s) => (
             <Link key={s.id} to={`/shop/${s.slug}`} className="mall-brand" data-testid="mall-brand">
+              {/* G-VIS: product photo, the brand logo in a grey-bordered pill, the offer line in red */}
               <span className="mall-brand-photo">
                 <img src={imageOrPlaceholder(s.coverImageUrl)} srcSet={imageSrcSet(s.coverImageUrl)} sizes="200px" alt="" loading="lazy" width={200} height={200} onError={handleImgError} />
-                {s.logoUrl && <img className="mall-brand-logo" src={s.logoUrl} alt="" loading="lazy" width={72} height={72} onError={handleImgError} />}
               </span>
-              <span className="mall-brand-name">{s.name.replace(/^Mall /, '')}</span>
-              <span className="mall-brand-offer">{mallOffer(s.maxDiscountPercent)}</span>
+              <span className="mall-brand-pill">
+                {s.logoUrl
+                  ? <img className="mall-brand-logo" src={s.logoUrl} alt={s.name.replace(/^Mall /, '')} loading="lazy" width={120} height={40} onError={handleImgError} />
+                  : <span className="mall-brand-name">{s.name.replace(/^Mall /, '')}</span>}
+              </span>
+              <span className="mall-brand-offer" title={mallOffer(s.maxDiscountPercent, s.offer)}>{mallOffer(s.maxDiscountPercent, s.offer)}</span>
             </Link>
           ))}
           {/* The grid always ends full: the last cell leads to every official store */}
           {Math.min(shops.length, 8) % 4 !== 0 && (
             <Link to="/tim-kiem?mall=true" className="mall-brand mall-brand--all" data-testid="mall-brand-all">
               <span className="mall-brand-all-icon"><ChevronRight size={28} aria-hidden /></span>
-              <span className="mall-brand-name">Xem tất cả thương hiệu</span>
+              <span className="mall-brand-pill"><span className="mall-brand-name">Xem tất cả thương hiệu</span></span>
               <span className="mall-brand-offer">{shops.length} shop chính hãng</span>
             </Link>
           )}

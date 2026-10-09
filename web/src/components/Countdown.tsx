@@ -23,7 +23,7 @@ const Countdown = ({ endAt, skewMs, onDone }: { endAt: string; skewMs: number; o
   const [h, m, s] = countdownParts(left);
   return (
     <span className="countdown" data-testid="countdown" aria-label={`Còn ${h} giờ ${m} phút ${s} giây`}>
-      <span>{h}</span>:<span>{m}</span>:<span>{s}</span>
+      <span className="countdown-box">{h}</span><span className="countdown-sep">:</span><span className="countdown-box">{m}</span><span className="countdown-sep">:</span><span className="countdown-box">{s}</span>
     </span>
   );
 };

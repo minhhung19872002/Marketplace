@@ -22,3 +22,5 @@ deploy/certs/
 # dotnet test loggers (trx)
 TestResults/
 drill/
+# Shopee reference screenshots: internal comparison only, never committed or used on the site
+.ui-review/shopee-ref/

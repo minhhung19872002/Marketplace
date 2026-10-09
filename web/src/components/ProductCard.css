@@ -1,4 +1,4 @@
-/* Product tile — every tile of a grid row has the same height (flex column, fixed name block, fixed footer lines) */
+/* Product tile (G-VIS) — every tile of a grid row has the same height (flex column, fixed name block, fixed footer) */
 .product-card {
   position: relative;
   display: flex;
@@ -6,97 +6,114 @@
   min-width: 0;
   background: var(--sh-surface);
   border: 1px solid transparent;
-  border-radius: var(--sh-radius-sm);
-  box-shadow: var(--sh-shadow-sm);
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  border-radius: 2px;
+  box-shadow: 0 1px 1px var(--sh-tile-border);
+  transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
 }
 
 .product-card:hover,
 .product-card:focus-within {
-  transform: translateY(-2px);
-  border-color: var(--sh-primary);
-  box-shadow: var(--sh-shadow-md);
   z-index: 2;
+  border-color: var(--sh-search-btn);
+  box-shadow: 0 1px 20px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
 }
 
 .product-card-link {
   display: flex;
-  flex-direction: column;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   color: inherit;
 }
 
+/* Square photo filling the frame */
 .product-card-img {
   position: relative;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  border-radius: var(--sh-radius-sm) var(--sh-radius-sm) 0 0;
   background: var(--sh-surface-sunken);
 }
 
-.product-card-img img {
+.product-card-img > img:first-child {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-/* Corner flags (top-left): Mall / Yêu thích */
-.product-card-flags {
+.product-card-frame {
   position: absolute;
-  top: 6px;
-  left: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
 }
 
-.pc-flag {
-  padding: 1px 4px;
-  border-radius: 2px;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 14px;
-  color: var(--sh-on-dark);
-}
-
-.pc-flag--mall {
-  background: var(--sh-mall);
-}
-
-.pc-flag--preferred {
-  background: var(--sh-preferred);
-}
-
-/* Discount (top-right) */
+/* "-xx%": yellow tag on the top-right corner */
 .product-card-discount {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  padding: 1px 4px;
-  border-radius: 2px;
-  background: var(--sh-warning-soft);
-  color: var(--sh-danger);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 15px;
+  top: 0;
+  right: 0;
+  padding: 2px 4px;
+  background: var(--sh-deal-tag);
+  color: var(--sh-deal-tag-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
 }
 
-.product-card-campaign {
-  /* Campaign chip (G3 B3): bottom-right corner of the photo, never over its middle */
+/* ---- Campaign strip (e.g. 10.10) along the bottom of the photo, ~14 % of its height ---- */
+.pc-campaign {
   position: absolute;
   right: 0;
   bottom: 0;
-  max-width: 100%;
-  padding: 2px 6px;
-  border-top-left-radius: var(--sh-radius-sm);
-  background: var(--sh-primary-dark);
-  color: var(--sh-on-primary);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.4;
+  left: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 14%;
+  min-height: 20px;
+  padding: 2px;
+  background: linear-gradient(90deg, var(--sh-campaign-yellow), var(--sh-surface));
+  font-weight: 800;
+  line-height: 1;
   white-space: nowrap;
+  container-type: size;
+}
+
+.pc-campaign-date {
+  display: grid;
+  flex: none;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 2px;
+  background: var(--sh-campaign-red);
+  color: var(--sh-on-dark);
+  font-size: max(10px, 62cqh);
+  font-style: italic;
+}
+
+.pc-campaign-tag {
+  display: grid;
+  flex: 0 1 auto;
+  place-items: center;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-size: max(8px, 44cqh);
+  letter-spacing: -0.01em;
+}
+
+.pc-campaign-tag--voucher {
+  background: var(--sh-campaign-blue);
+  color: var(--sh-on-dark);
+}
+
+.pc-campaign-tag--freeship {
+  background: var(--sh-success);
+  color: var(--sh-on-dark);
 }
 
 .product-card-flash {
@@ -111,6 +128,12 @@
   color: var(--sh-on-primary);
   font-size: 11px;
   font-weight: 600;
+}
+
+.product-card-img.has-campaign .product-card-flash,
+.product-card-img.has-campaign .product-card-heart,
+.product-card-img.has-campaign .product-card-soldout {
+  bottom: calc(14% + 4px);
 }
 
 .product-card-heart {
@@ -142,11 +165,6 @@
   color: var(--sh-primary);
 }
 
-/* The heart sits above the campaign chip, never on top of it (G4-A2: "10.10" was hidden on phones) */
-.product-card-campaign ~ .product-card-heart {
-  bottom: 26px;
-}
-
 /* Touch screens have no hover: keep the heart reachable */
 @media (hover: none) {
   .product-card-heart {
@@ -154,83 +172,7 @@
   }
 }
 
-.product-card-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  gap: 6px;
-  min-width: 0;
-  padding: var(--sh-space-2);
-}
-
-/* Always two lines tall, so prices line up across a row */
-.product-card-name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  height: calc(2 * 1.4em);
-  overflow: hidden;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-
-/* Price + struck price: wrap to the next line rather than cut */
-.product-card-price-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 6px;
-  row-gap: 0;
-  margin-top: auto;
-  min-width: 0;
-}
-
-.product-card-price {
-  color: var(--sh-primary);
-  font-size: 16px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.product-card-original {
-  color: var(--sh-text-muted);
-  font-size: 12px;
-  text-decoration: line-through;
-  white-space: nowrap;
-}
-
-.product-card-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  min-height: 16px;
-  color: var(--sh-text-muted);
-  font-size: 12px;
-}
-
-.product-card-sold {
-  margin-left: auto;
-  white-space: nowrap;
-}
-
-.product-card-location {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  min-height: 15px;
-  color: var(--sh-text-muted);
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.product-card.sold-out .product-card-img img {
+.product-card.sold-out .product-card-img > img:first-child {
   opacity: 0.55;
 }
 
@@ -244,37 +186,58 @@
   text-align: center;
 }
 
-/* "Tìm sản phẩm tương tự": slides out under the tile on hover (desktop only) */
-.product-card-similar {
-  position: absolute;
-  left: -1px;
-  right: -1px;
-  top: 100%;
-  display: none;
-  padding: 6px 0;
-  border-radius: 0 0 var(--sh-radius-sm) var(--sh-radius-sm);
-  background: var(--sh-primary);
-  color: var(--sh-on-primary);
-  font-size: 13px;
-  text-align: center;
+/* ---- Body ---- */
+.product-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
 }
 
-@media (hover: hover) and (min-width: 768px) {
-  .product-card:hover .product-card-similar {
-    display: block;
-  }
+/* Badge + name: always two 18 px lines, so prices line up across a row; the badge sits inline before the first word */
+.product-card-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  height: 36px;
+  overflow: hidden;
+  color: var(--sh-text-strong);
+  font-size: 14px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
 }
 
-/* ---- G2-B5: campaign frame, tags, split price ---- */
-.product-card-frame {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
+.product-card-name {
+  display: inline;
+  font-size: inherit;
+  font-weight: 400;
 }
 
+/* Mall / Yêu thích: red badge, white 10 px text */
+.pc-flag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 3px;
+  border-radius: 2px;
+  color: var(--sh-on-dark);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 15px;
+  vertical-align: 2px;
+}
+
+.pc-flag--mall {
+  background: var(--sh-mall);
+}
+
+.pc-flag--preferred {
+  background: var(--sh-preferred);
+}
+
+/* Small orange-outline tags */
 .product-card-labels {
   display: flex;
   flex-wrap: nowrap;
@@ -294,31 +257,94 @@
   white-space: nowrap;
 }
 
+/* Price (left) and "x đã bán" (right) on one row */
+.product-card-price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+  margin-top: auto;
+  min-width: 0;
+}
+
 .product-card-price {
-  font-weight: 700;
+  color: var(--sh-price);
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .product-card-currency {
-  margin-right: 1px;
+  margin-left: 1px;
   font-size: 12px;
-  font-weight: 600;
+  vertical-align: 1px;
 }
 
-/* The discount as a yellow tag folded on the top-right corner */
-.product-card-discount {
-  top: 0;
-  right: 0;
-  padding: 2px 5px 3px;
-  border-radius: 0 0 0 var(--sh-radius-sm);
-  background: var(--sh-deal-tag);
-  color: var(--sh-deal-tag-text);
+.product-card-original {
+  color: var(--sh-text-muted);
+  font-size: 12px;
+  text-decoration: line-through;
+  white-space: nowrap;
 }
 
-.product-card {
-  box-shadow: none;
+.product-card-sold {
+  margin-left: auto;
+  color: var(--sh-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
-.product-card:hover,
-.product-card:focus-within {
-  transform: translateY(-1px);
+.product-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 16px;
+  color: var(--sh-text-muted);
+  font-size: 12px;
+}
+
+.product-card-location {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 15px;
+  overflow: hidden;
+  color: var(--sh-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "Tìm sản phẩm tương tự": slides out under the tile on hover (desktop only) */
+.product-card-similar {
+  position: absolute;
+  top: 100%;
+  right: -1px;
+  left: -1px;
+  display: none;
+  padding: 6px 0;
+  border-radius: 0 0 2px 2px;
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (hover: hover) and (min-width: 768px) {
+  .product-card:hover .product-card-similar {
+    display: block;
+  }
+}
+
+@media (max-width: 767px) {
+  .product-card-title {
+    height: 34px;
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .product-card-price {
+    font-size: 15px;
+  }
 }

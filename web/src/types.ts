@@ -63,7 +63,7 @@ export interface ProductCard {
   provinceName: string | null;
   /** The shown price is a Flash Sale price */
   isFlashSale?: boolean;
-  // Tags under the name backed by data (combo / add-on / gift programme, Freeship Xtra)
+  // Tags under the name backed by data (combo / add-on / gift programme, Freeship+)
   labels?: string[] | null;
   // Campaign frame laid over the photo (product taking part in a running campaign) — on the campaign page only;
   // elsewhere a small chip with the campaign's name (G3 B3)
@@ -246,6 +246,8 @@ export interface MallShop {
   productCount: number;
   // Deepest real discount among the shop's SKUs on sale (0 = none)
   maxDiscountPercent: number;
+  // The shop's real running programme ("Mua 2 giảm 10%", "Freeship+ cho đơn của shop"…), null when none (G-VIS)
+  offer?: string | null;
 }
 
 export interface ShopTab {

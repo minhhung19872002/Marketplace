@@ -252,7 +252,7 @@ test.describe('Đơn hàng & vận chuyển', () => {
       page.waitForResponse((r) => r.url().includes('/api/media/evidence') && r.ok()),
       page.getByTestId('return-evidence-input').setInputFiles(SAMPLE_PNG),
     ]);
-    await expect(page.getByTestId('return-estimate')).toHaveText('₫134.000');
+    await expect(page.getByTestId('return-estimate')).toHaveText('134.000₫');
     await page.getByTestId('return-submit').click();
     await expect(page.getByTestId('return-status')).toHaveText(/Chờ shop phản hồi/);
     const returnCode = page.url().split('/').pop();
@@ -289,7 +289,7 @@ test.describe('Đơn hàng & vận chuyển', () => {
 
     await page.reload();
     await expect(page.getByTestId('return-status')).toHaveText(/hoàn tiền/i);
-    await expect(page.getByTestId('refund-amount')).toContainText('₫134.000');
+    await expect(page.getByTestId('refund-amount')).toContainText('134.000₫');
     const final = await apiAs(request, buyer.token, 'GET', `/returns/${returnCode}`);
     expect(final.refundAmount).toBe(134_000);
     expect(final.items).toHaveLength(1);

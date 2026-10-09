@@ -1,6 +1,6 @@
 .header {
   background: var(--sh-primary);
-  background: var(--sh-gradient-brand);
+  background: var(--sh-gradient-header);
   color: #fff;
   position: sticky;
   top: 0;
@@ -571,4 +571,130 @@
 
 .header-suggest-group + .header-suggest-group {
   border-top: 1px solid var(--border);
+}
+
+/* ---- G-VIS (docs/00 #203): bright header ~120 px tall — top bar 34 px, logo ~50 px, 40 px white search box with the
+   button inside, 12 px white hot keywords. White on the bright gradient is ≥ 3:1 (not 4.5:1), so the header text is
+   bolder and larger than before (contrast.test.ts lists the exceptions) ---- */
+.header-top {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.header-top-link {
+  color: var(--sh-on-primary);
+}
+
+.header-main {
+  gap: 40px;
+  min-height: 86px;
+  padding-top: 6px;
+  padding-bottom: 16px;
+}
+
+.header-logo {
+  gap: 8px;
+}
+
+.header-logo svg {
+  width: 50px;
+  height: 50px;
+}
+
+.header-logo-text {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.header-search {
+  height: 40px;
+  padding: 3px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--sh-surface);
+  box-shadow: 0 1px 1px var(--sh-tile-border);
+}
+
+.header-search-btn {
+  width: 60px;
+  height: 34px;
+  background: var(--sh-search-btn);
+}
+
+.header-search-btn:hover {
+  background: var(--sh-search-btn-hover);
+}
+
+.header-hot-keywords {
+  height: 18px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.header-hot-keyword {
+  color: var(--sh-on-primary);
+  opacity: 1;
+}
+
+.header-suggest {
+  top: 44px;
+}
+
+.header--compact .header-main {
+  min-height: 0;
+}
+
+.header--compact .header-logo svg {
+  width: 36px;
+  height: 36px;
+}
+
+.header--compact .header-logo-text {
+  font-size: 24px;
+}
+
+@media (max-width: 768px) {
+  .header-main {
+    gap: 14px;
+    min-height: 0;
+  }
+
+  .header-logo svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .header-logo-text {
+    font-size: 22px;
+  }
+}
+
+.header-logo-cut {
+  stroke: var(--sh-search-btn);
+}
+
+/* Tablets: the bigger logo and gap must not push the page sideways (G4-A1 check at 800 px) */
+.header-search-block {
+  min-width: 0;
+}
+
+.header-search-input {
+  min-width: 0;
+}
+
+@media (min-width: 769px) and (max-width: 1023px) {
+  .header-main {
+    gap: 20px;
+  }
+
+  .header-logo svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .header-logo-text {
+    font-size: 28px;
+  }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd'
+import { App, Button, Card, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd'
 import { CloseOutlined, EditOutlined, ExportOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -106,6 +106,7 @@ interface BannerForm {
   period: [Dayjs, Dayjs]
   sortOrder: number
   isActive: boolean
+  hasTextInImage: boolean
 }
 
 const BannersTab = () => {
@@ -118,14 +119,15 @@ const BannersTab = () => {
     mutationFn: (v: BannerForm) => marketingApi.saveBanner({
       id: editing?.id ?? null, position: v.position, title: v.title, imageUrl: v.imageUrl, link: v.link, categoryId: null,
       startAt: v.period[0].toISOString(), endAt: v.period[1].toISOString(), sortOrder: v.sortOrder ?? 0, isActive: v.isActive,
+      hasTextInImage: v.hasTextInImage ?? false,
     }),
     onSuccess: (r) => { message.success(r.message); setEditing(null); void queryClient.invalidateQueries({ queryKey: ['banners'] }) },
     onError: (e) => message.error(errorText(e, 'Không lưu được banner.')),
   })
   const edit = (b?: Banner) => {
     const value: BannerForm = b
-      ? { id: b.id, position: b.position, title: b.title, imageUrl: b.imageUrl, link: b.link, period: [dayjs(b.startAt), dayjs(b.endAt)], sortOrder: b.sortOrder, isActive: b.isActive }
-      : { id: null, position: 'HomeMain', title: '', imageUrl: '', link: '/', period: [dayjs(), dayjs().add(30, 'day')], sortOrder: 0, isActive: true }
+      ? { id: b.id, position: b.position, title: b.title, imageUrl: b.imageUrl, link: b.link, period: [dayjs(b.startAt), dayjs(b.endAt)], sortOrder: b.sortOrder, isActive: b.isActive, hasTextInImage: b.hasTextInImage ?? false }
+      : { id: null, position: 'HomeMain', title: '', imageUrl: '', link: '/', period: [dayjs(), dayjs().add(30, 'day')], sortOrder: 0, isActive: true, hasTextInImage: false }
     setEditing(value)
     form.setFieldsValue(value)
   }
@@ -156,6 +158,9 @@ const BannersTab = () => {
             <Form.Item name="sortOrder" label="Thứ tự"><InputNumber /></Form.Item>
             <Form.Item name="isActive" label="Bật" valuePropName="checked"><Switch /></Form.Item>
           </Space>
+          <Form.Item name="hasTextInImage" valuePropName="checked" extra="Bật khi ảnh là banner thiết kế đã có chữ: trang người mua không vẽ tiêu đề đè lên ảnh.">
+            <Checkbox>Ảnh đã có chữ</Checkbox>
+          </Form.Item>
         </Form>
       </Modal>
     </>

@@ -145,6 +145,7 @@ services:
       SH_LOAD_USER_PASSWORD: ${SH_LOAD_USER_PASSWORD:-}
       # First-run admin password chosen by the operator (CI: a GitHub secret); empty = generated and printed once
       SH_SEED_ADMIN_PASSWORD: ${SH_SEED_ADMIN_PASSWORD:-}
+      SH_DEMO_SALES_BOOST: ${SH_DEMO_SALES_BOOST:-true}
       # Anonymous catalogue reads cached in Redis (seconds). Off on the dev stack so e2e always reads fresh data
       SH_OUTPUT_CACHE_SECONDS: ${SH_OUTPUT_CACHE_SECONDS:-0}
       # Real gateways / carriers (Phase 11): each one is on only when its keys are set in .env

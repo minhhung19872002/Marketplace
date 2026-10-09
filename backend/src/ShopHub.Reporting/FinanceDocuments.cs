@@ -143,7 +143,7 @@ public sealed class FinanceDocuments : IFinanceDocuments
                     foreach (var (name, amount) in new[]
                              {
                                  ("Phí cố định (theo ngành hàng)", invoice.FixedFee), ("Phí thanh toán", invoice.PaymentFee),
-                                 ("Phí dịch vụ (Freeship Xtra / Voucher Xtra)", invoice.ServiceFee),
+                                 ("Phí dịch vụ (Freeship+ / Voucher Plus)", invoice.ServiceFee),
                              })
                     {
                         table.Cell().Padding(4).Text(name);

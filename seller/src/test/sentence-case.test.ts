@@ -9,7 +9,7 @@ const ACRONYMS = new Set(['COD', 'VND', 'SKU', 'OTP', 'CCCD', 'API', 'FAQ', 'KYC
   'VIP', 'MST', 'ATM', 'JSON', 'KB', 'MB', 'SIM', 'NFC', 'GPS', 'VN', 'TP', 'HCM', 'KG', 'ML', 'UV', 'IOS', 'POS', 'CSKH', 'ĐVVC']);
 // G4 C: no "Title Case Per Word" either ("Đang Theo Dõi" → "Đang theo dõi"). A run of 3+ capitalised words is flagged unless it
 // is one of the proper nouns below; common 2-word UI labels that used to be title-cased are listed so they cannot come back.
-const PROPER_NOUNS = ['Kênh Người Bán', 'ShopHub Mall', 'ShopHub Xu', 'Ví ShopHub', 'Flash Sale', 'Freeship Xtra', 'Voucher Xtra',
+const PROPER_NOUNS = ['Kênh Người Bán', 'ShopHub Mall', 'ShopHub Xu', 'Ví ShopHub', 'Flash Sale', 'Freeship+', 'Voucher Plus',
   'Bộ Công Thương', 'Việt Nam', 'Hà Nội', 'Hồ Chí Minh', 'Be Vietnam Pro', 'Google Identity Services'];
 const TITLE_PAIRS = ['Theo Dõi', 'Mua Ngay', 'Chat Ngay', 'Đăng Nhập', 'Đăng Ký', 'Đăng Xuất', 'Thông Báo', 'Hỗ Trợ', 'Đã Bán', 'Xem Shop',
   'Tất Cả', 'Hồ Sơ', 'Giỏ Hàng', 'Thanh Toán', 'Đặt Hàng', 'Mua Hàng', 'Xem Thêm', 'Đánh Giá', 'Sản Phẩm', 'Yêu Thích', 'Đã Thích',

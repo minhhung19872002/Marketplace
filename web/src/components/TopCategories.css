@@ -71,3 +71,82 @@
 .top-category:hover .top-category-name {
   color: var(--sh-primary);
 }
+
+/* ---- G-VIS: photo filling the tile, orange TOP tag, translucent grey band "Bán 27k+ / tháng", 18 px name ---- */
+.top-categories-row {
+  padding: 20px;
+}
+
+.top-category {
+  gap: 12px;
+}
+
+.top-category-image {
+  border-radius: 0;
+}
+
+.top-category:hover .top-category-image img {
+  transform: none;
+}
+
+.top-category-badge {
+  padding: 2px 6px;
+  border-radius: 0 0 2px 0;
+  /* White 12 px text: the AA brand orange (the bright search-button orange is under 4.5:1 — axe, G-VIS) */
+  background: var(--sh-primary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.top-category-sold {
+  padding: 3px 6px;
+  background: var(--sh-band);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.top-category-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: var(--sh-text-strong);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 25px;
+  white-space: normal;
+}
+
+@media (max-width: 767px) {
+  .top-categories-row {
+    padding: 10px;
+  }
+
+  .top-category-name {
+    font-size: 15px;
+    line-height: 20px;
+  }
+
+  .top-category-sold {
+    font-size: 12px;
+  }
+}
+
+.top-category-sold {
+  text-shadow: 0 0 2px var(--sh-flash-halo);
+}
+
+/* G-VIS round 2: a thin translucent strip (~22 px) at the very bottom of the photo */
+.top-category-sold {
+  height: 22px;
+  padding: 0 6px;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.top-category-image img {
+  object-fit: cover;
+}

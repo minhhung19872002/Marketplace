@@ -76,6 +76,8 @@ public static class DependencyInjection
         services.AddSingleton<Ops.IDatabaseDumper, Ops.PgDumpDumper>();
         services.AddScoped<Ops.BackupService>();
         services.AddScoped<Ops.BackupJob>();
+        services.AddScoped<Ops.DemoSalesBoost>();
+        services.AddScoped<Ops.DemoSalesBoostJob>();
         services.AddScoped<Application.Features.Admin.ILaunchChecklist, Ops.LaunchChecklistService>();
         services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
         services.AddSingleton<IVideoInspector, Mp4VideoInspector>();

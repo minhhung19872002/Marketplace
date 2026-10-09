@@ -9,7 +9,7 @@ const ACRONYMS = new Set(['COD', 'VND', 'SKU', 'OTP', 'CCCD', 'API', 'FAQ', 'KYC
   'VIP', 'MST', 'ATM', 'JSON', 'KB', 'MB', 'SIM', 'NFC', 'GPS', 'VN', 'TP', 'HCM', 'KG', 'ML', 'UV', 'IOS', 'POS', 'CSKH', 'ĐVVC']);
 // G4 C: no "Title Case Per Word" either ("Đang Theo Dõi" → "Đang theo dõi"). A run of 3+ capitalised words is flagged unless it
 // is one of the proper nouns below; common 2-word UI labels that used to be title-cased are listed so they cannot come back.
-const PROPER_NOUNS = ['Kênh Người Bán', 'ShopHub Mall', 'ShopHub Xu', 'Ví ShopHub', 'Flash Sale', 'Freeship Xtra', 'Voucher Xtra',
+const PROPER_NOUNS = ['Kênh Người Bán', 'ShopHub Mall', 'ShopHub Xu', 'Ví ShopHub', 'Flash Sale', 'Freeship+', 'Voucher Plus',
   'Bộ Công Thương', 'Việt Nam', 'Hà Nội', 'Hồ Chí Minh', 'Be Vietnam Pro', 'Google Identity Services'];
 const TITLE_PAIRS = ['Theo Dõi', 'Mua Ngay', 'Chat Ngay', 'Đăng Nhập', 'Đăng Ký', 'Đăng Xuất', 'Thông Báo', 'Hỗ Trợ', 'Đã Bán', 'Xem Shop',
   'Tất Cả', 'Hồ Sơ', 'Giỏ Hàng', 'Thanh Toán', 'Đặt Hàng', 'Mua Hàng', 'Xem Thêm', 'Đánh Giá', 'Sản Phẩm', 'Yêu Thích', 'Đã Thích',
@@ -43,9 +43,20 @@ describe('sentence case', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('has no text-transform: uppercase in CSS', () => {
-    const offenders = sourceFiles(['.css']).flatMap((file) =>
-      readFileSync(file, 'utf8').split('\n').flatMap((line, i) => (/text-transform:\s*uppercase/.test(line) ? [`${rel(file)}:${i + 1}`] : [])));
-    expect(offenders).toEqual([]);
+  // G-VIS (docs/00 #203): UPPER CASE is allowed only for the home / category section titles and the Flash Sale wordmark and
+  // bar labels — through text-transform on exactly these rules; every other rule stays sentence case
+  const UPPERCASE_ALLOWED = [
+    'pages/HomePage.css .home-page .sh-section-title',
+    'pages/HomePage.css .home-daily-title',
+    'components/FlashSaleBlock.css .flash-sale-wordmark',
+    'components/FlashSaleBlock.css .flash-item-bar-text',
+  ];
+
+  it('has text-transform: uppercase only on the allowed rules', () => {
+    const used = sourceFiles(['.css']).flatMap((file) =>
+      [...readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+        .filter((m) => /text-transform:\s*uppercase/.test(m[2]))
+        .flatMap((m) => m[1].split(',').map((sel) => `${rel(file)} ${sel.trim().replace(/\s+/g, ' ')}`)));
+    expect(used.filter((u) => !UPPERCASE_ALLOWED.includes(u))).toEqual([]);
   });
 });

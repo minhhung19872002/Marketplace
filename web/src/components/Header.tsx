@@ -180,10 +180,11 @@ const Header = () => {
       {/* Thanh chính */}
       <div className="container header-main">
         <Link to="/" className="header-logo">
-          <svg width="42" height="42" viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M10 11h12l-1 12a2 2 0 0 1-2 1.8H13a2 2 0 0 1-2-1.8L10 11z"
-              fill="none" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M12.5 11a3.5 3.5 0 0 1 7 0" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          {/* ShopHub mark: a white shopping bag with an "H" cut in the header orange */}
+          <svg width="50" height="50" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M12 10.5a4 4 0 0 1 8 0" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+            <path d="M8.2 10.5h15.6l-1.3 14.2a2.2 2.2 0 0 1-2.2 2H11.7a2.2 2.2 0 0 1-2.2-2L8.2 10.5z" fill="currentColor" />
+            <path className="header-logo-cut" d="M13 14.5v8M19 14.5v8M13 18.5h6" fill="none" strokeWidth="2.2" strokeLinecap="round" />
           </svg>
           <span className="header-logo-text">ShopHub</span>
         </Link>

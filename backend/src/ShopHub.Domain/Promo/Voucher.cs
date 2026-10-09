@@ -87,8 +87,8 @@ public class Voucher : AuditableEntity
 
     public void SetXtraOnly(bool xtraOnly)
     {
-        if (xtraOnly && Owner != VoucherOwner.Platform) throw new BusinessRuleException("Chỉ voucher của sàn mới gắn được Freeship Xtra / Voucher Xtra.");
-        if (xtraOnly && Type == VoucherType.CoinCashback) throw new BusinessRuleException("Voucher hoàn xu không thuộc chương trình Xtra.");
+        if (xtraOnly && Owner != VoucherOwner.Platform) throw new BusinessRuleException("Chỉ voucher của sàn mới gắn được Freeship+ / Voucher Plus.");
+        if (xtraOnly && Type == VoucherType.CoinCashback) throw new BusinessRuleException("Voucher hoàn xu không thuộc chương trình Freeship+ / Voucher Plus.");
         XtraOnly = xtraOnly;
     }
 

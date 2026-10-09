@@ -10,9 +10,11 @@ interface ProductGridProps {
   emptyText?: string;
   // The campaign's own page draws the campaign frame over the photos (G3 B3)
   showFrames?: boolean;
+  // Search / category results keep the stars, struck price and province on the card (G-VIS)
+  variant?: 'compact' | 'detailed';
 }
 
-const ProductGrid = ({ title = 'Gợi ý hôm nay', products, loading = false, emptyText = 'Không tìm thấy sản phẩm nào phù hợp.', showFrames = false }: ProductGridProps) => (
+const ProductGrid = ({ title = 'Gợi ý hôm nay', products, loading = false, emptyText = 'Không tìm thấy sản phẩm nào phù hợp.', showFrames = false, variant = 'compact' }: ProductGridProps) => (
   <section className="product-grid-section">
     {title && (
       <div className="product-grid-header">
@@ -26,7 +28,7 @@ const ProductGrid = ({ title = 'Gợi ý hôm nay', products, loading = false, e
     ) : (
       <div className="product-grid">
         {products.map((p) => (
-          <ProductCard key={p.id} product={p} showFrame={showFrames} />
+          <ProductCard key={p.id} product={p} showFrame={showFrames} variant={variant} />
         ))}
       </div>
     )}

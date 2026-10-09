@@ -1,13 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { marketingApi } from '../api/marketing';
 import { BannerLink } from './Banner';
-import CategoryIcon from './CategoryIcon';
+import ShortcutIcon from './ShortcutIcon';
 import Carousel from './ui/Carousel';
 import './CategoryShortcuts.css';
 
-const TONES = ['primary', 'mall', 'amber', 'teal', 'violet', 'tech'];
-
-// Quick links under the banner, managed by the platform (icon = image URL or an icon code, drawn as SVG)
+// Quick links under the banner, managed by the platform (icon = image URL or an icon code): 45 px app-style tiles —
+// white rounded square, light grey border, multi-colour glyph (G-VIS) — and a 13 px label of up to two lines
 const CategoryShortcuts = () => {
   const { data } = useQuery({ queryKey: ['home-banners'], queryFn: marketingApi.banners, staleTime: 60_000 });
   const shortcuts = data?.shortcuts ?? [];
@@ -17,11 +16,9 @@ const CategoryShortcuts = () => {
   return (
     <section className="feature-shortcuts" aria-label="Lối tắt">
       <Carousel label="Lối tắt" className="feature-shortcuts-grid">
-        {shortcuts.map((f, i) => (
+        {shortcuts.map((f) => (
           <BannerLink key={f.id} to={f.link} className="feature-shortcut" testId="feature-shortcut">
-            <span className={`feature-shortcut-icon feature-shortcut-icon--${TONES[i % TONES.length]}`}>
-              <CategoryIcon icon={f.imageUrl} size={24} />
-            </span>
+            <span className="feature-shortcut-icon"><ShortcutIcon icon={f.imageUrl} /></span>
             <span className="feature-shortcut-label">{f.title}</span>
           </BannerLink>
         ))}

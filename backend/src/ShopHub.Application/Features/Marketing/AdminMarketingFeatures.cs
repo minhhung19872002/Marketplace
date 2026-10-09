@@ -84,7 +84,7 @@ public sealed class DecideFlashItemHandler(IApplicationDbContext db, FlashSaleQu
 // ---------- banners ----------
 
 public record BannerDto(Guid Id, BannerPosition Position, string Title, string ImageUrl, string Link, Guid? CategoryId, DateTimeOffset StartAt,
-    DateTimeOffset EndAt, int SortOrder, bool IsActive);
+    DateTimeOffset EndAt, int SortOrder, bool IsActive, bool HasTextInImage = false);
 
 public record AdminBannersQuery(BannerPosition? Position = null) : IRequest<IReadOnlyList<BannerDto>>;
 
@@ -93,12 +93,13 @@ public sealed class AdminBannersHandler(IApplicationDbContext db) : IRequestHand
     public async Task<IReadOnlyList<BannerDto>> Handle(AdminBannersQuery request, CancellationToken ct) =>
         await db.Banners.AsNoTracking().Where(b => request.Position == null || b.Position == request.Position)
             .OrderBy(b => b.Position).ThenBy(b => b.SortOrder).ThenByDescending(b => b.StartAt)
-            .Select(b => new BannerDto(b.Id, b.Position, b.Title, b.ImageUrl, b.Link, b.CategoryId, b.StartAt, b.EndAt, b.SortOrder, b.IsActive))
+            .Select(b => new BannerDto(b.Id, b.Position, b.Title, b.ImageUrl, b.Link, b.CategoryId, b.StartAt, b.EndAt, b.SortOrder, b.IsActive, b.HasTextInImage))
             .ToListAsync(ct);
 }
 
+// HasTextInImage: "Ảnh đã có chữ" — the storefront draws no title over the image
 public record SaveBannerCommand(Guid? Id, BannerPosition Position, string Title, string ImageUrl, string Link, Guid? CategoryId, DateTimeOffset StartAt,
-    DateTimeOffset EndAt, int SortOrder, bool IsActive) : IRequest<Guid>;
+    DateTimeOffset EndAt, int SortOrder, bool IsActive, bool HasTextInImage = false) : IRequest<Guid>;
 
 public sealed class SaveBannerHandler(IApplicationDbContext db, IClock clock) : IRequestHandler<SaveBannerCommand, Guid>
 {
@@ -116,6 +117,7 @@ public sealed class SaveBannerHandler(IApplicationDbContext db, IClock clock) : 
             db.Banners.Add(banner);
         }
         banner.SetActive(r.IsActive);
+        banner.SetTextInImage(r.HasTextInImage);
         await db.SaveChangesAsync(ct);
         return banner.Id;
     }

@@ -4,8 +4,10 @@
 chỉ nhận giấy phép cho phép dùng thương mại: CC0, phạm vi công cộng (public domain), CC BY, CC BY-SA
 (không nhận NC / ND). Tệp này do `build.py` sinh từ `photos.json` — sửa `photos.json` rồi chạy lại, đừng sửa tay.
 
-Thay đổi chung cho mọi ảnh: thu nhỏ, đặt lên nền trắng, cắt bớt viền trắng, thêm lề trắng thành ảnh vuông
-800 px, lưu WebP; ảnh có nền sáng thì phần gần trắng được làm trắng hẳn. Ảnh CC BY-SA sau khi sửa vẫn theo
+Thay đổi chung cho mọi ảnh: thu nhỏ, cắt thành ảnh vuông 800 px, lưu WebP. Ảnh vật trên nền trơn: cắt sát vật
+(nền gần trắng được tách bỏ, thay bằng nền trắng hoặc màu nhạt của ngành hàng; nền màu khác được giữ và nới rộng)
+để vật chiếm khoảng 88 % khung; ảnh chụp cảnh thật: cắt vuông lấp đầy khung (`photo.py`). Ảnh có trong ảnh bìa
+quảng cáo `pNNN-ad.webp` (vật được tách nền, đặt trên mẫu đồ hoạ) cũng là bản sửa đổi. Ảnh CC BY-SA sau khi sửa vẫn theo
 CC BY-SA cùng phiên bản. Tên / logo thương hiệu (nếu thấy trong ảnh) chỉ để dữ liệu mẫu trông thật,
 không phải hàng thật được bán và không có liên kết nào với chủ thương hiệu.
 

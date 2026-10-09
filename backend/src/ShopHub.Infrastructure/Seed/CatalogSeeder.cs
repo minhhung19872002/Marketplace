@@ -36,6 +36,7 @@ public sealed class CatalogSeeder(
     {
         var seed = await ReadAsync<CatalogSeed>("catalog-seed.json", ct);
         await SeedCategoriesAsync(seed, ct);
+        await SeedCategoryPhotosAsync(seed, ct);
         await SeedBrandsAsync(seed, ct);
         if (!sampleData) return;
         await SeedShopsAsync(seed, ct);
@@ -138,6 +139,34 @@ public sealed class CatalogSeeder(
             brand.Update(brand.Name, brand.Slug, logos[brand.Name], brand.IsVerified);
         await db.SaveChangesAsync(ct);
         if (created > 0) logger.LogInformation("Seeded {Count} sample shop(s)", created);
+    }
+
+    /// <summary>
+    /// G-VIS: each top-level category shows a real product photo (Art/cat-&lt;slug&gt;.webp, a 168 px transparent cut-out) in
+    /// the home grid's grey circle instead of its icon code. Uploaded as is (already sized; keeps its transparency) and set
+    /// only on a category whose icon is still the seed's icon code — an icon the admin changed is left alone. Idempotent,
+    /// so databases seeded before get the photos too.
+    /// </summary>
+    private async Task SeedCategoryPhotosAsync(CatalogSeed seed, CancellationToken ct)
+    {
+        var codes = seed.Categories.ToDictionary(c => c.Name, c => c.Icon);
+        var tops = await db.Categories.Where(c => c.ParentId == null).ToListAsync(ct);
+        var set = 0;
+        foreach (var category in tops)
+        {
+            if (!codes.TryGetValue(category.Name, out var code) || category.IconUrl != code) continue;
+            await using var stream = typeof(CatalogSeeder).Assembly.GetManifestResourceStream($"{Resource}Art.cat-{category.Slug}.webp");
+            if (stream is null) continue;
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms, ct);
+            var key = $"category/seed/{category.Slug}.webp";
+            await storage.PutAsync(Buckets.Banners, key, ms.ToArray(), "image/webp", ct);
+            category.SetIcon(storage.PublicUrl(Buckets.Banners, key));
+            set++;
+        }
+        if (set == 0) return;
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Seeded {Count} category photo(s)", set);
     }
 
     /// <summary>A seed artwork (Seed/Data/Art) through the image pipeline into MinIO; the public URL of one size.</summary>

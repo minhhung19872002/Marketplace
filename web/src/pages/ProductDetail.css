@@ -1357,3 +1357,35 @@
     animation: none;
   }
 }
+
+/* ---- G-VIS: price block on #fafafa with a 30 px orange price; light-orange "Thêm vào giỏ", orange "Mua ngay" ---- */
+.product-detail-price-box {
+  background: var(--sh-surface-muted);
+}
+
+.price-current {
+  color: var(--sh-price);
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.btn-add-cart {
+  border: 1px solid var(--sh-primary);
+  border-radius: 2px;
+  background: var(--sh-primary-tint);
+  color: var(--sh-primary);
+}
+
+.btn-add-cart:hover {
+  background: var(--sh-primary-tint-hover);
+}
+
+/* Kept on the AA brand orange (white 15 px text needs 4.5:1; #ee4d2d gives 3.6:1) */
+.btn-buy-now {
+  border-radius: 2px;
+  background: var(--sh-primary);
+}
+
+.btn-buy-now:hover {
+  background: var(--sh-primary-dark);
+}

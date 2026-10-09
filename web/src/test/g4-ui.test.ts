@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { campaignChip } from '../components/ProductCard';
 import { topSoldLine } from '../components/TopCategories';
+import { mallOffer } from '../components/MallBrands';
 import { bannerOverlay } from '../pages/CampaignPage';
 import { anchorId } from '../pages/ContentPages';
 import type { CampaignBlock } from '../api/marketing';
@@ -21,6 +22,7 @@ describe('campaignChip', () => {
 describe('topSoldLine', () => {
   it('uses one wording for the whole row', () => {
     expect(topSoldLine(6, 40, true)).toBe('Bán 6+ / tháng');
+    expect(topSoldLine(27_400, 0, true)).toBe('Bán 27k+ / tháng');
     expect(topSoldLine(0, 3, false)).toBe('Đã bán 3');
     expect(topSoldLine(6, 40, false)).toBe('Đã bán 40');
   });
@@ -43,5 +45,13 @@ describe('anchorId', () => {
     expect(anchorId('3. Giao dịch')).toBe('3-giao-dich');
     expect(anchorId('Đổi trả & hoàn tiền')).toBe('doi-tra-hoan-tien');
     expect(anchorId('—')).toBe('muc');
+  });
+});
+
+describe('mallOffer', () => {
+  it("shows the shop's programme, else its deepest discount, else the Mall promise", () => {
+    expect(mallOffer(40, 'Mua 2 giảm 10%')).toBe('Mua 2 giảm 10%');
+    expect(mallOffer(40, null)).toBe('Giảm đến 40%');
+    expect(mallOffer(0, '  ')).toBe('Chính hãng 100%');
   });
 });

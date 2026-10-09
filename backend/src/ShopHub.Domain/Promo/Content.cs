@@ -11,6 +11,7 @@ public enum BannerPosition
     Category,   // top of a category page
     Popup,      // home page popup (shown at most once per POPUP.FREQUENCY_HOURS)
     Mall,       // portrait slides at the left of the home "ShopHub Mall" block (G2-B1)
+    HomeStrip,  // strip of three wide banners between the Flash Sale and the categories (G-VIS)
 }
 
 /// <summary>Scheduled banner / shortcut / popup set by the platform (spec II.1, VI.6).</summary>
@@ -19,11 +20,12 @@ public class Banner : Entity
     private Banner() { }
 
     public Banner(BannerPosition position, string title, string imageUrl, string link, DateTimeOffset startAt, DateTimeOffset endAt, int sortOrder,
-        Guid? categoryId, DateTimeOffset now)
+        Guid? categoryId, DateTimeOffset now, bool hasTextInImage = false)
     {
         Position = position;
         CreatedAt = now;
         Update(title, imageUrl, link, startAt, endAt, sortOrder, categoryId);
+        HasTextInImage = hasTextInImage;
     }
 
     public BannerPosition Position { get; private set; }
@@ -37,6 +39,8 @@ public class Banner : Entity
     public DateTimeOffset EndAt { get; private set; }
     public int SortOrder { get; private set; }
     public bool IsActive { get; private set; } = true;
+    /// <summary>The image is a designed graphic that already carries its text: the storefront draws no title over it (G-VIS).</summary>
+    public bool HasTextInImage { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
     public void Update(string title, string imageUrl, string link, DateTimeOffset startAt, DateTimeOffset endAt, int sortOrder, Guid? categoryId)
@@ -55,6 +59,8 @@ public class Banner : Entity
     }
 
     public void SetActive(bool active) => IsActive = active;
+
+    public void SetTextInImage(bool hasTextInImage) => HasTextInImage = hasTextInImage;
 
     // No javascript: / data: links on the storefront
     public static bool IsSafeLink(string? link) =>

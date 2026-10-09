@@ -40,8 +40,8 @@ public sealed class FinanceSeeder(ShopHubDbContext db, IClock clock, ILogger<Fin
         // Service programmes (Freeship Xtra / Voucher Xtra): a platform-wide rate each, seeded on their own
         foreach (var (type, rate, note) in new[]
                  {
-                     (FeeType.FreeshipXtra, DefaultFreeshipXtraBp, "Phí dịch vụ Freeship Xtra"),
-                     (FeeType.VoucherXtra, DefaultVoucherXtraBp, "Phí dịch vụ Voucher Xtra"),
+                     (FeeType.FreeshipXtra, DefaultFreeshipXtraBp, "Phí dịch vụ Freeship+"),
+                     (FeeType.VoucherXtra, DefaultVoucherXtraBp, "Phí dịch vụ Voucher Plus"),
                  })
         {
             if (await db.FeeRules.AnyAsync(r => r.FeeType == type, ct)) continue;

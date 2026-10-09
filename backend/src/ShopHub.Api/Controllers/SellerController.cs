@@ -273,7 +273,7 @@ public sealed class SellerController : ApiControllerBase
     public async Task<IActionResult> SetXtra(Guid shopId, XtraProgram program, [FromBody] XtraRequest body, CancellationToken ct)
     {
         await Sender.Send(new SetShopXtraCommand(shopId, program, body.Join), ct);
-        var name = program == XtraProgram.FreeshipXtra ? "Freeship Xtra" : "Voucher Xtra";
+        var name = program == XtraProgram.FreeshipXtra ? "Freeship+" : "Voucher Plus";
         return OkData<object?>(null, body.Join ? $"Đã tham gia {name}." : $"Đã rời {name}.");
     }
 

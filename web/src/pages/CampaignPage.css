@@ -25,32 +25,13 @@
 }
 
 .campaign-banner {
-  position: relative;
-  display: block;
-  /* The seed artwork is 3:1 with its headline drawn in: shown whole, not cropped */
+  /* The seed artwork is 3:1 with its headline drawn in: it fills the frame (BannerArt, G-VIS) */
   aspect-ratio: 3 / 1;
-  overflow: hidden;
-  background: var(--sh-primary);
-  color: #fff;
-  text-decoration: none;
+  border-radius: 2px;
 }
 
-.campaign-banner img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Darkened only when an HTML title is drawn on top */
-.campaign-banner--titled img {
-  filter: brightness(0.65);
-}
-
-.campaign-banner span {
-  position: absolute;
-  left: 24px;
-  bottom: 20px;
-  font-size: 30px;
+.campaign-banner .banner-title {
+  font-size: clamp(18px, 3vw, 30px);
   font-weight: 800;
 }
 

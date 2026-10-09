@@ -35,6 +35,8 @@ public sealed class ShopHubSettings
 
     // Sample accounts/data for demo (on by default; set SH_SEED_SAMPLE=false for a clean production DB)
     public bool SeedSampleData { get; init; }
+    // SH_DEMO_SALES_BOOST=false: the demo sales job (Ops.DemoSalesBoost) does nothing in this process (e2e stacks)
+    public bool DemoSalesBoost { get; init; } = true;
 
     // Load-test buyers (k6, e2e/load): SH_SEED_LOAD_USERS accounts 0970000000… with the password in SH_LOAD_USER_PASSWORD.
     // Off unless both are set; never in production.
@@ -95,6 +97,7 @@ public sealed class ShopHubSettings
             SmtpFrom = config["SH_SMTP_FROM"] ?? "ShopHub <no-reply@shophub.local>",
             SmsProvider = config["SH_SMS_PROVIDER"] ?? "simulated",
             SeedSampleData = !string.Equals(config["SH_SEED_SAMPLE"], "false", StringComparison.OrdinalIgnoreCase),
+            DemoSalesBoost = !string.Equals(config["SH_DEMO_SALES_BOOST"], "false", StringComparison.OrdinalIgnoreCase),
             PaymentSimulated = string.Equals(config["SH_PAYMENT_SIMULATED"], "true", StringComparison.OrdinalIgnoreCase),
             LoadUsers = int.TryParse(config["SH_SEED_LOAD_USERS"], out var loadUsers) ? Math.Clamp(loadUsers, 0, 10_000) : 0,
             LoadUserPassword = string.IsNullOrWhiteSpace(config["SH_LOAD_USER_PASSWORD"]) ? null : config["SH_LOAD_USER_PASSWORD"],

@@ -34,11 +34,6 @@
   color: var(--text);
 }
 
-.flash-sale-next {
-  color: var(--sh-text-muted);
-  font-size: 12px;
-}
-
 .flash-sale-all {
   display: inline-flex;
   align-items: center;
@@ -60,7 +55,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.countdown span {
+.countdown-box {
   min-width: 26px;
   padding: 3px 5px;
   border-radius: 3px;
@@ -191,4 +186,163 @@
 }
 .flash-sale--loading {
   height: 300px;
+}
+
+/* ---- G-VIS: wordmark, black countdown boxes, borderless cards, upper-case white bar label ---- */
+.flash-sale-head {
+  min-height: 60px;
+  padding: 0 20px;
+  border-bottom: 0;
+}
+
+.flash-sale-title {
+  gap: 6px;
+  font-size: 0;
+}
+
+.flash-sale-clock {
+  color: var(--sh-search-btn);
+}
+
+/* Italic bold wordmark in an orange gradient (large text: ≥ 3:1 on white at every stop) */
+.flash-sale-wordmark {
+  background: var(--sh-flash-wordmark);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 26px;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.flash-sale-when {
+  font-size: 14px;
+}
+
+.countdown {
+  gap: 0;
+}
+
+.countdown-box {
+  min-width: 25px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.flash-sale .countdown-sep {
+  width: 4px;
+  font-size: 0;
+}
+
+.flash-sale-items,
+.flash-sale-grid {
+  padding: 0 20px 20px;
+}
+
+.flash-sale-items .sh-carousel__track {
+  gap: 10px;
+}
+
+.flash-item {
+  gap: 8px;
+  padding-bottom: 6px;
+}
+
+.flash-item-image {
+  border-radius: 0;
+}
+
+.flash-item:hover .flash-item-image img {
+  transform: none;
+}
+
+.flash-item-flag {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0 4px;
+  border-radius: 0 2px 2px 0;
+}
+
+/* "-xx%": yellow, orange text, top-right */
+.flash-item-badge {
+  top: 0;
+  right: 0;
+  z-index: 1;
+  padding: 2px 4px;
+  border-radius: 0;
+  background: var(--sh-deal-tag);
+  color: var(--sh-deal-tag-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.flash-item-price {
+  margin-top: 2px;
+  color: var(--sh-price);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.flash-item-currency {
+  margin-left: 1px;
+  font-size: 13px;
+}
+
+.flash-item-bar {
+  width: 85%;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--sh-flash-track);
+}
+
+.flash-item-bar-fill {
+  border-radius: 8px;
+}
+
+/* UPPER-CASE 11 px label: dark orange on the pale track; its white copy is clipped to the fill width (round 2) */
+.flash-item-bar-text {
+  gap: 3px;
+  color: var(--sh-flash-text-track);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.flash-item-bar-text--on-fill {
+  position: absolute;
+  inset: 0;
+  color: var(--sh-flash-text);
+  /* Its own copy of the fill behind it (clipped like the text): what it is read against is the orange, never the track */
+  border-radius: 8px;
+  background: var(--sh-flash-fill);
+}
+
+@media (max-width: 767px) {
+  .flash-sale-head {
+    padding: 8px 10px;
+  }
+
+  .flash-sale-wordmark {
+    font-size: 20px;
+  }
+
+  .flash-sale-items,
+  .flash-sale-grid {
+    padding: 0 8px 12px;
+  }
+
+  .flash-item-price {
+    font-size: 16px;
+  }
 }

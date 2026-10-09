@@ -2,6 +2,40 @@
   padding-bottom: 30px;
 }
 
+/* ---- G-VIS: white section blocks 20 px apart on the #f5f5f5 page, no rounded cards / shadows ---- */
+.home-hero-band {
+  background: var(--sh-surface);
+}
+
+.home-page .sh-section,
+.home-page .category-grid-section,
+.home-page .flash-sale,
+.home-page .mall-brands {
+  margin-top: var(--sh-section-gap);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Section title block: 60 px, thin bottom line, UPPER-CASE 16 px normal weight in rgba(0, 0, 0, .54) */
+.home-page .sh-section__head,
+.home-page .category-grid-head {
+  min-height: 60px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--sh-tile-border);
+}
+
+.home-page .sh-section-title {
+  color: var(--sh-section-title);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.home-page .sh-section__more {
+  color: var(--sh-primary);
+}
+
 .home-row {
   padding: var(--sh-space-3) var(--sh-space-4) var(--sh-space-4);
 }
@@ -25,9 +59,9 @@
   color: var(--sh-primary);
 }
 
-/* Gợi ý hôm nay: sticky title bar with an orange underline, right under the (compact) header */
+/* Gợi ý hôm nay (G-VIS): sticky white bar right under the header — orange upper-case title, 4 px orange underline */
 .home-daily {
-  margin-top: var(--sh-space-3);
+  margin-top: var(--sh-section-gap);
 }
 
 .home-daily-bar {
@@ -36,17 +70,17 @@
   z-index: 5;
   margin-bottom: 10px;
   background: var(--sh-surface);
-  border-bottom: 4px solid var(--sh-primary);
-  box-shadow: var(--sh-shadow-sm);
+  border-bottom: 4px solid var(--sh-search-btn);
 }
 
 .home-daily-title {
-  padding: 14px 0;
+  padding: 15px 0;
   color: var(--sh-primary);
   font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  line-height: 22px;
   text-align: center;
+  text-transform: uppercase;
 }
 
 .home-load-more {

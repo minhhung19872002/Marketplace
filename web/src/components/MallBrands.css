@@ -250,3 +250,226 @@
   background: var(--sh-mall);
   color: var(--sh-on-dark);
 }
+
+/* ---- G-VIS: designed banner left, 2 × 4 borderless grid right — photo (~100 px), logo pill, red 16 px offer ---- */
+.mall-brands-header {
+  min-height: 60px;
+  padding: 0 20px;
+}
+
+.mall-brands-body {
+  grid-template-columns: minmax(0, 390px) minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+}
+
+.mall-slides-frame {
+  border-radius: 0;
+}
+
+.mall-slide {
+  display: block;
+}
+
+.mall-brands-grid {
+  gap: 0;
+}
+
+.mall-brand {
+  justify-content: center;
+}
+
+.mall-brand {
+  gap: 8px;
+  padding: 10px 8px 12px;
+  border: 0;
+  border-radius: 0;
+}
+
+.mall-brand:hover {
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+.mall-brand-photo {
+  width: auto;
+  height: 112px;
+  aspect-ratio: 1;
+  margin-bottom: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.mall-brand-photo > img:first-child {
+  object-fit: cover;
+}
+
+/* The brand logo inside a pill frame with a grey border */
+.mall-brand-pill {
+  display: grid;
+  place-items: center;
+  width: min(100%, 146px);
+  height: 52px;
+  padding: 4px 16px;
+  overflow: hidden;
+  border: 1px solid var(--sh-tile-border);
+  border-radius: var(--sh-radius-pill);
+  background: var(--sh-surface);
+  box-shadow: 0 1px 2px var(--sh-tile-border);
+}
+
+.mall-brand-logo {
+  position: static;
+  width: auto;
+  max-width: 100%;
+  height: 46px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  object-fit: contain;
+  transform: none;
+}
+
+.mall-brand-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 12px;
+  text-align: center;
+}
+
+.mall-brand-offer {
+  color: var(--sh-mall);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.mall-brand--all {
+  border: 0;
+  background: transparent;
+}
+
+.mall-brand--all .mall-brand-all-icon {
+  width: 112px;
+  height: 112px;
+  margin-bottom: 0;
+  background: var(--sh-danger-soft);
+  color: var(--sh-mall);
+}
+
+@media (max-width: 1023px) {
+  .mall-brands-body {
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .mall-brands-body {
+    grid-template-columns: 1fr;
+  }
+
+  .mall-brand-photo {
+    height: 96px;
+  }
+
+  .mall-brand-offer {
+    font-size: 14px;
+  }
+}
+
+/* ---- G-VIS round 2: banner as tall as the 2 brand rows, photo filling its tile, readable logo pill, one-line offer ---- */
+.mall-brands-body {
+  align-items: stretch;
+}
+
+/* The slides take the grid's height (never taller): the frame is laid out absolutely, the dots sit on the artwork */
+.mall-slides {
+  position: relative;
+  min-height: 0;
+}
+
+.mall-slides-frame {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+}
+
+.mall-slide .banner-image {
+  object-fit: cover;
+}
+
+.mall-slide-dots {
+  position: absolute;
+  right: 0;
+  bottom: 4px;
+  left: 0;
+  z-index: 2;
+}
+
+.mall-slide-dots button::before {
+  background: var(--sh-dot);
+  opacity: 1;
+}
+
+.mall-slide-dots button.active::before {
+  width: 8px;
+  border-radius: 50%;
+  background: var(--sh-search-btn);
+}
+
+.mall-brand {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 10px 10px 14px;
+}
+
+.mall-brand-photo {
+  width: 100%;
+  height: 110px;
+  aspect-ratio: auto;
+  overflow: hidden;
+}
+
+.mall-brand-photo > img:first-child {
+  object-fit: cover;
+}
+
+/* 120 × 44 pill; the square logo art is centre-cropped onto its wordmark band (cover) so the name reads at 1270 px */
+.mall-brand-pill {
+  width: min(100%, 120px);
+  height: 44px;
+  padding: 0;
+}
+
+.mall-brand-logo {
+  width: 120px;
+  height: 44px;
+  max-width: none;
+  object-fit: cover;
+  object-position: 50% 62%;
+}
+
+.mall-brand-offer {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mall-brand--all .mall-brand-all-icon {
+  width: 110px;
+  height: 110px;
+}
+
+@media (max-width: 767px) {
+  .mall-slides {
+    display: none;
+  }
+
+  .mall-brand-photo {
+    height: 96px;
+  }
+}

@@ -29,7 +29,7 @@ test.describe('Trang người mua — phần bổ sung', () => {
     await page.goto(`${BASE}/san-pham/${shop.productId}`);
 
     // Voucher của shop → Lưu → in the wallet
-    const voucher = page.getByTestId('shop-voucher').filter({ hasText: 'Giảm ₫10.000' });
+    const voucher = page.getByTestId('shop-voucher').filter({ hasText: 'Giảm 10.000₫' });
     await expect(voucher).toBeVisible();
     await voucher.getByTestId('save-shop-voucher').click();
     await expect(voucher.getByTestId('save-shop-voucher')).toHaveText('Đã lưu');

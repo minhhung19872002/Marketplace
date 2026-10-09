@@ -85,7 +85,7 @@ public sealed class CardPricing(IApplicationDbContext db, PriceBook prices, IClo
                 };
                 if (label is not null && !labels.Contains(label)) labels.Add(label);
             }
-            if (xtra.Contains(card.ShopId)) labels.Add("Freeship Xtra");
+            if (xtra.Contains(card.ShopId)) labels.Add("Freeship+");
             var frame = frameOf.GetValueOrDefault(card.Id);
             return card with { Labels = labels.Count > 0 ? labels.Take(2).ToList() : null, FrameUrl = frame?.FrameImageUrl, CampaignName = frame?.Name };
         }).ToList();

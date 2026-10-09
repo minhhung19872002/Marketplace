@@ -79,7 +79,7 @@ export function activeFilters(sp: URLSearchParams, facets: SearchFacets | undefi
   const condition = sp.get('condition');
   if (condition) chips.push({ key: 'condition', label: label(facets?.conditions, condition) });
   for (const v of sp.getAll('carriers')) chips.push({ key: 'carriers', value: v, label: label(facets?.carriers, v) });
-  if (sp.get('freeship') === 'true') chips.push({ key: 'freeship', label: 'Freeship Xtra' });
+  if (sp.get('freeship') === 'true') chips.push({ key: 'freeship', label: 'Freeship+' });
   if (sp.get('voucher') === 'true') chips.push({ key: 'voucher', label: 'Có voucher' });
   if (sp.get('cod') === 'true') chips.push({ key: 'cod', label: 'COD' });
   for (const v of sp.getAll('attrs')) {
@@ -381,7 +381,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
           {facets && (
             <FilterGroup title="Dịch vụ & khuyến mãi" testId="facet-services">
               <div className="filter-cats">
-                {([['freeship', 'Freeship Xtra'], ['voucher', 'Có voucher của shop'], ['cod', 'Thanh toán khi nhận hàng']] as const).map(([key, label]) => (
+                {([['freeship', 'Freeship+'], ['voucher', 'Có voucher của shop'], ['cod', 'Thanh toán khi nhận hàng']] as const).map(([key, label]) => (
                   <label key={key} className="filter-cat">
                     <input type="checkbox" checked={!!params[key]} onChange={(e) => setFlag(key, e.target.checked)} data-testid={`filter-${key}`} />
                     <span>{label} <span className="filter-count">({facets.services?.find((s) => s.value === key)?.count ?? 0})</span></span>
@@ -543,7 +543,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
             {(found) => (
               <div className={isFetching && !isLoading ? 'search-refreshing' : ''}>
                 <h2 className="sh-visually-hidden">Danh sách sản phẩm</h2>
-                <ProductGrid title="" products={found.items} />
+                <ProductGrid title="" products={found.items} variant="detailed" />
               </div>
             )}
           </QueryState>

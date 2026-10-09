@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
-import Banner from '../components/Banner';
+import Banner, { HomeStrip } from '../components/Banner';
 import CategoryShortcuts from '../components/CategoryShortcuts';
 import CategoryGrid from '../components/CategoryGrid';
 import MallBrands from '../components/MallBrands';
@@ -36,7 +36,7 @@ const RecentlyViewed = ({ isLoggedIn }: { isLoggedIn: boolean }) => {
         <Trash2 size={14} aria-hidden /> Xoá lịch sử
       </ConfirmButton>}>
       <div className="home-row">
-        <Carousel label="Sản phẩm đã xem">{items.map((p) => <ProductCard key={p.id} product={p} />)}</Carousel>
+        <Carousel label="Sản phẩm đã xem">{items.map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}</Carousel>
       </div>
     </Section>
   );
@@ -54,10 +54,16 @@ const HomePage = () => {
   return (
     <div className="home-page">
       <HomePopup />
+      {/* Hero + quick links on one white band across the page (G-VIS) */}
+      <div className="home-hero-band">
+        <div className="container">
+          <Banner />
+          <CategoryShortcuts />
+        </div>
+      </div>
       <div className="container">
-        <Banner />
-        <CategoryShortcuts />
         <FlashSaleBlock />
+        <HomeStrip />
         <CategoryGrid />
         <MallBrands />
         <TopCategories />
@@ -71,7 +77,7 @@ const HomePage = () => {
           <QueryState query={recommendations} loading={<ProductGridSkeleton count={12} />}>
             {(d) => (
               <div className="product-grid" data-testid="daily-grid">
-                {d.pages.flatMap((p) => p.items).map((p) => <ProductCard key={p.id} product={p} />)}
+                {d.pages.flatMap((p) => p.items).map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}
               </div>
             )}
           </QueryState>

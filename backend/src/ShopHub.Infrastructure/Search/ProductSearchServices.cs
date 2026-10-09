@@ -58,7 +58,7 @@ internal sealed class FacetLabeler(ShopHubDbContext db)
             Sorted((carrierCounts ?? []).Where(kv => carrierNames.ContainsKey(kv.Key)).Select(kv => new FacetValue(kv.Key, carrierNames[kv.Key], kv.Value))),
             new[]
             {
-                new FacetValue("freeship", "Freeship Xtra", freeship), new FacetValue("voucher", "Có voucher của shop", withVoucher),
+                new FacetValue("freeship", "Freeship+", freeship), new FacetValue("voucher", "Có voucher của shop", withVoucher),
                 new FacetValue("cod", "Thanh toán khi nhận hàng", cod),
             }.Where(f => f.Count > 0).ToList());
     }

@@ -26,7 +26,7 @@ export interface FlashSlot {
   items: FlashItem[]
 }
 
-export type BannerPosition = 'HomeMain' | 'HomeSide' | 'Shortcut' | 'Category' | 'Popup' | 'Mall'
+export type BannerPosition = 'HomeMain' | 'HomeSide' | 'Shortcut' | 'Category' | 'Popup' | 'Mall' | 'HomeStrip'
 
 export interface Banner {
   id: string
@@ -39,6 +39,8 @@ export interface Banner {
   endAt: string
   sortOrder: number
   isActive: boolean
+  /** The image is a designed graphic that already carries its text: the buyer site draws no title over it */
+  hasTextInImage: boolean
 }
 
 export interface CampaignBlock {
@@ -72,6 +74,7 @@ export const POSITION_LABEL: Record<BannerPosition, string> = {
   Category: 'Đầu trang danh mục',
   Popup: 'Popup',
   Mall: 'Banner dọc ShopHub Mall',
+  HomeStrip: 'Dải 3 banner dưới Flash Sale',
 }
 
 export type RegistrationStatus = 'Pending' | 'Approved' | 'Rejected'

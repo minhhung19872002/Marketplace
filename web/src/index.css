@@ -68,14 +68,49 @@
   --sh-font-body: 400 14px/20px var(--sh-font);
   --sh-font-caption: 400 12px/16px var(--sh-font);
   --sh-font: 'Be Vietnam Pro', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
-  --sh-container: 1200px;
+  --sh-container: 1224px; /* 1200 px of content + 2 × 12 px gutter */
   /* "-xx%" tag of the cards: yellow with dark red text */
-  --sh-deal-tag: #ffd424;
-  --sh-deal-tag-text: #9b1c0a;
-  /* Flash Sale progress bar: dark text reads 4.5:1 on the track and on the fill */
+  --sh-deal-tag: #ffd839;
+  --sh-deal-tag-text: #a8300f;
+  /* Flash Sale progress bar (G-VIS): pale pink track, orange fill, upper-case label drawn twice — dark orange on the
+     track, white clipped to the fill — so every part of it reads 4.5:1 */
   --sh-flash-track: #ffe3d9;
-  --sh-flash-fill: linear-gradient(90deg, #ffb199, #ff9466);
-  --sh-flash-text: #6e1a06;
+  --sh-flash-fill: linear-gradient(90deg, #c93d19, #d8381a);
+  --sh-flash-text: #fff;
+  --sh-flash-text-track: #a8300f;
+  --sh-flash-halo: rgba(0, 0, 0, 0.45);
+  --sh-flash-wordmark: linear-gradient(90deg, #d0011b, #ee4d2d);
+  /* G-VIS (docs/00 #203): bright header like the reference marketplace — white text on it is ≥ 3:1 only, so the header
+     text is bold / large; documented exceptions in contrast.test.ts */
+  --sh-gradient-header: linear-gradient(-180deg, #f53d2d, #ff6633);
+  --sh-search-btn: #ee4d2d;
+  --sh-search-btn-hover: #d73211;
+  /* Prices of the cards and the product page (user decision: #ee4d2d — exception for the 16 px card price) */
+  /* Shopee-like price orange, nudged to AA: #ee4d2d is 3.66:1 on white, #d43b21 is 4.72:1 (4.52:1 on #fafafa) — G-VIS */
+  --sh-price: #d43b21;
+  /* Home section titles: rgba(0, 0, 0, .54) on white */
+  --sh-section-title: #757575;
+  --sh-section-gap: 20px;
+  /* Light orange of the secondary buy button */
+  --sh-primary-tint: #fff1ed;
+  --sh-primary-tint-hover: #ffe4db;
+  --sh-band: rgba(0, 0, 0, 0.38);
+  --sh-dot: rgba(255, 255, 255, 0.5);
+  --sh-tile-border: rgba(0, 0, 0, 0.09);
+  --sh-campaign-red: #d0011b;
+  --sh-campaign-yellow: #ffd839;
+  --sh-campaign-blue: #0046ab;
+  /* Glyphs of the home shortcut tiles (decoration, no text) */
+  --sh-glyph-orange: #ff6a2b;
+  --sh-glyph-yellow: #ffc21a;
+  --sh-glyph-red: #ee2a3b;
+  --sh-glyph-pink: #ff4f7b;
+  --sh-glyph-green: #22b573;
+  --sh-glyph-teal: #0f9d8f;
+  --sh-glyph-blue: #3b82f6;
+  --sh-glyph-blue-dark: #2563c9;
+  --sh-glyph-brown: #e0a160;
+  --sh-glyph-brown-dark: #c27f3d;
   /* Header heights (sticky offsets) */
   --sh-header-full: 120px;
   --sh-header-compact: 64px;

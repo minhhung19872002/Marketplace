@@ -316,18 +316,63 @@ public sealed class TopProductsByCategoryHandler(IApplicationDbContext db, CardP
                              where productIds.Contains(i.ProductId) && o.CreatedAt >= since && o.Status != Domain.Sales.OrderStatus.Cancelled
                              group i by i.ProductId into g
                              select new { g.Key, Units = g.Sum(x => x.Quantity) }).ToDictionaryAsync(x => x.Key, x => x.Units, ct);
-        return result.Select(r => r with { Product = priced[r.Product.Id], MonthlySold = monthly.GetValueOrDefault(r.Product.Id) }).ToList();
+        // The tile lays "Bán x+ / tháng" over the bottom of the photo: a plain photo, not a promotional cover with text (G-VIS)
+        var plain = await PlainPhotos.OfAsync(db, productIds, ct);
+        return result.Select(r => r with
+        {
+            Product = priced[r.Product.Id] with { ImageUrl = plain.GetValueOrDefault(r.Product.Id) ?? priced[r.Product.Id].ImageUrl },
+            MonthlySold = monthly.GetValueOrDefault(r.Product.Id),
+        }).ToList();
     }
 }
 
+/// <summary>
+/// The product's second photo when it has more than one (G-VIS): the first is often a promotional cover with big text,
+/// right for a product card but not for tiles that print their own text over the photo (Tìm kiếm hàng đầu, Mall).
+/// </summary>
+internal static class PlainPhotos
+{
+    public static async Task<Dictionary<Guid, string>> OfAsync(IApplicationDbContext db, IReadOnlyCollection<Guid> productIds, CancellationToken ct) =>
+        (await db.ProductMedia.AsNoTracking().Where(m => productIds.Contains(m.ProductId) && m.Type == MediaType.Image)
+            .OrderBy(m => m.ProductId).ThenBy(m => m.SortOrder).ThenBy(m => m.Id).Select(m => new { m.ProductId, m.Url }).ToListAsync(ct))
+        .GroupBy(m => m.ProductId).Where(g => g.Count() > 1).ToDictionary(g => g.Key, g => g.ElementAt(1).Url);
+}
+
 // MaxDiscountPercent: the deepest real discount among the shop's SKUs on sale ("Giảm đến …%" — never a made-up claim)
-public record MallShopDto(Guid Id, string Name, string Slug, string? LogoUrl, string? CoverImageUrl, int ProductCount, int MaxDiscountPercent = 0);
+// Offer: the line under the logo, from what the shop really runs now (G-VIS) — its gift / combo / add-on programme, else
+// its deepest discount, else Freeship+
+public record MallShopDto(Guid Id, string Name, string Slug, string? LogoUrl, string? CoverImageUrl, int ProductCount, int MaxDiscountPercent = 0)
+{
+    public string? Offer { get; init; }
+}
 
 public record MallShopsQuery(int Take = 12) : IRequest<IReadOnlyList<MallShopDto>>;
 
-public sealed class MallShopsHandler(IApplicationDbContext db) : IRequestHandler<MallShopsQuery, IReadOnlyList<MallShopDto>>
+public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : IRequestHandler<MallShopsQuery, IReadOnlyList<MallShopDto>>
 {
-    public async Task<IReadOnlyList<MallShopDto>> Handle(MallShopsQuery request, CancellationToken ct) =>
+    public async Task<IReadOnlyList<MallShopDto>> Handle(MallShopsQuery request, CancellationToken ct)
+    {
+        var shops = await ShopsAsync(request, ct);
+        var ids = shops.Select(s => s.Id).ToList();
+        var now = clock.UtcNow;
+        var programmes = await db.Promotions.AsNoTracking()
+            .Where(p => ids.Contains(p.ShopId) && p.Status == Domain.Promo.PromotionStatus.Active && p.StartAt <= now && p.EndAt > now)
+            .OrderBy(p => p.Type).ThenBy(p => p.Id).Select(p => new { p.ShopId, p.Name }).ToListAsync(ct);
+        var freeship = (await db.Shops.AsNoTracking().Where(s => ids.Contains(s.Id) && s.FreeshipXtraSince != null).Select(s => s.Id).ToListAsync(ct)).ToHashSet();
+        // The tile's photo: a plain one, like Tìm kiếm hàng đầu (the first photo may be a cover with text)
+        var covers = shops.Where(s => s.CoverImageUrl != null).Select(s => s.CoverImageUrl!).ToList();
+        var coverProducts = await db.ProductMedia.AsNoTracking().Where(m => covers.Contains(m.Url)).Select(m => new { m.Url, m.ProductId }).ToListAsync(ct);
+        var plain = await PlainPhotos.OfAsync(db, coverProducts.Select(c => c.ProductId).Distinct().ToList(), ct);
+        return shops.Select(s =>
+        {
+            var offer = programmes.FirstOrDefault(p => p.ShopId == s.Id)?.Name
+                        ?? (s.MaxDiscountPercent > 0 ? $"Ưu đãi đến {s.MaxDiscountPercent}%" : freeship.Contains(s.Id) ? "Freeship+ cho đơn của shop" : null);
+            var product = coverProducts.FirstOrDefault(c => c.Url == s.CoverImageUrl)?.ProductId;
+            return s with { Offer = offer, CoverImageUrl = product is { } pid && plain.TryGetValue(pid, out var url) ? url : s.CoverImageUrl };
+        }).ToList();
+    }
+
+    private async Task<List<MallShopDto>> ShopsAsync(MallShopsQuery request, CancellationToken ct) =>
         await db.Shops.AsNoTracking()
             .Where(s => s.Type == ShopType.Mall && (s.Status == ShopStatus.Active || s.Status == ShopStatus.Vacation))
             .OrderByDescending(s => s.ProductCount).ThenByDescending(s => s.FollowerCount).ThenBy(s => s.Name).ThenBy(s => s.Id)

@@ -51,6 +51,8 @@
   color: var(--sh-text-strong);
   font-size: 13px;
   line-height: 16px;
+  /* Always two lines tall: a label that wraps once the web font arrives must not grow the row (CLS 0.09, G-VIS) */
+  min-height: 32px;
 }
 
 .feature-shortcut:hover .feature-shortcut-label {
@@ -59,7 +61,7 @@
 
 .feature-shortcuts--loading {
   /* Same height as the loaded row, so nothing below jumps */
-  height: 112px;
+  height: 121px;
 }
 
 /* Multi-colour glyphs of the tiles */

@@ -15,7 +15,7 @@ Sàn TMĐT C2C + B2C cho thị trường Việt Nam, ba phía: **Người mua** 
 > sao lưu. `docker compose up -d` có sẵn dữ liệu mẫu: ~1.000 sản phẩm, ~600 đơn trải 90 ngày qua đúng các lệnh nghiệp vụ, 800 đánh giá.
 > Hướng dẫn: [người mua](docs/01-huong-dan-nguoi-mua.md) · [người bán](docs/02-huong-dan-nguoi-ban.md) · [quản trị](docs/03-huong-dan-quan-tri.md);
 > kịch bản kiểm thử: [`docs/06`](docs/06-kich-ban-kiem-thu.md); chưa làm / ngoài phạm vi: `docs/07` và mục 12 của đặc tả.
-> Tài liệu API: [`docs/05-api-reference.md`](docs/05-api-reference.md).
+> Tài liệu API: [`docs/05-api-reference.md`](docs/05-api-reference.md). Kịch bản trình diễn 10 phút: [`docs/10-kich-ban-trinh-dien.md`](docs/10-kich-ban-trinh-dien.md).
 
 ## Cấu trúc
 

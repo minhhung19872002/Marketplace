@@ -60,7 +60,7 @@ const ProductPicker = ({ shopId, open, title, value, max, onClose, onPick }: Pro
         pagination={{ current: page, pageSize: 10, total: list.data?.totalCount ?? 0, onChange: setPage, showSizeChanger: false }}
         columns={[
           { title: 'Sản phẩm', render: (_, r) => r.name },
-          { title: 'Giá', width: 140, render: (_, r) => formatPrice(r.minPrice) },
+          { title: 'Giá', width: 140, render: (_, r) => <span className="price">{formatPrice(r.minPrice)}</span> },
           { title: 'Trạng thái', width: 120, render: (_, r) => <Tag color={r.status === 'Active' ? 'green' : undefined}>{r.status === 'Active' ? 'Đang bán' : r.status}</Tag> },
         ]}
       />

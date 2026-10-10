@@ -288,7 +288,7 @@ const ProductsPage = ({ shopId }: { shopId: string }) => {
               </Space>
             ),
           },
-          { title: 'Giá', render: (_, r) => formatRange(r.minPrice, r.maxPrice) },
+          { title: 'Giá', render: (_, r) => <span className="price">{formatRange(r.minPrice, r.maxPrice)}</span> },
           {
             width: 140,
             title: (

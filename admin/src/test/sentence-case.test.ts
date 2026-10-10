@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { rel, sourceFiles, stripComments } from './scan';
+import { findLines, rel, sourceFiles, stripComments } from './scan';
 
-// G3 C1: labels, headings and buttons are written in sentence case ("Có thể bạn cũng thích"), never ALL CAPS — in the
-// text itself or through CSS text-transform. Acronyms (COD, SKU, OTP…) are fine.
+// Capitalisation policy (docs/00 #209). Labels, headings and buttons are written in sentence case ("Có thể bạn cũng thích"),
+// never ALL CAPS and never Title Case — in the text itself or through CSS / inline styles. Acronyms (COD, SKU, OTP…) are fine.
+// The UPPER CASE section titles of G-VIS belong to the buyer site's home page only; this app has none.
 const ACRONYMS = new Set(['COD', 'VND', 'SKU', 'OTP', 'CCCD', 'API', 'FAQ', 'KYC', 'QR', 'ID', 'VAT', 'GHN', 'GHTK', 'SPX', 'VNPAY', 'MOMO',
   'JCB', 'PDF', 'CSV', 'URL', 'SMS', 'HTML', 'SEO', 'HTTP', 'HTTPS', 'UTC', 'XL', 'XXL', 'USB', 'LED', 'TV', 'SSD', 'RAM', 'GB', 'PC', 'OK',
   'VIP', 'MST', 'ATM', 'JSON', 'KB', 'MB', 'SIM', 'NFC', 'GPS', 'VN', 'TP', 'HCM', 'KG', 'ML', 'UV', 'IOS', 'POS', 'CSKH', 'ĐVVC']);
@@ -35,5 +36,11 @@ describe('sentence case', () => {
     const offenders = sourceFiles(['.css']).flatMap((file) =>
       readFileSync(file, 'utf8').split('\n').flatMap((line, i) => (/text-transform:\s*uppercase/.test(line) ? [`${rel(file)}:${i + 1}`] : [])));
     expect(offenders).toEqual([]);
+  });
+
+  it('has no other case transform (capitalize = Title Case, small-caps) in CSS or inline styles', () => {
+    const css = findLines(sourceFiles(['.css']), /text-transform:\s*capitalize|font-variant(-caps)?:\s*[^;]*small-caps/);
+    const inline = findLines(sourceFiles(['.tsx', '.ts']), /textTransform|fontVariant(Caps)?\s*:/);
+    expect([...css, ...inline]).toEqual([]);
   });
 });

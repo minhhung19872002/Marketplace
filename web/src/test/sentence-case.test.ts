@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { rel, sourceFiles, stripComments } from './scan';
+import { findLines, rel, sourceFiles, stripComments } from './scan';
 
-// G3 C1: labels, headings and buttons are written in sentence case ("Có thể bạn cũng thích"), never ALL CAPS — in the
-// text itself or through CSS text-transform. Acronyms (COD, SKU, OTP…) are fine.
+// Capitalisation policy (docs/00 #209, which settles #197 / #203 / #207). Labels, headings and buttons are written in sentence
+// case in the source ("Gợi ý hôm nay"), never ALL CAPS and never Title Case; acronyms (COD, SKU, OTP…) are fine. The only UPPER
+// CASE on screen is the G-VIS look of the home page section titles and the Flash Sale labels, and it comes from CSS
+// `text-transform: uppercase` on the rules listed in UPPERCASE_ALLOWED — the text in the TSX stays sentence case (screen readers,
+// search engines and copy-paste get the normal spelling).
 const ACRONYMS = new Set(['COD', 'VND', 'SKU', 'OTP', 'CCCD', 'API', 'FAQ', 'KYC', 'QR', 'ID', 'VAT', 'GHN', 'GHTK', 'SPX', 'VNPAY', 'MOMO',
   'JCB', 'PDF', 'CSV', 'URL', 'SMS', 'HTML', 'SEO', 'HTTP', 'HTTPS', 'UTC', 'XL', 'XXL', 'USB', 'LED', 'TV', 'SSD', 'RAM', 'GB', 'PC', 'OK',
   'VIP', 'MST', 'ATM', 'JSON', 'KB', 'MB', 'SIM', 'NFC', 'GPS', 'VN', 'TP', 'HCM', 'KG', 'ML', 'UV', 'IOS', 'POS', 'CSKH', 'ĐVVC']);
@@ -43,20 +46,32 @@ describe('sentence case', () => {
     expect(offenders).toEqual([]);
   });
 
-  // G-VIS (docs/00 #203): UPPER CASE is allowed only for the home / category section titles and the Flash Sale wordmark and
-  // bar labels — through text-transform on exactly these rules; every other rule stays sentence case
+  // docs/00 #209: each entry is a home page section title or a Flash Sale label — a new entry must be one of those. An entry
+  // that no longer matches a rule fails too, so a renamed selector cannot leave a stale permission behind.
   const UPPERCASE_ALLOWED = [
-    'pages/HomePage.css .home-page .sh-section-title',
-    'pages/HomePage.css .home-daily-title',
-    'components/FlashSaleBlock.css .flash-sale-wordmark',
-    'components/FlashSaleBlock.css .flash-item-bar-text',
+    'pages/HomePage.css .home-page .sh-section-title', // "Danh mục", "Tìm kiếm hàng đầu", "ShopHub Mall"… on the home page
+    'pages/HomePage.css .home-daily-title', // "Gợi ý hôm nay"
+    'components/FlashSaleBlock.css .flash-sale-wordmark', // "Flash Sale"
+    'components/FlashSaleBlock.css .flash-item-bar-text', // "Đang bán chạy", "Đã bán N", "Vừa mở bán"…
   ];
-
-  it('has text-transform: uppercase only on the allowed rules', () => {
-    const used = sourceFiles(['.css']).flatMap((file) =>
+  const uppercaseRules = () =>
+    sourceFiles(['.css']).flatMap((file) =>
       [...readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)]
         .filter((m) => /text-transform:\s*uppercase/.test(m[2]))
         .flatMap((m) => m[1].split(',').map((sel) => `${rel(file)} ${sel.trim().replace(/\s+/g, ' ')}`)));
-    expect(used.filter((u) => !UPPERCASE_ALLOWED.includes(u))).toEqual([]);
+
+  it('has text-transform: uppercase only on the allowed rules', () => {
+    expect(uppercaseRules().filter((u) => !UPPERCASE_ALLOWED.includes(u))).toEqual([]);
+  });
+
+  it('every allowed uppercase rule still exists', () => {
+    const used = uppercaseRules();
+    expect(UPPERCASE_ALLOWED.filter((a) => !used.includes(a))).toEqual([]);
+  });
+
+  it('has no other case transform (capitalize = Title Case, small-caps) in CSS or inline styles', () => {
+    const css = findLines(sourceFiles(['.css']), /text-transform:\s*capitalize|font-variant(-caps)?:\s*[^;]*small-caps/);
+    const inline = findLines(sourceFiles(['.tsx', '.ts']), /textTransform|fontVariant(Caps)?\s*:/);
+    expect([...css, ...inline]).toEqual([]);
   });
 });

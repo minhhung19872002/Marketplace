@@ -63,6 +63,10 @@ Ngoài giao diện, kiểm cũng thấy mấy chỗ sau, nên làm cùng đợt:
   - giữ nguyên và ghi ngoại lệ vào phép đo.
 - **Tên danh mục là dữ liệu Viết Hoa Từng Chữ** ("Sắc Đẹp", "Trang Điểm", "Chăm Sóc Da"). Luật quét #209 chỉ quét mã
   nguồn, nên dữ liệu gieo lọt qua. Muốn nhất quán thì sửa trong bộ gieo, kèm migration dọn dữ liệu cũ.
+  Nhãn lối tắt trang chủ cũng vậy ("Mã Giảm Giá", "Hàng Mới Về", "Giá Từ Thấp", "Có Sẵn Hàng"): nhãn lấy từ dữ liệu
+  quản trị đặt, không phải từ mã nguồn.
+- **Tiêu đề tab của quản trị** từng là "ShopHub - Quản Trị Sàn" (`admin/index.html`). Đã sửa thành "Quản trị sàn" trong
+  G5. Luật quét chỉ đọc `.ts` / `.tsx` nên tệp `.html` lọt qua — nên cho luật quét đọc cả `index.html` của ba gói.
 
 ## 3. Lỗi không tái hiện được — cần kiểm lại từ mạng thường
 

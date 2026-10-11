@@ -50,7 +50,9 @@ export const BannerArt = ({ banner, to, className, titled, cta, eager = false, t
     <BannerLink to={to} className={['banner-art', className].filter(Boolean).join(' ')} testId={testId}
       label={titled ? undefined : banner.title ?? undefined}>
       {image
+        // data-text-in-image: such artwork must never be cropped (G-VIS round 3, L194 — checked by e2e gvis3.spec)
         ? <img className="banner-image" src={image} alt="" onError={handleImgError} loading={eager ? 'eager' : 'lazy'}
+          data-text-in-image={banner.hasTextInImage === true ? 'true' : undefined}
           // React 18 warns on the camel-case prop: pass the plain HTML attribute (first hero slide only)
           {...(eager ? { fetchpriority: 'high' } : {})} />
         : <span className="banner-image banner-image--fallback" aria-hidden />}

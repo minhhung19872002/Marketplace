@@ -296,7 +296,8 @@
 }
 
 .home-strip-item {
-  aspect-ratio: 390 / 105;
+  /* The artwork's own ratio (390 × 100, drawn at 2×): a different frame cropped its text (L194) */
+  aspect-ratio: 390 / 100;
   border-radius: 2px;
 }
 
@@ -325,4 +326,9 @@
     flex: 0 0 86%;
     scroll-snap-align: start;
   }
+}
+
+/* Artwork that carries its own text is never cropped (L194): whatever frame it lands in, it is shown whole */
+.banner-image[data-text-in-image='true'] {
+  object-fit: contain;
 }

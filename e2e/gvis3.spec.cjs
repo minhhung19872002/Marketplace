@@ -67,4 +67,30 @@ test.describe('G-VIS vòng 3', () => {
     }
     expect(problems).toEqual([]);
   });
+
+  // L194: a banner whose artwork carries its own text is never cropped. With object-fit: cover a crop happens exactly when
+  // the frame's ratio differs from the picture's; contain never crops
+  test('Banner có chữ trong ảnh không bao giờ bị cắt (trang chủ, 800–1440 px)', async ({ browser }) => {
+    const context = await browser.newContext(guest);
+    await noPopup(context);
+    const page = await context.newPage();
+    const problems = [];
+    for (const width of [800, 900, 1024, 1270, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(BASE);
+      await page.getByTestId('mall-brands').scrollIntoViewIfNeeded();
+      await page.waitForLoadState('networkidle');
+      const cropped = await page.evaluate(() => [...document.querySelectorAll('img[data-text-in-image="true"]')]
+        .filter((img) => img.complete && img.naturalWidth > 0 && img.getClientRects().length > 0)
+        .filter((img) => getComputedStyle(img).objectFit === 'cover' && getComputedStyle(img.closest('.mall-slide, .banner-art') ?? img).opacity !== '0')
+        .map((img) => {
+          const r = img.getBoundingClientRect();
+          return { src: img.currentSrc.split('/').pop(), box: r.width / r.height, natural: img.naturalWidth / img.naturalHeight };
+        })
+        .filter((x) => Math.abs(x.box / x.natural - 1) > 0.03)
+        .map((x) => `${x.src} khung ${x.box.toFixed(2)} / ảnh ${x.natural.toFixed(2)}`));
+      for (const c of cropped) problems.push(`${width}px: ${c}`);
+    }
+    expect(problems).toEqual([]);
+  });
 });

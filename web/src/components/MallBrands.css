@@ -475,3 +475,46 @@
     height: 96px;
   }
 }
+
+/* ---- G-VIS round 3 (L194): the Mall banner is never cropped. Its column is as wide as the portrait artwork (480 × 660)
+   is at the height of the two brand rows, so the frame has the picture's own ratio; the brand rows stretch to it. When
+   the block is too narrow for the banner plus 4 brand columns, the banner goes and the brands take the whole width. ---- */
+.mall-brands {
+  container: mall / inline-size;
+}
+
+.mall-brands-body {
+  grid-template-columns: 324px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.mall-slides {
+  align-self: start;
+}
+
+.mall-slides-frame {
+  position: relative;
+  inset: auto;
+  aspect-ratio: 480 / 660;
+}
+
+.mall-brands-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+@container mall (max-width: 939px) {
+  .mall-brands-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mall-slides {
+    display: none;
+  }
+}
+
+@container mall (max-width: 560px) {
+  .mall-brands-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

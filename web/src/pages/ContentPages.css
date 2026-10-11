@@ -168,39 +168,58 @@
   margin-bottom: 16px;
 }
 
-.help-hero {
-  background: var(--sh-primary);
-  color: #fff;
-  padding: 28px 24px;
-  border-radius: 2px;
-  margin-bottom: 16px;
+/* Help topics as coloured tiles (G5-B), like the home shortcuts */
+.help-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
 }
 
-.help-hero h1 {
-  font-size: 22px;
-  margin: 0 0 12px;
-}
-
-.help-hero form {
+.help-tile {
   display: flex;
-  gap: 8px;
-  max-width: 600px;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 10px;
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-sm);
+  color: var(--sh-text-strong);
+  text-align: center;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
-.help-hero input {
-  flex: 1;
-  min-width: 0;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 2px;
+.help-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sh-shadow-md);
 }
 
-.help-hero button {
-  padding: 0 18px;
-  border: none;
-  background: #fff;
-  color: var(--sh-primary);
-  cursor: pointer;
+.help-tile-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: var(--sh-on-dark);
+}
+
+.help-tile-icon.tone-0 { background: var(--sh-tone-primary); }
+.help-tile-icon.tone-1 { background: var(--sh-tone-teal); }
+.help-tile-icon.tone-2 { background: var(--sh-tone-violet); }
+.help-tile-icon.tone-3 { background: var(--sh-tone-orange); }
+.help-tile-icon.tone-4 { background: var(--sh-tone-tech); }
+.help-tile-icon.tone-5 { background: var(--sh-tone-mall); }
+
+.help-tile-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.help-tile-count {
+  color: var(--sh-text-muted);
+  font-size: 12px;
 }
 
 .help-topics {
@@ -230,4 +249,29 @@
 
 .help-empty {
   color: var(--sh-text-muted);
+}
+
+@media (max-width: 600px) {
+  .help-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .help-tile {
+    padding: 10px 4px;
+  }
+
+  .help-tile-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .help-tile-text {
+    font-size: 12px;
+  }
+
+  .help-tile-count {
+    display: none;
+  }
 }

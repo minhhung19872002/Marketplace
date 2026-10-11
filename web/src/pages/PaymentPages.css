@@ -147,20 +147,73 @@
   margin-top: 12px;
 }
 
+/* Public parcel tracking (G5-B): a card under the band — the facts in one row, then the journey */
 .tracking-page {
+  padding-top: 16px;
+  padding-bottom: 32px;
   text-align: left;
 }
 
-.tracking-form {
-  display: flex;
-  gap: 8px;
-  margin: 12px 0 18px;
+.tracking-hint {
+  color: var(--sh-text-muted);
 }
 
-.tracking-form input {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
+.tracking-card {
+  padding: 20px 24px;
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-sm);
+}
+
+.tracking-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 40px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.tracking-facts div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tracking-facts span {
+  color: var(--sh-text-muted);
+  font-size: 12px;
+}
+
+.tracking-facts strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tracking-status {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: var(--sh-radius-pill);
+  background: var(--sh-primary-tint);
+  color: var(--sh-primary-dark);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tracking-journey {
+  margin: 16px 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .tracking-card {
+    padding: 16px;
+  }
+
+  .tracking-status {
+    margin-left: 0;
+  }
 }
 
 .shipment-timeline {

@@ -1,0 +1,69 @@
+/* Bright brand band of the service pages (G5-B): the header gradient, white large text only (≥ 3:1, docs/00 #203) */
+.sh-band {
+  background: var(--sh-gradient-header);
+  color: var(--sh-on-dark);
+}
+
+.sh-band__inner {
+  padding-top: 32px;
+  padding-bottom: 36px;
+}
+
+.sh-band h1 {
+  margin: 0 0 16px;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.sh-band__search {
+  display: flex;
+  max-width: 640px;
+  padding: 3px;
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-md);
+}
+
+.sh-band__search input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: none;
+  font: inherit;
+  font-size: 15px;
+  outline-offset: -2px;
+}
+
+.sh-band__search button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 20px;
+  border: none;
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .sh-band__inner {
+    padding-top: 20px;
+    padding-bottom: 24px;
+  }
+
+  .sh-band h1 {
+    font-size: 20px;
+  }
+
+  .sh-band__search button span {
+    display: none;
+  }
+
+  .sh-band__search button {
+    padding: 0 14px;
+  }
+}

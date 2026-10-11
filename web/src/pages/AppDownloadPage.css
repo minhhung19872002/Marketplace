@@ -1,16 +1,41 @@
+/* Bright band with the phone drawing (G5-B); the card with the details and the QR overlaps its bottom edge */
+.app-band .sh-band__inner {
+  padding-bottom: 72px;
+}
+
+.app-band-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.app-band h1 {
+  font-size: 34px;
+}
+
+.app-page-soon {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
 .app-page {
-  padding: 24px 0 40px;
+  padding-bottom: 40px;
 }
 
 .app-page-card {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
   align-items: center;
   justify-content: space-between;
-  background: var(--sh-surface);
+  margin-top: -48px;
   padding: 24px;
-  border-radius: 2px;
+  border-radius: var(--sh-radius-md);
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-md);
 }
 
 .app-page-text {
@@ -18,14 +43,14 @@
   min-width: 0;
 }
 
-.app-page-text h1 {
+.app-page-text h2 {
   margin: 0 0 8px;
-  color: var(--sh-primary);
-  font-size: 24px;
+  font-size: 18px;
 }
 
-.app-page-soon {
-  font-weight: 700;
+.app-page-continue {
+  color: var(--sh-primary);
+  font-weight: 500;
 }
 
 .app-page-qr {
@@ -33,7 +58,7 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: #555;
+  color: var(--sh-text-muted);
   font-size: 13px;
 }
 
@@ -41,4 +66,19 @@
   width: 200px;
   height: 200px;
   background: var(--sh-primary-soft);
+}
+
+@media (max-width: 600px) {
+  .app-band h1 {
+    font-size: 24px;
+  }
+
+  .app-page-soon {
+    font-size: 19px;
+  }
+
+  .app-band .sh-art--phone {
+    width: 84px;
+    height: 136px;
+  }
 }

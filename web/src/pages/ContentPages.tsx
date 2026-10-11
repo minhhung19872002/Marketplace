@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronDown, ListTree } from 'lucide-react';
+import { ChevronDown, CircleHelp, CreditCard, ListTree, RotateCcw, ScrollText, ShoppingBag, Store, Truck, UserRound, type LucideIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { contentApi, type HelpItem } from '../api/content';
 import { formatDate } from '../lib/datetime';
 import { ApiError } from '../api/http';
 import { removeTones } from '../lib/text';
 import QueryState from '../components/QueryState';
+import { BandSearch, PageBand } from '../components/ui/PageBand';
+import { usePageTitle } from '../lib/pageTitle';
 import './ContentPages.css';
 
 /** "3. Giao dịch" → "3-giao-dich": anchor id of a heading. */
@@ -93,7 +95,15 @@ export const CmsPageView = () => {
 };
 
 /** /tro-giup — articles by topic, search without tones, links to the legal pages. */
+// Help topics as coloured tiles, like the home shortcuts (G5-B): the icon by the topic's words, the colour by position
+const TOPIC_ICONS: [RegExp, LucideIcon][] = [
+  [/tài khoản/i, UserRound], [/mua hàng|đơn/i, ShoppingBag], [/trả hàng|hoàn/i, RotateCcw], [/thanh toán|ví/i, CreditCard],
+  [/người bán|shop/i, Store], [/vận chuyển|giao/i, Truck], [/chính sách|quy định/i, ScrollText],
+];
+const topicIcon = (topic: string): LucideIcon => TOPIC_ICONS.find(([re]) => re.test(topic))?.[1] ?? CircleHelp;
+
 export const HelpCenter = () => {
+  usePageTitle('Trung tâm trợ giúp');
   const [q, setQ] = useState('');
   const [term, setTerm] = useState('');
   const items = useQuery({ queryKey: ['help', term], queryFn: () => contentApi.help(term) });
@@ -103,40 +113,58 @@ export const HelpCenter = () => {
     (acc[i.topic ?? 'Khác'] ??= []).push(i);
     return acc;
   }, {});
+  const tiles = [
+    ...Object.entries(topics).map(([t, list]) => ({ id: `chu-de-${anchorId(t)}`, text: t, count: `${list.length} câu hỏi` })),
+    ...(pages.length > 0 ? [{ id: 'chinh-sach', text: 'Chính sách & quy định', count: `${pages.length} trang` }] : []),
+  ];
   return (
-    <div className="container content-page">
-      <div className="help-hero">
+    <>
+      <PageBand className="help-band">
         <h1>Xin chào, ShopHub có thể giúp gì cho bạn?</h1>
-        <form onSubmit={(e) => { e.preventDefault(); setTerm(q.trim()); }}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nhập từ khoá, ví dụ: huỷ đơn, hoàn tiền" aria-label="Tìm câu hỏi" data-testid="help-search" />
-          <button type="submit">Tìm</button>
-        </form>
-      </div>
-      <QueryState query={items} isEmpty={(d) => d.length === 0} emptyText={<p className="help-empty">Không tìm thấy câu hỏi phù hợp.</p>}>
-        {() => (
-          // Topics in a side menu with anchors, the questions in one reading column (G4-B)
-          <div className="content-layout has-toc">
-            <Toc title="Chủ đề" entries={[
-              ...Object.keys(topics).map((t) => ({ id: `chu-de-${anchorId(t)}`, text: t })),
-              ...(pages.length > 0 ? [{ id: 'chinh-sach', text: 'Chính sách & quy định' }] : []),
-            ]} />
-            <div className="help-list">
-              {Object.entries(topics).map(([topic, list]) => (
-                <section key={topic} id={`chu-de-${anchorId(topic)}`} className="help-topic">
-                  <h2>{topic}</h2>
-                  <ul>{list.map((i) => <li key={i.slug}><Link to={`/tro-giup/${i.slug}`}>{i.title}</Link></li>)}</ul>
-                </section>
-              ))}
-              {pages.length > 0 && (
-                <section id="chinh-sach" className="help-topic">
-                  <h2>Chính sách & quy định</h2>
-                  <ul>{pages.map((i) => <li key={i.slug}><Link to={`/trang/${i.slug}`}>{i.title}</Link></li>)}</ul>
-                </section>
-              )}
-            </div>
-          </div>
+        <BandSearch value={q} onChange={setQ} onSubmit={() => setTerm(q.trim())} placeholder="Nhập từ khoá, ví dụ: huỷ đơn, hoàn tiền"
+          label="Tìm câu hỏi" testId="help-search" />
+      </PageBand>
+      <div className="container content-page">
+        {tiles.length > 0 && (
+          <nav className="help-tiles" aria-label="Chủ đề trợ giúp">
+            {tiles.map((t, i) => {
+              const Icon = topicIcon(t.text);
+              return (
+                <a key={t.id} href={`#${t.id}`} className="help-tile" data-testid="help-tile">
+                  <span className={`help-tile-icon tone-${i % 6}`}><Icon size={24} aria-hidden /></span>
+                  <span className="help-tile-text">{t.text}</span>
+                  <span className="help-tile-count">{t.count}</span>
+                </a>
+              );
+            })}
+          </nav>
         )}
-      </QueryState>
-    </div>
+        <QueryState query={items} isEmpty={(d) => d.length === 0} emptyText={<p className="help-empty">Không tìm thấy câu hỏi phù hợp.</p>}>
+          {() => (
+            // Topics in a side menu with anchors, the questions in one reading column (G4-B)
+            <div className="content-layout has-toc">
+              <Toc title="Chủ đề" entries={[
+                ...Object.keys(topics).map((t) => ({ id: `chu-de-${anchorId(t)}`, text: t })),
+                ...(pages.length > 0 ? [{ id: 'chinh-sach', text: 'Chính sách & quy định' }] : []),
+              ]} />
+              <div className="help-list">
+                {Object.entries(topics).map(([topic, list]) => (
+                  <section key={topic} id={`chu-de-${anchorId(topic)}`} className="help-topic">
+                    <h2>{topic}</h2>
+                    <ul>{list.map((i) => <li key={i.slug}><Link to={`/tro-giup/${i.slug}`}>{i.title}</Link></li>)}</ul>
+                  </section>
+                ))}
+                {pages.length > 0 && (
+                  <section id="chinh-sach" className="help-topic">
+                    <h2>Chính sách & quy định</h2>
+                    <ul>{pages.map((i) => <li key={i.slug}><Link to={`/trang/${i.slug}`}>{i.title}</Link></li>)}</ul>
+                  </section>
+                )}
+              </div>
+            </div>
+          )}
+        </QueryState>
+      </div>
+    </>
   );
 };

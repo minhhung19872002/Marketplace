@@ -10,7 +10,7 @@ Dựng dữ liệu cho `ShopHub.Infrastructure/Seed/Data/` (quyết định #180
 | `CREDITS.md` | Ghi công từng ảnh giấy phép mở (do `build.py` sinh từ `photos.json`) |
 | `build.py` | Tải ảnh, đóng khung bằng `photo.py`, WebP 800 px → `ProductImages/` (chỉ tạo ảnh còn thiếu; `--reprocess` làm lại mọi ảnh từ bản gốc trong `.cache/`, không bao giờ từ WebP đã xử lý; giữ ảnh bìa quảng cáo `pNNN-ad.webp`); ghi vật đã tách nền vào `.cache/cutouts/`; ghi `product-models.json`; thêm danh mục lá + thương hiệu mới vào `catalog-seed.json`; sinh `CREDITS.md`; ảnh danh mục cấp 1 `Art/cat-<slug>.webp` (168 px, nền trong suốt) |
 | `photo.py` | Đóng khung ảnh sản phẩm (G-VIS): cắt sát vật, vật chiếm ~88 % khung vuông, nền trắng hoặc màu nhạt theo ngành (ảnh tách nền); ảnh chụp cảnh thật thì cắt vuông lấp đầy khung; mỗi ảnh ≤ ~80 KB |
-| `art-html.mjs` | Vẽ bằng HTML/CSS + Chromium (Playwright của `e2e/`): ảnh bìa quảng cáo ~40 % mẫu (9 mẫu thiết kế), 6 banner chính 797×235 (vẽ 2×), 2 banner phụ, dải 3 banner, banner ShopHub Mall, popup + banner + khung 10.10 → `.cache/art-png/` (`ART_ONLY=<regex>` để vẽ thử một phần) |
+| `art-html.mjs` | Vẽ bằng HTML/CSS + Chromium (Playwright của `e2e/`): ảnh bìa quảng cáo ~40 % mẫu (9 mẫu thiết kế), 6 banner chính 797×235 (vẽ 2×), 2 banner phụ, dải 3 banner, banner ShopHub Mall, popup + banner + khung 10.10, banner ngành `catbanner-<slug>` 1200×300 (G5-B) → `.cache/art-png/` (`ART_ONLY=<regex>` để vẽ thử một phần) |
 | `art-png-to-webp.py` | PNG → `Art/*.webp` (banner ≤ 150 KB) và `ProductImages/pNNN-ad.webp` (≤ 90 KB, đặt đầu danh sách ảnh của mẫu) |
 | `art.py` | Logo 30 shop (`--logos`: chữ thương hiệu), ảnh bìa 30 shop → `Art/` (Pillow, phông Be Vietnam Pro) |
 

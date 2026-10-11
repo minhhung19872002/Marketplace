@@ -29,6 +29,8 @@
 
   /* Design system — bright brand orange for decoration only (no text on it: white on it is 3.6:1) */
   --sh-primary-bright: #ee4d2d;
+  /* Bright orange behind white text that still reads AA (4.5:1): the chosen sort button (G5-B) */
+  --sh-primary-vivid: #d43b21;
   --sh-primary-border: #f3b3a3;
   --sh-surface-muted: #fafafa;
   --sh-surface-sunken: #f5f5f5;

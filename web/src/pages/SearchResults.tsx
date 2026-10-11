@@ -6,7 +6,7 @@ import { ApiError } from '../api/http';
 import ProductGrid from '../components/ProductGrid';
 import { formatCount, formatPrice } from '../lib/money';
 import type { CategoryPage, FacetValue, ProductSort, SearchFacets, SearchParams } from '../types';
-import { handleImgError } from '../lib/image';
+import { handleImgError, sizedImage } from '../lib/image';
 import { BannerLink } from '../components/Banner';
 import QueryState from '../components/QueryState';
 import './SearchResults.css';
@@ -298,8 +298,12 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
             {category.children.length > 0 && (
               <div className="category-children" data-testid="category-children" role="list" aria-label="Danh mục con">
                 {category.children.map((c) => (
+                  // A round picture over the name, like "Danh mục" on the home page (G5-B)
                   <Link key={c.id} to={`/danh-muc/${c.slug}`} className="category-child" role="listitem">
-                    {c.name}
+                    <span className="category-child-img" aria-hidden>
+                      {c.imageUrl ? <img src={sizedImage(c.imageUrl, 200)} alt="" loading="lazy" onError={handleImgError} /> : c.name.charAt(0)}
+                    </span>
+                    <span className="category-child-name">{c.name}</span>
                   </Link>
                 ))}
               </div>

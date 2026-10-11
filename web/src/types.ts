@@ -35,7 +35,8 @@ export interface CategoryCrumb {
 export interface CategoryPage {
   category: CategoryCrumb;
   breadcrumb: CategoryCrumb[];
-  children: CategoryCrumb[];
+  // Sub-categories with a round picture (G5-B): the admin's icon, else a photo of the best seller below it
+  children: (CategoryCrumb & { imageUrl: string | null })[];
   // Banner ngành and thương hiệu nổi bật (II.2)
   banners: { id: string; title: string; imageUrl: string; link: string }[] | null;
   brands: { id: string; name: string; slug: string; logoUrl: string | null; isVerified: boolean; productCount: number }[] | null;

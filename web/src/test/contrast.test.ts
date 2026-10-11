@@ -46,6 +46,10 @@ describe('contrast', () => {
     }
   });
 
+  it('white text on the bright active sort button (G5-B)', () => {
+    expect(contrast(token('sh-on-primary'), token('sh-primary-vivid'))).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('notice text on the soft brand background (vacation banner, E5)', () => {
     expect(contrast(token('sh-primary-dark'), token('sh-primary-soft'))).toBeGreaterThanOrEqual(4.5);
   });

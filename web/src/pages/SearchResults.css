@@ -242,9 +242,10 @@
   transition: background 0.15s, color 0.15s;
 }
 
+/* The chosen order: bright orange, as on the reference marketplace (G5-B), still AA under white text */
 .search-sort-btn.active {
-  background: var(--sh-primary);
-  color: #fff;
+  background: var(--sh-primary-vivid);
+  color: var(--sh-on-primary);
 }
 
 .search-sort-btn:not(.active):hover {
@@ -357,23 +358,81 @@
   font-size: 13px;
 }
 
+/* Sub-categories: a white strip of round pictures with the name under each (G5-B); slides sideways when long */
 .category-children {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0 0;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 12px 8px;
+  overflow-x: auto;
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+  scrollbar-width: none;
+}
+
+.category-children::-webkit-scrollbar {
+  display: none;
 }
 
 .category-child {
-  padding: 6px 14px;
+  display: flex;
+  flex: 0 0 104px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  color: var(--sh-text-strong);
+  font-size: 13px;
+  text-align: center;
+}
+
+.category-child-img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 2px;
-  background: var(--sh-on-primary);
+  border-radius: 50%;
+  background: var(--sh-surface-muted);
+  color: var(--sh-primary);
+  font-size: 26px;
+  font-weight: 600;
+  transition: transform 0.15s;
+}
+
+.category-child-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.category-child-name {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.3;
 }
 
 .category-child:hover {
   color: var(--sh-primary);
-  border-color: var(--sh-primary);
+}
+
+.category-child:hover .category-child-img {
+  transform: translateY(-2px);
+}
+
+@media (max-width: 480px) {
+  .category-child {
+    flex-basis: 84px;
+  }
+
+  .category-child-img {
+    width: 60px;
+    height: 60px;
+  }
 }
 
 .category-banners {
@@ -383,10 +442,12 @@
   margin-bottom: 12px;
 }
 
+/* Banner ngành: 4:1, the frame of the seeded artwork (G5-B) — it never jumps when the picture arrives */
 .category-banner img {
   display: block;
   width: 100%;
-  max-height: 200px;
+  aspect-ratio: 4 / 1;
+  border-radius: var(--sh-radius-sm);
   object-fit: cover;
 }
 

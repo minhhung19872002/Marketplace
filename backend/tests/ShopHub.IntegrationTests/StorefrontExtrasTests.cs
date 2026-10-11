@@ -108,6 +108,29 @@ public class StorefrontExtrasTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_sub_category_chip_shows_a_photo_of_the_best_seller_below_it_never_an_ad_cover()
+    {
+        var store = await factory.CreateStoreAsync("79", products: [new("Đèn Chip Ảnh", "Đèn Bàn", 100_000, 10, "Việt Nam")]);
+        var product = store.Products["Đèn Chip Ảnh"];
+        var marker = store.Marker.ToLowerInvariant();
+        var parentSlug = await factory.WithDbAsync(async db =>
+        {
+            // The seed's ad cover (text drawn on it) comes first; the photo second
+            db.ProductMedia.RemoveRange(await db.ProductMedia.Where(m => m.ProductId == product).ToListAsync());
+            db.ProductMedia.Add(new ProductMedia(product, MediaType.Image, null, $"https://example.invalid/{marker}-ad_1200.webp", 0, null));
+            db.ProductMedia.Add(new ProductMedia(product, MediaType.Image, null, $"https://example.invalid/{marker}-0_1200.webp", 1, null));
+            await db.SaveChangesAsync();
+            await db.Products.Where(p => p.Id == product).ExecuteUpdateAsync(u => u.SetProperty(p => p.SoldCount, int.MaxValue / 2));
+            var leaf = await db.Categories.SingleAsync(c => c.Name == "Đèn Bàn" && c.Level == 3);
+            return await db.Categories.Where(c => c.Id == leaf.ParentId).Select(c => c.Slug).SingleAsync();
+        });
+
+        var page = await GetAsync(factory.CreateClient(), $"/api/categories/by-slug/{parentSlug}");
+        var chip = page.GetProperty("children").EnumerateArray().Single(c => c.Str("name") == "Đèn Bàn");
+        chip.Str("imageUrl").Should().Be($"https://example.invalid/{marker}-0_1200.webp", "ảnh tròn là ảnh chụp của món bán chạy nhất, không phải ảnh bìa có chữ");
+    }
+
+    [Fact]
     public async Task The_shop_page_lists_running_programmes_and_the_product_page_the_shops_last_activity()
     {
         var store = await factory.CreateStoreAsync("01", products: [new("Bút Chương Trình", "Đèn Bàn", 90_000, 10, "Việt Nam")]);

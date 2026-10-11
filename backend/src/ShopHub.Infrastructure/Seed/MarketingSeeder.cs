@@ -130,6 +130,31 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
             MainBanners.Length, old.Count);
     }
 
+    /// <summary>
+    /// Banner ngành (II.2, G5-B): one designed banner per top-level category (Seed/Data/Art/catbanner-&lt;slug&gt;.webp, drawn by
+    /// art-html.mjs), shown on that category's page and every page below it. Guarded on its own, so a database seeded
+    /// before G5-B gets them on the next start; banners the admin made for a category are never touched.
+    /// </summary>
+    private async Task SeedCategoryBannersAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        if (await db.Banners.IgnoreQueryFilters().AnyAsync(b => b.Position == BannerPosition.Category, ct)) return;
+        var resources = typeof(MarketingSeeder).Assembly.GetManifestResourceNames().ToHashSet();
+        var tops = await db.Categories.AsNoTracking().Where(c => c.ParentId == null).OrderBy(c => c.SortOrder).ThenBy(c => c.Id)
+            .Select(c => new { c.Id, c.Name, c.Slug }).ToListAsync(ct);
+        var added = 0;
+        foreach (var c in tops)
+        {
+            var file = $"catbanner-{c.Slug}.webp";
+            if (!resources.Contains($"ShopHub.Infrastructure.Seed.Data.Art.{file}")) continue;
+            // The artwork promises the platform codes: the banner leads to the voucher wallet
+            db.Banners.Add(new Banner(BannerPosition.Category, $"{c.Name} — mã SHOPHUB50 giảm ₫50.000, freeship đến ₫30.000",
+                await DesignedArtAsync(file, ct), "/tai-khoan/voucher", now.AddMinutes(-1), now.AddYears(1), 0, c.Id, now, hasTextInImage: true));
+            added++;
+        }
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("SEED category banners: {Count} of {Tops} top categories", added, tops.Count);
+    }
+
     /// <summary>The 10.10 sale: 08/10 – 12/10 (Vietnam time) of this year, or of next year once it is over.</summary>
     private static (DateTimeOffset Start, DateTimeOffset End) TenTenWindow(DateTimeOffset now)
     {
@@ -273,6 +298,7 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
             logger.LogInformation("SEED shortcuts: {Shortcuts}", shortcuts.Length);
         }
         await SeedDesignedBannersAsync(now, ct);
+        await SeedCategoryBannersAsync(now, ct);
 
         if (!await db.Campaigns.AnyAsync(ct))
         {

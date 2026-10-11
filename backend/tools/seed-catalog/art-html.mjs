@@ -358,6 +358,26 @@ add('mall-deal', 480, 660, page(480, 660, `${BANNER_CSS}
  ${sticker(372, 410, 96, 14, '#ffd23f', '#c62828', '<div><div style="font-size:14px">CHÍNH</div><div style="font-size:23px">HÃNG</div></div>')}
  <div class="note" style="left:0;right:0;bottom:8px;text-align:center;font-size:12px">Flash Sale giảm 10–50% · Mã SHOPHUB50 cho đơn từ ₫250.000</div>`), 1.5);
 
+// Banner ngành (II.2, G5-B): one 1200×300 banner per top industry, drawn at 2×, in the industry's colours with its own
+// cut-outs. Only true promises: the platform codes SHOPHUB50 / FREESHIP and the 15-day returns of the sample data.
+const slugOf = (name) => name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase()
+  .replace(/&/g, ' ').trim().replace(/\s+/g, '-');
+const sentence = (name) => name.charAt(0) + name.slice(1).toLowerCase();
+for (const [top, [main, dark, acc]] of Object.entries(TOP)) {
+  const keys = models.filter((m) => topOf(m) === top && cutout(m.key)).map((m) => m.key).slice(0, 4);
+  const spots = [[700, 40, 240, 240, -6], [890, 20, 200, 270, 4], [1030, 90, 160, 200, 8], [650, 160, 120, 120, -10]];
+  add(`catbanner-${slugOf(top)}`, 1200, 300, page(1200, 300, `${BANNER_CSS} body { background: linear-gradient(110deg, ${main} 0%, ${main} 45%, ${dark} 100%); color: #fff; }
+    .cta { position: absolute; left: 48px; top: 214px; padding: 10px 26px; border-radius: 99px; background: #fff; color: ${dark}; font-weight: 800; font-size: 24px; }`,
+  `<div style="position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1.6px,transparent 1.6px);background-size:18px 18px;mask-image:linear-gradient(90deg,transparent 40%,#000 80%)"></div>
+   <div style="position:absolute;left:640px;top:-160px;width:520px;height:520px;border-radius:50%;background:rgba(255,255,255,.10)"></div>
+   <div style="position:absolute;left:48px;top:34px;font-weight:700;font-size:22px;color:${acc}">ShopHub · Ngành hàng</div>
+   <div class="title" data-w="560" style="left:48px;top:70px;font-size:66px;text-transform:none;white-space:nowrap"><div>${sentence(top)}</div></div>
+   <div style="position:absolute;left:48px;top:156px;font-weight:600;font-size:24px" data-w="560"><div>Mã SHOPHUB50 giảm ₫50.000 · Freeship đến ₫30.000</div></div>
+   <div class="cta">Lưu mã ngay</div>
+   ${items(keys.map((k, i) => [k, ...spots[i]]))}
+   <div class="note" style="right:12px;bottom:8px;padding:3px 10px;border-radius:99px;background:rgba(0,0,0,.35);font-size:13px;opacity:1">Trả hàng trong 15 ngày · SHOPHUB50 cho đơn từ ₫250.000</div>`), 2);
+}
+
 // ============================== 3. campaign 10.10: event banner, popup, product frame ==============================
 const tenTen = (w, h, layout) => page(w, h, `
   body { background: radial-gradient(circle at 75% 30%, #ff7a3d, #e8361a 45%, #9c1408 100%); color: #fff; }

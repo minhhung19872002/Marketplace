@@ -432,10 +432,13 @@ public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : I
             .ToListAsync(ct);
 }
 
-public record CategoryPageDto(CategoryCrumbDto Category, IReadOnlyList<CategoryCrumbDto> Breadcrumb, IReadOnlyList<CategoryCrumbDto> Children,
+public record CategoryPageDto(CategoryCrumbDto Category, IReadOnlyList<CategoryCrumbDto> Breadcrumb, IReadOnlyList<CategoryChildDto> Children,
     IReadOnlyList<Marketing.PublicBannerDto>? Banners = null, IReadOnlyList<FeaturedBrandDto>? Brands = null,
     // false: hidden from buyers for now (G2-A7) — the page shows "Danh mục đang cập nhật" instead of a 404
     bool IsVisible = true);
+
+// A sub-category chip (G5-B): its round picture is the admin's icon when it is an image, else the best seller of its subtree
+public record CategoryChildDto(Guid Id, string Name, string Slug, string? ImageUrl);
 
 // Thương hiệu nổi bật of an industry: the brands selling most in its subtree
 public record FeaturedBrandDto(Guid Id, string Name, string Slug, string? LogoUrl, bool IsVerified, int ProductCount);
@@ -449,8 +452,8 @@ public sealed class GetCategoryBySlugHandler(IApplicationDbContext db, IClock cl
         var category = await db.Categories.AsNoTracking().FirstOrDefaultAsync(c => c.Slug == request.Slug && c.IsActive, ct)
             ?? throw new NotFoundException("Không tìm thấy danh mục.");
         var hidden = await Catalog.CategoryVisibility.HiddenIdsAsync(db, ct);
-        var children = await db.Categories.AsNoTracking().Where(c => c.ParentId == category.Id && c.IsActive && !hidden.Contains(c.Id))
-            .OrderBy(c => c.SortOrder).ThenBy(c => c.Name).Select(c => new CategoryCrumbDto(c.Id, c.Name, c.Slug)).ToListAsync(ct);
+        var childRows = await db.Categories.AsNoTracking().Where(c => c.ParentId == category.Id && c.IsActive && !hidden.Contains(c.Id))
+            .OrderBy(c => c.SortOrder).ThenBy(c => c.Name).Select(c => new { c.Id, c.Name, c.Slug, c.IconUrl }).ToListAsync(ct);
         var breadcrumb = await Breadcrumbs.ForAsync(db, category.Id, ct);
 
         // Banner ngành (II.2): category banners of this category or one above it, as the platform scheduled them
@@ -464,14 +467,36 @@ public sealed class GetCategoryBySlugHandler(IApplicationDbContext db, IClock cl
 
         // Thương hiệu nổi bật: brands with the most sales among the visible products of the subtree
         var tree = await db.Categories.AsNoTracking().Where(c => c.IsActive).Select(c => new { c.Id, c.ParentId }).ToListAsync(ct);
-        var subtree = new HashSet<Guid> { category.Id };
-        for (var added = true; added;)
+        HashSet<Guid> SubtreeOf(Guid root)
         {
-            added = false;
-            foreach (var c in tree.Where(c => c.ParentId is { } pid && subtree.Contains(pid) && !subtree.Contains(c.Id)))
-                added |= subtree.Add(c.Id);
+            var set = new HashSet<Guid> { root };
+            for (var added = true; added;)
+            {
+                added = false;
+                foreach (var c in tree.Where(c => c.ParentId is { } pid && set.Contains(pid) && !set.Contains(c.Id)))
+                    added |= set.Add(c.Id);
+            }
+            return set;
         }
-        var ids = subtree.ToList();
+        var ids = SubtreeOf(category.Id).ToList();
+
+        // Sub-category chips with a round picture (G5-B): a few children, one small indexed query each
+        var children = new List<CategoryChildDto>(childRows.Count);
+        foreach (var c in childRows)
+        {
+            var image = c.IconUrl is { } icon && (icon.StartsWith("http") || icon.StartsWith("//")) ? icon : null;
+            if (image is null)
+            {
+                var below = SubtreeOf(c.Id).ToList();
+                image = await ProductCards.Visible(db).AsNoTracking().Where(p => below.Contains(p.CategoryId))
+                    .OrderByDescending(p => p.SoldCount).ThenBy(p => p.Id)
+                    // A photo, not an ad cover (pNNN-ad of the seed: text drawn on it does not read in a small circle)
+                    .SelectMany(p => p.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.Url.Contains("-ad_") ? 1 : 0).ThenBy(m => m.SortOrder)
+                        .Select(m => m.Url).Take(1))
+                    .FirstOrDefaultAsync(ct);
+            }
+            children.Add(new CategoryChildDto(c.Id, c.Name, c.Slug, image));
+        }
         var brands = await (from p in ProductCards.Visible(db).AsNoTracking()
                             where ids.Contains(p.CategoryId) && p.BrandId != null
                             group p by p.BrandId!.Value into g

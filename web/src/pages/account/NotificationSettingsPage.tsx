@@ -4,6 +4,7 @@ import { notificationPrefsApi, type NotificationCategory, type NotificationChann
 import { ApiError } from '../../api/http';
 import QueryState from '../../components/QueryState';
 import { Switch } from '../../components/ui/Switch';
+import { usePageTitle } from '../../lib/pageTitle';
 
 const CATEGORIES: { value: NotificationCategory; label: string }[] = [
   { value: 'Order', label: 'Cập nhật đơn hàng' },
@@ -20,6 +21,7 @@ const CHANNELS: { value: NotificationChannel; label: string }[] = [
 
 /** Per-category, per-channel notification switches (spec II.11). */
 const NotificationSettingsPage = () => {
+  usePageTitle('Cài đặt thông báo');
   const queryClient = useQueryClient();
   const prefs = useQuery({ queryKey: ['notification-prefs'], queryFn: notificationPrefsApi.get });
   const [rows, setRows] = useState<NotificationPref[]>([]);

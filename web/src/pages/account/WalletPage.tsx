@@ -8,6 +8,7 @@ import { formatDateTime } from '../../lib/datetime';
 import { goTo } from '../../lib/navigation';
 import { ConfirmButton } from '../../components/ConfirmDialog';
 import QueryState from '../../components/QueryState';
+import { usePageTitle } from '../../lib/pageTitle';
 
 type Panel = 'topup' | 'pin' | 'bank' | 'withdraw' | null;
 
@@ -45,6 +46,7 @@ const OtpField = ({ value, onChange }: { value: string; onChange: (v: string) =>
 
 /** /tai-khoan/vi — Ví ShopHub: balance (sum of its ledger), history, top-up via the gateway, PIN, bank accounts, withdrawals. */
 const WalletPage = () => {
+  usePageTitle('Ví ShopHub');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();

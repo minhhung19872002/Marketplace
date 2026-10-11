@@ -6,8 +6,10 @@ import ProductGrid from '../components/ProductGrid';
 import QueryState from '../components/QueryState';
 import './Wishlist.css';
 import { Heart } from 'lucide-react';
+import { usePageTitle } from '../lib/pageTitle';
 
 const Wishlist = () => {
+  usePageTitle('Sản phẩm yêu thích');
   const { isLoggedIn, isChecking } = useAuth();
   const query = useInfiniteQuery({
     queryKey: ['wishlist', 'page'],

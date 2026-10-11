@@ -3,8 +3,10 @@ import { useMutation } from '@tanstack/react-query';
 import { accountApi } from '../../api/account';
 import { ApiError } from '../../api/http';
 import GooglePasswordHint from '../../components/GooglePasswordHint';
+import { usePageTitle } from '../../lib/pageTitle';
 
 const PasswordPage = () => {
+  usePageTitle('Đổi mật khẩu');
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');

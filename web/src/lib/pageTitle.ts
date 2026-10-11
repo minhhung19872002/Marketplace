@@ -6,6 +6,15 @@ import { contentApi } from '../api/content';
 export const pageTitle = (title: string | null | undefined, platform: string): string =>
   title && title.trim() ? `${title.trim()} | ${platform}` : platform;
 
+/** The home page's tab: "<platform> - Sàn thương mại điện tử", as the static index.html says before the bundle runs. */
+export const useHomeTitle = () => {
+  const site = useQuery({ queryKey: ['site'], queryFn: contentApi.site, staleTime: 3_600_000 });
+  const platform = site.data?.platformName ?? 'ShopHub';
+  useEffect(() => {
+    document.title = `${platform} - Sàn thương mại điện tử`;
+  }, [platform]);
+};
+
 /** The browser tab follows the page (F6): product, shop, category, search, orders… */
 export const usePageTitle = (title: string | null | undefined) => {
   const site = useQuery({ queryKey: ['site'], queryFn: contentApi.site, staleTime: 3_600_000 });

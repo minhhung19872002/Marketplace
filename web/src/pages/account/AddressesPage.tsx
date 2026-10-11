@@ -6,6 +6,7 @@ import { ConfirmButton } from '../../components/ConfirmDialog';
 import QueryState from '../../components/QueryState';
 import SearchSelect from '../../components/ui/SearchSelect';
 import { TriangleAlert } from 'lucide-react';
+import { usePageTitle } from '../../lib/pageTitle';
 
 // Leaflet only loads when someone opens the map
 const MapPin = lazy(() => import('../../components/MapPin'));
@@ -122,6 +123,7 @@ export const AddressForm = ({ initial, onDone }: { initial: Address | null; onDo
 };
 
 const AddressesPage = () => {
+  usePageTitle('Địa chỉ của tôi');
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Address | 'new' | null>(null);
   const addresses = useQuery({ queryKey: ['addresses'], queryFn: accountApi.addresses });

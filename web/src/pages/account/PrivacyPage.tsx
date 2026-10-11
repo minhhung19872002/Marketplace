@@ -5,11 +5,13 @@ import { ApiError } from '../../api/http';
 import { useAuth } from '../../context/AuthContext';
 import GooglePasswordHint from '../../components/GooglePasswordHint';
 import { formatDateTime } from '../../lib/datetime';
+import { usePageTitle } from '../../lib/pageTitle';
 
 const errorText = (err: unknown) => (err instanceof ApiError ? err.fieldErrors[0]?.message ?? err.message : 'Đã có lỗi xảy ra.');
 
 /** Quyền riêng tư (spec I.2, Nghị định 13/2023): download my data, ask to delete the account. */
 const PrivacyPage = () => {
+  usePageTitle('Quyền riêng tư');
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [notice, setNotice] = useState('');

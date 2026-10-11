@@ -17,6 +17,7 @@ import { storefrontApi } from '../api/storefront';
 import { useAuth } from '../context/AuthContext';
 import './HomePage.css';
 import '../components/ProductGrid.css';
+import { useHomeTitle } from '../lib/pageTitle';
 
 const PAGE_SIZE = 24;
 // "Sản phẩm đã xem": shown from 3 products; a full row of the carousel holds 6
@@ -54,6 +55,7 @@ const RecentlyViewed = ({ isLoggedIn }: { isLoggedIn: boolean }) => {
 };
 
 const HomePage = () => {
+  useHomeTitle();
   const { isLoggedIn } = useAuth();
   const recommendations = useInfiniteQuery({
     queryKey: ['home', 'recommendations', isLoggedIn],

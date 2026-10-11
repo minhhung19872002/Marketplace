@@ -8,6 +8,7 @@ import { formatDateTime } from '../lib/datetime';
 import QueryState from '../components/QueryState';
 import './Notifications.css';
 import { Bell, Gift, Package, Wallet, type LucideIcon } from 'lucide-react';
+import { usePageTitle } from '../lib/pageTitle';
 
 const TABS: { key: NotificationCategory | null; label: string }[] = [
   { key: null, label: 'Tất cả' },
@@ -20,6 +21,7 @@ const TABS: { key: NotificationCategory | null; label: string }[] = [
 const ICONS: Record<NotificationCategory, LucideIcon> = { Order: Package, Promotion: Gift, Wallet: Wallet, Activity: Bell };
 
 const Notifications = () => {
+  usePageTitle('Thông báo');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isLoggedIn, isChecking } = useAuth();

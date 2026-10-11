@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { ChatPanel, useChat } from '../components/chat/Chat';
 import { useAuth } from '../context/AuthContext';
+import { usePageTitle } from '../lib/pageTitle';
 
 /** Full-page chat (the floating window's "Mở rộng"). ?c=<conversationId> opens one conversation. */
 const ChatPage = () => {
+  usePageTitle('Chat');
   const { isLoggedIn, isChecking } = useAuth();
   const location = useLocation();
   const [params] = useSearchParams();

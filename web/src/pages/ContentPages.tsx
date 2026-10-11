@@ -63,6 +63,7 @@ export const CmsPageView = () => {
   const { slug = '' } = useParams();
   const page = useQuery({ queryKey: ['cms', slug], queryFn: () => contentApi.page(slug), retry: false });
   const body = useMemo(() => withToc(page.data?.content ?? ''), [page.data?.content]);
+  usePageTitle(page.data?.title ?? (page.isError ? 'Không tìm thấy trang' : null));
   // Loading, or a network / server error (not "no such page"): spinner or the error with "Thử lại" (F3)
   if (page.isPending || (page.isError && !(page.error instanceof ApiError && page.error.status === 404))) {
     return <div className="container content-page"><QueryState query={page}>{() => null}</QueryState></div>;

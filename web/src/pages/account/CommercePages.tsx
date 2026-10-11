@@ -362,6 +362,7 @@ const WALLET_TABS: { key: WalletTab; label: string }[] = [
 
 /** /tai-khoan/voucher — saved vouchers plus the platform's public ones to save. */
 export const VouchersPage = () => {
+  usePageTitle('Ví voucher');
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<WalletTab>('Valid');
   const [message, setMessage] = useState('');
@@ -477,6 +478,7 @@ const LoyaltyPanel = () => {
 };
 
 export const CoinsPage = () => {
+  usePageTitle('ShopHub Xu');
   const [page, setPage] = useState(1);
   const coins = useQuery({ queryKey: ['coins', page], queryFn: () => walletApi.coins(page), placeholderData: keepPreviousData });
   return (

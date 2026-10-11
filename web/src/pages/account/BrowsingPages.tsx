@@ -7,9 +7,11 @@ import ProductGrid from '../../components/ProductGrid';
 import QueryState from '../../components/QueryState';
 import { formatSold } from '../../lib/money';
 import { handleImgError } from '../../lib/image';
+import { usePageTitle } from '../../lib/pageTitle';
 
 /** /tai-khoan/da-xem — "Đã xem gần đây" (II.9), newest first. */
 export const ViewedPage = () => {
+  usePageTitle('Sản phẩm đã xem');
   const viewed = useQuery({ queryKey: ['viewed'], queryFn: () => storefrontApi.viewed() });
   return (
     <div className="account-card" data-testid="viewed-page">
@@ -23,6 +25,7 @@ export const ViewedPage = () => {
 
 /** /tai-khoan/shop-theo-doi — shops the buyer follows (II.9), with "Bỏ theo dõi". */
 export const FollowedShopsPage = () => {
+  usePageTitle('Shop đang theo dõi');
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
   const shops = useQuery({ queryKey: ['followed-shops'], queryFn: () => storefrontApi.followedShops() });

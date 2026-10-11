@@ -7,6 +7,7 @@ import { useCountdown } from '../../lib/useCountdown';
 import { useAuthStore } from '../../stores/auth';
 import AvatarEditor from '../../components/AvatarEditor';
 import QueryState from '../../components/QueryState';
+import { usePageTitle } from '../../lib/pageTitle';
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: 'Male', label: 'Nam' },
@@ -17,6 +18,7 @@ const GENDERS: { value: Gender; label: string }[] = [
 const errorText = (err: unknown) => (err instanceof ApiError ? err.fieldErrors[0]?.message ?? err.message : 'Đã có lỗi xảy ra.');
 
 const ProfilePage = () => {
+  usePageTitle('Hồ sơ của tôi');
   const queryClient = useQueryClient();
   const setUser = useAuthStore((s) => s.setUser);
   const me = useQuery({ queryKey: ['me'], queryFn: accountApi.me });

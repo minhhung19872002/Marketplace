@@ -2,8 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { accountApi } from '../../api/account';
 import { formatDateTime } from '../../lib/datetime';
 import QueryState from '../../components/QueryState';
+import { usePageTitle } from '../../lib/pageTitle';
 
 const DevicesPage = () => {
+  usePageTitle('Thiết bị đăng nhập');
   const queryClient = useQueryClient();
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: accountApi.sessions });
   const revoke = useMutation({

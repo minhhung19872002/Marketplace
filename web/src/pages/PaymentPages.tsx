@@ -11,6 +11,7 @@ import { goTo } from '../lib/navigation';
 import QueryState from '../components/QueryState';
 import './PaymentPages.css';
 import { X, Check } from 'lucide-react';
+import { usePageTitle } from '../lib/pageTitle';
 
 const useSecondsLeft = (until: string | null | undefined) => {
   const [now, setNow] = useState(() => Date.now());
@@ -28,6 +29,7 @@ const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${St
  * gateway what happened; the gateway then notifies ShopHub by a signed webhook. This page never marks anything paid.
  */
 export const SimulatedGatewayPage = () => {
+  usePageTitle('Cổng thanh toán');
   const { paymentId = '' } = useParams();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -81,6 +83,7 @@ export const SimulatedGatewayPage = () => {
 
 /** /thanh-toan/ket-qua/:checkoutId — shows what the server knows (the gateway's webhook decides, not this page). */
 export const PaymentResultPage = () => {
+  usePageTitle('Kết quả thanh toán');
   const { checkoutId = '' } = useParams();
   const navigate = useNavigate();
   const [error, setError] = useState('');
@@ -156,6 +159,7 @@ export const PaymentResultPage = () => {
 
 /** /dat-hang-thanh-cong?checkout= — COD orders: real order codes, one per shop. */
 export const OrderSuccessPage = () => {
+  usePageTitle('Đặt hàng thành công');
   const [params] = useSearchParams();
   const checkoutId = params.get('checkout') ?? '';
   const checkout = useQuery({ queryKey: ['checkout', checkoutId], queryFn: () => checkoutApi.get(checkoutId), enabled: !!checkoutId, staleTime: 0 });

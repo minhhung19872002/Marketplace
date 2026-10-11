@@ -19,12 +19,14 @@ import './Checkout.css';
 import { Banknote, Check, Coins, CreditCard, Gift, MapPin, QrCode, Store, Truck, Wallet, X, type LucideIcon } from 'lucide-react';
 import { Badge } from '../components/ui';
 import '../components/VoucherPicker.css';
+import { usePageTitle } from '../lib/pageTitle';
 
 const METHOD_ICONS: Partial<Record<PaymentMethod, LucideIcon>> = { Cod: Banknote, Wallet, Simulated: QrCode, VnPay: QrCode, MoMo: Wallet, ZaloPay: Wallet };
 
 const newKey = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
 const Checkout = () => {
+  usePageTitle('Thanh toán');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isLoggedIn, isChecking } = useAuth();

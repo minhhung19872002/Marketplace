@@ -21,6 +21,7 @@ import { ConfirmButton } from '../../components/ConfirmDialog';
 import QueryState from '../../components/QueryState';
 import { Star, Play } from 'lucide-react';
 import { Stars as StarsView } from '../../components/ui';
+import { usePageTitle } from '../../lib/pageTitle';
 
 /** Pick photos / a short video; each file is uploaded right away and kept as an asset id. */
 const MediaPicker = ({ purpose, value, onChange, max, testId }: {
@@ -118,6 +119,7 @@ const ReviewForm = ({ code, item, onDone }: { code: string; item: ReviewableItem
 
 /** /tai-khoan/don-mua/:code/danh-gia */
 export const OrderReviewPage = () => {
+  usePageTitle('Đánh giá sản phẩm');
   const { code = '' } = useParams();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
@@ -163,6 +165,7 @@ export const OrderReviewPage = () => {
 
 /** /tai-khoan/don-mua/:code/tra-hang */
 export const ReturnFormPage = () => {
+  usePageTitle('Yêu cầu trả hàng / hoàn tiền');
   const { code = '' } = useParams();
   const navigate = useNavigate();
   const returnable = useQuery({ queryKey: ['returnable', code], queryFn: () => returnsApi.returnable(code), staleTime: 0 });
@@ -232,6 +235,7 @@ export const ReturnFormPage = () => {
 
 /** /tai-khoan/tra-hang */
 export const ReturnsPage = () => {
+  usePageTitle('Trả hàng / Hoàn tiền');
   const [page, setPage] = useState(1);
   const returns = useQuery({ queryKey: ['returns', page], queryFn: () => returnsApi.mine(page), placeholderData: keepPreviousData });
   const data = returns.data;
@@ -265,6 +269,7 @@ export const ReturnsPage = () => {
 
 /** /tai-khoan/tra-hang/:code */
 export const ReturnDetailPage = () => {
+  usePageTitle('Chi tiết trả hàng');
   const { code = '' } = useParams();
   const queryClient = useQueryClient();
   const [disputing, setDisputing] = useState(false);

@@ -109,6 +109,35 @@ public class StorefrontExtrasTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_category_page_lists_official_shops_selling_there_apart_from_product_brands()
+    {
+        // G-VIS round 3 (L197): "Thương hiệu nổi bật" mixed Mall shops (BeautyPro, BabyCare) with product brands, and showed
+        // a shop's house brand where the shop hardly sells
+        var here = await factory.CreateStoreAsync("79", true, [new("Đèn Chính Hãng A", "Đèn Bàn", 300_000, 10, "Việt Nam"), new("Đèn Chính Hãng B", "Đèn Bàn", 320_000, 10, "Việt Nam")]);
+        var elsewhere = await factory.CreateStoreAsync("79", true, [new("Áo Shop Khác", "Áo Thun", 100_000, 10, "Việt Nam")]);
+        var parentSlug = await factory.WithDbAsync(async db =>
+        {
+            // The Mall shop's house brand on its products: a shop, not a product brand
+            var house = new Brand($"Shop {here.Marker}", $"house-{here.Marker.ToLowerInvariant()}", null, true);
+            db.Brands.Add(house);
+            foreach (var p in await db.Products.Where(p => p.ShopId == here.ShopId).ToListAsync())
+                p.SetInfo(p.CategoryId, house.Id, p.Name, p.Slug, p.Description, p.Condition, p.WeightG, p.LengthMm, p.WidthMm, p.HeightMm, false, 0);
+            await db.SaveChangesAsync();
+            await db.Products.Where(p => p.ShopId == here.ShopId).ExecuteUpdateAsync(u => u.SetProperty(p => p.SoldCount, 500_000));
+            var leaf = await db.Categories.SingleAsync(c => c.Name == "Đèn bàn" && c.Level == 3);
+            return await db.Categories.Where(c => c.Id == leaf.ParentId).Select(c => c.Slug).SingleAsync();
+        });
+
+        var page = await GetAsync(factory.CreateClient(), $"/api/categories/by-slug/{parentSlug}");
+        var shops = page.GetProperty("shops").EnumerateArray().ToList();
+        shops[0].Str("id").Should().Be(here.ShopId.ToString(), "shop chính hãng bán chạy nhất trong ngành đứng đầu");
+        shops[0].GetProperty("productCount").GetInt32().Should().Be(2);
+        shops.Select(s => s.Str("id")).Should().NotContain(elsewhere.ShopId.ToString(), "shop không có hàng trong ngành thì không hiện");
+        page.GetProperty("brands").EnumerateArray().Select(b => b.Str("name")).Should().NotContain($"Shop {here.Marker}",
+            "thương hiệu riêng của shop Mall nằm ở hàng shop, không lẫn vào hàng thương hiệu");
+    }
+
+    [Fact]
     public async Task A_sub_category_chip_shows_a_photo_of_the_best_seller_below_it_never_an_ad_cover()
     {
         var store = await factory.CreateStoreAsync("79", products: [new("Đèn Chip Ảnh", "Đèn Bàn", 100_000, 10, "Việt Nam")]);

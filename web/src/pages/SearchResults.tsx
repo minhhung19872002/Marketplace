@@ -448,9 +448,22 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
         </aside>
 
         <div className="search-content">
+          {/* Two rows (G-VIS round 3, L197): the official Mall shops selling here, then the product brands that filter */}
+          {category && (category.shops?.length ?? 0) > 0 && (
+            <div className="category-brands category-shops" data-testid="category-shops">
+              <div className="category-brands-title">Shop chính hãng</div>
+              <div className="category-brands-list">
+                {category.shops!.map((s) => (
+                  <Link key={s.id} to={`/shop/${s.slug}`} className="category-shop" data-testid="category-shop" title={`${s.name} — ${formatCount(s.productCount)} sản phẩm`}>
+                    <ShopLogo shop={s} className="category-shop-logo" height={30} />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
           {category && (category.brands?.length ?? 0) > 0 && (
             <div className="category-brands" data-testid="category-brands">
-              <div className="category-brands-title">Thương hiệu nổi bật</div>
+              <div className="category-brands-title">Thương hiệu</div>
               <div className="category-brands-list">
                 {category.brands!.map((b) => {
                   const on = params.brands?.includes(b.id) ?? false;

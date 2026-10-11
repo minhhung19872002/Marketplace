@@ -40,6 +40,8 @@ export interface CategoryPage {
   // Banner ngành and thương hiệu nổi bật (II.2)
   banners: { id: string; title: string; imageUrl: string; link: string }[] | null;
   brands: { id: string; name: string; slug: string; logoUrl: string | null; isVerified: boolean; productCount: number }[] | null;
+  // Shop chính hãng: the Mall shops selling in this category, apart from the product brands (G-VIS round 3)
+  shops?: { id: string; name: string; slug: string; logoUrl: string | null; wordmarkUrl: string | null; productCount: number }[] | null;
   // false: hidden from buyers for now — the page says "Danh mục đang cập nhật" (G2-A7)
   isVisible: boolean;
 }

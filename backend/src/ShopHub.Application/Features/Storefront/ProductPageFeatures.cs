@@ -433,7 +433,11 @@ public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : I
 public record CategoryPageDto(CategoryCrumbDto Category, IReadOnlyList<CategoryCrumbDto> Breadcrumb, IReadOnlyList<CategoryChildDto> Children,
     IReadOnlyList<Marketing.PublicBannerDto>? Banners = null, IReadOnlyList<FeaturedBrandDto>? Brands = null,
     // false: hidden from buyers for now (G2-A7) — the page shows "Danh mục đang cập nhật" instead of a 404
-    bool IsVisible = true);
+    bool IsVisible = true,
+    // Shop chính hãng: the Mall shops selling in the subtree, apart from the product brands (G-VIS round 3, L197)
+    IReadOnlyList<OfficialShopDto>? Shops = null);
+
+public record OfficialShopDto(Guid Id, string Name, string Slug, string? LogoUrl, string? WordmarkUrl, int ProductCount);
 
 // A sub-category chip (G5-B): its round picture is the admin's icon when it is an image, else the best seller of its subtree
 public record CategoryChildDto(Guid Id, string Name, string Slug, string? ImageUrl);
@@ -499,16 +503,36 @@ public sealed class GetCategoryBySlugHandler(IApplicationDbContext db, IClock cl
                             where ids.Contains(p.CategoryId) && p.BrandId != null
                             group p by p.BrandId!.Value into g
                             select new { BrandId = g.Key, Sold = g.Sum(p => p.SoldCount), Count = g.Count() })
-            .OrderByDescending(x => x.Sold).ThenByDescending(x => x.Count).ThenBy(x => x.BrandId).Take(12).ToListAsync(ct);
+            .OrderByDescending(x => x.Sold).ThenByDescending(x => x.Count).ThenBy(x => x.BrandId).Take(20).ToListAsync(ct);
         var brandIds = brands.Select(b => b.BrandId).ToList();
         var brandRows = await db.Brands.AsNoTracking().Where(b => brandIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id, ct);
-        var featured = brands.Where(b => brandRows.ContainsKey(b.BrandId)).Select(b =>
+        // A Mall shop's house brand ("BeautyPro" of "Mall BeautyPro") is the shop itself: it goes in the shop row, not here
+        var mallNames = await db.Shops.AsNoTracking().Where(s => s.Type == Domain.Shops.ShopType.Mall).Select(s => s.Name).ToListAsync(ct);
+        var houseBrands = mallNames.SelectMany(n => new[] { n, n.StartsWith("Mall ", StringComparison.Ordinal) ? n["Mall ".Length..] : n })
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var featured = brands.Where(b => brandRows.ContainsKey(b.BrandId) && !houseBrands.Contains(brandRows[b.BrandId].Name)).Take(12).Select(b =>
         {
             var r = brandRows[b.BrandId];
             return new FeaturedBrandDto(r.Id, r.Name, r.Slug, r.LogoUrl, r.IsVerified, b.Count);
         }).ToList();
 
+        // Shop chính hãng (L197): Mall shops with visible products in the subtree, best selling there first
+        var official = await (from p in ProductCards.Visible(db).AsNoTracking()
+                              join sh in db.Shops on p.ShopId equals sh.Id
+                              where ids.Contains(p.CategoryId) && sh.Type == Domain.Shops.ShopType.Mall
+                              group p by p.ShopId into g
+                              select new { ShopId = g.Key, Sold = g.Sum(p => p.SoldCount), Count = g.Count() })
+            .OrderByDescending(x => x.Sold).ThenByDescending(x => x.Count).ThenBy(x => x.ShopId).Take(8).ToListAsync(ct);
+        var officialIds = official.Select(o => o.ShopId).ToList();
+        var shopRows = await db.Shops.AsNoTracking().Where(sh => officialIds.Contains(sh.Id))
+            .Select(sh => new { sh.Id, sh.Name, sh.Slug, sh.LogoUrl, sh.WordmarkUrl }).ToDictionaryAsync(sh => sh.Id, ct);
+        var shops = official.Where(o => shopRows.ContainsKey(o.ShopId)).Select(o =>
+        {
+            var r = shopRows[o.ShopId];
+            return new OfficialShopDto(r.Id, r.Name, r.Slug, r.LogoUrl, r.WordmarkUrl, o.Count);
+        }).ToList();
+
         return new CategoryPageDto(new CategoryCrumbDto(category.Id, category.Name, category.Slug), breadcrumb, children, banners, featured,
-            !hidden.Contains(category.Id));
+            !hidden.Contains(category.Id), shops);
     }
 }

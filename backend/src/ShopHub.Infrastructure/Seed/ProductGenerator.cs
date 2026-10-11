@@ -38,6 +38,23 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
     /// <summary>The promotional cover of a model ("p007-ad.webp"): big text printed on the photo.</summary>
     public static bool IsAdCover(string file) => Path.GetFileNameWithoutExtension(file).EndsWith("-ad", StringComparison.Ordinal);
 
+    /// <summary>One stored photo of a model: a promotional cover, an original photo, or a close-up cut from one.</summary>
+    public readonly record struct Shot(Guid Asset, string Url, bool Cover, bool CloseUp = false);
+
+    /// <summary>
+    /// The gallery order of the <paramref name="copy"/>-th listing of a model. Listings differ: the original photos turn
+    /// with the copy number and the cover leads every other listing only, so a feed is not all covers. Close-ups always
+    /// come last — never the card's picture: a crop of the photo loses the object's edges (G-VIS round 3, L198).
+    /// </summary>
+    public static List<Shot> GalleryOrder(IReadOnlyList<Shot> shots, int copy)
+    {
+        var originals = shots.Where(p => !p.Cover && !p.CloseUp).ToList();
+        var covers = shots.Where(p => p.Cover).ToList();
+        var turn = originals.Count == 0 ? 0 : copy % originals.Count;
+        var turned = originals.Skip(turn).Concat(originals.Take(turn));
+        return (copy % 2 == 0 ? covers.Concat(turned) : turned.Concat(covers)).Concat(shots.Where(p => p.CloseUp)).ToList();
+    }
+
     public const int Target = 1000;
 
     private const string Resource = "ShopHub.Infrastructure.Seed.Data.";
@@ -97,12 +114,12 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
 
         // Photos: processed once per model (3 WebP sizes in MinIO) and shared by every listing of the model
         var owner = shops[0].OwnerId;
-        var photos = new Dictionary<int, List<(Guid Asset, string Url, bool Cover)>>();
+        var photos = new Dictionary<int, List<Shot>>();
         foreach (var model in models)
         {
-            var list = new List<(Guid, string, bool)>();
+            var list = new List<Shot>();
             byte[]? firstPlain = null;
-            async Task StoreAsync(string key, byte[] bytes, bool cover)
+            async Task StoreAsync(string key, byte[] bytes, bool cover, bool closeUp = false)
             {
                 var processed = images.Process(bytes, ImageSizes.Public);
                 foreach (var v in processed.Variants)
@@ -110,7 +127,7 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
                 var asset = new MediaAsset(owner, MediaKind.Image, "product", Buckets.Products, key, "image/webp",
                     processed.Variants.Sum(v => (long)v.WebP.Length), processed.Width, processed.Height, null, now);
                 db.MediaAssets.Add(asset);
-                list.Add((asset.Id, storage.PublicUrl(Buckets.Products, ImageSizes.Key(key, ImageSizes.Large)), cover));
+                list.Add(new Shot(asset.Id, storage.PublicUrl(Buckets.Products, ImageSizes.Key(key, ImageSizes.Large)), cover, closeUp));
             }
             foreach (var file in model.Images)
             {
@@ -123,7 +140,7 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
             // A gallery of at least 4 pictures (G-VIS round 2): close-ups of the first plain photo fill the gap
             if (firstPlain is not null)
                 foreach (var (zoom, i) in CloseUps.Take(Math.Max(0, MinGallery - list.Count)).Select((z, i) => (z, i)))
-                    await StoreAsync($"product/seed/m{model.Key:D3}-zoom{i + 1}", images.CloseUp(firstPlain, zoom.X, zoom.Y, zoom.Side), false);
+                    await StoreAsync($"product/seed/m{model.Key:D3}-zoom{i + 1}", images.CloseUp(firstPlain, zoom.X, zoom.Y, zoom.Side), false, true);
             photos[model.Key] = list;
             // ~450 photos decode / resize / encode in a row: flush and collect every few models so the seed stays well
             // under the API container's memory limit (Skia's native buffers do not press the GC on their own)
@@ -212,16 +229,10 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
             long Original(long p) => discount == 0 ? p : RoundPrice(p * 100 / (100 - discount));
             int Stock() => 10 + rng.Next(390);
             var soldOut = rng.Next(25) == 0;
-            // Covers differ between listings of a model: the order of the plain photos turns with the copy number, and the
-            // promotional cover (big text on it) leads every other listing only, so a feed is not all covers. Tiles that
-            // print their own text pick the first plain photo wherever the cover sits (PlainPhotos, L182)
+            // Covers differ between listings of a model (GalleryOrder); tiles that print their own text pick the first plain
+            // photo wherever the cover sits (PlainPhotos, L182)
             var shots = photos[model.Key];
-            var plain = shots.Where(p => !p.Cover).ToList();
-            var covers = shots.Where(p => p.Cover).ToList();
-            var turn = plain.Count == 0 ? 0 : copy % plain.Count;
-            var turned = plain.Skip(turn).Concat(plain.Take(turn)).ToList();
-            var media = (copy % 2 == 0 ? covers.Concat(turned) : turned.Concat(covers))
-                .Select(p => new MediaSpec(MediaType.Image, p.Asset, p.Url, null)).ToList();
+            var media = GalleryOrder(shots, copy).Select(p => new MediaSpec(MediaType.Image, p.Asset, p.Url, null)).ToList();
             var tiers = new List<TierSpec>();
             var skus = new List<SkuSpec>();
             if (model.Variant is { } variant)

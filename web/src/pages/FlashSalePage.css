@@ -1,46 +1,138 @@
 .flash-page {
-  /* Top / bottom only: the .container side padding stays (G4-A3 — the title touched the left edge) */
-  padding-top: 16px;
   padding-bottom: 32px;
 }
 
-.flash-page-title {
-  color: var(--sh-primary);
-  font-size: 24px;
-  margin: 0 0 12px;
+/* G5-B: the bright brand band of the header carries the wordmark and the countdown of the chosen slot */
+.flash-page-hero {
+  background: var(--sh-gradient-header);
+  color: var(--sh-on-dark);
+}
+
+.flash-page-hero-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sh-space-3) var(--sh-space-6);
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.flash-page-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sh-space-2);
+  margin: 0;
+}
+
+.flash-page-clock {
+  flex: none;
+}
+
+/* Docs/00 #209: a Flash Sale label — upper case through CSS only (listed in sentence-case.test.ts) */
+.flash-page-wordmark {
+  font-size: 34px;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.flash-page-when {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sh-space-3);
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* The words sit on a dark halo (white on it ≥ 4.5:1 — plain white on the bright band is only ~3.3:1 at 16 px) */
+.flash-page-when > span:first-child {
+  padding: 2px 10px;
+  border-radius: var(--sh-radius-pill);
+  background: var(--sh-flash-halo);
+}
+
+.flash-page-when .countdown-box {
+  min-width: 30px;
+  padding: 4px 6px;
+  font-size: 18px;
+}
+
+.flash-page-body {
+  padding-top: var(--sh-space-3);
+}
+
+/* The board's own head repeats the band above: the page shows the grid only */
+.flash-page .flash-sale-head {
+  display: none;
+}
+
+.flash-page .flash-sale {
+  margin-top: var(--sh-space-3);
 }
 
 .flash-page-slots {
   --carousel-item: 132px;
-  margin-bottom: 4px;
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-sm);
 }
 
 .flash-page-slot {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 2px;
   min-width: 120px;
+  min-height: 72px;
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 0;
+  border-bottom: 3px solid transparent;
   background: var(--sh-surface);
-  border-radius: 2px;
   cursor: pointer;
   font: inherit;
-  color: #333;
+  color: var(--sh-text-strong);
 }
 
 .flash-page-slot strong {
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
-.flash-page-slot span {
+.flash-page-slot-state {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.flash-page-slot-date {
   font-size: 12px;
+  color: var(--sh-text-muted);
 }
 
+.flash-page-slot:hover {
+  color: var(--sh-primary);
+}
+
+/*
+ * The chosen slot: the bright band again. White 20 px bold time = large text (≥ 3:1, docs/00 #203 exception); the small
+ * state line sits in a white pill in the dark brand colour (AA).
+ */
 .flash-page-slot.active {
-  background: var(--sh-primary);
-  border-color: var(--sh-primary);
-  color: var(--sh-on-primary);
+  background: var(--sh-gradient-header);
+  border-bottom-color: var(--sh-primary-dark);
+  color: var(--sh-on-dark);
+}
+
+.flash-page-slot.active .flash-page-slot-state,
+.flash-page-slot.active .flash-page-slot-date {
+  padding: 0 8px;
+  border-radius: var(--sh-radius-pill);
+  background: var(--sh-surface);
+  color: var(--sh-primary-dark);
 }
 
 .flash-page-empty {
@@ -48,5 +140,20 @@
   padding: 32px 16px;
   margin-top: 16px;
   text-align: center;
-  color: #555;
+  color: var(--sh-text-muted);
+}
+
+@media (max-width: 767px) {
+  .flash-page-hero-inner {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  .flash-page-wordmark {
+    font-size: 26px;
+  }
+
+  .flash-page-when {
+    font-size: 14px;
+  }
 }

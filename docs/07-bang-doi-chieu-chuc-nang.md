@@ -21,6 +21,7 @@ Từng mục của đặc tả → nơi hiện thực → bằng chứng. Cập 
 | 12 | Quản trị & báo cáo | **Xong** | Xem bảng Phase 12 dưới đây |
 | 13 | Hoàn thiện | **Xong** (cổng / hãng thật chờ tài khoản sandbox) | Xem bảng Phase 13 dưới đây |
 | 14 | Vá sau đợt rà soát độc lập (`PROMPT-PHASE-14-RA-SOAT.md`) | **Đang làm** — nhóm A–F xong (C1: backend + 3 frontend xanh trên CI, e2e CI chờ secret quản trị; E4 phần Zalo chờ tài khoản); G chuẩn bị xong, **chờ tài khoản**; G chờ tài khoản | Xem bảng Phase 14 cuối tệp |
+| G5 | Đồng bộ G-VIS cho Kênh Người Bán / quản trị, chốt viết hoa, kịch bản trình diễn, danh sách trang công khai còn kiểu cũ | **Đang làm** — phần không đụng G-VIS vòng 2 xong trên nhánh `claude/new-session-3hijvg` (docs/00 #208, #209); các trang của `web/` chờ sau vòng 2 | `seller`/`admin` `contrast.test.ts` + `web-tokens.test.ts`, `sentence-case.test.ts` ×3, `docs/10-kich-ban-trinh-dien.md`, `docs/plans/G5-A-pages.md` |
 
 ## Phase 0 — Chuyển đổi repo
 

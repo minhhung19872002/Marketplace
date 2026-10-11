@@ -105,17 +105,55 @@ body {
   box-shadow: none;
 }
 
+/* G-VIS: the bright brand band of the buyer site (docs/00 #208) — white text, bold enough for the ≥ 3:1 exception */
 .app-header {
-  background: var(--sh-surface) !important;
+  background: var(--sh-gradient-header) !important;
+  color: var(--sh-on-header);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding-inline: 24px !important;
-  border-bottom: 1px solid var(--sh-border);
+  border-bottom: 0;
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+.app-header .user-menu-name,
+.app-header .user-menu-shop,
+.app-header .user-menu-role,
+.app-header .user-menu-caret,
+.app-header .app-header-title,
+.app-header .app-header-group,
+.app-header .app-header-sep,
+.app-header .header-icon-btn.ant-btn {
+  color: var(--sh-on-header);
+}
+
+.app-header .user-menu-shop,
+.app-header .user-menu-role,
+.app-header .app-header-group {
+  font-weight: 500;
+}
+
+.app-header .user-menu-trigger.ant-btn:hover,
+.app-header .header-icon-btn.ant-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--sh-on-header);
+}
+
+.app-header .user-avatar.ant-avatar {
+  background: var(--sh-surface);
+  color: var(--sh-primary);
+  font-weight: 700;
+}
+
+/* Selling prices: the buyer site's price colour (product lists, review queue, pickers) */
+.price {
+  color: var(--sh-price);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .app-header-title {

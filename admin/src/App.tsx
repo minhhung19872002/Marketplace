@@ -149,7 +149,7 @@ const Shell = () => {
           </span>
           <Space size="small">
             <Tooltip title={themeLabel}>
-              <Button type="text" shape="circle" icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />} onClick={toggle}
+              <Button type="text" shape="circle" className="header-icon-btn" icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />} onClick={toggle}
                 aria-label={themeLabel} data-testid="theme-toggle" />
             </Tooltip>
             <Dropdown trigger={['click']} placement="bottomRight"

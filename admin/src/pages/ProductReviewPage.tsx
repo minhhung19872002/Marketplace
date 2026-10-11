@@ -125,7 +125,7 @@ const ProductReviewPage = ({ permissions }: { permissions: string[] }) => {
             ),
           },
           { title: 'Shop', dataIndex: 'shopName' },
-          { title: 'Giá', render: (_, r) => <span className="cell-money">{formatRange(r.minPrice, r.maxPrice)}</span> },
+          { title: 'Giá', render: (_, r) => <span className="price">{formatRange(r.minPrice, r.maxPrice)}</span> },
           { title: 'Trạng thái', dataIndex: 'status', render: (v: ProductStatus) => <StatusTag map={PRODUCT_STATUS} value={v} /> },
           { title: 'Gửi lúc', dataIndex: 'submittedAt', render: (v: string | null) => <span className="cell-nowrap">{v ? formatDateTime(v) : '—'}</span> },
           {
@@ -161,7 +161,7 @@ const ProductReviewPage = ({ permissions }: { permissions: string[] }) => {
             <Table size="small" rowKey="id" pagination={false} dataSource={detail.data.skus.filter((s) => s.isActive)}
               columns={[
                 { title: 'Phân loại', render: (_, s) => [s.option1, s.option2].filter(Boolean).join(' / ') || 'Mặc định' },
-                { title: 'Giá', render: (_, s) => formatPrice(s.price) },
+                { title: 'Giá', render: (_, s) => <span className="price">{formatPrice(s.price)}</span> },
                 { title: 'Giá gốc', render: (_, s) => formatPrice(s.originalPrice) },
                 { title: 'Tồn', dataIndex: 'stock' },
               ]} />

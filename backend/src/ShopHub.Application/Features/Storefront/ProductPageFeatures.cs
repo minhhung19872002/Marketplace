@@ -401,17 +401,12 @@ public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : I
             .Where(p => p.Type != Domain.Promo.PromotionType.Discount)
             .OrderBy(p => p.Type).ThenBy(p => p.Id).Select(p => new { p.ShopId, p.Type, p.MinQuantity, p.DiscountBp, p.DiscountAmount, p.MinSpend }).ToListAsync(ct);
         var freeship = (await db.Shops.AsNoTracking().Where(s => ids.Contains(s.Id) && s.FreeshipXtraSince != null).Select(s => s.Id).ToListAsync(ct)).ToHashSet();
-        // The tile's photo: a plain one, like Tìm kiếm hàng đầu (the first photo may be a cover with text)
-        var covers = shops.Where(s => s.CoverImageUrl != null).Select(s => s.CoverImageUrl!).ToList();
-        var coverProducts = await db.ProductMedia.AsNoTracking().Where(m => covers.Contains(m.Url)).Select(m => new { m.Url, m.ProductId }).ToListAsync(ct);
-        var plain = await PlainPhotos.OfAsync(db, coverProducts.Select(c => c.ProductId).Distinct().ToList(), ct);
         return shops.Select(s =>
         {
             var programme = programmes.FirstOrDefault(p => p.ShopId == s.Id);
             var offer = (programme is null ? null : MallOffer.Of(programme.Type, programme.MinQuantity, programme.DiscountBp, programme.DiscountAmount, programme.MinSpend))
                         ?? (s.MaxDiscountPercent > 0 ? $"Ưu đãi đến {s.MaxDiscountPercent}%" : freeship.Contains(s.Id) ? "Freeship+" : null);
-            var product = coverProducts.FirstOrDefault(c => c.Url == s.CoverImageUrl)?.ProductId;
-            return s with { Offer = offer, CoverImageUrl = product is { } pid && plain.TryGetValue(pid, out var url) ? url : s.CoverImageUrl };
+            return s with { Offer = offer };
         }).ToList();
     }
 
@@ -420,10 +415,13 @@ public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : I
             .Where(s => s.Type == ShopType.Mall && (s.Status == ShopStatus.Active || s.Status == ShopStatus.Vacation))
             .OrderByDescending(s => s.ProductCount).ThenByDescending(s => s.FollowerCount).ThenBy(s => s.Name).ThenBy(s => s.Id)
             .Take(Math.Clamp(request.Take, 1, 30))
+            // The tile's photo (G-VIS round 3, L195): the best seller that has a designed ad cover (pNNN-ad of the sample
+            // data — a square that fills the tile and reads as the brand's), that cover itself; else the best seller's photo
             .Select(s => new MallShopDto(s.Id, s.Name, s.Slug, s.LogoUrl,
                 db.Products.Where(p => p.ShopId == s.Id && p.Status == ProductStatus.Active)
-                    .OrderByDescending(p => p.SoldCount).ThenBy(p => p.Id)
-                    .SelectMany(p => p.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.SortOrder).Select(m => m.Url).Take(1))
+                    .OrderByDescending(p => p.Media.Any(m => m.Type == MediaType.Image && m.Url.Contains("-ad_"))).ThenByDescending(p => p.SoldCount).ThenBy(p => p.Id)
+                    .SelectMany(p => p.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.Url.Contains("-ad_") ? 0 : 1).ThenBy(m => m.SortOrder)
+                        .Select(m => m.Url).Take(1))
                     .FirstOrDefault(),
                 s.ProductCount,
                 db.Products.Where(p => p.ShopId == s.Id && p.Status == ProductStatus.Active)

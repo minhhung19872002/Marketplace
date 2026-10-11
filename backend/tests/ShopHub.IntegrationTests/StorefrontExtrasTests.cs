@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using ShopHub.Domain.Catalog;
 using ShopHub.Domain.Engage;
 using ShopHub.Domain.Promo;
@@ -128,6 +129,33 @@ public class StorefrontExtrasTests(ApiFactory factory)
         var page = await GetAsync(factory.CreateClient(), $"/api/categories/by-slug/{parentSlug}");
         var chip = page.GetProperty("children").EnumerateArray().Single(c => c.Str("name") == "Đèn bàn");
         chip.Str("imageUrl").Should().Be($"https://example.invalid/{marker}-0_1200.webp", "ảnh tròn là ảnh chụp của món bán chạy nhất, không phải ảnh bìa có chữ");
+    }
+
+    [Fact]
+    public async Task A_mall_tile_shows_a_best_seller_with_an_ad_cover_rather_than_a_plain_photo()
+    {
+        // G-VIS round 3 (L195): the tile's photo was the plain photo of the very best seller — a grater, an ice tray, a
+        // plain phone case. A best seller with a designed cover reads as a brand tile; the plain best seller is the fallback
+        var store = await factory.CreateStoreAsync("79", true, [new("Bào Rau Trơn", "Đèn Bàn", 50_000, 10, "Việt Nam"), new("Đèn Có Bìa", "Đèn Bàn", 150_000, 10, "Việt Nam")]);
+        var plain = store.Products["Bào Rau Trơn"];
+        var covered = store.Products["Đèn Có Bìa"];
+        var marker = store.Marker.ToLowerInvariant();
+        await factory.WithDbAsync(async db =>
+        {
+            db.ProductMedia.RemoveRange(await db.ProductMedia.Where(m => m.ProductId == plain || m.ProductId == covered).ToListAsync());
+            db.ProductMedia.Add(new ProductMedia(plain, MediaType.Image, null, $"https://example.invalid/{marker}-plain-0_1200.webp", 0, null));
+            db.ProductMedia.Add(new ProductMedia(covered, MediaType.Image, null, $"https://example.invalid/{marker}-lamp-ad_1200.webp", 0, null));
+            db.ProductMedia.Add(new ProductMedia(covered, MediaType.Image, null, $"https://example.invalid/{marker}-lamp-0_1200.webp", 1, null));
+            await db.SaveChangesAsync();
+            await db.Products.Where(p => p.Id == plain).ExecuteUpdateAsync(u => u.SetProperty(p => p.SoldCount, 900));
+            await db.Products.Where(p => p.Id == covered).ExecuteUpdateAsync(u => u.SetProperty(p => p.SoldCount, 50));
+            // Among the first Mall tiles whatever else the database holds
+            await db.Shops.Where(x => x.Id == store.ShopId).ExecuteUpdateAsync(u => u.SetProperty(x => x.ProductCount, 1_000_000));
+        });
+
+        using var scope = factory.Services.CreateScope();
+        var tiles = await scope.ServiceProvider.GetRequiredService<MediatR.ISender>().Send(new ShopHub.Application.Features.Storefront.MallShopsQuery(30));
+        tiles.Single(t => t.Id == store.ShopId).CoverImageUrl.Should().Be($"https://example.invalid/{marker}-lamp-ad_1200.webp");
     }
 
     [Fact]

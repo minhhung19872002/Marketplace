@@ -518,3 +518,23 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* G-VIS round 3 (L195): the tile photo is a square — the shop's best seller with a designed cover fills it whole */
+.mall-brand-photo {
+  width: 110px;
+  height: 110px;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: var(--sh-radius-sm);
+}
+
+.mall-brand-photo > img:first-child {
+  object-fit: cover;
+}
+
+@media (max-width: 767px) {
+  .mall-brand-photo {
+    width: 96px;
+    height: 96px;
+  }
+}

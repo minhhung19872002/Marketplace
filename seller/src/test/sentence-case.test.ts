@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { findLines, rel, sourceFiles, stripComments } from './scan';
+import { join } from 'node:path';
+import { findLines, rel, SRC_ROOT, sourceFiles, stripComments } from './scan';
 
 // Capitalisation policy (docs/00 #209). Labels, headings and buttons are written in sentence case ("Có thể bạn cũng thích"),
 // never ALL CAPS and never Title Case — in the text itself or through CSS / inline styles. Acronyms (COD, SKU, OTP…) are fine.
@@ -54,5 +55,31 @@ describe('sentence case', () => {
     const css = findLines(sourceFiles(['.css']), /text-transform:\s*capitalize|font-variant(-caps)?:\s*[^;]*small-caps/);
     const inline = findLines(sourceFiles(['.tsx', '.ts']), /textTransform|fontVariant(Caps)?\s*:/);
     expect([...css, ...inline]).toEqual([]);
+  });
+});
+
+// G5-B: index.html is text people see too (the browser tab before the bundle runs, link previews): the same rules as the source
+const indexHtmlTexts = (): string[] => {
+  const html = readFileSync(join(SRC_ROOT, '..', 'index.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+  return [...html.matchAll(/>([^<>]+)</g), ...html.matchAll(/\b(?:content|title|alt|aria-label)="([^"]+)"/g)].map((m) => m[1].trim()).filter(Boolean);
+};
+
+describe('sentence case in index.html', () => {
+  it('reads the title of the page', () => {
+    expect(indexHtmlTexts().some((t) => t.startsWith('ShopHub'))).toBe(true);
+  });
+
+  it('has no ALL-CAPS phrase', () => {
+    const offenders = indexHtmlTexts().flatMap((t) => [...t.matchAll(CAPS_RUN)]
+      .filter((m) => !m[0].split(/[  &]+/).every((w) => !w || ACRONYMS.has(w))).map((m) => m[0]));
+    expect(offenders).toEqual([]);
+  });
+
+  it('has no Title Case phrase', () => {
+    const offenders = indexHtmlTexts().flatMap((t) => {
+      const masked = maskProperNouns(t);
+      return [...masked.matchAll(TITLE_RUN), ...masked.matchAll(TITLE_PAIR)].map((m) => m[0]);
+    });
+    expect(offenders).toEqual([]);
   });
 });

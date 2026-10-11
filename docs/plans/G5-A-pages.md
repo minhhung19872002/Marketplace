@@ -110,3 +110,18 @@ Thành phần dùng chung mới là **tệp mới** trong `components/ui/`. Mỗ
 | Mục | Tệp đã sửa / thêm | Thay đổi | Khả năng xung đột với vòng 2 |
 |---|---|---|---|
 | Flash Sale | `pages/FlashSalePage.tsx`, `pages/FlashSalePage.css`, `test/sentence-case.test.ts` (+1 dòng `UPPERCASE_ALLOWED`) | Dải cam sáng có wordmark "Flash Sale" (h1) và một đồng hồ cho khung đang chọn. Đầu khối của `FlashSaleBoard` bị ẩn bằng CSS của trang (`.flash-page .flash-sale-head`), không sửa `FlashSaleBlock`. Tab khung giờ: khung đang chọn nền cam sáng, giờ 20 px đậm, trạng thái / ngày trong viên trắng. Tiêu đề tab "Flash Sale" | Thấp. Nếu vòng 2 đổi class `.flash-sale-head` trong `FlashSaleBlock` thì sửa selector ẩn ở `FlashSalePage.css`. `sentence-case.test.ts`: vòng 2 có thể cũng thêm dòng vào cùng mảng, khi gộp giữ cả hai |
+
+## 6. G5-B — phần còn lại, làm trên máy Windows sau khi gộp (11/10/2026)
+
+| Mục | Commit | Ghi chú |
+|---|---|---|
+| Sự kiện | `b6ba9ae` | Vé voucher răng cưa (`components/ui/Ticket`), tiêu đề khối kiểu section trang chủ, tiêu đề tab |
+| Shop | `7aca0b8` | Đầu trang kiểu sàn: thẻ tối trên ảnh bìa (logo tròn, tên, Theo dõi / Chat), khối chỉ số "Nhãn: giá trị" có logo chữ của vòng 2; "Chương trình đang chạy" thành thẻ; voucher shop thành vé |
+| Tìm kiếm / danh mục | `0d53bc1` | Banner ngành 4:1 gieo cho 19 ngành (vẽ bằng `art-html.mjs`), chip danh mục con có ảnh tròn, nút sắp xếp đang chọn `--sh-primary-vivid` (#214) |
+| Giỏ trống, đăng nhập / đăng ký / quên mật khẩu | `0cc516d` | Header gọn có tên trang (`AuthHeader`), băng cam sáng + thẻ trắng, hình giỏ trống, tiêu đề section dùng chung `.sh-section--caps` |
+| Trợ giúp, tra cứu vận đơn, 404, tải ứng dụng | `fbe33d1` | Băng cam sáng có ô tìm kiểu header (`PageBand`), ô chủ đề có biểu tượng màu, thẻ vận đơn có dòng thời gian, hình 404 + "Gợi ý hôm nay", hình điện thoại |
+| Không phải giao diện | `c80dbb1`, `b783db2`, `e075322`, `e83220c`, + commit dữ liệu viết hoa | L189 tiêu đề tab, L190 tra mã vận đơn 200, L191 quét `index.html`, #215 tải lại khi chunk lỗi (nginx `/assets/` đúng kiểu — đã kiểm trên domain), L192 dữ liệu viết hoa đầu câu + migration |
+
+Còn để ngỏ: tên sản phẩm và tên phân loại mẫu vẫn Viết Hoa Từng Chữ (kiểu tên do người bán đặt, ngoài phạm vi #209 cho dữ liệu sàn);
+tiêu đề tab riêng cho từng trang của Kênh Người Bán / quản trị (hiện là tiêu đề tĩnh của `index.html`).
+

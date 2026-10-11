@@ -151,8 +151,8 @@ test.describe('Thiết lập & trang trí shop', () => {
     const seller = await sellerLogin(browser, shop.seller);
     await seller.getByRole('menuitem', { name: 'Excel hàng loạt' }).click();
 
-    await seller.getByTestId('bulk-category').locator('input').fill('Áo Thun');
-    await seller.locator('.ant-cascader-menu-item').filter({ hasText: /Áo Thun$/ }).first().click();
+    await seller.getByTestId('bulk-category').locator('input').fill('Áo thun');
+    await seller.locator('.ant-cascader-menu-item').filter({ hasText: /Áo thun$/ }).first().click();
     const [template] = await Promise.all([seller.waitForEvent('download'), seller.getByTestId('bulk-template').click()]);
     const bytes = fs.readFileSync(await template.path());
     expect(bytes.subarray(0, 2).toString()).toBe('PK');   // an .xlsx (zip) file

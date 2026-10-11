@@ -48,7 +48,7 @@ test.describe('ShopHub Marketplace', () => {
 
     // Shortcuts as the platform set them, Mã giảm giá / Freeship / Deal sốc among them (E3)
     await expect(page.locator('[data-testid="feature-shortcut"]')).toHaveCount(home.shortcuts.length);
-    for (const label of ['Mã Giảm Giá', 'Freeship', 'Deal Sốc']) await expect(page.locator('[data-testid="feature-shortcut"]', { hasText: label })).toHaveCount(1);
+    for (const label of ['Mã giảm giá', 'Freeship', 'Deal sốc']) await expect(page.locator('[data-testid="feature-shortcut"]', { hasText: label })).toHaveCount(1);
     // Industries with nothing on sale are left out of the home grid (UI upgrade P0-1)
     // ...and so are industries hidden from buyers (G2-A7)
     const shown = tree.filter((c) => c.isActive && c.isVisible && c.productCount > 0);

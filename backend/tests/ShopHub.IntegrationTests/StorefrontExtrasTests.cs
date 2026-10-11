@@ -81,7 +81,7 @@ public class StorefrontExtrasTests(ApiFactory factory)
 
         var (slug, brandId) = await factory.WithDbAsync(async db =>
         {
-            var leaf = await db.Categories.SingleAsync(c => c.Name == "Đèn Bàn" && c.Level == 3);
+            var leaf = await db.Categories.SingleAsync(c => c.Name == "Đèn bàn" && c.Level == 3);
             var brand = new Brand($"Hiệu {store.Marker}", $"hieu-{store.Marker.ToLowerInvariant()}", null, true);
             db.Brands.Add(brand);
             foreach (var p in await db.Products.Where(p => p.ShopId == store.ShopId).ToListAsync())
@@ -121,12 +121,12 @@ public class StorefrontExtrasTests(ApiFactory factory)
             db.ProductMedia.Add(new ProductMedia(product, MediaType.Image, null, $"https://example.invalid/{marker}-0_1200.webp", 1, null));
             await db.SaveChangesAsync();
             await db.Products.Where(p => p.Id == product).ExecuteUpdateAsync(u => u.SetProperty(p => p.SoldCount, int.MaxValue / 2));
-            var leaf = await db.Categories.SingleAsync(c => c.Name == "Đèn Bàn" && c.Level == 3);
+            var leaf = await db.Categories.SingleAsync(c => c.Name == "Đèn bàn" && c.Level == 3);
             return await db.Categories.Where(c => c.Id == leaf.ParentId).Select(c => c.Slug).SingleAsync();
         });
 
         var page = await GetAsync(factory.CreateClient(), $"/api/categories/by-slug/{parentSlug}");
-        var chip = page.GetProperty("children").EnumerateArray().Single(c => c.Str("name") == "Đèn Bàn");
+        var chip = page.GetProperty("children").EnumerateArray().Single(c => c.Str("name") == "Đèn bàn");
         chip.Str("imageUrl").Should().Be($"https://example.invalid/{marker}-0_1200.webp", "ảnh tròn là ảnh chụp của món bán chạy nhất, không phải ảnh bìa có chữ");
     }
 

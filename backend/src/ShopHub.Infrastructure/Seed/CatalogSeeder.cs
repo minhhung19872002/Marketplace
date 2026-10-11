@@ -52,18 +52,19 @@ public sealed class CatalogSeeder(
         var sort = 0;
         foreach (var top in seed.Categories)
         {
-            var root = new Category(null, 1, top.Name, Slug.From(top.Name), top.Icon, sort++, top.CommissionBp);
+            // Names in sentence case (#209, L192); the slugs are the same either way
+            var root = new Category(null, 1, SeedText.SentenceCase(top.Name), Slug.From(top.Name), top.Icon, sort++, top.CommissionBp);
             root.SetVisible(!top.Hidden);
             db.Categories.Add(root);
             var s2 = 0;
             foreach (var l2 in top.Children)
             {
-                var mid = new Category(root.Id, 2, l2.Name, Slug.From(l2.Name), null, s2++, top.CommissionBp);
+                var mid = new Category(root.Id, 2, SeedText.SentenceCase(l2.Name), Slug.From(l2.Name), null, s2++, top.CommissionBp);
                 db.Categories.Add(mid);
                 var s3 = 0;
                 foreach (var l3 in l2.Children)
                 {
-                    var leaf = new Category(mid.Id, 3, l3.Name, Slug.From(l3.Name), null, s3++, top.CommissionBp);
+                    var leaf = new Category(mid.Id, 3, SeedText.SentenceCase(l3.Name), Slug.From(l3.Name), null, s3++, top.CommissionBp);
                     db.Categories.Add(leaf);
                     // Every leaf: origin (required) + the industry set of its top-level category
                     db.CategoryAttributes.Add(new CategoryAttribute(leaf.Id, "Xuất xứ", AttributeInputType.SingleSelect, null, true, true,
@@ -158,7 +159,7 @@ public sealed class CatalogSeeder(
     /// </summary>
     private async Task SeedCategoryPhotosAsync(CatalogSeed seed, CancellationToken ct)
     {
-        var codes = seed.Categories.ToDictionary(c => c.Name, c => c.Icon);
+        var codes = seed.Categories.ToDictionary(c => SeedText.SentenceCase(c.Name), c => c.Icon);
         var tops = await db.Categories.Where(c => c.ParentId == null).ToListAsync(ct);
         var set = 0;
         foreach (var category in tops)
@@ -231,7 +232,8 @@ public sealed class CatalogSeeder(
     private static Category ResolvePath(IReadOnlyList<Category> all, string path)
     {
         Category? current = null;
-        foreach (var name in path.Split('/'))
+        // The seed's paths use its Title Case keys; the database holds the sentence-case names (SeedText, L192)
+        foreach (var name in path.Split('/').Select(SeedText.SentenceCase))
             current = all.FirstOrDefault(c => c.Name == name && c.ParentId == current?.Id)
                 ?? throw new InvalidOperationException($"Không tìm thấy danh mục \"{path}\" trong dữ liệu gieo.");
         return current!;

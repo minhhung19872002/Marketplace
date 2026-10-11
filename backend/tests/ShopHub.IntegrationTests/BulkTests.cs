@@ -21,7 +21,7 @@ public class BulkTests(ApiFactory factory)
     {
         var store = await factory.CreateStoreAsync();
         var seller = await StaffAsync(store, ShopPermissions.All);
-        var leaf = await factory.WithDbAsync(db => db.Categories.SingleAsync(c => c.Name == "Đèn Bàn" && c.Level == 3));
+        var leaf = await factory.WithDbAsync(db => db.Categories.SingleAsync(c => c.Name == "Đèn bàn" && c.Level == 3));
         var attributes = await factory.WithDbAsync(db => db.CategoryAttributes.Where(a => a.CategoryId == leaf.Id).ToListAsync());
 
         var template = await seller.GetAsync($"/api/seller/shops/{store.ShopId}/bulk/template?categoryId={leaf.Id}");

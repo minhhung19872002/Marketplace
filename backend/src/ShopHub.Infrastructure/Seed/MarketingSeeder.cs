@@ -50,11 +50,12 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
     // Icon = an icon code the buyer site draws as SVG (or an image URL set by the admin)
     public static readonly (string Label, string Icon, string Link)[] Shortcuts =
     [
-        ("Mã Giảm Giá", "voucher", "/tai-khoan/voucher"), ("Freeship", "freeship", "/tim-kiem?freeship=true"), ("Deal Sốc", "deal", "/flash-sale"),
-        ("ShopHub Mall", "mall", "/tim-kiem?mall=true"), ("Shop Yêu Thích", "preferred", "/tim-kiem?preferred=true"),
-        ("Hàng 4 Sao", "star", "/tim-kiem?minRating=4"), ("Bán Chạy", "hot", "/tim-kiem?sort=BestSelling"),
-        ("Hàng Mới Về", "new", "/tim-kiem?sort=Newest"), ("Giá Từ Thấp", "price", "/tim-kiem?sort=PriceAsc"),
-        ("Có Sẵn Hàng", "stock", "/tim-kiem?inStock=true"),
+        // Sentence case (#209, L192): migration SentenceCaseSeedNames renames the rows seeded before
+        ("Mã giảm giá", "voucher", "/tai-khoan/voucher"), ("Freeship", "freeship", "/tim-kiem?freeship=true"), ("Deal sốc", "deal", "/flash-sale"),
+        ("ShopHub Mall", "mall", "/tim-kiem?mall=true"), ("Shop yêu thích", "preferred", "/tim-kiem?preferred=true"),
+        ("Hàng 4 sao", "star", "/tim-kiem?minRating=4"), ("Bán chạy", "hot", "/tim-kiem?sort=BestSelling"),
+        ("Hàng mới về", "new", "/tim-kiem?sort=Newest"), ("Giá từ thấp", "price", "/tim-kiem?sort=PriceAsc"),
+        ("Có sẵn hàng", "stock", "/tim-kiem?inStock=true"),
     ];
 
     /// <summary>

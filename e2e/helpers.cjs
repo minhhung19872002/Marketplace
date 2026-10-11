@@ -144,7 +144,7 @@ async function shopWithProduct(request, admin, { stock = 50, price = 159000 } = 
   await apiAs(request, admin.accessToken, 'POST', `/admin/shops/${shopId}/approve`);
 
   const tree = (await (await request.get(`${BASE}/api/categories`)).json()).data;
-  const leaf = tree.flatMap((t) => t.children).flatMap((m) => m.children).find((c) => c.name === 'Áo Thun');
+  const leaf = tree.flatMap((t) => t.children).flatMap((m) => m.children).find((c) => c.name === 'Áo thun');
   const attrs = (await (await request.get(`${BASE}/api/categories/${leaf.id}/attributes`)).json()).data;
   const name = `Áo Thun Đơn E2E ${seller.phone.slice(-6)}`;
   const input = {

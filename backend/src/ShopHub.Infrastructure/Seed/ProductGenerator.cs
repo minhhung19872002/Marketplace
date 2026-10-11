@@ -292,7 +292,8 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
     private static Category ResolvePath(IReadOnlyList<Category> all, string path)
     {
         Category? current = null;
-        foreach (var name in path.Split('/'))
+        // The seed's paths use its Title Case keys; the database holds the sentence-case names (SeedText, L192)
+        foreach (var name in path.Split('/').Select(SeedText.SentenceCase))
             current = all.FirstOrDefault(c => c.Name == name && c.ParentId == current?.Id)
                 ?? throw new InvalidOperationException($"Không tìm thấy danh mục \"{path}\" trong dữ liệu gieo.");
         return current!;

@@ -53,7 +53,12 @@ public class CatalogTests(ApiFactory factory)
     }
 
     private async Task<Guid> LeafAsync(string name) =>
-        await factory.WithDbAsync(db => db.Categories.Where(c => c.Name == name && c.Level == 3).Select(c => c.Id).SingleAsync());
+        await factory.WithDbAsync(db =>
+        {
+            // Tests name leaves by the seed's keys; the database holds sentence case (L192)
+            var leaf = ShopHub.Infrastructure.Seed.SeedText.SentenceCase(name);
+            return db.Categories.Where(c => c.Name == leaf && c.Level == 3).Select(c => c.Id).SingleAsync();
+        });
 
     private async Task<Dictionary<string, Guid>> AttributesAsync(Guid categoryId) =>
         await factory.WithDbAsync(db => db.CategoryAttributes.Where(a => a.CategoryId == categoryId).ToDictionaryAsync(a => a.Name, a => a.Id));
@@ -125,6 +130,24 @@ public class CatalogTests(ApiFactory factory)
     }
 
     // ---------- media ----------
+
+    [Fact]
+    public async Task The_seeded_category_tree_is_named_in_sentence_case()
+    {
+        // G5-B (L192): "Sắc Đẹp", "Chăm Sóc Da"… were Title Case data that the source scan (#209) could not see
+        // Against the seed's own keys (other tests add categories of their own): none of its Title Case names is in the tree
+        await using var stream = typeof(ShopHub.Infrastructure.Seed.SeedText).Assembly
+            .GetManifestResourceStream("ShopHub.Infrastructure.Seed.Data.catalog-seed.json")!;
+        using var seed = await JsonDocument.ParseAsync(stream);
+        static IEnumerable<string> Walk(JsonElement n) =>
+            new[] { n.GetProperty("name").GetString()! }.Concat(n.TryGetProperty("children", out var c) ? c.EnumerateArray().SelectMany(Walk) : []);
+        var titleCase = seed.RootElement.GetProperty("categories").EnumerateArray().SelectMany(Walk)
+            .Where(n => ShopHub.Infrastructure.Seed.SeedText.SentenceCase(n) != n).ToHashSet();
+        titleCase.Should().HaveCountGreaterThan(200);
+        var names = await factory.WithDbAsync(db => db.Categories.AsNoTracking().Select(c => c.Name).ToListAsync());
+        names.Where(titleCase.Contains).Should().BeEmpty();
+        names.Should().Contain(["Điện thoại & phụ kiện", "Sắc đẹp", "iPad & tablet", "Đèn bàn"]);
+    }
 
     [Fact]
     public async Task Uploaded_image_is_reencoded_to_three_webp_sizes_and_is_actually_downloadable()
@@ -284,7 +307,7 @@ public class CatalogTests(ApiFactory factory)
 
         detail.Str("status").Should().Be("Draft");
         detail.GetProperty("skus").GetArrayLength().Should().Be(6, "2 màu × 3 size");
-        detail.GetProperty("categoryPath").EnumerateArray().Select(e => e.GetString()).Should().Equal("Thời Trang Nam", "Áo", "Áo Thun");
+        detail.GetProperty("categoryPath").EnumerateArray().Select(e => e.GetString()).Should().Equal("Thời trang nam", "Áo", "Áo thun");
         queue.GetProperty("items").EnumerateArray().Should().Contain(r => r.Str("id") == productId.ToString());
         var product = await factory.WithDbAsync(db => db.Products.SingleAsync(p => p.Id == productId));
         product.Status.Should().Be(ProductStatus.Active);
@@ -299,7 +322,7 @@ public class CatalogTests(ApiFactory factory)
         var (owner, shopId) = await ApprovedShopAsync();
         var leaf = await LeafAsync("Áo Thun");
         var image = (await UploadAsync(owner.Client, "product", Image())).Str("id");
-        var nonLeaf = await factory.WithDbAsync(db => db.Categories.Where(c => c.Name == "Thời Trang Nam").Select(c => c.Id).SingleAsync());
+        var nonLeaf = await factory.WithDbAsync(db => db.Categories.Where(c => c.Name == "Thời trang nam").Select(c => c.Id).SingleAsync());
 
         object Body(Guid categoryId) => new
         {
@@ -488,7 +511,7 @@ public class CatalogTests(ApiFactory factory)
     {
         var tree = (await (await factory.CreateClient().GetAsync("/api/categories")).ReadEnvelopeAsync()).Data;
         var admin = await factory.CreateUserAsync(Permissions.CategoryManage);
-        var top = await factory.WithDbAsync(db => db.Categories.Where(c => c.Name == "Đồ Chơi").Select(c => c.Id).SingleAsync());
+        var top = await factory.WithDbAsync(db => db.Categories.Where(c => c.Name == "Đồ chơi").Select(c => c.Id).SingleAsync());
         var leaf = await LeafAsync("Lego & Xếp Hình");
 
         var fourth = await admin.Client.PostAsJsonAsync("/api/admin/categories", new { parentId = leaf, name = "Cấp 4", sortOrder = 0, commissionRateBp = 500, isActive = true });

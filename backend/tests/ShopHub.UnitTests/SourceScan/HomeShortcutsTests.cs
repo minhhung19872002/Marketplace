@@ -39,8 +39,15 @@ public class HomeShortcutsTests
     [Fact]
     public void Shortcuts_cover_vouchers_freeship_and_deals()
     {
-        MarketingSeeder.Shortcuts.Select(s => s.Label).Should().Contain(["Mã Giảm Giá", "Freeship", "Deal Sốc"]);
+        MarketingSeeder.Shortcuts.Select(s => s.Label).Should().Contain(["Mã giảm giá", "Freeship", "Deal sốc"]);
         MarketingSeeder.Shortcuts.Single(s => s.Label == "Freeship").Link.Should().Contain("freeship=true");
+    }
+
+    [Fact]
+    public void Shortcut_labels_are_in_sentence_case()
+    {
+        // G5-B (L192): "Mã Giảm Giá", "Hàng Mới Về"… were Title Case data the source scan (#209) could not see
+        MarketingSeeder.Shortcuts.Where(s => SeedText.SentenceCase(s.Label) != s.Label).Select(s => s.Label).Should().BeEmpty();
     }
 
     [Fact]

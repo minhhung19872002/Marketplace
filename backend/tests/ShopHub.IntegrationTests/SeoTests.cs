@@ -77,7 +77,7 @@ public class SeoTests(ApiFactory factory)
             return (c.Slug, s.Slug);
         });
         var category = await (await client.GetAsync($"/api/seo/render?path=/danh-muc/{categorySlug}")).Content.ReadAsStringAsync();
-        category.Should().Contain("<h1>Đèn Bàn</h1>").And.Contain("BreadcrumbList");
+        category.Should().Contain("<h1>Đèn bàn</h1>").And.Contain("BreadcrumbList");
         var shop = await (await client.GetAsync($"/api/seo/render?path=/shop/{shopSlug}")).Content.ReadAsStringAsync();
         shop.Should().Contain($"Shop {store.Marker}").And.Contain("\"@type\":\"Store\"");
         var search = await (await client.GetAsync("/api/seo/render?path=/tim-kiem&q=den%20ngu")).Content.ReadAsStringAsync();

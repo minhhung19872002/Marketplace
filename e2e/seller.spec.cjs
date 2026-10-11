@@ -87,8 +87,8 @@ test.describe('Kênh Người Bán', () => {
     const productName = `Áo Thun E2E ${phoneSeq}`;
     await page.getByLabel('Tên sản phẩm').fill(productName);
     await page.getByLabel('Danh mục').first().click();
-    await page.keyboard.type('Áo Thun');
-    await page.locator('.ant-cascader-menu-item', { hasText: 'Thời Trang Nam / Áo / Áo Thun' }).first().click();
+    await page.keyboard.type('Áo thun');
+    await page.locator('.ant-cascader-menu-item', { hasText: 'Thời trang nam / Áo / Áo thun' }).first().click();
 
     await page.getByLabel('Xuất xứ').first().click();
     await page.locator('.ant-select-item-option', { hasText: 'Việt Nam' }).click();

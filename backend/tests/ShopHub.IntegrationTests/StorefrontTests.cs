@@ -71,8 +71,8 @@ public class StorefrontTests(ApiFactory factory)
         var sql = await factory.WithDbAsync(async db =>
         {
             var shopProducts = db.Products.Where(p => p.ShopId == s.ShopId && p.Status == ProductStatus.Active);
-            var shirtsLeaf = await db.Categories.Where(c => c.Name == "Áo Thun").Select(c => c.Id).SingleAsync();
-            var topLevel = await db.Categories.Where(c => c.Name == "Thời Trang Nam").Select(c => c.Id).SingleAsync();
+            var shirtsLeaf = await db.Categories.Where(c => c.Name == "Áo thun").Select(c => c.Id).SingleAsync();
+            var topLevel = await db.Categories.Where(c => c.Name == "Thời trang nam").Select(c => c.Id).SingleAsync();
             var cotton = await (from p in shopProducts from a in p.Attributes join d in db.CategoryAttributes on a.AttributeId equals d.Id
                                 where d.Name == "Chất liệu" && a.Values.Contains("Cotton") select p.Id).Distinct().CountAsync();
             return new
@@ -86,8 +86,8 @@ public class StorefrontTests(ApiFactory factory)
         });
 
         result.GetProperty("totalCount").GetInt32().Should().Be(sql.Total);
-        Count("categories", "Áo Thun").Should().Be(sql.Shirts);
-        Count("categories", "Thời Trang Nam").Should().Be(sql.Fashion);
+        Count("categories", "Áo thun").Should().Be(sql.Shirts);
+        Count("categories", "Thời trang nam").Should().Be(sql.Fashion);
         Count("provinces", "Hồ Chí Minh").Should().Be(sql.Total);
         Count("shopTypes", "ShopHub Mall").Should().Be(sql.Total);
         facets.GetProperty("attributes").GetProperty("Chất liệu").EnumerateArray()
@@ -113,7 +113,7 @@ public class StorefrontTests(ApiFactory factory)
         var industry = await factory.WithDbAsync(db => (from leaf in db.Categories
                                                          join mid in db.Categories on leaf.ParentId equals mid.Id
                                                          join top in db.Categories on mid.ParentId equals top.Id
-                                                         where leaf.Name == "Máy Xay"
+                                                         where leaf.Name == "Máy xay"
                                                          select top.Name).SingleAsync());
         var categoryOnly = Slug.Fold(industry).Split(' ')[0];
         var requests = new[]
@@ -202,7 +202,7 @@ public class StorefrontTests(ApiFactory factory)
         var options = page.GetProperty("tiers")[0].GetProperty("options").EnumerateArray().ToList();
         options.Single(o => o.Str("value") == "M").GetProperty("available").GetBoolean().Should().BeFalse("hết hàng thì mờ đi");
         options.Single(o => o.Str("value") == "L").GetProperty("available").GetBoolean().Should().BeTrue();
-        page.GetProperty("breadcrumb").EnumerateArray().Select(b => b.Str("name")).Should().Equal("Thời Trang Nam", "Áo", "Áo Khoác");
+        page.GetProperty("breadcrumb").EnumerateArray().Select(b => b.Str("name")).Should().Equal("Thời trang nam", "Áo", "Áo khoác");
         page.GetProperty("purchasable").GetBoolean().Should().BeTrue();
         onVacation.GetProperty("purchasable").GetBoolean().Should().BeFalse();
         onVacation.GetProperty("shop").GetProperty("onVacation").GetBoolean().Should().BeTrue();
@@ -301,7 +301,7 @@ public class StorefrontTests(ApiFactory factory)
 
         var first = recs.GetProperty("items")[0];
         var leaf = await factory.WithDbAsync(db => db.Products.Where(p => p.Id == Guid.Parse(first.Str("id"))).Select(p => p.CategoryId).SingleAsync());
-        var badminton = await factory.WithDbAsync(db => db.Categories.Where(c => c.Name == "Cầu Lông").Select(c => c.Id).SingleAsync());
+        var badminton = await factory.WithDbAsync(db => db.Categories.Where(c => c.Name == "Cầu lông").Select(c => c.Id).SingleAsync());
         leaf.Should().Be(badminton);
     }
 

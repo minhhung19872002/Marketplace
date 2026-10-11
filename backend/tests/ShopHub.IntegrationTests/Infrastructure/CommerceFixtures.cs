@@ -45,7 +45,9 @@ public static class CommerceFixtures
 
             foreach (var spec in products)
             {
-                var leaf = await db.Categories.SingleAsync(c => c.Name == spec.Leaf && c.Level == 3);
+                // Tests name leaves by the seed's keys ("Đèn Bàn"); the database holds them in sentence case (L192)
+                var leafName = ShopHub.Infrastructure.Seed.SeedText.SentenceCase(spec.Leaf);
+                var leaf = await db.Categories.SingleAsync(c => c.Name == leafName && c.Level == 3);
                 var attrs = await db.CategoryAttributes.Where(a => a.CategoryId == leaf.Id).ToListAsync();
                 var p = new Product(shop.Id);
                 var name = $"{spec.Name} {marker}";

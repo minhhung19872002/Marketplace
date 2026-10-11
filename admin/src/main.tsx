@@ -4,6 +4,7 @@ import { ConfigProvider, theme as antdTheme } from 'antd'
 import viVN from 'antd/locale/vi_VN'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
+import { installPreloadRecovery } from './lib/preloadRecovery'
 import { cssVars, darkTheme, theme } from './theme'
 import { useThemeMode } from './stores/themeMode'
 // Be Vietnam Pro bundled with the app (full Vietnamese glyphs, no request to a font CDN) — spec 6.5, F1
@@ -32,6 +33,9 @@ const Themed = () => {
     </ConfigProvider>
   )
 }
+
+// A page whose code fails to load (a deploy replaced the chunks) reloads once instead of staying blank (G5-B)
+installPreloadRecovery()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Missing #root element')

@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
+import { installPreloadRecovery } from './lib/preloadRecovery'
 import { marketingApi, type HomeBanners } from './api/marketing'
 import './index.css'
 // Be Vietnam Pro bundled with the app (full Vietnamese glyphs, no request to a font CDN) — spec 6.5, F1
@@ -32,6 +33,9 @@ if (window.location.pathname === '/') {
     })
     .catch(() => undefined)
 }
+
+// A page whose code fails to load (a deploy replaced the chunks) reloads once instead of staying blank (G5-B)
+installPreloadRecovery()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Missing #root element')

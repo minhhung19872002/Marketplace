@@ -51,6 +51,11 @@ for name in sorted(os.listdir(PNG)):
         open(os.path.join(ART, f'{stem}.webp'), 'wb').write(webp(im.convert('RGB'), 150_000))
     written += 1
 
+# A partial run (ART_ONLY=side-2) renders no ad cover: keep the covers and the model list as they are
+if not covers:
+    print(f'{written} files, no ad cover rendered: covers and product-models.json left as they are')
+    raise SystemExit(0)
+
 for name in os.listdir(IMAGES):
     if name.endswith('-ad.webp') and int(name[1:4]) not in covers:
         os.remove(os.path.join(IMAGES, name))

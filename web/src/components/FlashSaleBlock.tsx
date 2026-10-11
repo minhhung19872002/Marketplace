@@ -39,13 +39,9 @@ const FlashItem = ({ i }: { i: FlashBoardItem }) => {
       <span className="flash-item-bar" role="progressbar" aria-label={`Đã bán ${i.sold} trên ${i.quota} suất`}
         aria-valuenow={i.soldPercent} aria-valuemin={0} aria-valuemax={100}>
         <span className="flash-item-bar-fill" style={{ width: `${pct}%` }} />
-        {/* The label twice: dark orange on the pale track, white clipped to the orange fill — each part reads 4.5:1 */}
+        {/* One label in one colour on its own dark layer: it reads the same at any fill (L183) */}
         <span className="flash-item-bar-text">
-          {hot && <Flame size={13} fill="currentColor" aria-hidden />}
-          {flashBarLabel(i)}
-        </span>
-        <span className="flash-item-bar-text flash-item-bar-text--on-fill" aria-hidden style={{ clipPath: `inset(0 ${100 - pct}% 0 0)` }}>
-          {hot && <Flame size={13} fill="currentColor" aria-hidden />}
+          {hot && <Flame size={12} fill="currentColor" aria-hidden />}
           {flashBarLabel(i)}
         </span>
       </span>

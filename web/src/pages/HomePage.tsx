@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
 import Banner, { HomeStrip } from '../components/Banner';
@@ -18,8 +19,14 @@ import './HomePage.css';
 import '../components/ProductGrid.css';
 
 const PAGE_SIZE = 24;
+// "Sản phẩm đã xem": shown from 3 products; a full row of the carousel holds 6
+const MIN_VIEWED = 3;
+const ROW = 6;
 
-/** "Đã xem gần đây" (G2-B1): one sliding row with "Xoá lịch sử"; hidden when there is nothing yet. */
+/**
+ * "Đã xem gần đây" (G2-B1): one sliding row with "Xoá lịch sử". G-VIS round 2: hidden below 3 products; below a full row
+ * (6) the cards keep their size and spread over the width instead of leaving the right half empty.
+ */
 const RecentlyViewed = ({ isLoggedIn }: { isLoggedIn: boolean }) => {
   const queryClient = useQueryClient();
   const viewed = useQuery({ queryKey: ['viewed', isLoggedIn], queryFn: storefrontApi.viewed });
@@ -28,7 +35,7 @@ const RecentlyViewed = ({ isLoggedIn }: { isLoggedIn: boolean }) => {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['viewed'] }),
   });
   const items = viewed.data ?? [];
-  if (items.length === 0) return null;
+  if (items.length < MIN_VIEWED) return null;
   return (
     <Section title="Sản phẩm đã xem" testId="viewed-section" className="home-viewed"
       extra={<ConfirmButton className="home-viewed-clear" message="Xoá toàn bộ lịch sử sản phẩm đã xem?" confirmLabel="Xoá"
@@ -36,7 +43,11 @@ const RecentlyViewed = ({ isLoggedIn }: { isLoggedIn: boolean }) => {
         <Trash2 size={14} aria-hidden /> Xoá lịch sử
       </ConfirmButton>}>
       <div className="home-row">
-        <Carousel label="Sản phẩm đã xem">{items.map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}</Carousel>
+        {items.length < ROW
+          ? <div className="home-viewed-few" style={{ '--viewed-count': items.length } as CSSProperties} data-testid="viewed-few">
+              {items.map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}
+            </div>
+          : <Carousel label="Sản phẩm đã xem">{items.map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}</Carousel>}
       </div>
     </Section>
   );
@@ -69,18 +80,21 @@ const HomePage = () => {
         <TopCategories />
         <RecentlyViewed isLoggedIn={isLoggedIn} />
 
-        {/* "Gợi ý hôm nay": the title bar stays under the header while the grid scrolls (G2-B1) */}
+        {/* "Gợi ý hôm nay": the title bar stays under the header while the grid scrolls (G2-B1). It sticks inside the grid's
+            own box only: past the last row it scrolls away and never covers "Xem thêm" or the footer (G-VIS round 2, L184) */}
         <section className="home-daily" aria-labelledby="home-daily-title">
-          <div className="home-daily-bar">
-            <h2 id="home-daily-title" className="home-daily-title">Gợi ý hôm nay</h2>
+          <div className="home-daily-scope" data-testid="daily-scope">
+            <div className="home-daily-bar" data-testid="daily-bar">
+              <h2 id="home-daily-title" className="home-daily-title">Gợi ý hôm nay</h2>
+            </div>
+            <QueryState query={recommendations} loading={<ProductGridSkeleton count={12} />}>
+              {(d) => (
+                <div className="product-grid" data-testid="daily-grid">
+                  {d.pages.flatMap((p) => p.items).map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}
+                </div>
+              )}
+            </QueryState>
           </div>
-          <QueryState query={recommendations} loading={<ProductGridSkeleton count={12} />}>
-            {(d) => (
-              <div className="product-grid" data-testid="daily-grid">
-                {d.pages.flatMap((p) => p.items).map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}
-              </div>
-            )}
-          </QueryState>
           {recommendations.isFetchingNextPage && <ProductGridSkeleton count={6} />}
           {recommendations.hasNextPage && (
             <div className="home-load-more">

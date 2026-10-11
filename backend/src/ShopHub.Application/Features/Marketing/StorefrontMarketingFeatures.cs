@@ -40,10 +40,13 @@ public sealed class FlashBoardHandler(IApplicationDbContext db, IClock clock) : 
                           orderby i.Sold * 1.0 / i.Quota descending, i.CreatedAt
                           select new
                           {
-                              i.Id, i.ProductId, i.SkuId, p.Name, i.FlashPrice, BasePrice = s.Price, i.Quota, i.Sold, i.PerUserLimit,
+                              i.Id, i.ProductId, i.SkuId, p.Name, p.CategoryId, i.FlashPrice, BasePrice = s.Price, i.Quota, i.Sold, i.PerUserLimit,
                               IsMall = sh.Type == Domain.Shops.ShopType.Mall, sh.IsPreferred,
                               Image = p.Media.Where(m => m.Type == Domain.Catalog.MediaType.Image).OrderBy(m => m.SortOrder).Select(m => m.Url).FirstOrDefault(),
                           }).Take(60).ToListAsync(ct);
+        // One item per model, no two neighbours of one industry (G-VIS round 2, L186); otherwise the most sold first
+        var industries = await ProductCards.IndustriesAsync(db, ct);
+        rows = ProductCards.Spread(rows, r => ProductCards.ModelKey(r.Name), r => industries.TryGetValue(r.CategoryId, out var top) ? top : null);
         // The running campaign (with a frame) each product takes part in — same rule as the cards' frames (CardPricing)
         var productIds = rows.Select(r => r.ProductId).Distinct().ToList();
         var campaigns = (await (from r in db.CampaignRegistrations.AsNoTracking()

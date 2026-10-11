@@ -35,6 +35,9 @@ public class Shop : AuditableEntity
     public string Name { get; private set; } = string.Empty;
     public string Slug { get; private set; } = string.Empty;
     public string? LogoUrl { get; private set; }
+    // The wide logo (mark + full name on one line) of the Mall pills, the shop page and the shop block of a product page,
+    // where the square logo would be cropped (G-VIS round 2); none → the pages write the name instead
+    public string? WordmarkUrl { get; private set; }
     public string? CoverUrl { get; private set; }
     public string Description { get; private set; } = string.Empty;
     public ShopType Type { get; private set; }
@@ -86,6 +89,8 @@ public class Shop : AuditableEntity
         LogoUrl = logoUrl;
         CoverUrl = coverUrl;
     }
+
+    public void SetWordmark(string? url) => WordmarkUrl = url;
 
     public void Approve(DateTimeOffset now)
     {

@@ -8,11 +8,11 @@ import { Section } from './ui';
 import './TopCategories.css';
 
 /**
- * The sales line of a top tile. One wording for the whole row (G4-A1): units of the last 30 days ("Bán 23+ / tháng")
- * when every tile has some, else the all-time total on every tile ("Đã bán 120").
+ * The sales line of a top tile, always the units of the last 30 days ("Bán 23+ / tháng", G-VIS round 2). A tile with no
+ * sale in 30 days shows no line rather than a made-up or all-time figure.
  */
-export const topSoldLine = (monthlySold: number, soldCount: number, monthly: boolean): string =>
-  monthly ? `Bán ${formatSold(monthlySold).replace(/\+$/, '')}+ / tháng` : `Đã bán ${formatSold(soldCount)}`;
+export const topSoldLine = (monthlySold: number): string | null =>
+  monthlySold > 0 ? `Bán ${formatSold(monthlySold).replace(/\+$/, '')}+ / tháng` : null;
 
 // "Tìm kiếm hàng đầu" (G2-B1): one sliding row, 6 tiles per view — the best seller of each industry
 const TopCategories = () => {
@@ -35,7 +35,6 @@ const TopCategories = () => {
     );
   }
   if (data.length === 0) return null;
-  const monthly = data.every((t) => t.monthlySold > 0);
 
   return (
     <Section title="Tìm kiếm hàng đầu" more={{ to: '/tim-kiem?sort=BestSelling' }} className="top-categories">
@@ -46,7 +45,7 @@ const TopCategories = () => {
               <span className="top-category-image">
                 <span className="top-category-badge">TOP</span>
                 <img src={imageOrPlaceholder(product.imageUrl)} srcSet={imageSrcSet(product.imageUrl)} sizes="200px" alt={category.name} loading="lazy" width={200} height={200} onError={handleImgError} />
-                <span className="top-category-sold">{topSoldLine(monthlySold, product.soldCount, monthly)}</span>
+                {topSoldLine(monthlySold) && <span className="top-category-sold">{topSoldLine(monthlySold)}</span>}
               </span>
               <span className="top-category-name">{category.name}</span>
             </Link>

@@ -20,6 +20,24 @@ namespace ShopHub.Infrastructure.Seed;
 /// </summary>
 public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage, IImageProcessor images, IClock clock, ILogger<ProductGenerator> logger)
 {
+    private const int MinGallery = 4;
+
+    // Close-up squares (centre x, centre y, side as a share of the shorter side): the middle, then the upper and lower part
+    private static readonly (double X, double Y, double Side)[] CloseUps = [(0.5, 0.5, 0.62), (0.5, 0.36, 0.55), (0.5, 0.64, 0.55)];
+
+    // Colour words of product names, two-word ones first so that "Xanh Navy" wins over "Xanh"
+    private static readonly string[] Colours =
+        ["Xanh Navy", "Xanh Dương", "Xanh Lá", "Xanh Ngọc", "Xanh Rêu", "Đỏ", "Đen", "Trắng", "Xám", "Hồng", "Tím", "Vàng", "Cam", "Nâu", "Be", "Bạc", "Xanh"];
+
+    private static readonly System.Text.RegularExpressions.Regex ColourWord = new(
+        $@"(?<!\p{{L}})(?:{string.Join('|', Colours)})(?:\s+(?:{string.Join('|', Colours)}))?(?!\p{{L}})");
+
+    /// <summary>The colour a product name says, the leftmost one with a second colour right after it ("Đỏ Đen"); null if none.</summary>
+    public static string? ColourOf(string name) => ColourWord.Match(name) is { Success: true } m ? m.Value : null;
+
+    /// <summary>The promotional cover of a model ("p007-ad.webp"): big text printed on the photo.</summary>
+    public static bool IsAdCover(string file) => Path.GetFileNameWithoutExtension(file).EndsWith("-ad", StringComparison.Ordinal);
+
     public const int Target = 1000;
 
     private const string Resource = "ShopHub.Infrastructure.Seed.Data.";
@@ -79,22 +97,33 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
 
         // Photos: processed once per model (3 WebP sizes in MinIO) and shared by every listing of the model
         var owner = shops[0].OwnerId;
-        var photos = new Dictionary<int, List<(Guid Asset, string Url)>>();
+        var photos = new Dictionary<int, List<(Guid Asset, string Url, bool Cover)>>();
         foreach (var model in models)
         {
-            var list = new List<(Guid, string)>();
-            foreach (var file in model.Images)
+            var list = new List<(Guid, string, bool)>();
+            byte[]? firstPlain = null;
+            async Task StoreAsync(string key, byte[] bytes, bool cover)
             {
-                var key = $"product/seed/{Path.GetFileNameWithoutExtension(file)}";
-                var bytes = await ReadBytesAsync($"ProductImages.{file}", ct);
                 var processed = images.Process(bytes, ImageSizes.Public);
                 foreach (var v in processed.Variants)
                     await storage.PutAsync(Buckets.Products, ImageSizes.Key(key, v.MaxSide), v.WebP, "image/webp", ct);
                 var asset = new MediaAsset(owner, MediaKind.Image, "product", Buckets.Products, key, "image/webp",
                     processed.Variants.Sum(v => (long)v.WebP.Length), processed.Width, processed.Height, null, now);
                 db.MediaAssets.Add(asset);
-                list.Add((asset.Id, storage.PublicUrl(Buckets.Products, ImageSizes.Key(key, ImageSizes.Large))));
+                list.Add((asset.Id, storage.PublicUrl(Buckets.Products, ImageSizes.Key(key, ImageSizes.Large)), cover));
             }
+            foreach (var file in model.Images)
+            {
+                var name = Path.GetFileNameWithoutExtension(file);
+                var bytes = await ReadBytesAsync($"ProductImages.{file}", ct);
+                var cover = IsAdCover(file);
+                if (!cover) firstPlain ??= bytes;
+                await StoreAsync($"product/seed/{name}", bytes, cover);
+            }
+            // A gallery of at least 4 pictures (G-VIS round 2): close-ups of the first plain photo fill the gap
+            if (firstPlain is not null)
+                foreach (var (zoom, i) in CloseUps.Take(Math.Max(0, MinGallery - list.Count)).Select((z, i) => (z, i)))
+                    await StoreAsync($"product/seed/m{model.Key:D3}-zoom{i + 1}", images.CloseUp(firstPlain, zoom.X, zoom.Y, zoom.Side), false);
             photos[model.Key] = list;
             // ~450 photos decode / resize / encode in a row: flush and collect every few models so the seed stays well
             // under the API container's memory limit (Skia's native buffers do not press the GC on their own)
@@ -183,15 +212,31 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
             long Original(long p) => discount == 0 ? p : RoundPrice(p * 100 / (100 - discount));
             int Stock() => 10 + rng.Next(390);
             var soldOut = rng.Next(25) == 0;
+            // Covers differ between listings of a model: the order of the plain photos turns with the copy number, and the
+            // promotional cover (big text on it) leads every other listing only, so a feed is not all covers. Tiles that
+            // print their own text pick the first plain photo wherever the cover sits (PlainPhotos, L182)
+            var shots = photos[model.Key];
+            var plain = shots.Where(p => !p.Cover).ToList();
+            var covers = shots.Where(p => p.Cover).ToList();
+            var turn = plain.Count == 0 ? 0 : copy % plain.Count;
+            var turned = plain.Skip(turn).Concat(plain.Take(turn)).ToList();
+            var media = (copy % 2 == 0 ? covers.Concat(turned) : turned.Concat(covers))
+                .Select(p => new MediaSpec(MediaType.Image, p.Asset, p.Url, null)).ToList();
             var tiers = new List<TierSpec>();
             var skus = new List<SkuSpec>();
             if (model.Variant is { } variant)
             {
+                // Clothes and shoes named after their colour get a "Màu Sắc" chip with the photo next to the sizes (G-VIS round 2)
+                var colour = variant.Tier is "Kích Cỡ" or "Size" ? ColourOf(model.Name) : null;
+                var swatch = shots.FirstOrDefault(p => !p.Cover).Url;
+                if (colour is not null) tiers.Add(new TierSpec("Màu Sắc", [new OptionSpec(colour, swatch)]));
                 tiers.Add(new TierSpec(variant.Tier, variant.Options.Select(o => new OptionSpec(o.Name, null)).ToList()));
                 foreach (var o in variant.Options)
                 {
                     var p = o.Delta is { } delta ? RoundPrice(price + delta) : RoundPrice(price * 2 * 95 / 100);
-                    skus.Add(new SkuSpec(o.Name, null, null, p, Original(p), soldOut ? 0 : Stock(), null, true));
+                    skus.Add(colour is null
+                        ? new SkuSpec(o.Name, null, null, p, Original(p), soldOut ? 0 : Stock(), null, true)
+                        : new SkuSpec(colour, o.Name, null, p, Original(p), soldOut ? 0 : Stock(), null, true));
                 }
             }
             else
@@ -200,10 +245,6 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
             }
             var deltas = product.SetVariants(tiers, skus);
 
-            // Covers differ between listings of a model: the photo order turns with the copy number
-            var shots = photos[model.Key];
-            var media = shots.Skip(copy % shots.Count).Concat(shots.Take(copy % shots.Count))
-                .Select(p => new MediaSpec(MediaType.Image, p.Asset, p.Url, null)).ToList();
             product.SetMedia(media);
             product.SubmitForReview(now, null);
             product.Approve(now.AddMinutes(-rng.Next(60 * 24 * 90)));

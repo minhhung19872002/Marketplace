@@ -23,6 +23,7 @@ const ShopSettingsPage = ({ shop }: { shop: MyShop }) => {
   const [description, setDescription] = useState(shop.description)
   const [logo, setLogo] = useState<MediaAsset | null>(null)
   const [cover, setCover] = useState<MediaAsset | null>(null)
+  const [wordmark, setWordmark] = useState<MediaAsset | null>(null)
   const [until, setUntil] = useState<Dayjs | null>(null)
   const [lowStock, setLowStock] = useState<number | null>(shop.lowStockThreshold)
 
@@ -30,8 +31,8 @@ const ShopSettingsPage = ({ shop }: { shop: MyShop }) => {
   const fail = (e: unknown) => void message.error(e instanceof ApiError ? e.message : 'Thao tác thất bại.')
 
   const saveProfile = useMutation({
-    mutationFn: () => sellerApi.updateShopProfile(shop.id, { description, logoAssetId: logo?.id ?? null, coverAssetId: cover?.id ?? null }),
-    onSuccess: (r) => { void message.success(r.message); setLogo(null); setCover(null); void refresh() },
+    mutationFn: () => sellerApi.updateShopProfile(shop.id, { description, logoAssetId: logo?.id ?? null, coverAssetId: cover?.id ?? null, wordmarkAssetId: wordmark?.id ?? null }),
+    onSuccess: (r) => { void message.success(r.message); setLogo(null); setCover(null); setWordmark(null); void refresh() },
     onError: fail,
   })
   const saveLowStock = useMutation({
@@ -74,6 +75,11 @@ const ShopSettingsPage = ({ shop }: { shop: MyShop }) => {
               <Typography.Text type="secondary">Ảnh bìa (ngang, ≥ 1200 px)</Typography.Text>
               {shop.coverUrl && !cover && <img src={shop.coverUrl} alt="Ảnh bìa hiện tại" className="upload-preview" />}
               <UploadBox purpose="shop" label={shop.coverUrl ? 'Đổi ảnh bìa' : 'Ảnh bìa'} value={cover} onChange={setCover} testId="cover-upload" />
+            </Space>
+            <Space direction="vertical" size={4}>
+              <Typography.Text type="secondary">Logo chữ ngang (tỉ lệ 10:3, tên đầy đủ)</Typography.Text>
+              {shop.wordmarkUrl && !wordmark && <img src={shop.wordmarkUrl} alt="Logo chữ hiện tại" className="upload-preview" />}
+              <UploadBox purpose="shop" label={shop.wordmarkUrl ? 'Đổi logo chữ' : 'Logo chữ'} value={wordmark} onChange={setWordmark} testId="wordmark-upload" />
             </Space>
           </Space>
           <Input.TextArea rows={4} placeholder="Giới thiệu shop" data-testid="shop-description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} />

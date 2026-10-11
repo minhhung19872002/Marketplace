@@ -38,6 +38,14 @@ public interface IImageProcessor
 {
     /// <exception cref="InvalidDataException">The bytes are not a decodable image.</exception>
     ProcessedImage Process(byte[] data, IReadOnlyList<int> maxSides);
+
+    /// <summary>
+    /// A square close-up of the image (PNG bytes, to feed <see cref="Process"/>): the square's side is <paramref name="side"/>
+    /// of the image's shorter side, centred at (<paramref name="centerX"/>, <paramref name="centerY"/>) in 0–1 coordinates and
+    /// kept inside the image.
+    /// </summary>
+    /// <exception cref="InvalidDataException">The bytes are not a decodable image.</exception>
+    byte[] CloseUp(byte[] data, double centerX, double centerY, double side);
 }
 
 public interface IVideoInspector

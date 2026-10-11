@@ -148,9 +148,12 @@ test.describe('Đơn hàng & vận chuyển', () => {
     }).toPass({ timeout: 20_000 });
 
     // Finance: the shop sees the order "chờ giải ngân" → release (return window over) → withdraw to its verified bank account
-    await sellerPage.goto(`${BASE}/seller/tai-chinh`);
+    // Reload only after the page has asked for the summary: the session refresh it starts with has landed by then.
+    // A reload that aborts that refresh mid-flight leaves the browser with the rotated-away token → reuse → logged out (L187)
+    const financeLoaded = () => sellerPage.waitForResponse((r) => r.url().includes('/finance/summary'), { timeout: 5_000 });
+    await Promise.all([financeLoaded(), sellerPage.goto(`${BASE}/seller/tai-chinh`)]);
     await expect(async () => {
-      await sellerPage.reload();
+      await Promise.all([financeLoaded(), sellerPage.reload()]);
       await expect(sellerPage.getByTestId('earning-net').first()).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
     // The ledger follows the order events through the outbox (dispatched every minute — run it now)

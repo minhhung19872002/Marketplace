@@ -41,8 +41,17 @@ public class HomeShortcutsTests
     {
         MarketingSeeder.Shortcuts.Select(s => s.Label).Should().Contain(["Mã Giảm Giá", "Freeship", "Deal Sốc"]);
         MarketingSeeder.Shortcuts.Single(s => s.Label == "Freeship").Link.Should().Contain("freeship=true");
-        MarketingSeeder.SideBanners.Single(b => b.Title.StartsWith("Freeship", StringComparison.Ordinal)).Link
-            .Should().Be("/tim-kiem?freeship=true", "banner Freeship mở đúng bộ lọc Freeship, không phải Bán chạy");
+    }
+
+    [Fact]
+    public void Side_banners_do_not_repeat_what_a_hero_slide_says()
+    {
+        // G-VIS round 2: the hero and the second side banner both said "Freeship ₫30K" — the three places at the top of
+        // the home page now each say something else
+        static string Theme(string title) => title.Split(" — ")[0].Trim().ToLowerInvariant();
+        var heroThemes = MarketingSeeder.MainBanners.Select(b => Theme(b.Title)).ToHashSet();
+        MarketingSeeder.SideBanners.Select(b => Theme(b.Title)).Should().NotIntersectWith(heroThemes);
+        MarketingSeeder.SideBanners.Should().NotContain(b => b.Title.Contains("Freeship", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

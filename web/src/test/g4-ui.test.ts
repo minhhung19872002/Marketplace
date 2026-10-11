@@ -21,10 +21,10 @@ describe('campaignChip', () => {
 
 describe('topSoldLine', () => {
   it('uses one wording for the whole row', () => {
-    expect(topSoldLine(6, 40, true)).toBe('Bán 6+ / tháng');
-    expect(topSoldLine(27_400, 0, true)).toBe('Bán 27k+ / tháng');
-    expect(topSoldLine(0, 3, false)).toBe('Đã bán 3');
-    expect(topSoldLine(6, 40, false)).toBe('Đã bán 40');
+    expect(topSoldLine(6)).toBe('Bán 6+ / tháng');
+    expect(topSoldLine(27_400)).toBe('Bán 27k+ / tháng');
+    // G-VIS round 2: never the all-time total; no line at all without a sale in 30 days
+    expect(topSoldLine(0)).toBeNull();
   });
 });
 

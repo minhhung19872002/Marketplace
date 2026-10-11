@@ -6,6 +6,7 @@ import { storefrontApi } from '../api/storefront';
 import { marketingApi } from '../api/marketing';
 import { handleImgError, imageOrPlaceholder, imageSrcSet, isImageUrl } from '../lib/image';
 import { BannerArt, bannerShowsTitle } from './Banner';
+import ShopWordmark from './ShopWordmark';
 import './MallBrands.css';
 
 /** Offer line of a Mall cell: the shop's running programme from the API, else its real deepest discount, else the Mall promise. */
@@ -90,9 +91,7 @@ const MallBrands = () => {
                 <img src={imageOrPlaceholder(s.coverImageUrl)} srcSet={imageSrcSet(s.coverImageUrl)} sizes="200px" alt="" loading="lazy" width={200} height={200} onError={handleImgError} />
               </span>
               <span className="mall-brand-pill">
-                {s.logoUrl
-                  ? <img className="mall-brand-logo" src={s.logoUrl} alt={s.name.replace(/^Mall /, '')} loading="lazy" width={120} height={40} onError={handleImgError} />
-                  : <span className="mall-brand-name">{s.name.replace(/^Mall /, '')}</span>}
+                <ShopWordmark name={s.name} wordmarkUrl={s.wordmarkUrl} height={36} className="mall-brand-wordmark" />
               </span>
               <span className="mall-brand-offer" title={mallOffer(s.maxDiscountPercent, s.offer)}>{mallOffer(s.maxDiscountPercent, s.offer)}</span>
             </Link>

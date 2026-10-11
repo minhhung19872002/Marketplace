@@ -77,7 +77,25 @@
   --sh-flash-track: #ffe3d9;
   --sh-flash-fill: linear-gradient(90deg, #c93d19, #d8381a);
   --sh-flash-text: #fff;
-  --sh-flash-text-track: #a8300f;
+  --sh-flash-label-bg: #a8300f;
+  /* Colour swatches of "Màu Sắc" chips (lib/swatch.ts): what the colour names mean, the same in dark mode */
+  --sh-swatch-red: #d32f2f;
+  --sh-swatch-black: #212121;
+  --sh-swatch-white: #fff;
+  --sh-swatch-grey: #9e9e9e;
+  --sh-swatch-pink: #f48fb1;
+  --sh-swatch-purple: #7b1fa2;
+  --sh-swatch-plum: #6a1b4d;
+  --sh-swatch-yellow: #fbc02d;
+  --sh-swatch-orange: #fb8c00;
+  --sh-swatch-brown: #795548;
+  --sh-swatch-beige: #e8d8b9;
+  --sh-swatch-silver: #c0c0c0;
+  --sh-swatch-blue: #1e88e5;
+  --sh-swatch-navy: #1a237e;
+  --sh-swatch-green: #43a047;
+  --sh-swatch-teal: #26a69a;
+  --sh-swatch-olive: #556b2f;
   --sh-flash-halo: rgba(0, 0, 0, 0.45);
   --sh-flash-wordmark: linear-gradient(90deg, #d0011b, #ee4d2d);
   /* G-VIS (docs/00 #203): bright header like the reference marketplace — white text on it is ≥ 3:1 only, so the header

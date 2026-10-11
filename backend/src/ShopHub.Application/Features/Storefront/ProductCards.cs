@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
 using ShopHub.Application.Abstractions;
 using ShopHub.Application.Common;
 using ShopHub.Domain.Catalog;
@@ -74,6 +75,40 @@ public static class ProductCards
             placed.Add(card);
         }
         return placed;
+    }
+
+    /// <summary>
+    /// G-VIS round 2 (L186): a list with one entry per item (the first listing of each model is kept, the same item from
+    /// other shops dropped), then reordered so that two neighbours are never of the same industry: each place takes the
+    /// first waiting entry of another industry than the last placed; when only one industry is left, the rest follows in
+    /// order. Entries without an industry count as their own.
+    /// </summary>
+    public static List<T> Spread<T>(IEnumerable<T> items, Func<T, string> model, Func<T, Guid?> industry)
+    {
+        var waiting = items.DistinctBy(model).ToList();
+        var placed = new List<T>(waiting.Count);
+        Guid? last = null;
+        while (waiting.Count > 0)
+        {
+            var i = last is null ? 0 : waiting.FindIndex(w => industry(w) is not { } g || g != last);
+            if (i < 0) i = 0;
+            placed.Add(waiting[i]);
+            last = industry(waiting[i]);
+            waiting.RemoveAt(i);
+        }
+        return placed;
+    }
+
+    /// <summary>Each category's top-level category (its industry), for <see cref="Spread{T}"/>.</summary>
+    public static async Task<Dictionary<Guid, Guid>> IndustriesAsync(IApplicationDbContext db, CancellationToken ct)
+    {
+        var parents = await db.Categories.AsNoTracking().Select(c => new { c.Id, c.ParentId }).ToDictionaryAsync(c => c.Id, c => c.ParentId, ct);
+        Guid Top(Guid id)
+        {
+            for (var guard = 0; guard < 10 && parents.TryGetValue(id, out var parent) && parent is { } p; guard++) id = p;
+            return id;
+        }
+        return parents.Keys.ToDictionary(id => id, Top);
     }
 
     public static ProductCardDto ToDto(ProductCardRow r) => new(r.Id, r.Name, r.Slug, r.ImageUrl, r.MinPrice, r.MaxPrice,

@@ -206,6 +206,11 @@ public sealed class RecentlyViewedHandler(IApplicationDbContext db, ICurrentUser
             .Take(Math.Clamp(request.Take, 1, 50)).ToListAsync(ct);
         var ids = latest.Select(x => x.ProductId).ToList();
         var rows = await ProductCards.Visible(db).AsNoTracking().Where(p => ids.Contains(p.Id)).Select(ProductCards.Row(db)).ToListAsync(ct);
-        return await pricing.ApplyAsync(ids.Select(id => rows.FirstOrDefault(r => r.Id == id)).Where(r => r is not null).Select(r => ProductCards.ToDto(r!)).ToList(), ct);
+        // One card per item, no two neighbours of one industry (G-VIS round 2, L186); otherwise the latest first
+        var categories = await db.Products.AsNoTracking().Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.CategoryId, ct);
+        var industries = await ProductCards.IndustriesAsync(db, ct);
+        var ordered = ProductCards.Spread(ids.Select(id => rows.FirstOrDefault(r => r.Id == id)).Where(r => r is not null).Select(r => r!),
+            r => ProductCards.ModelKey(r.Name), r => categories.TryGetValue(r.Id, out var c) && industries.TryGetValue(c, out var top) ? top : null);
+        return await pricing.ApplyAsync(ordered.Select(ProductCards.ToDto).ToList(), ct);
     }
 }

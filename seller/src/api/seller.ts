@@ -29,6 +29,8 @@ export interface MyShop {
   createdAt: string
   description: string
   coverUrl: string | null
+  // The wide logo (mark + full name on one line) the buyer site shows in Mall tiles, on the shop page and product pages
+  wordmarkUrl?: string | null
   lowStockThreshold: number | null
 }
 
@@ -230,7 +232,7 @@ export const sellerApi = {
   resubmitShop: (shopId: string, body: Pick<RegisterShopInput, 'personal' | 'business'>) =>
     apiCommand(`/seller/shops/${shopId}/resubmit`, { method: 'POST', body }),
   setLowStock: (shopId: string, units: number | null) => apiCommand(`${shop(shopId)}/low-stock-threshold`, { method: 'PUT', body: { units } }),
-  updateShopProfile: (shopId: string, body: { description: string; logoAssetId: string | null; coverAssetId: string | null }) =>
+  updateShopProfile: (shopId: string, body: { description: string; logoAssetId: string | null; coverAssetId: string | null; wordmarkAssetId?: string | null }) =>
     apiCommand(`${shop(shopId)}/profile`, { method: 'PUT', body }),
   setVacation: (shopId: string, until: string | null) => apiCommand(`${shop(shopId)}/vacation`, { method: 'PUT', body: { until } }),
 

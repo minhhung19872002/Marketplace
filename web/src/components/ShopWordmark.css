@@ -1,0 +1,15 @@
+/* The wide shop logo (400 × 120 art, 10:3): always whole — contain, never cover (G-VIS round 2) */
+.shop-wordmark {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.shop-wordmark--text {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

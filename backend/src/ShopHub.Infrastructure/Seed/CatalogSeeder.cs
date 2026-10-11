@@ -98,13 +98,21 @@ public sealed class CatalogSeeder(
         }
 
         var existing = await db.Shops.IgnoreQueryFilters().Select(s => s.Slug).ToListAsync(ct);
+        var seedSlugs = seed.Shops.Select(x => Slug.From(x.Name)).ToList();
+        var noWordmark = await db.Shops.Where(x => x.WordmarkUrl == null && seedSlugs.Contains(x.Slug)).ToDictionaryAsync(x => x.Slug, ct);
         var now = clock.UtcNow;
         var created = 0;
         var logos = new Dictionary<string, string>();
         for (var index = 0; index < seed.Shops.Count; index++)
         {
             var s = seed.Shops[index];
-            if (existing.Contains(Slug.From(s.Name))) continue;
+            if (existing.Contains(Slug.From(s.Name)))
+            {
+                // Installs seeded before G-VIS round 2: give the sample shop its wide logo once
+                if (noWordmark.TryGetValue(Slug.From(s.Name), out var old))
+                    old.SetWordmark(await UploadArtAsync($"shop-{index:D2}-wordmark.webp", $"shop/seed/{Slug.From(s.Name)}-wordmark", old.OwnerId, ImageSizes.Medium, ct));
+                continue;
+            }
             // A shop that joined weeks to years ago (the "Tham gia" of its page), not on the day the data was loaded
             using var joined = SystemClock.TravelTo(now.AddDays(-s.JoinedDaysAgo));
             var ownerId = owners[s.Owner % owners.Count];
@@ -112,6 +120,7 @@ public sealed class CatalogSeeder(
             var logo = await UploadArtAsync($"shop-{index:D2}-logo.webp", $"shop/seed/{Slug.From(s.Name)}-logo", ownerId, ImageSizes.Small, ct);
             var cover = await UploadArtAsync($"shop-{index:D2}-cover.webp", $"shop/seed/{Slug.From(s.Name)}-cover", ownerId, ImageSizes.Large, ct);
             shop.UpdateProfile(s.Description, logo, cover);
+            shop.SetWordmark(await UploadArtAsync($"shop-{index:D2}-wordmark.webp", $"shop/seed/{Slug.From(s.Name)}-wordmark", ownerId, ImageSizes.Medium, ct));
             if (s.Mall && s.Name.StartsWith("Mall ", StringComparison.Ordinal)) logos[s.Name["Mall ".Length..]] = logo;
             shop.Approve(clock.UtcNow);
             shop.SetLabels(s.Mall, s.Preferred);

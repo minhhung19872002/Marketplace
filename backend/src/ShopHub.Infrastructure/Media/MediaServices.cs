@@ -118,6 +118,22 @@ public sealed class SkiaImageProcessor : IImageProcessor
         return new ProcessedImage(oriented.Width, oriented.Height, variants);
     }
 
+    public byte[] CloseUp(byte[] data, double centerX, double centerY, double side)
+    {
+        using var codec = SKCodec.Create(new MemoryStream(data)) ?? throw new InvalidDataException("Không đọc được ảnh.");
+        if ((long)codec.Info.Width * codec.Info.Height > MaxPixels) throw new InvalidDataException("Ảnh quá lớn.");
+        using var raw = SKBitmap.Decode(codec) ?? throw new InvalidDataException("Không đọc được ảnh.");
+        using var oriented = Orient(raw, codec.EncodedOrigin);
+        var size = (int)Math.Round(Math.Min(oriented.Width, oriented.Height) * Math.Clamp(side, 0.1, 1.0));
+        var left = Math.Clamp((int)Math.Round(oriented.Width * centerX - size / 2.0), 0, oriented.Width - size);
+        var top = Math.Clamp((int)Math.Round(oriented.Height * centerY - size / 2.0), 0, oriented.Height - size);
+        using var crop = new SKBitmap(size, size);
+        if (!oriented.ExtractSubset(crop, SKRectI.Create(left, top, size, size))) throw new InvalidDataException("Không cắt được ảnh.");
+        using var image = SKImage.FromBitmap(crop);
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100) ?? throw new InvalidDataException("Không mã hoá được ảnh.");
+        return encoded.ToArray();
+    }
+
     private static SKBitmap Orient(SKBitmap src, SKEncodedOrigin origin)
     {
         if (origin is SKEncodedOrigin.TopLeft or SKEncodedOrigin.Default) return src.Copy();

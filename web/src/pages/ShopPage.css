@@ -491,3 +491,8 @@
   padding: 12px 16px;
   text-align: center;
 }
+
+/* The shop's wide logo above its name (G-VIS round 2) */
+.shop-wordmark-head {
+  margin-bottom: 4px;
+}

@@ -309,7 +309,8 @@ for (const h of HEROES) {
 // Side banners 398×115 at 2×, same style
 const SIDES = [
   { name: 'side-1', pal: 'pink', rib: 'MÃ GIẢM GIÁ CỦA SÀN', title: 'Voucher mỗi ngày', num: ['Mã<br>giảm', '₫50K'], tk: ['SHOPHUB50'], items: [[8, 300, 18, 46, 90, -6], [10, 335, 30, 50, 80, 6]] },
-  { name: 'side-2', pal: 'blue', rib: 'FREESHIP MỌI ĐƠN', title: 'Miễn phí vận chuyển', num: ['Freeship<br>đến', '₫30K'], tk: ['FREESHIP'], items: [[88, 270, 34, 110, 70, -10], [78, 300, 6, 80, 50, 0]] },
+  // G-VIS round 2: not a second "Freeship ₫30K" next to the hero slide saying it — the newest listings instead
+  { name: 'side-2', pal: 'green', rib: 'HÀNG MỚI', title: 'Mới lên kệ mỗi ngày', num: ['Hàng', 'MỚI'], tk: ['Xem ngay'], items: [[88, 270, 34, 110, 70, -10], [78, 300, 6, 80, 50, 0]] },
 ];
 for (const s of SIDES) {
   const p = PAL[s.pal];

@@ -149,6 +149,8 @@ export interface ShopSummary {
   // Shop rating over its reviews (recomputed on the server)
   ratingAvg: number;
   ratingCount: number;
+  // The wide logo (mark + full name on one line), null when the shop has none (G-VIS round 2)
+  wordmarkUrl?: string | null;
 }
 
 export interface ShippingDestination {
@@ -248,6 +250,8 @@ export interface MallShop {
   maxDiscountPercent: number;
   // The shop's real running programme ("Mua 2 giảm 10%", "Freeship+ cho đơn của shop"…), null when none (G-VIS)
   offer?: string | null;
+  // The wide logo of the pill (G-VIS round 2); null → the tile writes the name
+  wordmarkUrl?: string | null;
 }
 
 export interface ShopTab {

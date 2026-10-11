@@ -437,19 +437,21 @@
   object-fit: cover;
 }
 
-/* 120 × 44 pill; the square logo art is centre-cropped onto its wordmark band (cover) so the name reads at 1270 px */
+/* The pill holds the shop's wide logo whole (10:3 art, contained — never cropped, G-VIS round 2) */
 .mall-brand-pill {
-  width: min(100%, 120px);
+  width: min(100%, 136px);
   height: 44px;
-  padding: 0;
+  padding: 3px 8px;
 }
 
-.mall-brand-logo {
-  width: 120px;
-  height: 44px;
-  max-width: none;
-  object-fit: cover;
-  object-position: 50% 62%;
+.mall-brand-wordmark {
+  height: 36px;
+  margin: 0 auto;
+}
+
+.mall-brand-wordmark.shop-wordmark--text {
+  font-size: 14px;
+  text-align: center;
 }
 
 .mall-brand-offer {

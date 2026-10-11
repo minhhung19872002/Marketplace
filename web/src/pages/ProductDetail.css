@@ -1389,3 +1389,36 @@
 .btn-buy-now:hover {
   background: var(--sh-primary-dark);
 }
+
+/* The shop's wide logo above its name in the shop block (G-VIS round 2) */
+.pd-shop-wordmark {
+  margin-bottom: 2px;
+}
+
+/* Colour dot of a "Màu Sắc" chip without its own photo (G-VIS round 2) */
+.pd-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  border: 1px solid var(--sh-border-strong);
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.pd-swatch--red { background: var(--sh-swatch-red); }
+.pd-swatch--black { background: var(--sh-swatch-black); }
+.pd-swatch--white { background: var(--sh-swatch-white); }
+.pd-swatch--grey { background: var(--sh-swatch-grey); }
+.pd-swatch--pink { background: var(--sh-swatch-pink); }
+.pd-swatch--purple { background: var(--sh-swatch-purple); }
+.pd-swatch--plum { background: var(--sh-swatch-plum); }
+.pd-swatch--yellow { background: var(--sh-swatch-yellow); }
+.pd-swatch--orange { background: var(--sh-swatch-orange); }
+.pd-swatch--brown { background: var(--sh-swatch-brown); }
+.pd-swatch--beige { background: var(--sh-swatch-beige); }
+.pd-swatch--silver { background: var(--sh-swatch-silver); }
+.pd-swatch--blue { background: var(--sh-swatch-blue); }
+.pd-swatch--navy { background: var(--sh-swatch-navy); }
+.pd-swatch--green { background: var(--sh-swatch-green); }
+.pd-swatch--teal { background: var(--sh-swatch-teal); }
+.pd-swatch--olive { background: var(--sh-swatch-olive); }

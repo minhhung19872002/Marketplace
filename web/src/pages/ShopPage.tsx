@@ -16,6 +16,7 @@ import ShopVouchers from '../components/ShopVouchers';
 import { marketingApi } from '../api/marketing';
 import './ShopPage.css';
 import { usePageTitle } from '../lib/pageTitle';
+import ShopWordmark from '../components/ShopWordmark';
 import { ArrowDown, ArrowUp, Check, Plus, Search } from 'lucide-react';
 
 // Sort of the shop's product list: "Phổ biến" is the search's relevance order (sold count when there is no keyword)
@@ -139,6 +140,7 @@ const ShopPage = () => {
             {shop.logoUrl ? <img src={shop.logoUrl} alt="" onError={handleImgError} /> : shop.name.charAt(0)}
           </div>
           <div className="shop-info">
+            {shop.wordmarkUrl && <ShopWordmark name={shop.name} wordmarkUrl={shop.wordmarkUrl} height={40} className="shop-wordmark-head" />}
             <h1 className="shop-name" data-testid="shop-name">
               {shop.name} {shop.isMall && <span className="shop-badge">Mall</span>}
               {shop.isPreferred && !shop.isMall && <span className="shop-badge">Yêu thích</span>}

@@ -21,17 +21,19 @@ import ReportProduct from '../components/ReportProduct';
 import Carousel from '../components/ui/Carousel';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { clockSkew, marketingApi } from '../api/marketing';
-import { formatPrice, formatSold } from '../lib/money';
+import { formatPrice, formatPriceRange, formatSold, struckPrice } from '../lib/money';
 import { formatDate, formatSince } from '../lib/datetime';
-import { handleImgError, imageOrPlaceholder, imageSrcSet } from '../lib/image';
+import { handleImgError, imageOrPlaceholder, imageSrcSet, sizedImage } from '../lib/image';
+import { isColourTier, swatchOf } from '../lib/swatch';
 import type { ProductPage, PublicSku } from '../types';
+import ShopWordmark from '../components/ShopWordmark';
 import './ProductDetail.css';
 import { usePageTitle } from '../lib/pageTitle';
 import { toast } from '../lib/toast';
 import { Check, Zap, Store, Heart, ShoppingCart, X } from 'lucide-react';
 import { Badge, Section, Stars } from '../components/ui';
 
-const priceRange = (min: number, max: number) => (min === max ? formatPrice(min) : `${formatPrice(min)} - ${formatPrice(max)}`);
+const priceRange = formatPriceRange;
 
 /** SKUs still possible with the current selection (null = not chosen yet). */
 const matching = (skus: PublicSku[], picked: (string | null)[]) =>
@@ -74,7 +76,9 @@ const ProductView = ({ product }: { product: ProductPage }) => {
   const { has, toggle } = useWishlist();
 
   const tiers = product.tiers;
-  const [picked, setPicked] = useState<(string | null)[]>([null, null]);
+  // A tier with one choice only (the colour of a single-colour item) starts chosen (G-VIS round 2)
+  const [picked, setPicked] = useState<(string | null)[]>(() =>
+    [0, 1].map((i) => (tiers[i]?.options.length === 1 && tiers[i].options[0].available ? tiers[i].options[0].value : null)));
   const [quantity, setQuantity] = useState(1);
   const [variantError, setVariantError] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
@@ -181,6 +185,8 @@ const ProductView = ({ product }: { product: ProductPage }) => {
   const missingTiers = tiers.filter((_, i) => picked[i] == null).map((t) => t.name);
   const leaf = product.breadcrumb[product.breadcrumb.length - 1];
 
+  const struckDeal = dealPrices.length ? struckPrice(Math.min(...dealPrices), Math.max(...dealPrices), product.minPrice, product.maxPrice) : null;
+  const struckList = struckPrice(product.minPrice, product.maxPrice, product.originalMinPrice, product.originalMaxPrice);
   const priceBox = (
     <div className="product-detail-price-box">
       {sku && skuDeal ? (
@@ -200,19 +206,15 @@ const ProductView = ({ product }: { product: ProductPage }) => {
       ) : dealPrices.some((d, i) => d < product.skus[i].price) ? (
         <>
           {/* A deal on a middle SKU leaves the range unchanged: nothing to strike then */}
-          {priceRange(product.minPrice, product.maxPrice) !== priceRange(Math.min(...dealPrices), Math.max(...dealPrices)) && (
-            <span className="price-original">{priceRange(product.minPrice, product.maxPrice)}</span>
-          )}
+          {struckDeal && <span className="price-original">{struckDeal}</span>}
           <span className="price-current" data-testid="pd-price">{priceRange(Math.min(...dealPrices), Math.max(...dealPrices))}</span>
           <span className="price-discount">{flash ? 'Flash Sale' : 'Giảm giá'}</span>
         </>
       ) : (
         <>
-          {product.originalMaxPrice > product.minPrice && (
-            <span className="price-original">{priceRange(product.originalMinPrice, product.originalMaxPrice)}</span>
-          )}
+          {struckList && <span className="price-original">{struckList}</span>}
           <span className="price-current" data-testid="pd-price">{priceRange(product.minPrice, product.maxPrice)}</span>
-          {product.discountPercent > 0 && <span className="price-discount">{product.discountPercent}% GIẢM</span>}
+          {struckList && product.discountPercent > 0 && <span className="price-discount">{product.discountPercent}% GIẢM</span>}
         </>
       )}
     </div>
@@ -239,7 +241,9 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                   title={enabled ? undefined : 'Hết hàng'}
                   data-testid="variant-option"
                 >
-                  {opt.imageUrl && <img src={opt.imageUrl} alt="" className="pd-variant-img" onError={handleImgError} />}
+                  {opt.imageUrl
+                    ? <img src={sizedImage(opt.imageUrl, 200)} alt="" className="pd-variant-img" onError={handleImgError} />
+                    : isColourTier(tier.name) && swatchOf(opt.value) && <span className={`pd-swatch pd-swatch--${swatchOf(opt.value)}`} aria-hidden />}
                   {opt.value}
                   {active && <span className="pd-variant-tick" aria-hidden><Check size={10} strokeWidth={3} /></span>}
                 </button>
@@ -418,6 +422,7 @@ const ProductView = ({ product }: { product: ProductPage }) => {
             {product.shop.isMall && <Badge tone="mall" className="pd-shop-avatar-badge">Mall</Badge>}
           </Link>
           <div className="pd-shop-info">
+            {product.shop.wordmarkUrl && <ShopWordmark name={product.shop.name} wordmarkUrl={product.shop.wordmarkUrl} height={32} className="pd-shop-wordmark" />}
             <div className="pd-shop-name">{product.shop.name}</div>
             <div className="pd-shop-sub" data-testid="shop-last-active">
               {product.shop.lastActiveAt && `Online ${formatSince(product.shop.lastActiveAt)}`}

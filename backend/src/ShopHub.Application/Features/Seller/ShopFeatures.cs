@@ -54,7 +54,8 @@ public record MyShopDto(
     DateTimeOffset CreatedAt,
     string Description,
     string? CoverUrl,
-    int? LowStockThreshold = null);
+    int? LowStockThreshold = null,
+    string? WordmarkUrl = null);
 
 internal static class ShopRules
 {
@@ -220,11 +221,11 @@ public sealed class ListMyShopsHandler(IApplicationDbContext db, SellerAccess ac
                           select new { s, st }).AsNoTracking().ToListAsync(ct);
         return rows.Select(r => new MyShopDto(r.s.Id, r.s.Name, r.s.Slug, r.s.Type, r.s.Status, r.st.Role,
             r.st.Role == ShopStaffRole.Owner ? ShopPermissions.All : r.st.Permissions, r.s.LogoUrl, r.s.RejectReason,
-            r.s.LockReason, r.s.CreatedAt, r.s.Description, r.s.CoverUrl, r.s.LowStockThreshold)).ToList();
+            r.s.LockReason, r.s.CreatedAt, r.s.Description, r.s.CoverUrl, r.s.LowStockThreshold, r.s.WordmarkUrl)).ToList();
     }
 }
 
-public record UpdateShopProfileCommand(Guid ShopId, string Description, Guid? LogoAssetId, Guid? CoverAssetId) : IRequest<Unit>;
+public record UpdateShopProfileCommand(Guid ShopId, string Description, Guid? LogoAssetId, Guid? CoverAssetId, Guid? WordmarkAssetId = null) : IRequest<Unit>;
 
 public sealed class UpdateShopProfileHandler(IApplicationDbContext db, SellerAccess access, IObjectStorage storage)
     : IRequestHandler<UpdateShopProfileCommand, Unit>
@@ -232,14 +233,15 @@ public sealed class UpdateShopProfileHandler(IApplicationDbContext db, SellerAcc
     public async Task<Unit> Handle(UpdateShopProfileCommand request, CancellationToken ct)
     {
         await access.RequireAsync(request.ShopId, ShopPermissions.SettingsManage, ct);
-        var ids = new[] { request.LogoAssetId, request.CoverAssetId }.Where(i => i is not null).Select(i => i!.Value).ToList();
+        var ids = new[] { request.LogoAssetId, request.CoverAssetId, request.WordmarkAssetId }.Where(i => i is not null).Select(i => i!.Value).ToList();
         var assets = ids.Count == 0 ? [] : await MediaUrls.LoadOwnedAsync(db, access.UserId, "shop", ids, ct);
         string? Url(Guid? id, int size, string? current) =>
             id is { } v ? storage.PublicUrl(assets[v].Bucket, ImageSizes.Key(assets[v].ObjectKey, size)) : current;
         var shop = await db.Shops.FirstAsync(s => s.Id == request.ShopId, ct);
         shop.UpdateProfile(request.Description, Url(request.LogoAssetId, ImageSizes.Small, shop.LogoUrl),
             Url(request.CoverAssetId, ImageSizes.Large, shop.CoverUrl));
-        // Description / logo / cover only: written even if counters changed the row meanwhile
+        shop.SetWordmark(Url(request.WordmarkAssetId, ImageSizes.Medium, shop.WordmarkUrl));
+        // Description / logo / cover / wordmark only: written even if counters changed the row meanwhile
         await db.SaveOwnChangesAsync(ct);
         return Unit.Value;
     }

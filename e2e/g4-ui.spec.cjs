@@ -55,8 +55,8 @@ test.describe('G4 — trang người mua', () => {
     await page.getByTestId('top-category').first().waitFor();
     const lines = await page.locator('.top-category-sold').allTextContents();
     test.skip(lines.length === 0, 'Không có ô "Tìm kiếm hàng đầu"');
-    const monthly = lines.filter((l) => /\/ tháng/.test(l)).length;
-    expect([0, lines.length]).toContain(monthly);
+    // G-VIS round 2: always the units of the last 30 days
+    expect(lines.filter((l) => !/^Bán .+\+ \/ tháng$/.test(l.trim()))).toEqual([]);
   });
 
   test('Thẻ sản phẩm chưa có đánh giá chỉ hiện "Đã bán", không có chữ bị cắt (A2)', async ({ page }) => {

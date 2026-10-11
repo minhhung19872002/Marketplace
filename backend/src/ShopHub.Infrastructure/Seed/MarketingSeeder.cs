@@ -34,7 +34,7 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
     public static readonly (string Title, string Link, string Art)[] SideBanners =
     [
         ("Mã giảm giá của sàn — SHOPHUB50 giảm ₫50.000", "/tai-khoan/voucher", "side-1.webp"),
-        ("Freeship mọi đơn — giảm đến ₫30.000", "/tim-kiem?freeship=true", "side-2.webp"),
+        ("Hàng mới — mới lên kệ mỗi ngày", "/tim-kiem?sort=Newest", "side-2.webp"),
     ];
 
     // The strip of three between the Flash Sale and the categories (BannerPosition.HomeStrip)

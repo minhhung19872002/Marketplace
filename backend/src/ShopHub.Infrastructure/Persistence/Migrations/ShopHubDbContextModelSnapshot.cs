@@ -5658,6 +5658,10 @@ namespace ShopHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("voucher_xtra_since");
 
+                    b.Property<string>("WordmarkUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("wordmark_url");
+
                     b.HasKey("Id")
                         .HasName("pk_shops");
 

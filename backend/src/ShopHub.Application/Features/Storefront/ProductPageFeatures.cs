@@ -39,7 +39,9 @@ public record ShopSummaryDto(
     DateTimeOffset? LastActiveAt,
     // Đánh giá shop (II.4, E4): the recomputed average and count over the shop's reviews
     double RatingAvg,
-    int RatingCount);
+    int RatingCount,
+    // The wide logo (mark + full name), null when the shop has none (G-VIS round 2)
+    string? WordmarkUrl = null);
 
 public record ProductPageDto(
     Guid Id,
@@ -96,7 +98,7 @@ internal static class Breadcrumbs
         var lastActive = new[] { signedIn, answered }.Where(x => x is not null).Max();
         return new ShopSummaryDto(s.Id, s.Name, s.Slug, s.LogoUrl, s.Type == ShopType.Mall, s.IsPreferred, s.FollowerCount, s.ProductCount,
             s.ApprovedAt ?? s.CreatedAt, ProductCards.ShortProvince(province), s.Status == ShopStatus.Vacation, s.VacationUntil, lastActive,
-            s.RatingAvg, s.RatingCount);
+            s.RatingAvg, s.RatingCount, s.WordmarkUrl);
     }
 }
 
@@ -140,7 +142,7 @@ public sealed class GetProductPageHandler(IApplicationDbContext db) : IRequestHa
         var cheapest = skus.OrderBy(s => s.Price).FirstOrDefault();
 
         return new ProductPageDto(p.Id, p.Name, p.Slug, p.Description, p.Condition, await Breadcrumbs.ForAsync(db, p.CategoryId, ct), brand,
-            p.MinPrice, p.MaxPrice, skus.Count == 0 ? 0 : skus.Min(s => s.OriginalPrice), skus.Count == 0 ? 0 : skus.Max(s => s.OriginalPrice),
+            p.MinPrice, p.MaxPrice, skus.Count == 0 ? 0 : skus.Min(s => Math.Max(s.OriginalPrice, s.Price)), skus.Count == 0 ? 0 : skus.Max(s => Math.Max(s.OriginalPrice, s.Price)),
             cheapest is null ? 0 : ProductCards.DiscountPercent(cheapest.Price, cheapest.OriginalPrice),
             p.RatingAvg, p.RatingCount, p.SoldCount, p.LikeCount, skus.Sum(s => Math.Max(0, s.Available)), p.IsPreorder, p.PreorderDays, p.WeightG,
             p.Media.OrderBy(m => m.SortOrder).Select(m => new PublicMediaDto(m.Type.ToString(), m.Url,
@@ -254,23 +256,29 @@ public sealed class RecommendationsHandler(IApplicationDbContext db, ICurrentUse
         var visible = ProductCards.Visible(db).AsNoTracking().Where(p => !db.Shops.Any(s => s.Id == p.ShopId && s.PenaltyPoints >= restrict));
 
         // Two index-friendly lists instead of one sort of the whole catalogue (1 triệu sản phẩm, spec 6.3): the viewer's
-        // categories first, then every other best seller; the feed stops after FeedCap products ("Xem thêm" pages)
+        // categories first, then every other best seller — only ids, names and categories of the first few thousand
         var first = visible.Where(p => interests.Contains(p.CategoryId));
         var rest = interests.Count == 0 ? visible : visible.Where(p => !interests.Contains(p.CategoryId));
-        var firstCount = interests.Count == 0 ? 0 : await first.Take(FeedCap).CountAsync(ct);
-        var total = Math.Min(FeedCap, firstCount + await rest.Take(FeedCap).CountAsync(ct));
-        var offset = (request.Page - 1) * request.PageSize;
-        var take = Math.Max(0, Math.Min(request.PageSize, total - offset));
-
-        var rows = new List<ProductCardRow>();
-        if (offset < firstCount)
-            rows.AddRange(await BestSelling(first).Skip(offset).Take(Math.Min(take, firstCount - offset)).Select(ProductCards.Row(db)).ToListAsync(ct));
-        if (rows.Count < take)
-            rows.AddRange(await BestSelling(rest).Skip(Math.Max(0, offset - firstCount)).Take(take - rows.Count).Select(ProductCards.Row(db)).ToListAsync(ct));
-        // The same item from several shops is spread out, never twice in a row of the grid (G3 B2)
-        var cards = ProductCards.Diversify(rows.Select(ProductCards.ToDto).ToList());
-        return new PagedResult<ProductCardDto>(await pricing.ApplyAsync(cards.ToList(), ct), total, request.Page, request.PageSize);
+        var candidates = new List<(Guid Id, string Name, Guid CategoryId)>();
+        if (interests.Count > 0)
+            candidates.AddRange((await BestSelling(first).Take(Candidates).Select(p => new { p.Id, p.Name, p.CategoryId }).ToListAsync(ct))
+                .Select(p => (p.Id, p.Name, p.CategoryId)));
+        candidates.AddRange((await BestSelling(rest).Take(Candidates).Select(p => new { p.Id, p.Name, p.CategoryId }).ToListAsync(ct))
+            .Select(p => (p.Id, p.Name, p.CategoryId)));
+        // One listing per item and never two neighbours of one industry (G-VIS round 2, L186) — over the whole feed, so
+        // "Xem thêm" pages never repeat an item either; the feed stops after FeedCap products
+        var industries = await ProductCards.IndustriesAsync(db, ct);
+        var feed = ProductCards.Spread(candidates, c => ProductCards.ModelKey(c.Name), c => industries.TryGetValue(c.CategoryId, out var top) ? top : null)
+            .Take(FeedCap).ToList();
+        var pageIds = feed.Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).Select(c => c.Id).ToList();
+        var rows = await ProductCards.Visible(db).AsNoTracking().Where(p => pageIds.Contains(p.Id)).Select(ProductCards.Row(db)).ToListAsync(ct);
+        var cards = pageIds.Select(id => rows.FirstOrDefault(r => r.Id == id)).Where(r => r is not null).Select(r => ProductCards.ToDto(r!)).ToList();
+        return new PagedResult<ProductCardDto>(await pricing.ApplyAsync(cards, ct), feed.Count, request.Page, request.PageSize);
     }
+
+    // Listings read per list before one-per-item: the same item is listed up to 8 times (sample data), so 2 × FeedCap
+    // leaves a full feed
+    private const int Candidates = FeedCap * 2;
 
     /// <summary>Products in "Gợi ý hôm nay" at most (60 per "Xem thêm" × 20).</summary>
     public const int FeedCap = 1_200;
@@ -293,6 +301,7 @@ public sealed class TopProductsByCategoryHandler(IApplicationDbContext db, CardP
         var all = await db.Categories.AsNoTracking().Where(c => c.IsActive).Select(c => new { c.Id, c.ParentId, c.Name, c.Slug, c.SortOrder }).ToListAsync(ct);
         var hidden = await Catalog.CategoryVisibility.HiddenIdsAsync(db, ct);
         var result = new List<TopCategoryProductDto>();
+        var since = clock.UtcNow.AddDays(-30);
         foreach (var top in all.Where(c => c.ParentId is null && !hidden.Contains(c.Id)).OrderBy(c => c.SortOrder))
         {
             var leafIds = new List<Guid>();
@@ -303,13 +312,17 @@ public sealed class TopProductsByCategoryHandler(IApplicationDbContext db, CardP
                 leafIds.AddRange(frontier);
                 frontier = children;
             }
+            // The best seller of the last 30 days, as the tile says "Bán x+ / tháng" (G-VIS round 2); all-time sales break ties
             var row = await ProductCards.Visible(db).AsNoTracking().Where(p => leafIds.Contains(p.CategoryId))
-                .OrderByDescending(p => p.SoldCount).ThenByDescending(p => p.RatingAvg).ThenByDescending(p => p.PublishedAt).ThenBy(p => p.Id)
+                .OrderByDescending(p => (from i in db.OrderItems
+                                         join o in db.Orders on i.OrderId equals o.Id
+                                         where i.ProductId == p.Id && o.CreatedAt >= since && o.Status != Domain.Sales.OrderStatus.Cancelled
+                                         select (int?)i.Quantity).Sum() ?? 0)
+                .ThenByDescending(p => p.SoldCount).ThenByDescending(p => p.RatingAvg).ThenByDescending(p => p.PublishedAt).ThenBy(p => p.Id)
                 .Select(ProductCards.Row(db)).FirstOrDefaultAsync(ct);
             if (row is not null) result.Add(new TopCategoryProductDto(new CategoryCrumbDto(top.Id, top.Name, top.Slug), ProductCards.ToDto(row)));
         }
         var priced = (await pricing.ApplyAsync(result.Select(r => r.Product).ToList(), ct)).ToDictionary(c => c.Id);
-        var since = clock.UtcNow.AddDays(-30);
         var productIds = result.Select(r => r.Product.Id).ToList();
         var monthly = await (from i in db.OrderItems.AsNoTracking()
                              join o in db.Orders.AsNoTracking() on i.OrderId equals o.Id
@@ -327,15 +340,19 @@ public sealed class TopProductsByCategoryHandler(IApplicationDbContext db, CardP
 }
 
 /// <summary>
-/// The product's second photo when it has more than one (G-VIS): the first is often a promotional cover with big text,
-/// right for a product card but not for tiles that print their own text over the photo (Tìm kiếm hàng đầu, Mall).
+/// The product's first photo that is not a promotional cover (G-VIS): a cover with big text ("p007-ad") is right for a
+/// product card but not for tiles that print their own text over the photo (Tìm kiếm hàng đầu, Mall). Products whose
+/// photos are all covers are left out (the caller keeps the card image). Close-ups come after the plain photos, so they are
+/// never picked while a plain photo exists (L182).
 /// </summary>
 internal static class PlainPhotos
 {
+    public static bool IsCover(string url) => url.Contains("-ad_", StringComparison.Ordinal) || url.Contains("-ad.", StringComparison.Ordinal);
+
     public static async Task<Dictionary<Guid, string>> OfAsync(IApplicationDbContext db, IReadOnlyCollection<Guid> productIds, CancellationToken ct) =>
         (await db.ProductMedia.AsNoTracking().Where(m => productIds.Contains(m.ProductId) && m.Type == MediaType.Image)
             .OrderBy(m => m.ProductId).ThenBy(m => m.SortOrder).ThenBy(m => m.Id).Select(m => new { m.ProductId, m.Url }).ToListAsync(ct))
-        .GroupBy(m => m.ProductId).Where(g => g.Count() > 1).ToDictionary(g => g.Key, g => g.ElementAt(1).Url);
+        .Where(m => !IsCover(m.Url)).GroupBy(m => m.ProductId).ToDictionary(g => g.Key, g => g.First().Url);
 }
 
 // MaxDiscountPercent: the deepest real discount among the shop's SKUs on sale ("Giảm đến …%" — never a made-up claim)
@@ -344,6 +361,30 @@ internal static class PlainPhotos
 public record MallShopDto(Guid Id, string Name, string Slug, string? LogoUrl, string? CoverImageUrl, int ProductCount, int MaxDiscountPercent = 0)
 {
     public string? Offer { get; init; }
+    // The wide logo of the pill (mark + full name on one line, G-VIS round 2); null → the tile writes the name
+    public string? WordmarkUrl { get; init; }
+}
+
+/// <summary>
+/// The short offer line of a Mall tile, built from the programme's rules rather than its free-text name so that it fits
+/// one line ("Quà tặng đơn 300K", "Mua 2 giảm 10%") — G-VIS round 2, L185.
+/// </summary>
+public static class MallOffer
+{
+    public static string? Of(Domain.Promo.PromotionType type, int minQuantity, int discountBp, long discountAmount, long minSpend) => type switch
+    {
+        Domain.Promo.PromotionType.Combo when discountBp > 0 => $"Mua {Math.Max(2, minQuantity)} giảm {discountBp / 100}%",
+        Domain.Promo.PromotionType.Combo when discountAmount > 0 => $"Mua {Math.Max(2, minQuantity)} giảm {Short(discountAmount)}",
+        Domain.Promo.PromotionType.Combo => "Combo ưu đãi",
+        Domain.Promo.PromotionType.AddOn => "Mua kèm deal sốc",
+        Domain.Promo.PromotionType.Gift => minSpend > 0 ? $"Quà tặng đơn {Short(minSpend)}" : "Có quà tặng",
+        _ => null,
+    };
+
+    /// <summary>300000 → "300K", 1500000 → "1,5TR" (as shoppers write amounts on banners).</summary>
+    public static string Short(long vnd) => vnd >= 1_000_000
+        ? $"{(vnd / 100_000 / 10.0).ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo("vi-VN"))}TR"
+        : $"{vnd / 1_000}K";
 }
 
 public record MallShopsQuery(int Take = 12) : IRequest<IReadOnlyList<MallShopDto>>;
@@ -357,7 +398,8 @@ public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : I
         var now = clock.UtcNow;
         var programmes = await db.Promotions.AsNoTracking()
             .Where(p => ids.Contains(p.ShopId) && p.Status == Domain.Promo.PromotionStatus.Active && p.StartAt <= now && p.EndAt > now)
-            .OrderBy(p => p.Type).ThenBy(p => p.Id).Select(p => new { p.ShopId, p.Name }).ToListAsync(ct);
+            .Where(p => p.Type != Domain.Promo.PromotionType.Discount)
+            .OrderBy(p => p.Type).ThenBy(p => p.Id).Select(p => new { p.ShopId, p.Type, p.MinQuantity, p.DiscountBp, p.DiscountAmount, p.MinSpend }).ToListAsync(ct);
         var freeship = (await db.Shops.AsNoTracking().Where(s => ids.Contains(s.Id) && s.FreeshipXtraSince != null).Select(s => s.Id).ToListAsync(ct)).ToHashSet();
         // The tile's photo: a plain one, like Tìm kiếm hàng đầu (the first photo may be a cover with text)
         var covers = shops.Where(s => s.CoverImageUrl != null).Select(s => s.CoverImageUrl!).ToList();
@@ -365,8 +407,9 @@ public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : I
         var plain = await PlainPhotos.OfAsync(db, coverProducts.Select(c => c.ProductId).Distinct().ToList(), ct);
         return shops.Select(s =>
         {
-            var offer = programmes.FirstOrDefault(p => p.ShopId == s.Id)?.Name
-                        ?? (s.MaxDiscountPercent > 0 ? $"Ưu đãi đến {s.MaxDiscountPercent}%" : freeship.Contains(s.Id) ? "Freeship+ cho đơn của shop" : null);
+            var programme = programmes.FirstOrDefault(p => p.ShopId == s.Id);
+            var offer = (programme is null ? null : MallOffer.Of(programme.Type, programme.MinQuantity, programme.DiscountBp, programme.DiscountAmount, programme.MinSpend))
+                        ?? (s.MaxDiscountPercent > 0 ? $"Ưu đãi đến {s.MaxDiscountPercent}%" : freeship.Contains(s.Id) ? "Freeship+" : null);
             var product = coverProducts.FirstOrDefault(c => c.Url == s.CoverImageUrl)?.ProductId;
             return s with { Offer = offer, CoverImageUrl = product is { } pid && plain.TryGetValue(pid, out var url) ? url : s.CoverImageUrl };
         }).ToList();
@@ -385,7 +428,7 @@ public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : I
                 s.ProductCount,
                 db.Products.Where(p => p.ShopId == s.Id && p.Status == ProductStatus.Active)
                     .SelectMany(p => p.Skus.Where(k => k.IsActive && k.OriginalPrice > k.Price))
-                    .Max(k => (int?)((k.OriginalPrice - k.Price) * 100 / k.OriginalPrice)) ?? 0))
+                    .Max(k => (int?)((k.OriginalPrice - k.Price) * 100 / k.OriginalPrice)) ?? 0) { WordmarkUrl = s.WordmarkUrl })
             .ToListAsync(ct);
 }
 

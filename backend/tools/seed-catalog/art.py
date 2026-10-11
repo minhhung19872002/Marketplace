@@ -5,7 +5,8 @@ font, downloaded once from Google Fonts into .cache — OFL licence).
     python backend/tools/seed-catalog/art.py --logos     # only the 30 shop logos (no product photos needed)
 
 Writes to Seed/Data/Art/:
-- shop-<n>-logo.webp (256 px: a drawn mark + the shop name as a wordmark, each shop its own colour and type style; all
+- shop-<n>-wordmark.webp (400×120: the mark and the full name on one line) and
+  shop-<n>-logo.webp (256 px: a drawn mark + the shop name as a wordmark, each shop its own colour and type style; all
   of it inside the inscribed circle, so pages that crop logos round still show it) and shop-<n>-cover.webp (1200×300)
 - hero-<n>.webp (1440×600, 2.4:1, empty left half for the HTML title) and side banners are drawn in CSS
 - popup.webp (720×720) and event-1010.webp (1440×480, the campaign headline drawn in)
@@ -341,6 +342,49 @@ def draw_logo(shop: dict, index: int) -> Image.Image:
     return im.resize((LOGO, LOGO), Image.LANCZOS)
 
 
+# ---- wide wordmarks (G-VIS round 2): mark + the full name on ONE line, for the Mall pills, the shop page and the shop
+# block of the product page, where a round logo would be cropped ----
+WORD_W, WORD_H = 400, 120
+
+
+def draw_wordmark(shop: dict, index: int) -> Image.Image:
+    name = shop['name'][len('Mall '):] if shop['name'].startswith('Mall ') else shop['name']
+    look = dict(LOGO_LOOKS.get(shop['name']) or CYCLE[index % len(CYCLE)])
+    look.setdefault('mark', NAME_MARK.get(shop['name']) or INDUSTRY_MARK.get(shop['sells'][0], 'store'))
+    colour = hex_rgb(shop['color'])
+    deep = tuple(int(v * 0.7) for v in colour)
+    white, tint = (255, 255, 255), lighter(colour, 0.9)
+    im = Image.new('RGB', (WORD_W * K, WORD_H * K), white)
+    d = ImageDraw.Draw(im)
+    text = look.get('name', name)
+    parts = list(look['split']) if 'split' in look else [text.upper() if look.get('upper') else text]
+    track = look.get('track', 0)
+    disc = 46  # radius of the tinted disc holding the mark
+    gap = 14
+    max_w = WORD_W - 2 * 10 - 2 * disc - gap
+    size = 58
+    while True:
+        fonts = [logo_font(look['style'], size, look['weight'])]
+        fonts.append(logo_font(look['style'], size, look['light']) if 'light' in look else fonts[0])
+        width = sum(_text_w(d, p, fonts[min(n, 1)], track) for n, p in enumerate(parts)) / K
+        if width <= max_w or size <= 18:
+            break
+        size -= 1
+    left = (WORD_W - (2 * disc + gap + width)) / 2
+    cy = WORD_H / 2
+    _ellipse(d, left + disc, cy, disc, disc, fill=tint)
+    mark(d, look['mark'], left + disc, cy, 24, colour, tint)
+    x = (left + 2 * disc + gap) * K
+    # The capital letters are centred on the disc (accents and descenders may stick out)
+    _, cap_top, _, base = fonts[0].getbbox('H')
+    y = cy * K - (cap_top + base) / 2
+    for n, part in enumerate(parts):
+        font = fonts[min(n, 1)]
+        _part(im, d, x, y, part, font, deep if n == 0 else colour, track, look.get('italic'))
+        x += _text_w(d, part, font, track)
+    return im.resize((WORD_W, WORD_H), Image.LANCZOS)
+
+
 def main():
     ensure_fonts()
     ensure_logo_fonts()
@@ -354,6 +398,7 @@ def main():
     for i, s in enumerate(seed['shops']):
         colour = hex_rgb(s['color'])
         save(draw_logo(s, i), f'shop-{i:02d}-logo.webp', quality=90)
+        save(draw_wordmark(s, i), f'shop-{i:02d}-wordmark.webp', quality=90)
 
         cover = gradient((1200, 300), lighter(colour, 0.15), colour).convert('RGBA')
         blobs(cover, (255, 255, 255), i)
@@ -415,6 +460,7 @@ if __name__ == '__main__':
         ensure_logo_fonts()
         for n, shop in enumerate(json.load(open(os.path.join(DATA, 'catalog-seed.json'), encoding='utf-8'))['shops']):
             save(draw_logo(shop, n), f'shop-{n:02d}-logo.webp', quality=90)
+            save(draw_wordmark(shop, n), f'shop-{n:02d}-wordmark.webp', quality=90)
         print('logos written')
     else:
         main()

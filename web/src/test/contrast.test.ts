@@ -78,12 +78,16 @@ describe('contrast', () => {
     expect(contrast(token('sh-price'), '#fafafa')).toBeGreaterThanOrEqual(4.5);
   });
 
-  // Flash Sale bar (G-VIS round 2): the label is drawn twice — dark orange on the pale track, white clipped to the fill
-  it('Flash Sale bar label: dark on the track, white on the fill', () => {
-    expect(contrast(token('sh-flash-text-track'), token('sh-flash-track'))).toBeGreaterThanOrEqual(4.5);
+  // Flash Sale bar (G-VIS round 2, L183): ONE label in one colour, on its own opaque layer — so what it is read against is
+  // the same at 0 %, 50 % and 100 % fill. The earlier label drawn twice (dark on the track, white clipped to the fill)
+  // changed colour in the middle of a word.
+  it('Flash Sale bar label: one colour on its own layer, the same contrast at every fill', () => {
     const flashCss = readFileSync(join(SRC_ROOT, 'components/FlashSaleBlock.css'), 'utf8');
-    expect(flashCss).toMatch(/\.flash-item-bar-text \{[^}]*color: var\(--sh-flash-text-track\)/);
-    expect(flashCss).toMatch(/\.flash-item-bar-text--on-fill \{[^}]*color: var\(--sh-flash-text\)/);
+    const flashTsx = readFileSync(join(SRC_ROOT, 'components/FlashSaleBlock.tsx'), 'utf8');
+    expect(flashTsx).not.toMatch(/on-fill|clipPath/);
+    expect(flashCss).not.toMatch(/on-fill/);
+    expect(flashCss).toMatch(/\.flash-item-bar-text \{[^}]*color: var\(--sh-flash-text\)[^}]*background: var\(--sh-flash-label-bg\)/);
+    for (const fill of [0, 50, 100]) expect(contrast(token('sh-flash-text'), token('sh-flash-label-bg')), `${fill} %`).toBeGreaterThanOrEqual(4.5);
   });
 
   it('home section titles and the Flash Sale wordmark (large text, 3:1) read on white', () => {

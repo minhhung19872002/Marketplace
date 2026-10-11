@@ -36,13 +36,13 @@ public sealed class SellerController : ApiControllerBase
         return OkData<object?>(null, "Đã gửi lại hồ sơ.");
     }
 
-    public record ProfileRequest(string Description, Guid? LogoAssetId, Guid? CoverAssetId);
+    public record ProfileRequest(string Description, Guid? LogoAssetId, Guid? CoverAssetId, Guid? WordmarkAssetId = null);
 
     [HttpPut("shops/{shopId:guid}/profile")]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateProfile(Guid shopId, [FromBody] ProfileRequest body, CancellationToken ct)
     {
-        await Sender.Send(new UpdateShopProfileCommand(shopId, body.Description, body.LogoAssetId, body.CoverAssetId), ct);
+        await Sender.Send(new UpdateShopProfileCommand(shopId, body.Description, body.LogoAssetId, body.CoverAssetId, body.WordmarkAssetId), ct);
         return OkData<object?>(null, "Đã lưu hồ sơ shop.");
     }
 

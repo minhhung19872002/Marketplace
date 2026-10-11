@@ -53,6 +53,7 @@ describe('sentence case', () => {
     'pages/HomePage.css .home-daily-title', // "Gợi ý hôm nay"
     'components/FlashSaleBlock.css .flash-sale-wordmark', // "Flash Sale"
     'components/FlashSaleBlock.css .flash-item-bar-text', // "Đang bán chạy", "Đã bán N", "Vừa mở bán"…
+    'pages/FlashSalePage.css .flash-page-wordmark', // "Flash Sale" in the band of /flash-sale (G5-B)
   ];
   const uppercaseRules = () =>
     sourceFiles(['.css']).flatMap((file) =>

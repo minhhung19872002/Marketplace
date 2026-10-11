@@ -101,3 +101,12 @@ Nếu lỗi tái hiện được thì xem lại hai chỗ:
 `e2e/tools/site-audit.cjs`, công cụ đã có từ G4-A. Danh sách trang của nó phải gồm đủ 19 đường dẫn ở mục 1, nhất là
 `/flash-sale`, `/su-kien/…`, `/tra-cuu-van-don/<mã>` và `/tai-ung-dung`. Ảnh minh hoạ của kịch bản trình diễn nằm ở
 `docs/images/10-*.jpg`.
+
+## 5. G5-B — đã làm trên nhánh `claude/new-session-3hijvg` (để gộp với vòng 2)
+
+Chỉ sửa tệp riêng của từng trang. Không đụng `ProductCard`, `ProductDetail`, `HomePage`, các component trang chủ, bộ gieo.
+Thành phần dùng chung mới là **tệp mới** trong `components/ui/`. Mỗi mục một commit.
+
+| Mục | Tệp đã sửa / thêm | Thay đổi | Khả năng xung đột với vòng 2 |
+|---|---|---|---|
+| Flash Sale | `pages/FlashSalePage.tsx`, `pages/FlashSalePage.css`, `test/sentence-case.test.ts` (+1 dòng `UPPERCASE_ALLOWED`) | Dải cam sáng có wordmark "Flash Sale" (h1) và một đồng hồ cho khung đang chọn. Đầu khối của `FlashSaleBoard` bị ẩn bằng CSS của trang (`.flash-page .flash-sale-head`), không sửa `FlashSaleBlock`. Tab khung giờ: khung đang chọn nền cam sáng, giờ 20 px đậm, trạng thái / ngày trong viên trắng. Tiêu đề tab "Flash Sale" | Thấp. Nếu vòng 2 đổi class `.flash-sale-head` trong `FlashSaleBlock` thì sửa selector ẩn ở `FlashSalePage.css`. `sentence-case.test.ts`: vòng 2 có thể cũng thêm dòng vào cùng mảng, khi gộp giữ cả hai |

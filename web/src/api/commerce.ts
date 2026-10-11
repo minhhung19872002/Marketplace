@@ -376,7 +376,8 @@ export interface Tracking {
 }
 
 export const trackingApi = {
-  get: (trackingNo: string) => apiRequest<Tracking>(`/tracking/${encodeURIComponent(trackingNo.trim())}`, { auth: false }),
+  // null: no parcel has that number (200, not an error — L190)
+  get: (trackingNo: string) => apiRequest<Tracking | null>(`/tracking/${encodeURIComponent(trackingNo.trim())}`, { auth: false }),
 };
 
 // ---------- notifications ----------

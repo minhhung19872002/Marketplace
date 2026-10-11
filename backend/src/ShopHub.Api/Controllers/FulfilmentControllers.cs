@@ -157,11 +157,18 @@ public sealed class OrderActionsController : ApiControllerBase
 [Route("api")]
 public sealed class LogisticsController(CarrierWebhookIntake intake) : ApiControllerBase
 {
-    /// <summary>Public parcel tracking by tracking number (status and events only — no names, phones or addresses).</summary>
+    /// <summary>
+    /// Public parcel tracking by tracking number (status and events only — no names, phones or addresses). An unknown
+    /// number is 200 with <c>data: null</c> and the message, not a 404 (L190).
+    /// </summary>
     [HttpGet("tracking/{trackingNo}")]
     [AllowAnonymous]
     [ProducesResponseType<ApiResponse<TrackingDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Track(string trackingNo, CancellationToken ct) => OkData(await Sender.Send(new TrackShipmentQuery(trackingNo), ct));
+    public async Task<IActionResult> Track(string trackingNo, CancellationToken ct)
+    {
+        var tracking = await Sender.Send(new TrackShipmentQuery(trackingNo), ct);
+        return OkData(tracking, tracking is null ? "Không tìm thấy mã vận đơn." : "");
+    }
 
     /// <summary>Carrier → ShopHub status notification. Authenticity comes from the carrier's signature; replays are ignored.</summary>
     [HttpPost("logistics/webhooks/{provider}")]

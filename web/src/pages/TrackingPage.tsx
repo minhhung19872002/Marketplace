@@ -55,8 +55,13 @@ const TrackingPage = () => {
           <p className="tracking-hint">Mã vận đơn có trên phiếu giao hàng và trong chi tiết đơn ở mục Đơn mua.</p>
         )}
         {trackingNo.length > 0 && (
-          <QueryState query={tracking} loading={<p className="tracking-hint">Đang tra cứu…</p>}>
-            {(data) => (
+          <QueryState query={tracking} loading={<p className="tracking-hint">Đang tra cứu…</p>} isEmpty={(data) => data === null}
+            emptyText={(
+              <p className="tracking-hint" data-testid="tracking-not-found">
+                Không tìm thấy mã vận đơn <strong>{trackingNo}</strong>. Bạn kiểm tra lại mã trên phiếu giao hàng hoặc trong chi tiết đơn nhé.
+              </p>
+            )}>
+            {(data) => data && (
               <section className="tracking-card" data-testid="tracking-result">
                 <div className="tracking-facts">
                   <div><span>Mã vận đơn</span><strong>{data.trackingNo}</strong></div>

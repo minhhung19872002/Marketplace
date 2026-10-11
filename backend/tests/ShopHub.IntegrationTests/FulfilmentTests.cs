@@ -117,6 +117,17 @@ public class FulfilmentTests(ApiFactory factory)
     // ---------- the happy path ----------
 
     [Fact]
+    public async Task Tracking_an_unknown_number_answers_200_with_no_parcel_not_an_error()
+    {
+        // G5-A: a 404 here left a red "Failed to load resource" in the browser console for an everyday typo (L190)
+        var res = await factory.CreateClient().GetAsync("/api/tracking/SPX000000000");
+        res.StatusCode.Should().Be(HttpStatusCode.OK);
+        var envelope = await res.ReadEnvelopeAsync();
+        envelope.Data.ValueKind.Should().Be(JsonValueKind.Null);
+        envelope.Message.Should().Be("Không tìm thấy mã vận đơn.");
+    }
+
+    [Fact]
     public async Task Cod_order_goes_from_confirmation_to_completed_through_the_simulated_carrier()
     {
         var p = await PlaceAsync(quantity: 2);

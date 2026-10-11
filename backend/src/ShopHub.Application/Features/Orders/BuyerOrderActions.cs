@@ -188,15 +188,16 @@ public sealed class BuyAgainHandler(IApplicationDbContext db, CartStore carts, I
 public record TrackingDto(string TrackingNo, string CarrierName, ShipmentStatus Status, string StatusLabel, DateTimeOffset ExpectedDeliveryAt,
     IReadOnlyList<ShipmentEventDto> Events);
 
-public record TrackShipmentQuery(string TrackingNo) : IRequest<TrackingDto>;
+// null: no parcel has that number — an everyday typo on a public page, answered 200 rather than as an error (L190)
+public record TrackShipmentQuery(string TrackingNo) : IRequest<TrackingDto?>;
 
-public sealed class TrackShipmentHandler(IApplicationDbContext db) : IRequestHandler<TrackShipmentQuery, TrackingDto>
+public sealed class TrackShipmentHandler(IApplicationDbContext db) : IRequestHandler<TrackShipmentQuery, TrackingDto?>
 {
-    public async Task<TrackingDto> Handle(TrackShipmentQuery request, CancellationToken ct)
+    public async Task<TrackingDto?> Handle(TrackShipmentQuery request, CancellationToken ct)
     {
         var no = request.TrackingNo.Trim().ToUpperInvariant();
-        var s = await db.Shipments.AsNoTracking().Include(x => x.Events).FirstOrDefaultAsync(x => x.TrackingNo == no, ct)
-                ?? throw new NotFoundException("Không tìm thấy mã vận đơn.");
+        var s = await db.Shipments.AsNoTracking().Include(x => x.Events).FirstOrDefaultAsync(x => x.TrackingNo == no, ct);
+        if (s is null) return null;
         var carrier = await db.Carriers.Where(c => c.Code == s.CarrierCode).Select(c => c.Name).FirstOrDefaultAsync(ct) ?? s.CarrierCode;
         var dto = ShipmentDto.From(s, carrier);
         return new TrackingDto(s.TrackingNo, carrier, s.Status, dto.StatusLabel, s.ExpectedDeliveryAt, dto.Events);

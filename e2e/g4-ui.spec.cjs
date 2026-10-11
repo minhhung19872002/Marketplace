@@ -102,4 +102,14 @@ test.describe('G4 — trang người mua', () => {
     await phone.getByTestId('content-toc').locator('summary').click();
     await expect(phone.getByTestId('content-toc').locator('a').first()).toBeVisible();
   });
+
+  test('Tra mã vận đơn không có: báo "không tìm thấy", không lỗi đỏ trong console (L190)', async ({ page }) => {
+    const errors = [];
+    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    page.on('response', (r) => { if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`); });
+    await page.goto(`${BASE}/tra-cuu-van-don/SPX000000000`);
+    await expect(page.getByTestId('tracking-not-found')).toContainText('SPX000000000');
+    await expect(page).toHaveTitle(/Vận đơn SPX000000000/);
+    expect(errors).toEqual([]);
+  });
 });

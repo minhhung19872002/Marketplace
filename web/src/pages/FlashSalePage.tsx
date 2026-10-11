@@ -10,30 +10,34 @@ import { formatClock, formatDate } from '../lib/datetime';
 import { usePageTitle } from '../lib/pageTitle';
 import './FlashSalePage.css';
 
-/** The bright band at the top (G5-B): the wordmark and one countdown for the chosen slot, on the server's clock. */
-const FlashHero = ({ board }: { board: FlashBoard | undefined }) => {
+/** The countdown of the band; remounted per board so the clock skew is measured again for each one. */
+const FlashWhen = ({ board }: { board: FlashBoard }) => {
   const queryClient = useQueryClient();
-  const slot = board?.slot;
+  const slot = board.slot!;
   // Measured once per board, like the home block (spec 3.10 — never the visitor's clock)
-  const [skew] = useState(() => (board ? clockSkew(board.serverTime, Date.now()) : 0));
+  const [skew] = useState(() => clockSkew(board.serverTime, Date.now()));
   return (
-    <div className="flash-page-hero">
-      <div className="container flash-page-hero-inner">
-        <h1 className="flash-page-heading">
-          <AlarmClock className="flash-page-clock" size={34} strokeWidth={2.4} aria-hidden />
-          <span className="flash-page-wordmark">Flash Sale</span>
-        </h1>
-        {slot && (
-          <p className="flash-page-when">
-            <span>{slot.running ? 'Kết thúc sau' : `Bắt đầu lúc ${formatClock(slot.startAt)} — còn`}</span>
-            <Countdown endAt={slot.running ? slot.endAt : slot.startAt} skewMs={skew}
-              onDone={() => void queryClient.invalidateQueries({ queryKey: ['flash-sale'] })} />
-          </p>
-        )}
-      </div>
-    </div>
+    <p className="flash-page-when">
+      <span>{slot.running ? 'Kết thúc sau' : `Bắt đầu lúc ${formatClock(slot.startAt)} — còn`}</span>
+      <Countdown endAt={slot.running ? slot.endAt : slot.startAt} skewMs={skew}
+        onDone={() => void queryClient.invalidateQueries({ queryKey: ['flash-sale'] })} />
+    </p>
   );
 };
+
+/** The bright band at the top (G5-B): the wordmark and one countdown for the chosen slot, on the server's clock.
+ *  The band itself stays mounted while the data loads or the slot changes — only the countdown is keyed (L188). */
+const FlashHero = ({ board }: { board: FlashBoard | undefined }) => (
+  <div className="flash-page-hero">
+    <div className="container flash-page-hero-inner">
+      <h1 className="flash-page-heading">
+        <AlarmClock className="flash-page-clock" size={34} strokeWidth={2.4} aria-hidden />
+        <span className="flash-page-wordmark">Flash Sale</span>
+      </h1>
+      {board?.slot && <FlashWhen key={`${board.slot.id}-${board.serverTime}`} board={board} />}
+    </div>
+  </div>
+);
 
 /** Trang Flash Sale (II.1, E8): the running slot and the next ones, every item of the chosen slot. */
 const FlashSalePage = () => {
@@ -51,7 +55,7 @@ const FlashSalePage = () => {
 
   return (
     <div className="flash-page">
-      <FlashHero key={shown.data ? `${shown.data.slot?.id}-${shown.data.serverTime}` : 'loading'} board={shown.data} />
+      <FlashHero board={shown.data} />
       <div className="container flash-page-body">
         {slots.length > 0 && (
           // The slot bar scrolls inside itself with arrows, no browser scrollbar (G4-A3)

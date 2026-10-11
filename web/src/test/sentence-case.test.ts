@@ -54,6 +54,7 @@ describe('sentence case', () => {
     'components/FlashSaleBlock.css .flash-sale-wordmark', // "Flash Sale"
     'components/FlashSaleBlock.css .flash-item-bar-text', // "Đang bán chạy", "Đã bán N", "Vừa mở bán"…
     'pages/FlashSalePage.css .flash-page-wordmark', // "Flash Sale" in the band of /flash-sale (G5-B)
+    'pages/CampaignPage.css .campaign-page .sh-section-title', // block heads of /su-kien/:slug, as on the home page (G5-B)
   ];
   const uppercaseRules = () =>
     sourceFiles(['.css']).flatMap((file) =>

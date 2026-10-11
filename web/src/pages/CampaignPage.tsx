@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { marketingApi, type CampaignBlock, type CampaignVoucher } from '../api/marketing';
 import { walletApi } from '../api/commerce';
@@ -11,6 +11,8 @@ import { BannerArt, bannerShowsTitle } from '../components/Banner';
 import { formatPrice } from '../lib/money';
 import { formatDate } from '../lib/datetime';
 import QueryState from '../components/QueryState';
+import { Section, Ticket, VoucherStub } from '../components/ui';
+import { usePageTitle } from '../lib/pageTitle';
 import './CampaignPage.css';
 
 const describe = (v: CampaignVoucher) =>
@@ -18,23 +20,30 @@ const describe = (v: CampaignVoucher) =>
     : v.type === 'Amount' ? `Giảm ${formatPrice(v.discountValue)}`
       : `Giảm ${v.discountPercentBp / 100}%${v.maxDiscount ? ` tối đa ${formatPrice(v.maxDiscount)}` : ''}`;
 
+/** A platform voucher of the campaign as a ticket (G5-B): "Lưu" puts it in the voucher wallet; a guest signs in first. */
 const VoucherTile = ({ v }: { v: CampaignVoucher }) => {
   const { isLoggedIn } = useAuth();
-  const [state, setState] = useState('');
+  const location = useLocation();
+  const [saved, setSaved] = useState(false);
+  const [message, setMessage] = useState('');
   const claim = async () => {
     try {
-      setState((await walletApi.claim(v.id)).message);
+      setMessage((await walletApi.claim(v.id)).message);
+      setSaved(true);
     } catch (e) {
-      setState(e instanceof ApiError ? e.message : 'Không lưu được mã.');
+      setMessage(e instanceof ApiError ? e.message : 'Không lưu được mã.');
     }
   };
+  const action = isLoggedIn
+    ? <button type="button" onClick={() => void claim()} disabled={saved} data-testid="campaign-voucher-save">{saved ? 'Đã lưu' : 'Lưu'}</button>
+    : <Link to="/dang-nhap" state={{ from: location.pathname }} data-testid="campaign-voucher-save">Lưu</Link>;
   return (
-    <div className="campaign-voucher" data-testid="campaign-voucher">
-      <strong>{v.code}</strong>
-      <span>{describe(v)}</span>
-      <small>Đơn từ {formatPrice(v.minOrder)} · HSD {formatDate(v.endAt)}</small>
-      {isLoggedIn ? <button onClick={claim} disabled={!!state}>{state || 'Lưu'}</button> : <Link to="/dang-nhap">Đăng nhập để lưu</Link>}
-    </div>
+    <Ticket testId="campaign-voucher" freeship={v.type === 'FreeShipping'} stub={<VoucherStub type={v.type} label={v.code} />} action={action}>
+      <strong>{describe(v)}</strong>
+      {v.minOrder > 0 && <span>Đơn tối thiểu {formatPrice(v.minOrder)}</span>}
+      <span>Mã {v.code} · HSD {formatDate(v.endAt)}</span>
+      {message && <span className="campaign-voucher-message" role="status">{message}</span>}
+    </Ticket>
   );
 };
 
@@ -51,6 +60,7 @@ const CampaignPage = () => {
   const { slug = '' } = useParams();
   const campaign = useQuery({ queryKey: ['campaign', slug], queryFn: () => marketingApi.campaign(slug), retry: false });
   const { data, error } = campaign;
+  usePageTitle(data?.name ?? 'Sự kiện');
   // Loading, or a network / server error (not "no such campaign"): spinner or the error with "Thử lại" (F3)
   if (campaign.isPending || (error && !(error instanceof ApiError && error.status === 404))) {
     return <div className="container"><QueryState query={campaign}>{() => null}</QueryState></div>;
@@ -74,15 +84,21 @@ const CampaignPage = () => {
             <BannerArt banner={b} to={b.link ?? '/'} className="campaign-banner" titled={bannerOverlay(b)} />
           )}
           {b.type === 'Vouchers' && (
-            <>
-              {b.title && <h2 className="campaign-block-title">{b.title}</h2>}
+            // Block titles look like the home page sections (G5-B): grey, upper case through CSS only
+            <Section title={b.title ?? 'Mã giảm giá'} className="campaign-section">
               <div className="campaign-vouchers">{(b.vouchers ?? []).map((v) => <VoucherTile key={v.id} v={v} />)}</div>
-            </>
+            </Section>
           )}
           {b.type === 'FlashSale' && b.flashSale && <FlashSaleBoard board={b.flashSale} compact />}
-          {b.type === 'Products' && <ProductGrid title={b.title ?? 'Sản phẩm'} products={b.products ?? []} showFrames />}
+          {b.type === 'Products' && (
+            <Section title={b.title ?? 'Sản phẩm'} className="campaign-section">
+              <div className="campaign-section-body"><ProductGrid title="" products={b.products ?? []} showFrames /></div>
+            </Section>
+          )}
           {b.type === 'Registered' && (b.products?.length ?? 0) > 0 && (
-            <div data-testid="campaign-registered"><ProductGrid title={b.title ?? 'Sản phẩm tham gia'} products={b.products ?? []} showFrames /></div>
+            <Section title={b.title ?? 'Sản phẩm tham gia'} className="campaign-section" testId="campaign-registered">
+              <div className="campaign-section-body"><ProductGrid title="" products={b.products ?? []} showFrames /></div>
+            </Section>
           )}
         </section>
       ))}

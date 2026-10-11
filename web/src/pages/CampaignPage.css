@@ -5,23 +5,36 @@
 }
 
 .campaign-title {
-  color: var(--sh-primary);
-  font-size: 28px;
   margin: 8px 0 4px;
+  color: var(--sh-text-strong);
+  font-size: 24px;
+  font-weight: 600;
 }
 
 .campaign-period {
-  color: #777;
   margin-bottom: 12px;
+  color: var(--sh-text-muted);
 }
 
 .campaign-block {
   margin-bottom: 16px;
 }
 
-.campaign-block-title {
-  font-size: 18px;
-  margin: 8px 0;
+/* Block heads like the home page sections (G5-B; docs/00 #209 allows the upper case here) */
+.campaign-page .sh-section-title {
+  color: var(--sh-section-title);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.campaign-section-body {
+  padding: 0 var(--sh-space-3) var(--sh-space-3);
+}
+
+.campaign-section-body .product-grid-section {
+  margin-top: var(--sh-space-3);
 }
 
 .campaign-banner {
@@ -37,36 +50,17 @@
 
 .campaign-vouchers {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--sh-space-3);
+  padding: var(--sh-space-3);
 }
 
-.campaign-voucher {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: #fff;
-  border-left: 4px solid var(--sh-primary);
-  padding: 10px 12px;
+@media (max-width: 480px) {
+  .campaign-vouchers {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-.campaign-voucher strong {
-  color: var(--sh-primary);
-}
-
-.campaign-voucher small {
-  color: var(--sh-text-muted);
-}
-
-.campaign-voucher button {
-  align-self: flex-start;
-  background: var(--sh-primary);
-  color: #fff;
-  border: none;
-  padding: 4px 14px;
-  cursor: pointer;
-}
-
-.campaign-voucher button:disabled {
-  opacity: 0.7;
+.campaign-voucher-message {
+  color: var(--sh-success);
 }

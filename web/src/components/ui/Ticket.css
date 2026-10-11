@@ -1,0 +1,92 @@
+/* Voucher ticket (G5-B) — same look as the tickets of the voucher picker: coloured stub, notched edge, white body */
+.sh-ticket {
+  position: relative;
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 84px;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-sm), 0 0 0 1px var(--border);
+}
+
+.sh-ticket__stub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  align-self: stretch;
+  padding: 8px 4px;
+  border-radius: 4px 0 0 4px;
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sh-ticket.is-freeship .sh-ticket__stub {
+  background: var(--sh-success);
+}
+
+/* Notches cut into the stub's right edge */
+.sh-ticket__stub::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  background: radial-gradient(circle at 4px 6px, var(--sh-surface) 3px, transparent 3.5px) 0 0 / 8px 12px repeat-y;
+}
+
+.sh-ticket__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-ticket__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 8px 8px 14px;
+  font-size: 12px;
+  color: var(--sh-text-muted);
+}
+
+.sh-ticket__body strong {
+  color: var(--sh-text-strong);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sh-ticket__action {
+  padding-right: 10px;
+}
+
+.sh-ticket__action button,
+.sh-ticket__action a {
+  display: inline-block;
+  min-height: 28px;
+  padding: 4px 14px;
+  border: none;
+  border-radius: 2px;
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sh-ticket__action button:disabled {
+  background: var(--sh-surface-sunken);
+  color: var(--sh-text-muted);
+  cursor: default;
+}

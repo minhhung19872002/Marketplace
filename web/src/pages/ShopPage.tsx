@@ -17,7 +17,7 @@ import { marketingApi } from '../api/marketing';
 import './ShopPage.css';
 import { usePageTitle } from '../lib/pageTitle';
 import ShopWordmark from '../components/ShopWordmark';
-import { ArrowDown, ArrowUp, Check, Plus, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Gift, PackagePlus, Percent, Plus, Search, Tag, type LucideIcon } from 'lucide-react';
 
 // Sort of the shop's product list: "Phổ biến" is the search's relevance order (sold count when there is no keyword)
 const SORTS: { key: ProductSort; label: string }[] = [
@@ -25,6 +25,9 @@ const SORTS: { key: ProductSort; label: string }[] = [
   { key: 'Newest', label: 'Mới nhất' },
   { key: 'BestSelling', label: 'Bán chạy' },
 ];
+
+// Icon of a running programme card, by programme type (spec 3.10)
+const OFFER_ICONS: Record<string, LucideIcon> = { Discount: Tag, Combo: Percent, AddOn: PackagePlus, Gift };
 
 const ShopPage = () => {
   const { slug = '' } = useParams();
@@ -130,23 +133,22 @@ const ShopPage = () => {
           <span> Bạn vẫn xem được sản phẩm nhưng chưa thể đặt mua trong thời gian này.</span>
         </div>
       )}
-      {/* Cover with a white info card floating over its bottom edge (G3-C8); on phones the card stacks under it */}
-      <div className="container shop-hero">
-        <div className="shop-cover">
-          {coverUrl && <img src={coverUrl} alt="" onError={handleImgError} />}
-        </div>
-        <div className="shop-card">
-          <div className="shop-avatar">
-            {shop.logoUrl ? <img src={shop.logoUrl} alt="" onError={handleImgError} /> : shop.name.charAt(0)}
-          </div>
-          <div className="shop-info">
-            {shop.wordmarkUrl && <ShopWordmark name={shop.name} wordmarkUrl={shop.wordmarkUrl} height={40} className="shop-wordmark-head" />}
-            <h1 className="shop-name" data-testid="shop-name">
-              {shop.name} {shop.isMall && <span className="shop-badge">Mall</span>}
-              {shop.isPreferred && !shop.isMall && <span className="shop-badge">Yêu thích</span>}
-            </h1>
-            <div className="shop-online">
-              {shop.onVacation ? `Đang tạm nghỉ${shop.vacationUntil ? ` đến ${formatDate(shop.vacationUntil)}` : ''}` : shop.provinceName}
+      {/* Shop head like the marketplace's (G5-B): a dark card over the cover picture with the logo, the name and the two
+          buttons; beside it the wide logo and the figures. On phones the figures go under the card. */}
+      <div className="shop-head-band">
+        <div className="container shop-hero">
+          <div className="shop-card" style={coverUrl ? { backgroundImage: `url("${coverUrl}")` } : undefined} data-testid="shop-card">
+            <div className="shop-card-top">
+              <div className="shop-avatar">
+                {shop.logoUrl ? <img src={shop.logoUrl} alt="" onError={handleImgError} /> : shop.name.charAt(0)}
+              </div>
+              <div className="shop-info">
+                <h1 className="shop-name" data-testid="shop-name">{shop.name}</h1>
+                {(shop.isMall || shop.isPreferred) && <span className="shop-badge">{shop.isMall ? 'Mall' : 'Yêu thích'}</span>}
+                <div className="shop-online">
+                  {shop.onVacation ? `Đang tạm nghỉ${shop.vacationUntil ? ` đến ${formatDate(shop.vacationUntil)}` : ''}` : shop.provinceName}
+                </div>
+              </div>
             </div>
             <div className="shop-actions">
               <button className={`shop-follow ${isFollowing ? 'following' : ''}`} onClick={onFollow} disabled={follow.isPending} data-testid="shop-follow">
@@ -156,15 +158,19 @@ const ShopPage = () => {
             </div>
             {message && <div className="shop-message" role="status">{message}</div>}
           </div>
-          <div className="shop-stats">
-            <div data-testid="shop-rating">
-              <strong>{shop.ratingCount > 0 ? `${shop.ratingAvg.toFixed(1)}/5` : '—'}</strong>
-              <span>Đánh giá ({formatSold(shop.ratingCount)})</span>
+          <div className="shop-side">
+            {shop.wordmarkUrl && <ShopWordmark name={shop.name} wordmarkUrl={shop.wordmarkUrl} height={40} className="shop-wordmark-head" />}
+            {/* Each figure is value then label in the DOM (as ChatStats renders them); the CSS shows "Label: value" */}
+            <div className="shop-stats">
+              <div><strong>{formatSold(shop.productCount)}</strong><span>Sản phẩm</span></div>
+              <div><strong data-testid="shop-followers">{formatSold(shop.followerCount)}</strong><span>Người theo dõi</span></div>
+              <div data-testid="shop-rating">
+                <strong>{shop.ratingCount > 0 ? `${shop.ratingAvg.toFixed(1)} (${formatSold(shop.ratingCount)} đánh giá)` : 'Chưa có'}</strong>
+                <span>Đánh giá</span>
+              </div>
+              <div><strong>{formatDate(shop.joinedAt)}</strong><span>Tham gia</span></div>
+              <ChatStats shopId={shop.id} />
             </div>
-            <div><strong>{formatSold(shop.productCount)}</strong><span>Sản phẩm</span></div>
-            <div><strong data-testid="shop-followers">{formatSold(shop.followerCount)}</strong><span>Người theo dõi</span></div>
-            <div><strong>{formatDate(shop.joinedAt)}</strong><span>Tham gia</span></div>
-            <ChatStats shopId={shop.id} />
           </div>
         </div>
       </div>
@@ -181,14 +187,24 @@ const ShopPage = () => {
 
         <ShopVouchers shopId={shop.id} />
         {(offers.data?.length ?? 0) > 0 && (
-          <div className="shop-offers" data-testid="shop-offers">
-            <div className="shop-section-head">Chương trình đang chạy</div>
-            <ul>
-              {offers.data!.map((o) => (
-                <li key={o.id}><strong>{o.name}</strong> — {o.text} · đến {formatDate(o.endAt)}</li>
-              ))}
-            </ul>
-          </div>
+          <section className="shop-offers" data-testid="shop-offers">
+            <h2 className="shop-offers-title">Chương trình đang chạy</h2>
+            <div className="shop-offer-list">
+              {offers.data!.map((o) => {
+                const Icon = OFFER_ICONS[o.type] ?? Tag;
+                return (
+                  <div key={o.id} className="shop-offer" data-testid="shop-offer">
+                    <span className="shop-offer-icon"><Icon size={22} aria-hidden /></span>
+                    <div className="shop-offer-body">
+                      <strong>{o.name}</strong>
+                      <span>{o.text}</span>
+                      <small>Đến {formatDate(o.endAt)}{o.productCount > 0 ? ` · ${formatSold(o.productCount)} sản phẩm` : ''}</small>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         )}
 
         {tab === 'dao' && (

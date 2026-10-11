@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../lib/datetime';
 import { describeVoucher } from '../lib/vouchers';
 import Carousel from './ui/Carousel';
+import { Ticket, VoucherStub } from './ui/Ticket';
 import './ShopVouchers.css';
 
 /**
@@ -42,7 +43,7 @@ const ShopVouchers = ({ shopId, compact = false, moreTo, rowLabel }: { shopId: s
     <div className={`shop-vouchers ${compact ? 'compact' : ''}`} data-testid="shop-vouchers">
       {!compact && <h3 className="shop-vouchers-title">Mã giảm giá của shop</h3>}
       <Carousel label="Voucher của shop" className="shop-vouchers-list">
-        {list.map((w) => (
+        {list.map((w) => compact ? (
           <div key={w.voucher.id} className="shop-voucher" data-testid="shop-voucher">
             <div className="shop-voucher-body">
               <strong>{describeVoucher(w.voucher)}</strong>
@@ -53,6 +54,19 @@ const ShopVouchers = ({ shopId, compact = false, moreTo, rowLabel }: { shopId: s
               {w.claimed ? 'Đã lưu' : 'Lưu'}
             </button>
           </div>
+        ) : (
+          // The shop page shows them as tickets (G5-B); the product page keeps the compact strip
+          <Ticket key={w.voucher.id} testId="shop-voucher" freeship={w.voucher.type === 'FreeShipping'}
+            stub={<VoucherStub type={w.voucher.type} label={w.voucher.code} />}
+            action={(
+              <button type="button" disabled={w.claimed} onClick={() => void save(w.voucher.id)} data-testid="save-shop-voucher">
+                {w.claimed ? 'Đã lưu' : 'Lưu'}
+              </button>
+            )}>
+            <strong>{describeVoucher(w.voucher)}</strong>
+            <span>HSD {formatDate(w.voucher.endAt)}</span>
+            {w.problem && <span className="shop-voucher-problem">{w.problem}</span>}
+          </Ticket>
         ))}
       </Carousel>
       {moreTo && list.length > 2 && <Link to={moreTo} className="shop-vouchers-more" data-testid="shop-vouchers-more">Xem tất cả ({list.length})</Link>}

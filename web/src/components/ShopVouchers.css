@@ -11,7 +11,27 @@
 }
 
 .shop-vouchers-list {
-  --carousel-item: 260px;
+  --carousel-item: 320px;
+}
+
+/* On the shop page: a white block like the other sections (G5-B) */
+.shop-vouchers:not(.compact) {
+  padding: 12px 16px 16px;
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+}
+
+.shop-vouchers:not(.compact) .shop-vouchers-title {
+  margin-bottom: 12px;
+  color: var(--sh-section-title);
+  font-size: 16px;
+  font-weight: 400;
+}
+
+@media (max-width: 480px) {
+  .shop-vouchers-list {
+    --carousel-item: 280px;
+  }
 }
 
 .shop-vouchers.compact .shop-vouchers-list {

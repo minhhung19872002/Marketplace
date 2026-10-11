@@ -90,3 +90,9 @@
   color: var(--sh-text-muted);
   cursor: default;
 }
+
+@media (max-width: 480px) {
+  .sh-ticket {
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+  }
+}

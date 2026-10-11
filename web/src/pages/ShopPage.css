@@ -3,92 +3,108 @@
   min-height: 60vh;
 }
 
-/* Cover + floating info card (G3-C8). The seed covers keep their subject on the right half: anchor there so a
-   narrower box crops the empty left side, never the products. */
-.shop-hero {
-  margin-top: 16px;
+/* Shop head like the marketplace's (G5-B): a white band; on it a dark card over the cover picture (logo, name, the two
+   buttons) and, beside it, the wide logo and the figures as "Label: value" in two columns. */
+.shop-head-band {
   margin-bottom: 16px;
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-sm);
 }
 
-.shop-cover {
-  aspect-ratio: 11 / 3;
-  overflow: hidden;
-  border-radius: var(--sh-radius-md);
-  background: var(--sh-gradient-brand);
-}
-
-.shop-cover img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: right center;
+.shop-hero {
+  display: grid;
+  grid-template-columns: 400px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px 40px;
+  padding-top: 20px;
+  padding-bottom: 20px;
 }
 
 .shop-card {
   position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px 20px;
+  overflow: hidden;
+  border-radius: var(--sh-radius-md);
+  /* The seed covers keep their subject on the right half */
+  background: var(--sh-gradient-brand) right center / cover no-repeat;
+  color: var(--sh-on-primary);
+}
+
+/* Darkened, slightly blurred cover under the white text */
+.shop-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgb(0 0 0 / 0.6);
+  backdrop-filter: blur(3px);
+}
+
+.shop-card-top {
   display: flex;
   align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin: -40px 24px 0;
-  padding: 16px 24px;
-  border-radius: var(--sh-radius-md);
-  background: var(--sh-surface);
-  color: var(--sh-text-strong);
-  box-shadow: var(--sh-shadow-md);
+  gap: 14px;
+  min-width: 0;
 }
 
 .shop-avatar {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  border: 3px solid var(--sh-surface);
+  border: 2px solid var(--sh-surface);
   background: var(--sh-primary-soft);
   color: var(--sh-primary);
-  box-shadow: var(--sh-shadow-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .shop-info {
-  flex: 1;
-  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
 }
 
 .shop-name {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .shop-badge {
+  padding: 1px 6px;
+  border-radius: var(--sh-radius-sm);
   background: var(--sh-primary);
   color: var(--sh-on-primary);
   font-size: 12px;
   font-weight: 500;
-  padding: 2px 6px;
-  border-radius: var(--sh-radius-sm);
 }
 
 .shop-online {
   font-size: 13px;
-  color: var(--sh-text-muted);
-  margin: 4px 0 10px;
+  opacity: 0.85;
 }
 
 .shop-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.shop-actions .chat-error {
+  grid-column: 1 / -1;
 }
 
 .shop-follow,
@@ -97,25 +113,21 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 18px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--sh-on-primary);
   border-radius: var(--sh-radius-sm);
+  background: transparent;
+  color: var(--sh-on-primary);
   font-size: 13px;
   font-weight: 500;
+  text-transform: none;
   cursor: pointer;
 }
 
-.shop-follow {
-  background: var(--sh-primary);
-  color: var(--sh-on-primary);
-  border: 1px solid var(--sh-primary);
-}
-
-.shop-follow.following,
-.shop-chat {
-  background: var(--sh-surface);
-  color: var(--sh-primary);
-  border: 1px solid var(--sh-primary);
+.shop-follow:hover,
+.shop-chat:hover {
+  background: rgb(255 255 255 / 0.12);
 }
 
 .shop-follow:disabled {
@@ -123,28 +135,47 @@
   cursor: not-allowed;
 }
 
-.shop-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 28px;
-  padding-left: 24px;
-  border-left: 1px solid var(--sh-border-strong);
-}
-
-.shop-stats div {
+.shop-side {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 14px;
+  min-width: 0;
 }
 
-.shop-stats strong {
-  font-size: 16px;
-  color: var(--sh-primary);
+.shop-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 40px;
+}
+
+/* value then label in the DOM, shown "Label: value" */
+.shop-stats > div {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.shop-stats > div > * {
+  min-width: 0;
 }
 
 .shop-stats span {
-  font-size: 12px;
-  color: var(--sh-text-muted);
+  flex: 0 0 auto;
+}
+
+.shop-stats span {
+  color: var(--sh-text-strong);
+}
+
+.shop-stats span::after {
+  content: ':';
+}
+
+.shop-stats strong {
+  color: var(--sh-primary);
+  font-weight: 500;
 }
 
 .shop-section-head {
@@ -158,72 +189,25 @@
 }
 
 @media (max-width: 767px) {
+  /* Phones: the card full width, then the wide logo and the figures under it */
   .shop-hero {
-    margin-top: 12px;
-  }
-
-  .shop-cover {
-    aspect-ratio: 13 / 5;
-  }
-
-  /* Phones: the card stacks under the cover — logo beside the name, then the two buttons, then the figures */
-  .shop-card {
-    display: grid;
-    grid-template-columns: 64px minmax(0, 1fr);
-    align-items: center;
-    margin: 8px 0 0;
-    padding: 14px 16px;
-    gap: 4px 14px;
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 12px;
+    padding-bottom: 14px;
   }
 
   .shop-avatar {
-    grid-row: 1 / 3;
-    width: 64px;
-    height: 64px;
-    font-size: 28px;
-  }
-
-  .shop-info {
-    display: contents;
-  }
-
-  .shop-online {
-    margin: 0;
-    align-self: start;
-  }
-
-  .shop-name {
-    align-self: end;
-  }
-
-  .shop-actions,
-  .shop-message {
-    grid-column: 1 / -1;
-  }
-
-  .shop-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    margin-top: 10px;
-  }
-
-  .shop-actions .chat-error {
-    grid-column: 1 / -1;
-  }
-
-  .shop-name {
-    font-size: 18px;
+    width: 60px;
+    height: 60px;
+    font-size: 26px;
   }
 
   .shop-stats {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    grid-column: 1 / -1;
-    margin-top: 8px;
-    padding: 12px 0 0;
-    border-left: none;
-    border-top: 1px solid var(--sh-border-strong);
+    gap: 10px 16px;
+  }
+
+  .shop-stats > div {
+    font-size: 13px;
   }
 }
 
@@ -478,10 +462,67 @@
   }
 }
 
-.shop-offers ul {
-  margin: 6px 0 12px;
-  padding-left: 18px;
+/* "Chương trình đang chạy" as cards (G5-B) */
+.shop-offers {
+  margin: 12px 0;
+  padding: 12px 16px 16px;
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface);
+}
+
+.shop-offers-title {
+  margin: 0 0 12px;
+  color: var(--sh-section-title);
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.shop-offer-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sh-space-3);
+}
+
+.shop-offer {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--sh-primary-soft);
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-primary-soft);
+}
+
+.shop-offer-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--sh-primary);
+  color: var(--sh-on-primary);
+}
+
+.shop-offer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.shop-offer-body strong {
+  color: var(--sh-primary);
   font-size: 14px;
+  font-weight: 600;
+}
+
+.shop-offer-body small {
+  color: var(--sh-text-muted);
+  font-size: 12px;
 }
 
 .shop-vacation {
@@ -492,7 +533,10 @@
   text-align: center;
 }
 
-/* The shop's wide logo above its name (G-VIS round 2) */
+/* The shop's wide logo above the figures (G-VIS round 2, G5-B) */
 .shop-wordmark-head {
-  margin-bottom: 4px;
+  align-self: flex-start;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: left center;
 }

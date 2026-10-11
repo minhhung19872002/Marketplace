@@ -129,9 +129,12 @@ const Header = () => {
       <div className="header-top">
         <div className="container header-top-inner">
           <nav className="header-top-links">
-            <a href={SELLER_URL} className="header-top-link">Kênh Người Bán</a>
-            <a href={`${SELLER_URL}dang-ky-ban-hang`} className="header-top-link">Trở thành người bán</a>
-            <Link to="/tai-ung-dung" className="header-top-link" data-testid="app-link">Tải ứng dụng</Link>
+            {/* 769–1023 px (G-VIS round 3): icon + short label, the two secondary links hidden — never a label on two lines */}
+            <a href={SELLER_URL} className="header-top-link" aria-label="Kênh Người Bán">
+              <Store size={14} aria-hidden /><span className="header-top-full">Kênh Người Bán</span><span className="header-top-short">Người bán</span>
+            </a>
+            <a href={`${SELLER_URL}dang-ky-ban-hang`} className="header-top-link header-top-wide">Trở thành người bán</a>
+            <Link to="/tai-ung-dung" className="header-top-link header-top-wide" data-testid="app-link">Tải ứng dụng</Link>
             <DemoNotice variant="badge" />
           </nav>
           <nav className="header-top-links">
@@ -147,7 +150,7 @@ const Header = () => {
                   data-testid="user-menu"
                 >
                   <UserAvatar className="header-user-avatar" />
-                  {user.fullName}
+                  <span className="header-user-name">{user.fullName}</span>
                 </button>
                 {showUserMenu && (
                   <div className="header-user-dropdown">

@@ -698,3 +698,50 @@
     font-size: 28px;
   }
 }
+
+/* ---- G-VIS round 3: the top bar never wraps a label. Every item keeps one line; at 769–1023 px the seller link is an
+   icon + short label and the two secondary links go (the labels used to break into two lines each at ~800 px) ---- */
+.header-top-links {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.header-top-link,
+.header-top-sep,
+.header-user-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.header-top-short {
+  display: none;
+}
+
+.header-user-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 769px) and (max-width: 1023px) {
+  .header-top-wide,
+  .header-top-full {
+    display: none;
+  }
+
+  .header-top-short {
+    display: inline;
+  }
+
+  .header-top-links {
+    gap: 12px;
+  }
+
+  .header-user-name {
+    max-width: 120px;
+  }
+}

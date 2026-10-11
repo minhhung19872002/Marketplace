@@ -20,15 +20,6 @@
   margin-bottom: 16px;
 }
 
-/* Block heads like the home page sections (G5-B; docs/00 #209 allows the upper case here) */
-.campaign-page .sh-section-title {
-  color: var(--sh-section-title);
-  font-size: 16px;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
 .campaign-section-body {
   padding: 0 var(--sh-space-3) var(--sh-space-3);
 }

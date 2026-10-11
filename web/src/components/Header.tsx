@@ -15,6 +15,7 @@ import { clearSearchHistory, pushSearchHistory, readSearchHistory } from '../lib
 import './Header.css';
 import { Bell, CircleHelp, History, Search, Store, TrendingUp, UserRound, Heart, ShoppingCart } from 'lucide-react';
 import DemoNotice from './DemoNotice';
+import BrandMark from './BrandMark';
 
 // The seller centre is its own app under /seller (full page load, not a client route)
 const SELLER_URL = '/seller/';
@@ -181,11 +182,7 @@ const Header = () => {
       <div className="container header-main">
         <Link to="/" className="header-logo">
           {/* ShopHub mark: a white shopping bag with an "H" cut in the header orange */}
-          <svg width="50" height="50" viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M12 10.5a4 4 0 0 1 8 0" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-            <path d="M8.2 10.5h15.6l-1.3 14.2a2.2 2.2 0 0 1-2.2 2H11.7a2.2 2.2 0 0 1-2.2-2L8.2 10.5z" fill="currentColor" />
-            <path className="header-logo-cut" d="M13 14.5v8M19 14.5v8M13 18.5h6" fill="none" strokeWidth="2.2" strokeLinecap="round" />
-          </svg>
+          <BrandMark size={50} />
           <span className="header-logo-text">ShopHub</span>
         </Link>
 

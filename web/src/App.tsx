@@ -1,7 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
-import Header from './components/Header'
+import SiteHeader from './components/AuthHeader'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
 import BackToTop from './components/BackToTop'
@@ -65,7 +65,8 @@ function App() {
           <ChatProvider>
             <ScrollToTop />
             <div className="App">
-              <Header />
+              {/* The slim header on the sign-in pages, the full one elsewhere (G5-B) */}
+              <SiteHeader />
               <main className="main-content">
                 <Suspense fallback={<PageLoader />}>
                   <Routes>

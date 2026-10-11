@@ -69,15 +69,17 @@ export const ProductGridSkeleton = ({ count = 12, className = 'product-grid' }: 
 
 interface EmptyStateProps {
   icon?: LucideIcon;
+  art?: ReactNode;
   title: ReactNode;
   text?: ReactNode;
   action?: ReactNode;
   testId?: string;
 }
 
-export const EmptyState = ({ icon: Icon = PackageOpen, title, text, action, testId }: EmptyStateProps) => (
+export const EmptyState = ({ icon: Icon = PackageOpen, art, title, text, action, testId }: EmptyStateProps) => (
   <div className="sh-empty" data-testid={testId}>
-    <div className="sh-empty__art"><Icon size={44} strokeWidth={1.5} aria-hidden /></div>
+    {/* A drawing (G5-B) in place of the round icon when the page has one */}
+    {art ?? <div className="sh-empty__art"><Icon size={44} strokeWidth={1.5} aria-hidden /></div>}
     <div className="sh-empty__title">{title}</div>
     {text && <div className="sh-empty__text">{text}</div>}
     {action}

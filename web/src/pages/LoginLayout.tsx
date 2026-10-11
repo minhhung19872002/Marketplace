@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { BadgePercent, Coins, ShieldCheck, Truck } from 'lucide-react';
+import BrandMark from '../components/BrandMark';
 import './Auth.css';
 
 const BENEFITS = [
@@ -9,12 +10,19 @@ const BENEFITS = [
   { icon: Coins, title: 'Tích ShopHub Xu', text: 'Nhận xu khi đánh giá, điểm danh và dùng xu để trừ tiền đơn sau.' },
 ];
 
-/** Shared shell of the sign-in / sign-up / reset pages (G3): benefits on the left, the form card on the right. */
+/**
+ * Shared shell of the sign-in / sign-up / reset pages: on the bright brand band, the brand (mark, name, headline, benefits)
+ * on the left and the white form card on the right, as on the reference marketplace (G5-B); only the card on phones.
+ */
 const LoginLayout = ({ headline, children }: { headline: string; children: ReactNode }) => (
   <div className="auth-page">
     <div className="auth-hero">
       <div className="container auth-hero-inner">
         <section className="auth-benefits" aria-label="Lợi ích khi mua sắm tại ShopHub">
+          <div className="auth-brand">
+            <BrandMark size={96} className="auth-brand-mark" />
+            <span className="auth-brand-name">ShopHub</span>
+          </div>
           <h1 className="auth-benefits-title">{headline}</h1>
           <ul className="auth-benefits-list">
             {BENEFITS.map(({ icon: Icon, title, text }) => (

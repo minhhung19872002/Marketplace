@@ -243,9 +243,13 @@
 .cart-empty {
   background: #fff;
   border-radius: 4px;
-  padding: 70px 20px;
+  padding: 48px 20px;
   text-align: center;
   color: var(--text-light);
+}
+
+.cart-suggestions-body {
+  padding: 0 var(--sh-space-3) var(--sh-space-3);
 }
 
 .cart-empty-icon {

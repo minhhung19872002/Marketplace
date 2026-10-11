@@ -18,7 +18,9 @@ import { ConfirmButton } from '../components/ConfirmDialog';
 import './CartPage.css';
 import { ShoppingCart, ChevronDown, Store } from 'lucide-react';
 import { ChatNowButton } from '../components/chat/Chat';
-import { Badge, EmptyState } from '../components/ui';
+import { Badge, EmptyState, Section } from '../components/ui';
+import { EmptyCartArt } from '../components/ui/Illustration';
+import { usePageTitle } from '../lib/pageTitle';
 
 /** "Phân loại: …" with a picker of the product's other SKUs (change variant without leaving the cart). */
 const VariantPicker = ({ line, onPick }: { line: CartLine; onPick: (skuId: string) => void }) => {
@@ -83,6 +85,7 @@ const SimilarProducts = ({ productId }: { productId: string }) => {
 };
 
 const CartPage = () => {
+  usePageTitle('Giỏ hàng');
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const { cart, lines, isLoading, update, remove, select } = useCart();
@@ -122,7 +125,7 @@ const CartPage = () => {
       <div className="cart-page">
         <div className="container">
           <div className="cart-empty" data-testid="cart-empty">
-            <EmptyState icon={ShoppingCart} title="Giỏ hàng của bạn còn trống" text="Thêm sản phẩm bạn thích để mua cùng lúc và dùng voucher của shop."
+            <EmptyState icon={ShoppingCart} art={<EmptyCartArt />} title="Giỏ hàng của bạn còn trống" text="Thêm sản phẩm bạn thích để mua cùng lúc và dùng voucher của shop."
               action={
                 <span className="cart-empty-actions">
                   <Link to="/" className="cart-empty-btn">Mua sắm ngay</Link>
@@ -309,10 +312,11 @@ const ShopVoucherBlock = ({ loggedIn, ticked, quoteShop, code, onChange }: {
 const YouMayLike = () => {
   const suggestions = useQuery({ queryKey: ['cart-suggestions'], queryFn: () => storefrontApi.recommendations(1, 12), staleTime: 60_000 });
   if (!suggestions.data?.items.length) return null;
+  // The head like the home page sections (G5-B): grey, upper case through CSS only
   return (
-    <div className="cart-suggestions" data-testid="cart-suggestions">
-      <ProductGrid title="Có thể bạn cũng thích" products={suggestions.data.items} />
-    </div>
+    <Section title="Có thể bạn cũng thích" className="cart-suggestions sh-section--caps" testId="cart-suggestions">
+      <div className="cart-suggestions-body"><ProductGrid title="" products={suggestions.data.items} /></div>
+    </Section>
   );
 };
 

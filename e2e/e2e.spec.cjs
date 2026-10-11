@@ -143,6 +143,8 @@ test.describe('ShopHub Marketplace', () => {
     await page.locator('[data-testid="login-submit"]').click();
 
     await expect(page.locator('[data-testid="auth-error"]')).toHaveText('Thông tin đăng nhập không đúng.');
+    // Still signed out: the sign-in page has the slim header (G5-B), so look at the site header of the home page
+    await page.goto(BASE);
     await expect(page.locator('[data-testid="login-link"]')).toBeVisible();
   });
 

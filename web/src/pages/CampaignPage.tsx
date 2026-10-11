@@ -85,18 +85,18 @@ const CampaignPage = () => {
           )}
           {b.type === 'Vouchers' && (
             // Block titles look like the home page sections (G5-B): grey, upper case through CSS only
-            <Section title={b.title ?? 'Mã giảm giá'} className="campaign-section">
+            <Section title={b.title ?? 'Mã giảm giá'} className="campaign-section sh-section--caps">
               <div className="campaign-vouchers">{(b.vouchers ?? []).map((v) => <VoucherTile key={v.id} v={v} />)}</div>
             </Section>
           )}
           {b.type === 'FlashSale' && b.flashSale && <FlashSaleBoard board={b.flashSale} compact />}
           {b.type === 'Products' && (
-            <Section title={b.title ?? 'Sản phẩm'} className="campaign-section">
+            <Section title={b.title ?? 'Sản phẩm'} className="campaign-section sh-section--caps">
               <div className="campaign-section-body"><ProductGrid title="" products={b.products ?? []} showFrames /></div>
             </Section>
           )}
           {b.type === 'Registered' && (b.products?.length ?? 0) > 0 && (
-            <Section title={b.title ?? 'Sản phẩm tham gia'} className="campaign-section" testId="campaign-registered">
+            <Section title={b.title ?? 'Sản phẩm tham gia'} className="campaign-section sh-section--caps" testId="campaign-registered">
               <div className="campaign-section-body"><ProductGrid title="" products={b.products ?? []} showFrames /></div>
             </Section>
           )}

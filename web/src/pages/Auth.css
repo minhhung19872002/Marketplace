@@ -1,7 +1,26 @@
-/* G3: light page, benefits on the left, the form card on the right; only the card on phones */
+/* G5-B: the bright brand band, the brand and benefits on the left, the form card on the right; only the card on phones */
 .auth-hero {
-  background: linear-gradient(180deg, var(--sh-primary-soft), var(--bg));
-  padding: 64px 0 88px;
+  background: var(--sh-gradient-header);
+  padding: 56px 0 72px;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--sh-space-4);
+  color: var(--sh-on-dark);
+}
+
+.auth-brand .brand-mark-cut {
+  stroke: var(--sh-primary-bright);
+}
+
+.auth-brand-name {
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 .auth-hero-inner {
@@ -14,19 +33,24 @@
 
 .auth-benefits-title {
   max-width: 460px;
-  margin-bottom: var(--sh-space-6);
+  margin-bottom: var(--sh-space-5);
   font-size: 30px;
   line-height: 1.25;
   font-weight: 700;
-  color: var(--sh-text-strong);
+  color: var(--sh-on-dark);
 }
 
+/* The benefits on a white panel: small text never sits on the bright orange (AA) */
 .auth-benefits-list {
   display: flex;
   flex-direction: column;
-  gap: var(--sh-space-5);
+  gap: var(--sh-space-4);
+  max-width: 480px;
   margin: 0;
-  padding: 0;
+  padding: var(--sh-space-5);
+  border-radius: var(--sh-radius-lg);
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-md);
   list-style: none;
 }
 
@@ -57,12 +81,11 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--sh-radius-md);
-  background: var(--sh-surface);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--sh-primary-tint);
   color: var(--sh-primary);
-  box-shadow: var(--sh-shadow-sm);
 }
 
 .auth-card {

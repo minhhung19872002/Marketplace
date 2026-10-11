@@ -180,6 +180,14 @@
   padding: 0 var(--sh-space-4);
   border-bottom: 1px solid var(--border);
 }
+/* Section heads like the home page's (G5-B): grey, upper case through CSS only (docs/00 #209) */
+.sh-section--caps .sh-section-title {
+  color: var(--sh-section-title);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
 .sh-section__more {
   display: inline-flex;
   align-items: center;

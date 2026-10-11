@@ -1,0 +1,89 @@
+/* Slim header of the sign-in pages (G5-B) */
+.auth-header {
+  background: var(--sh-surface);
+  box-shadow: var(--sh-shadow-sm);
+}
+
+.auth-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 84px;
+}
+
+.auth-header-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--sh-primary);
+}
+
+.auth-header-logo .brand-mark-cut {
+  stroke: var(--sh-surface);
+}
+
+.auth-header-brand {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.auth-header-title {
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  color: var(--sh-text-strong);
+  font-size: 22px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.auth-header-inner .demo-badge {
+  color: var(--sh-primary);
+}
+
+.auth-header-help {
+  margin-left: auto;
+  color: var(--sh-primary);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.auth-header-help:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .auth-header-inner {
+    gap: 8px;
+    min-height: 60px;
+  }
+
+  .auth-header-logo svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .auth-header-brand {
+    font-size: 20px;
+  }
+
+  .auth-header-title {
+    padding-left: 8px;
+    font-size: 16px;
+  }
+
+  .auth-header-inner .demo-badge {
+    display: none;
+  }
+
+  .auth-header-help {
+    font-size: 13px;
+  }
+}
+
+/* Phones: the logo and the page name only (the help link would push the page sideways) */
+@media (max-width: 420px) {
+  .auth-header-help {
+    display: none;
+  }
+}

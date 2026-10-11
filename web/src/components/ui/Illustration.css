@@ -1,0 +1,73 @@
+/* Flat drawings for empty / missing pages (G5-B), coloured by the brand tokens */
+.sh-art {
+  display: block;
+  margin: 0 auto;
+}
+
+.sh-art-ground {
+  fill: var(--sh-surface-sunken);
+}
+
+.sh-art-soft {
+  fill: var(--sh-primary-tint);
+}
+
+.sh-art-line {
+  fill: none;
+  stroke: var(--sh-primary-bright);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sh-art-thin {
+  stroke-width: 4;
+  opacity: 0.55;
+}
+
+.sh-art-fill {
+  fill: var(--sh-primary-bright);
+}
+
+.sh-art-spark {
+  fill: none;
+  stroke: var(--sh-primary-border);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.sh-art-paper {
+  fill: var(--sh-surface);
+  stroke: var(--sh-primary-border);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.sh-art-lens {
+  fill: var(--sh-surface);
+  stroke: var(--sh-primary-bright);
+  stroke-width: 6;
+}
+
+.sh-art-mark {
+  fill: none;
+  stroke: var(--sh-primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.sh-art-device {
+  fill: var(--sh-text-strong);
+}
+
+.sh-art-screen {
+  fill: var(--sh-surface-sunken);
+}
+
+.sh-art-tile {
+  fill: var(--sh-surface);
+}
+
+.sh-art--phone {
+  filter: drop-shadow(0 18px 24px rgb(0 0 0 / 0.25));
+}

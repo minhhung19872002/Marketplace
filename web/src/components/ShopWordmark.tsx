@@ -23,3 +23,23 @@ const ShopWordmark = ({ name, wordmarkUrl, height = 36, className = '' }: Props)
 };
 
 export default ShopWordmark;
+
+interface ShopLogoProps {
+  shop: { name: string; logoUrl?: string | null; wordmarkUrl?: string | null };
+  /** The frame of the place (round avatar, square tile…): kept for a shop without a wide logo */
+  className: string;
+  height?: number;
+}
+
+/**
+ * The shop's one logo (G-VIS round 3, L196): its wide logo when it has one — never next to its square / initial avatar —
+ * else the square logo, else the initial. Used by the product page's shop block, the shop page, the related shop of a
+ * search, the followed shops and the header suggestions.
+ */
+export const ShopLogo = ({ shop, className, height = 40 }: ShopLogoProps) => (shop.wordmarkUrl
+  ? (
+    <span className={`${className} shop-logo--wide`}>
+      <ShopWordmark name={shop.name} wordmarkUrl={shop.wordmarkUrl} height={height} />
+    </span>
+  )
+  : <span className={className}>{shop.logoUrl ? <img src={shop.logoUrl} alt="" onError={handleImgError} /> : shop.name.charAt(0)}</span>);

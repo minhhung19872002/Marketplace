@@ -127,7 +127,7 @@ export interface SearchResult extends PagedResult<ProductCard> {
 export interface Suggestion {
   keywords: string[];
   products: { id: string; name: string; slug: string; imageUrl: string | null }[];
-  shops: { id: string; name: string; slug: string; logoUrl: string | null; isMall: boolean }[];
+  shops: { id: string; name: string; slug: string; logoUrl: string | null; isMall: boolean; wordmarkUrl?: string | null }[];
 }
 
 // ---------- product page ----------
@@ -178,6 +178,8 @@ export interface RelatedShop {
   followerCount: number;
   productCount: number;
   provinceName: string | null;
+  // The shop's one logo where it has the wide one (G-VIS round 3)
+  wordmarkUrl?: string | null;
 }
 
 export interface PublicOption {

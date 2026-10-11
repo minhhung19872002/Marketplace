@@ -7,6 +7,7 @@ import ProductGrid from '../components/ProductGrid';
 import { formatCount, formatPrice } from '../lib/money';
 import type { CategoryPage, FacetValue, ProductSort, SearchFacets, SearchParams } from '../types';
 import { handleImgError, sizedImage } from '../lib/image';
+import { ShopLogo } from '../components/ShopWordmark';
 import { BannerLink } from '../components/Banner';
 import QueryState from '../components/QueryState';
 import './SearchResults.css';
@@ -471,9 +472,7 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
             <div className="related-shop" data-testid="related-shop">
               <div className="related-shop-title">Shop liên quan đến “{keyword}”</div>
               <Link to={`/shop/${relatedShop.slug}`} className="related-shop-card">
-                <span className="related-shop-logo">
-                  {relatedShop.logoUrl ? <img src={relatedShop.logoUrl} alt="" onError={handleImgError} /> : relatedShop.name.charAt(0)}
-                </span>
+                <ShopLogo shop={relatedShop} className="related-shop-logo" height={36} />
                 <span className="related-shop-info">
                   <strong>{relatedShop.name}</strong>
                   {relatedShop.isMall && <span className="related-shop-badge">Mall</span>}

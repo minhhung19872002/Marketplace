@@ -77,7 +77,11 @@ public record SuggestionDto(IReadOnlyList<string> Keywords, IReadOnlyList<Sugges
 
 public record SuggestedProductDto(Guid Id, string Name, string Slug, string? ImageUrl);
 
-public record SuggestedShopDto(Guid Id, string Name, string Slug, string? LogoUrl, bool IsMall);
+public record SuggestedShopDto(Guid Id, string Name, string Slug, string? LogoUrl, bool IsMall)
+{
+    // The shop's one logo where it has the wide one (G-VIS round 3, L196)
+    public string? WordmarkUrl { get; init; }
+}
 
 public record SuggestQuery(string Q) : IRequest<SuggestionDto>;
 
@@ -105,7 +109,7 @@ public sealed class SuggestHandler(IProductSearch search, IApplicationDbContext 
             .Where(s => (s.Status == Domain.Shops.ShopStatus.Active || s.Status == Domain.Shops.ShopStatus.Vacation) && s.Slug.Contains(Slug.From(q)))
             .OrderByDescending(s => s.Type == Domain.Shops.ShopType.Mall).ThenByDescending(s => s.FollowerCount).ThenBy(s => s.Id)
             .Take(3)
-            .Select(s => new SuggestedShopDto(s.Id, s.Name, s.Slug, s.LogoUrl, s.Type == Domain.Shops.ShopType.Mall))
+            .Select(s => new SuggestedShopDto(s.Id, s.Name, s.Slug, s.LogoUrl, s.Type == Domain.Shops.ShopType.Mall) { WordmarkUrl = s.WordmarkUrl })
             .ToListAsync(ct);
 
         return new SuggestionDto(keywords, products.Items.Select(p => new SuggestedProductDto(p.Id, p.Name, p.Slug, p.ImageUrl)).ToList(), shops);
@@ -114,7 +118,11 @@ public sealed class SuggestHandler(IProductSearch search, IApplicationDbContext 
 
 /// <summary>"Shop liên quan đến từ khoá" (II.3): open shops whose name matches the keyword, Mall first, then the most followed.</summary>
 public record RelatedShopDto(Guid Id, string Name, string Slug, string? LogoUrl, bool IsMall, bool IsPreferred, double RatingAvg, int FollowerCount,
-    int ProductCount, string? ProvinceName);
+    int ProductCount, string? ProvinceName)
+{
+    // The shop's one logo where it has the wide one (G-VIS round 3, L196)
+    public string? WordmarkUrl { get; init; }
+}
 
 public record RelatedShopsQuery(string Q, int Take = 1) : IRequest<IReadOnlyList<RelatedShopDto>>;
 
@@ -136,7 +144,8 @@ public sealed class RelatedShopsHandler(IApplicationDbContext db) : IRequestHand
             })
             .ToListAsync(ct);
         return rows.Select(r => new RelatedShopDto(r.Shop.Id, r.Shop.Name, r.Shop.Slug, r.Shop.LogoUrl, r.Shop.Type == Domain.Shops.ShopType.Mall,
-            r.Shop.IsPreferred, r.Shop.RatingAvg, r.Shop.FollowerCount, r.Shop.ProductCount, ProductCards.ShortProvince(r.Province))).ToList();
+            r.Shop.IsPreferred, r.Shop.RatingAvg, r.Shop.FollowerCount, r.Shop.ProductCount, ProductCards.ShortProvince(r.Province)) { WordmarkUrl = r.Shop.WordmarkUrl })
+            .ToList();
     }
 }
 

@@ -6,8 +6,8 @@ import { ApiError } from '../../api/http';
 import ProductGrid from '../../components/ProductGrid';
 import QueryState from '../../components/QueryState';
 import { formatSold } from '../../lib/money';
-import { handleImgError } from '../../lib/image';
 import { usePageTitle } from '../../lib/pageTitle';
+import { ShopLogo } from '../../components/ShopWordmark';
 
 /** /tai-khoan/da-xem — "Đã xem gần đây" (II.9), newest first. */
 export const ViewedPage = () => {
@@ -50,7 +50,7 @@ export const FollowedShopsPage = () => {
         {list.map((s) => (
           <div key={s.id} className="followed-shop" data-testid="followed-shop">
             <Link to={`/shop/${s.slug}`} className="followed-shop-link">
-              <span className="followed-shop-logo">{s.logoUrl ? <img src={s.logoUrl} alt="" onError={handleImgError} /> : s.name.charAt(0)}</span>
+              <ShopLogo shop={s} className="followed-shop-logo" height={32} />
               <span className="followed-shop-info">
                 <strong>{s.name}</strong>
                 {s.isMall && <span className="followed-shop-badge">Mall</span>}

@@ -1422,3 +1422,17 @@
 .pd-swatch--green { background: var(--sh-swatch-green); }
 .pd-swatch--teal { background: var(--sh-swatch-teal); }
 .pd-swatch--olive { background: var(--sh-swatch-olive); }
+
+/* ---- G-VIS round 3 (L196): one shop logo — the wide one on a plate where the round avatar was; the Mall tag by the name ---- */
+.pd-shop-logo-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.pd-shop-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

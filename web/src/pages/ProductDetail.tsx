@@ -26,7 +26,7 @@ import { formatDate, formatSince } from '../lib/datetime';
 import { handleImgError, imageOrPlaceholder, imageSrcSet, sizedImage } from '../lib/image';
 import { isColourTier, swatchOf } from '../lib/swatch';
 import type { ProductPage, PublicSku } from '../types';
-import ShopWordmark from '../components/ShopWordmark';
+import { ShopLogo } from '../components/ShopWordmark';
 import './ProductDetail.css';
 import { usePageTitle } from '../lib/pageTitle';
 import { toast } from '../lib/toast';
@@ -417,13 +417,15 @@ const ProductView = ({ product }: { product: ProductPage }) => {
         </div>
 
         <div className="pd-shop" data-testid="pd-shop">
-          <Link to={`/shop/${product.shop.slug}`} className="pd-shop-avatar" aria-label={product.shop.name}>
-            {product.shop.logoUrl ? <img src={product.shop.logoUrl} alt="" onError={handleImgError} /> : product.shop.name.charAt(0)}
-            {product.shop.isMall && <Badge tone="mall" className="pd-shop-avatar-badge">Mall</Badge>}
+          {/* One logo (L196): the wide one when the shop has it, never beside an initial avatar; the Mall tag by the name */}
+          <Link to={`/shop/${product.shop.slug}`} className="pd-shop-logo-link" aria-label={product.shop.name}>
+            <ShopLogo shop={product.shop} className="pd-shop-avatar" height={36} />
           </Link>
           <div className="pd-shop-info">
-            {product.shop.wordmarkUrl && <ShopWordmark name={product.shop.name} wordmarkUrl={product.shop.wordmarkUrl} height={32} className="pd-shop-wordmark" />}
-            <div className="pd-shop-name">{product.shop.name}</div>
+            <div className="pd-shop-name">
+              {product.shop.name}
+              {product.shop.isMall && <Badge tone="mall" className="pd-shop-name-badge">Mall</Badge>}
+            </div>
             <div className="pd-shop-sub" data-testid="shop-last-active">
               {product.shop.lastActiveAt && `Online ${formatSince(product.shop.lastActiveAt)}`}
               {product.shop.lastActiveAt && product.shop.provinceName && ' · '}

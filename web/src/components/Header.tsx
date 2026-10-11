@@ -16,6 +16,7 @@ import './Header.css';
 import { Bell, CircleHelp, History, Search, Store, TrendingUp, UserRound, Heart, ShoppingCart } from 'lucide-react';
 import DemoNotice from './DemoNotice';
 import BrandMark from './BrandMark';
+import { ShopLogo } from './ShopWordmark';
 
 // The seller centre is its own app under /seller (full page load, not a client route)
 const SELLER_URL = '/seller/';
@@ -231,9 +232,7 @@ const Header = () => {
                       }}
                       data-testid="suggest-shop"
                     >
-                      <span className="header-suggest-shop-logo">
-                        {shop.logoUrl ? <img src={shop.logoUrl} alt="" onError={handleImgError} /> : <Store size={18} aria-hidden />}
-                      </span>
+                      <ShopLogo shop={shop} className="header-suggest-shop-logo" height={22} />
                       <span className="header-suggest-shop-text">
                         <strong><Highlight text={shop.name} query={keyword} /></strong>
                         <small>Tìm shop “{keyword.trim()}”</small>

@@ -10,13 +10,12 @@ import ShopHomeBlocks from '../components/ShopHomeBlocks';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { formatSold } from '../lib/money';
 import { formatDate } from '../lib/datetime';
-import { handleImgError } from '../lib/image';
 import type { ProductSort } from '../types';
 import ShopVouchers from '../components/ShopVouchers';
 import { marketingApi } from '../api/marketing';
 import './ShopPage.css';
 import { usePageTitle } from '../lib/pageTitle';
-import ShopWordmark from '../components/ShopWordmark';
+import { ShopLogo } from '../components/ShopWordmark';
 import { ArrowDown, ArrowUp, Check, Gift, PackagePlus, Percent, Plus, Search, Tag, type LucideIcon } from 'lucide-react';
 
 // Sort of the shop's product list: "Phổ biến" is the search's relevance order (sold count when there is no keyword)
@@ -139,9 +138,8 @@ const ShopPage = () => {
         <div className="container shop-hero">
           <div className="shop-card" style={coverUrl ? { backgroundImage: `url("${coverUrl}")` } : undefined} data-testid="shop-card">
             <div className="shop-card-top">
-              <div className="shop-avatar">
-                {shop.logoUrl ? <img src={shop.logoUrl} alt="" onError={handleImgError} /> : shop.name.charAt(0)}
-              </div>
+              {/* One logo (L196): the wide one on a white plate when the shop has it, else the round avatar */}
+              <ShopLogo shop={shop} className="shop-avatar" height={44} />
               <div className="shop-info">
                 <h1 className="shop-name" data-testid="shop-name">{shop.name}</h1>
                 {(shop.isMall || shop.isPreferred) && <span className="shop-badge">{shop.isMall ? 'Mall' : 'Yêu thích'}</span>}
@@ -159,7 +157,6 @@ const ShopPage = () => {
             {message && <div className="shop-message" role="status">{message}</div>}
           </div>
           <div className="shop-side">
-            {shop.wordmarkUrl && <ShopWordmark name={shop.name} wordmarkUrl={shop.wordmarkUrl} height={40} className="shop-wordmark-head" />}
             {/* Each figure is value then label in the DOM (as ChatStats renders them); the CSS shows "Label: value" */}
             <div className="shop-stats">
               <div><strong>{formatSold(shop.productCount)}</strong><span>Sản phẩm</span></div>

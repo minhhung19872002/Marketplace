@@ -93,4 +93,21 @@ test.describe('G-VIS vòng 3', () => {
     }
     expect(problems).toEqual([]);
   });
+
+  // L196: the product page's shop block showed the new wide logo AND the old round avatar "BP" with its Mall tag
+  test('Một logo shop duy nhất: khối shop ở trang chi tiết và đầu trang shop', async ({ browser, request }) => {
+    const shop = (await api(request, '/search/shops?q=BeautyPro&take=1'))[0];
+    expect(shop.wordmarkUrl, 'shop mẫu có logo chữ').toBeTruthy();
+    const product = (await api(request, `/search/products?shopId=${shop.id}&pageSize=1`)).items[0];
+    const page = await (await browser.newContext(guest)).newPage();
+    await page.goto(`${BASE}/san-pham/${product.id}`);
+    const block = page.getByTestId('pd-shop');
+    await expect(block.getByTestId('shop-wordmark')).toHaveCount(1);
+    await expect(block.locator('img')).toHaveCount(1);
+    await expect(block.locator('.pd-shop-avatar')).not.toContainText(/^\S$/);
+    await page.goto(`${BASE}/shop/${shop.slug}`);
+    await expect(page.locator('.shop-head-band').getByTestId('shop-wordmark')).toHaveCount(1);
+    await expect(page.locator('.shop-head-band img')).toHaveCount(1);
+  });
 });
+

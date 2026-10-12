@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { checkoutApi, gatewayApi } from '../api/commerce';
 import { storefrontApi } from '../api/storefront';
@@ -12,6 +12,7 @@ import QueryState from '../components/QueryState';
 import './PaymentPages.css';
 import { X, Check } from 'lucide-react';
 import { usePageTitle } from '../lib/pageTitle';
+import { useAuth } from '../context/AuthContext';
 
 const useSecondsLeft = (until: string | null | undefined) => {
   const [now, setNow] = useState(() => Date.now());
@@ -20,6 +21,21 @@ const useSecondsLeft = (until: string | null | undefined) => {
     return () => window.clearInterval(t);
   }, []);
   return until ? Math.max(0, Math.floor((Date.parse(until) - now) / 1000)) : 0;
+};
+
+/**
+ * The checkout result pages are the buyer's own and are often opened straight from a link (gateway return, e-mail):
+ * wait for the session restored from the refresh cookie before asking for the checkout (L215); a guest signs in first.
+ */
+const useBuyerSession = () => {
+  const { isLoggedIn, isChecking } = useAuth();
+  const location = useLocation();
+  const gate = isChecking
+    ? <div className="page-loader"><div className="loading-spinner" /></div>
+    : !isLoggedIn
+      ? <Navigate to="/dang-nhap" replace state={{ from: location.pathname + location.search }} />
+      : null;
+  return { ready: isLoggedIn, gate };
 };
 
 const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -87,9 +103,11 @@ export const PaymentResultPage = () => {
   const { checkoutId = '' } = useParams();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const session = useBuyerSession();
   const checkout = useQuery({
     queryKey: ['checkout', checkoutId],
     queryFn: () => checkoutApi.get(checkoutId),
+    enabled: session.ready,
     staleTime: 0,
     // Poll while waiting for the gateway's notification
     refetchInterval: (q) => (q.state.data?.status === 'AwaitingPayment' && q.state.data.payment?.status === 'Initiated' ? 2000 : false),
@@ -97,6 +115,7 @@ export const PaymentResultPage = () => {
   const { data, refetch } = checkout;
   const left = useSecondsLeft(data?.paymentExpiresAt);
 
+  if (session.gate) return session.gate;
   if (!data) return <div className="container payment-result"><QueryState query={checkout}>{() => null}</QueryState></div>;
 
   const retry = async () => {
@@ -162,8 +181,11 @@ export const OrderSuccessPage = () => {
   usePageTitle('Đặt hàng thành công');
   const [params] = useSearchParams();
   const checkoutId = params.get('checkout') ?? '';
-  const checkout = useQuery({ queryKey: ['checkout', checkoutId], queryFn: () => checkoutApi.get(checkoutId), enabled: !!checkoutId, staleTime: 0 });
+  const session = useBuyerSession();
+  const checkout = useQuery({ queryKey: ['checkout', checkoutId], queryFn: () => checkoutApi.get(checkoutId), enabled: !!checkoutId && session.ready, staleTime: 0 });
   const { data, isError, error } = checkout;
+
+  if (session.gate) return session.gate;
 
   if (!checkoutId || (isError && error instanceof ApiError && error.status === 404)) {
     return (

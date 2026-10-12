@@ -276,6 +276,39 @@ public class IdentityTests(ApiFactory factory)
         elsewhere.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
+    // L214: a second replay of the lost token within the grace follows the superseded successor to the live head
+    [Fact]
+    public async Task Replaying_the_lost_token_twice_within_the_grace_keeps_the_session()
+    {
+        var user = await factory.CreateUserAsync();
+        await RefreshAsync(user.RefreshToken);
+        (await RefreshAsync(user.RefreshToken)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var again = await RefreshAsync(user.RefreshToken);
+        var head = (await again.ReadEnvelopeAsync<LoginData>()).Data!;
+
+        again.StatusCode.Should().Be(HttpStatusCode.OK, "cùng trình duyệt tải lại hai lần trong ân hạn, chưa ai dùng token kế tiếp");
+        (await RefreshAsync(head.RefreshToken)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await factory.WithDbAsync(db => db.RefreshTokens.CountAsync(t => t.UserId == user.Id && t.RevokedAt == null))).Should().Be(1);
+    }
+
+    // L214: a parallel replay that lands while the winning rotation is still writing its successor is a duplicate,
+    // not a theft — it is refused without revoking the family
+    [Fact]
+    public async Task A_replay_during_an_unfinished_rotation_is_refused_without_ending_the_session()
+    {
+        var user = await factory.CreateUserAsync();
+        var winner = (await (await RefreshAsync(user.RefreshToken)).ReadEnvelopeAsync<LoginData>()).Data!;
+        // The moment between retiring the old token and linking its successor
+        await factory.WithDbAsync(db => db.RefreshTokens.Where(t => t.UserId == user.Id && t.RevokeReason == RevokeReasons.Rotated)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.ReplacedById, (Guid?)null)));
+
+        var duplicate = await RefreshAsync(user.RefreshToken);
+
+        duplicate.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await RefreshAsync(winner.RefreshToken)).StatusCode.Should().Be(HttpStatusCode.OK, "lượt thắng vẫn giữ phiên");
+    }
+
     // Tabs refreshing together: some may fail, but the family never has two live tokens
     [Fact]
     public async Task Parallel_refresh_of_one_token_never_leaves_two_live_tokens()

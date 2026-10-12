@@ -34,6 +34,9 @@ public sealed class SessionService(
     /// (stolen copy, or a parallel replay) the whole family is revoked and the caller must sign in again — except
     /// within the reuse grace (decision #223): a token rotated a few seconds ago whose successor was never used is a
     /// browser that lost the answer (reload mid-request, L212), so the unused successor is retired in its place.
+    /// A parallel replay of the same token (tabs, retries) is not a theft either (L214): while the winning rotation is
+    /// still being written the caller just gets 401, and once it is written the caller follows the chain of superseded
+    /// tokens to its live head.
     /// </summary>
     public async Task<AuthResult> RotateAsync(string refreshToken, string? device, CancellationToken ct)
     {
@@ -50,8 +53,14 @@ public sealed class SessionService(
 
         if (retired == 0)
         {
+            // The row read above may predate a parallel rotation of this very token: decide on what is stored now (L214)
+            token = await db.RefreshTokens.AsNoTracking().FirstAsync(t => t.Id == token.Id, ct);
             if (token.RevokeReason is not (RevokeReasons.Rotated or RevokeReasons.Superseded)) throw Unauthenticated();
-            var successor = token.RevokeReason == RevokeReasons.Rotated ? await RetireUnusedSuccessorAsync(token, device, now, ct) : null;
+            var (successor, inFlight) = token.RevokeReason == RevokeReasons.Rotated
+                ? await RetireUnusedHeadAsync(token, device, now, ct)
+                : (null, false);
+            // A parallel rotation of the same token has not linked its successor yet: a duplicate, not a reuse
+            if (inFlight) throw Unauthenticated();
             if (successor is null)
             {
                 // Not cancellable: a thief must not dodge the revocation by dropping the connection
@@ -78,27 +87,47 @@ public sealed class SessionService(
         return result;
     }
 
+    // Longest chain of superseded tokens followed from one rotated token (parallel replays within the grace)
+    private const int MaxGraceHops = 32;
+
     /// <summary>
-    /// The reuse grace: <paramref name="token"/> was rotated at most AUTH.REFRESH_REUSE_GRACE_SECONDS ago, its successor
-    /// is still unused (the live head of the family) and was issued to the same device as the caller — the rotation whose
-    /// answer was lost (the sign-in may have named the device differently, so the old token's own device is not compared). Retires that successor with the same
-    /// conditional UPDATE as a rotation (only one caller wins) and returns it, so the caller rotates from it. Null when
-    /// any condition fails — a real reuse.
+    /// The reuse grace: <paramref name="token"/> was rotated at most AUTH.REFRESH_REUSE_GRACE_SECONDS ago and its
+    /// successor was never used — the rotation whose answer was lost. Follows the successor, and any tokens that earlier
+    /// replays superseded in turn (never one the browser rotated itself: that is a real reuse), to the live head of the
+    /// family; the head must have been issued to the same device as the caller (the sign-in may have named the device
+    /// differently, so the old token's own device is not compared). Retires the head with the same conditional UPDATE as
+    /// a rotation (only one caller wins) and returns it, so the caller rotates from it. <c>InFlight</c> when a link of
+    /// the chain is retired but its successor is not written yet (a parallel rotation in progress). Null head and not
+    /// in flight when any condition fails — a real reuse.
     /// </summary>
-    private async Task<RefreshToken?> RetireUnusedSuccessorAsync(RefreshToken token, string? device, DateTimeOffset now, CancellationToken ct)
+    private async Task<(RefreshToken? Head, bool InFlight)> RetireUnusedHeadAsync(RefreshToken token, string? device, DateTimeOffset now, CancellationToken ct)
     {
         var graceSeconds = await parameters.GetIntAsync(ParameterKeys.AuthRefreshReuseGraceSeconds, ct);
-        if (graceSeconds <= 0 || token.ReplacedById is not { } successorId || token.RevokedAt is not { } rotatedAt
-            || now - rotatedAt > TimeSpan.FromSeconds(graceSeconds)) return null;
-        var successor = await db.RefreshTokens.AsNoTracking().FirstOrDefaultAsync(t => t.Id == successorId, ct);
-        if (successor is null) return null;
-        if (device is not null && successor.Device is not null && Truncate(device, 200) != successor.Device) return null;
-        var retired = await db.RefreshTokens
-            .Where(t => t.Id == successorId && t.RevokedAt == null && t.ExpiresAt > now)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.RevokedAt, now)
-                .SetProperty(t => t.RevokeReason, RevokeReasons.Superseded), ct);
-        return retired == 1 ? successor : null;
+        if (graceSeconds <= 0 || token.RevokedAt is not { } rotatedAt || now - rotatedAt > TimeSpan.FromSeconds(graceSeconds))
+            return (null, false);
+
+        var link = token;
+        for (var hop = 0; hop < MaxGraceHops; hop++)
+        {
+            if (link.ReplacedById is not { } nextId) return (null, true);
+            var next = await db.RefreshTokens.AsNoTracking().FirstOrDefaultAsync(t => t.Id == nextId, ct);
+            if (next is null) return (null, false);
+            if (next.RevokedAt is null)
+            {
+                if (device is not null && next.Device is not null && Truncate(device, 200) != next.Device) return (null, false);
+                var retired = await db.RefreshTokens
+                    .Where(t => t.Id == nextId && t.RevokedAt == null && t.ExpiresAt > now)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.RevokedAt, now)
+                        .SetProperty(t => t.RevokeReason, RevokeReasons.Superseded), ct);
+                if (retired == 1) return (next, false);
+                // A parallel replay took the head a moment ago: follow it
+                next = await db.RefreshTokens.AsNoTracking().FirstAsync(t => t.Id == nextId, ct);
+            }
+            if (next.RevokeReason != RevokeReasons.Superseded) return (null, false);
+            link = next;
+        }
+        return (null, false);
     }
 
     public async Task RevokeFamilyAsync(Guid userId, Guid familyId, string reason, CancellationToken ct)

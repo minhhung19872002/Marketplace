@@ -1436,3 +1436,109 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ---- G-VIS round 5 (#219): "Ưu đãi shop" — one compact row per item: small tag, photo, one-line name, price, "Thêm" ---- */
+.pd-offers {
+  flex: 1;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pd-offer-block {
+  gap: 8px;
+}
+
+.pd-offer {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.pd-offer-item {
+  display: grid;
+  grid-template-columns: auto 36px minmax(0, 1fr) auto auto;
+  flex-wrap: nowrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pd-offer-item img {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+}
+
+.pd-offer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.pd-offer-name:hover {
+  color: var(--sh-primary);
+}
+
+.pd-offer-price {
+  white-space: nowrap;
+}
+
+.pd-offer-price s {
+  font-size: 12px;
+}
+
+.pd-offer-add {
+  padding: 3px 12px;
+  border-radius: 2px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pd-offer-add:hover {
+  background: var(--sh-primary-soft);
+}
+
+/* A price's "đ" (L207): smaller than the digits, never underlined */
+.price-current .sh-currency {
+  margin-left: 1px;
+  font-size: 0.7em;
+  vertical-align: 0.35em;
+}
+
+/* Phones: the tag above, then photo | name over price | "Thêm" — nothing wider than the screen */
+@media (max-width: 767px) {
+  .pd-offer-item {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    column-gap: 8px;
+    row-gap: 2px;
+  }
+
+  .pd-offer-item .pd-offer {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .pd-offer-item img {
+    grid-row: span 2;
+  }
+
+  .pd-offer-name {
+    grid-column: 2;
+  }
+
+  .pd-offer-price {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .pd-offer-add {
+    grid-column: 3;
+    grid-row: 2 / span 2;
+    align-self: center;
+  }
+}

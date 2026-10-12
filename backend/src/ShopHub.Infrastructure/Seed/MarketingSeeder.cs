@@ -66,18 +66,31 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
     {
         var campaign = await db.Campaigns.FirstOrDefaultAsync(c => c.Slug == "sieu-sale-10-10", ct);
         if (campaign is null || campaign.FrameImageUrl is not null) return;
-        await using var stream = typeof(MarketingSeeder).Assembly.GetManifestResourceStream("ShopHub.Infrastructure.Seed.Data.Art.frame-1010.png")
-            ?? throw new InvalidOperationException("Thiếu tài nguyên Art/frame-1010.png.");
+        await SetFrameAsync(campaign, "frame-1010.png", ct);
+        var picked = await RegisterProductsAsync(campaign, 1010, now, ct);
+        logger.LogInformation("SEED campaign frame: {Count} products take part", picked);
+    }
+
+    /// <summary>A campaign's frame (transparent PNG of Seed/Data/Art, uploaded as is — the image pipeline would flatten it).</summary>
+    private async Task SetFrameAsync(Campaign campaign, string file, CancellationToken ct)
+    {
+        await using var stream = typeof(MarketingSeeder).Assembly.GetManifestResourceStream($"ShopHub.Infrastructure.Seed.Data.Art.{file}")
+            ?? throw new InvalidOperationException($"Thiếu tài nguyên Art/{file}.");
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms, ct);
-        await storage.PutAsync(Buckets.Banners, "seed/frame-1010.png", ms.ToArray(), "image/png", ct);
-        campaign.SetFrame(storage.PublicUrl(Buckets.Banners, "seed/frame-1010.png"));
+        await storage.PutAsync(Buckets.Banners, $"seed/{file}", ms.ToArray(), "image/png", ct);
+        campaign.SetFrame(storage.PublicUrl(Buckets.Banners, $"seed/{file}"));
+    }
+
+    /// <summary>The products taking part in a campaign: Mall shops' products and about one in seven of the others, approved.</summary>
+    private async Task<int> RegisterProductsAsync(Campaign campaign, int seed, DateTimeOffset now, CancellationToken ct)
+    {
         var products = await (from p in db.Products.AsNoTracking()
                               join sh in db.Shops.AsNoTracking() on p.ShopId equals sh.Id
                               where p.Status == ProductStatus.Active
                               orderby p.Id
                               select new { p.Id, p.ShopId, Mall = sh.Type == Domain.Shops.ShopType.Mall }).ToListAsync(ct);
-        var rng = new Random(1010);
+        var rng = new Random(seed);
         var picked = 0;
         foreach (var p in products.Where(p => p.Mall ? rng.Next(100) < 45 : rng.Next(100) < 15))
         {
@@ -87,7 +100,7 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
             picked++;
         }
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("SEED campaign frame: {Count} products take part", picked);
+        return picked;
     }
 
     /// <summary>
@@ -124,8 +137,10 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
                 to, i, null, now, hasTextInImage: true));
         db.Banners.Add(new Banner(BannerPosition.Mall, "ShopHub Mall — săn deal siêu hot", await DesignedArtAsync("mall-deal.webp", ct), "/tim-kiem?mall=true",
             from, to, 0, null, now, hasTextInImage: true));
-        db.Banners.Add(new Banner(BannerPosition.Popup, "Siêu sale 10.10 — mã giảm đến ₫100.000", await ArtAsync("popup.webp", ct), "/su-kien/sieu-sale-10-10",
-            from, to, 0, null, now, hasTextInImage: true));
+        // The 10.10 popup ends with the sale (L206: it ran a year); the home page also hides a banner whose campaign is over
+        if (saleEnd > from)
+            db.Banners.Add(new Banner(BannerPosition.Popup, "Siêu sale 10.10 — mã giảm đến ₫100.000", await ArtAsync("popup.webp", ct), "/su-kien/sieu-sale-10-10",
+                from, saleEnd, 0, null, now, hasTextInImage: true));
         await db.SaveChangesAsync(ct);
         logger.LogInformation("SEED designed banners: {Main} hero slides, 2 side, 3 strip, 1 Mall, 1 popup ({Old} earlier seed rows replaced)",
             MainBanners.Length, old.Count);
@@ -157,11 +172,46 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
     }
 
     /// <summary>The 10.10 sale: 08/10 – 12/10 (Vietnam time) of this year, or of next year once it is over.</summary>
-    private static (DateTimeOffset Start, DateTimeOffset End) TenTenWindow(DateTimeOffset now)
+    private static (DateTimeOffset Start, DateTimeOffset End) TenTenWindow(DateTimeOffset now) => SaleWindow(now, 10);
+
+    /// <summary>
+    /// A double-day sale of <paramref name="month"/> (10.10, 11.11): from the 8th to the end of the 12th, Vietnam time, of this
+    /// year — or of next year once this year's is over, so a seed never schedules a sale that has passed.
+    /// </summary>
+    public static (DateTimeOffset Start, DateTimeOffset End) SaleWindow(DateTimeOffset now, int month)
     {
         var vnNow = now.ToOffset(Vn);
-        var year = vnNow > new DateTimeOffset(vnNow.Year, 10, 13, 0, 0, 0, Vn) ? vnNow.Year + 1 : vnNow.Year;
-        return (new DateTimeOffset(year, 10, 8, 0, 0, 0, Vn).ToUniversalTime(), new DateTimeOffset(year, 10, 13, 0, 0, 0, Vn).ToUniversalTime());
+        var year = vnNow >= new DateTimeOffset(vnNow.Year, month, 13, 0, 0, 0, Vn) ? vnNow.Year + 1 : vnNow.Year;
+        return (new DateTimeOffset(year, month, 8, 0, 0, 0, Vn).ToUniversalTime(), new DateTimeOffset(year, month, 13, 0, 0, 0, Vn).ToUniversalTime());
+    }
+
+    /// <summary>
+    /// The 11.11 sale, ready ahead (#218): its campaign page, the frame and the products taking part, the hero slide and the
+    /// popup — each scheduled for the sale's own days (<see cref="SaleWindow"/>), so the site switches to it on 08/11 and
+    /// shows nothing of it once it is over. Guarded on its own: a database seeded before gets it on the next start.
+    /// </summary>
+    private async Task SeedElevenElevenAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        const string slug = "sieu-sale-11-11";
+        if (await db.Campaigns.IgnoreQueryFilters().AnyAsync(c => c.Slug == slug, ct)) return;
+        var (start, end) = SaleWindow(now, 11);
+        var campaign = new Campaign("Siêu Sale 11.11", slug, start, end,
+        [
+            new(CampaignBlockType.Banner, "Siêu Sale 11.11", await ArtAsync("event-1111.webp", ct), "/tim-kiem?sort=BestSelling", null, null, null, null, null),
+            new(CampaignBlockType.Vouchers, "Mã giảm giá của sàn", null, null, ["SHOPHUB50", "FREESHIP", "SALE12"], null, null, null, null),
+            new(CampaignBlockType.FlashSale, "Flash Sale đang diễn ra", null, null, null, null, null, null, null),
+            new(CampaignBlockType.Products, "Deal dưới ₫200.000", null, "/tim-kiem?maxPrice=200000", null, null, null, 200_000, 12),
+            new(CampaignBlockType.Registered, "Sản phẩm của các shop tham gia", null, null, null, null, null, null, 24),
+        ], now);
+        db.Campaigns.Add(campaign);
+        await SetFrameAsync(campaign, "frame-1111.png", ct);
+        db.Banners.Add(new Banner(BannerPosition.HomeMain, "Siêu sale 11.11 — mã SALE12 giảm 12%", await DesignedArtAsync("hero-7.webp", ct), $"/su-kien/{slug}",
+            start, end, 3, null, now, hasTextInImage: true));
+        db.Banners.Add(new Banner(BannerPosition.Popup, "Siêu sale 11.11 — mã giảm đến ₫100.000", await ArtAsync("popup-1111.webp", ct), $"/su-kien/{slug}",
+            start, end, 0, null, now, hasTextInImage: true));
+        await db.SaveChangesAsync(ct);
+        var picked = await RegisterProductsAsync(campaign, 1111, now, ct);
+        logger.LogInformation("SEED campaign {Slug}: {Start} – {End}, {Count} products take part", slug, start, end, picked);
     }
 
     /// <summary>
@@ -320,6 +370,7 @@ public sealed class MarketingSeeder(ShopHubDbContext db, IClock clock, IObjectSt
         }
 
         await SeedCampaignFrameAsync(now, ct);
+        await SeedElevenElevenAsync(now, ct);
         await SeedShopProgrammesAsync(now, ct);
     }
 }

@@ -76,7 +76,8 @@ const CampaignPage = () => {
   return (
     <div className="container campaign-page" data-testid="campaign-page">
       <h1 className="campaign-title">{data.name}</h1>
-      <p className="campaign-period">Từ {formatDate(data.startAt)} đến {formatDate(data.endAt)}</p>
+      {/* The end is the first moment after the sale (13/10 00:00): the last day shown is the one before it (12/10) */}
+      <p className="campaign-period">Từ {formatDate(data.startAt)} đến {formatDate(new Date(new Date(data.endAt).getTime() - 1))}</p>
       {data.blocks.map((b, i) => (
         <section key={i} className="campaign-block">
           {b.type === 'Banner' && (

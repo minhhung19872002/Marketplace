@@ -2,6 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { Link, type LinkProps } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, PackageOpen, Star, type LucideIcon } from 'lucide-react';
 import { pageWindow } from '../../lib/text';
+import { priceTextParts } from '../../lib/money';
 import './ui.css';
 
 // Design system primitives shared by every page (G0). Icons come from lucide-react — never emoji.
@@ -87,6 +88,20 @@ export const EmptyState = ({ icon: Icon = PackageOpen, art, title, text, action,
 );
 
 /** 0–5 stars with halves; the number itself is announced through aria-label */
+/**
+ * A formatted price or range written with a plain small "đ" after the digits (G-VIS round 5, L207: the "₫" sign carries a
+ * bar under it that read as a link). Screen readers get the text as formatted ("158.000₫") from a hidden copy (an
+ * aria-label on a plain span is not allowed, axe aria-prohibited-attr).
+ */
+export const PriceText = ({ text, className, testId }: { text: string; className?: string; testId?: string }) => (
+  <span className={className} data-testid={testId}>
+    <span className="sh-visually-hidden">{text}</span>
+    <span className="sh-price-shown" aria-hidden>
+      {priceTextParts(text).map((p, i) => (p.currency ? <span key={i} className="sh-currency">{p.text}</span> : <span key={i}>{p.text}</span>))}
+    </span>
+  </span>
+);
+
 export const Stars = ({ value, size = 12 }: { value: number; size?: number }) => (
   <span className="sh-stars" role="img" aria-label={`${value.toFixed(1)} trên 5 sao`}>
     {[1, 2, 3, 4, 5].map((i) => {

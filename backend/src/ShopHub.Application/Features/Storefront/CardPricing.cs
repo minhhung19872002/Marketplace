@@ -71,6 +71,8 @@ public sealed class CardPricing(IApplicationDbContext db, PriceBook prices, IClo
                             orderby c.StartAt descending
                             select new { r.ProductId, c.FrameImageUrl, c.Name }).ToListAsync(ct);
         var frameOf = frames.GroupBy(f => f.ProductId).ToDictionary(g => g.Key, g => g.First());
+        var covered = cards.Where(c => c.ImageUrl is { } u && PlainPhotos.IsCover(u)).Select(c => c.Id).ToList();
+        var plain = covered.Count == 0 ? new Dictionary<Guid, string>() : await PlainPhotos.OfAsync(db, covered, ct);
         return cards.Select(card =>
         {
             var labels = new List<string>();
@@ -87,7 +89,12 @@ public sealed class CardPricing(IApplicationDbContext db, PriceBook prices, IClo
             }
             if (xtra.Contains(card.ShopId)) labels.Add("Freeship+");
             var frame = frameOf.GetValueOrDefault(card.Id);
-            return card with { Labels = labels.Count > 0 ? labels.Take(2).ToList() : null, FrameUrl = frame?.FrameImageUrl, CampaignName = frame?.Name };
+            var hasText = card.ImageUrl is { } url && PlainPhotos.IsCover(url);
+            return card with
+            {
+                Labels = labels.Count > 0 ? labels.Take(2).ToList() : null, FrameUrl = frame?.FrameImageUrl, CampaignName = frame?.Name,
+                ImageHasText = hasText, PhotoUrl = hasText ? plain.GetValueOrDefault(card.Id) : null,
+            };
         }).ToList();
     }
 

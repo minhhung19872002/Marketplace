@@ -140,91 +140,88 @@ const COMMON = `
   .chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px 9px 12px; border-radius: 99px; font-weight: 700; font-size: 24px; white-space: nowrap; }
   .brand { position: absolute; display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 99px; font-weight: 800; font-size: 26px; letter-spacing: -.01em; }`;
 
-// Nine templates (800×800): colour block / gradient, the product large and off-centre, one huge benefit line, 2–3 icons
+// Six templates (800×800). G-VIS round 5 (L205): the product is the picture — its box holds no text, and every text block
+// (benefit band / header / sticker / ticket, the brand pill) sits in a declared zone outside it covering at most 25 % of
+// the image; checked below before anything is drawn. Round 3's covers let the benefit line take half the image.
+const one = (lines) => lines.join(' ');
 const TEMPLATES = [
-  // 0 slab: a colour slab on the left with the benefit, the product overlapping it on the right
-  (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
-    body { background: linear-gradient(160deg, #fff, ${main}22); }
-    .slab { position: absolute; left: 0; top: 0; bottom: 0; width: 330px; background: linear-gradient(180deg, ${main}, ${dark}); }`,
-  `<div class="slab"></div>${brandMark(m, main, '#fff')}
-   <div class="big" data-w="280" style="left:34px;top:110px;color:#fff">${bigText(b.big, 96)}</div>
-   <div class="sub" style="left:36px;top:${b.big.length > 1 ? 318 : 230}px;width:270px;color:${acc}">${b.sub}</div>
-   ${product(m, 250, 120, 540, 560)}
-   <div class="chips" style="left:34px;bottom:34px;flex-direction:column;align-items:flex-start">${chipRow(chips, dark, '#fff')}</div>`),
-  // 1 band: the product big on top, a bottom band with the benefit
-  (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
-    body { background: radial-gradient(circle at 50% 35%, #fff 0%, ${main}1f 70%); }
-    .band { position: absolute; left: 0; right: 0; bottom: 0; height: 210px; background: linear-gradient(90deg, ${dark}, ${main}); }`,
-  `${product(m, 110, 40, 580, 520)}<div class="band"></div>${brandMark(m, '#fff', main)}
-   <div class="big" data-w="720" style="left:40px;bottom:${b.big.length > 1 ? 40 : 70}px;color:#fff;display:flex;gap:18px;align-items:flex-end">${b.big.map((l) => `<div style="font-size:${b.big.length > 1 ? 92 : 112}px">${l}</div>`).join('')}</div>
-   <div class="sub" style="left:42px;bottom:${b.big.length > 1 ? 150 : 178}px;color:${acc};font-size:26px">${b.sub}</div>
-   <div class="chips" style="right:28px;top:110px;flex-direction:column;align-items:flex-end">${chipRow(chips.slice(0, 2), '#fff', main)}</div>`),
-  // 2 burst: full-bleed gradient, a light disc behind the product, a starburst sticker with the benefit
-  (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
-    body { background: radial-gradient(circle at 70% 60%, ${main}, ${dark} 80%); }
-    .disc { position: absolute; left: 250px; top: 190px; width: 560px; height: 560px; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #ffffffcc 55%, #ffffff00 72%); }`,
-  `<div class="disc"></div>${product(m, 240, 200, 540, 540)}
-   <div class="burst" style="position:absolute;left:-14px;top:40px;width:400px;height:400px;background:${acc};transform:rotate(-8deg)"></div>
-   <div class="big" data-w="280" style="left:65px;top:${b.big.length > 1 ? 150 : 190}px;width:280px;text-align:center;color:${dark};transform:rotate(-8deg)">${bigText(b.big, b.big[0].length > 8 ? 62 : 84)}</div>
-   ${brandMark(m, dark, '#fff', 'right:30px;top:30px')}
-   <div class="chips" style="left:30px;bottom:34px">${chipRow(chips.slice(0, 2), dark, '#fff')}</div>`),
-  // 3 header: a colour header with the benefit, the product overlapping it, icons stacked on the left
-  (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
-    body { background: #fff; }
-    .head { position: absolute; left: 0; right: 0; top: 0; height: 250px; background: linear-gradient(120deg, ${main}, ${dark}); border-radius: 0 0 60px 60px; }`,
-  `<div class="head"></div>
-   <div class="big" data-w="720" style="left:40px;top:40px;color:#fff;display:flex;gap:16px;align-items:baseline">${b.big.map((l) => `<div style="font-size:${b.big.join('').length > 12 ? 80 : 100}px">${l}</div>`).join('')}</div>
-   <div class="sub" style="left:42px;top:150px;color:${acc}">${b.sub}</div>
-   ${product(m, 210, 210, 570, 570)}
-   <div class="chips" style="left:30px;top:300px;flex-direction:column;align-items:flex-start">${chipRow(chips, '#fff', main)}</div>
-   ${brandMark(m, main, '#fff', `left:30px;bottom:30px;border:3px solid ${main}`)}`),
-  // 4 diagonal: a diagonal colour field, the benefit on it, the product huge at the bottom right
-  (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
-    body { background: linear-gradient(135deg, ${acc}55, #fff 60%); }
-    .diag { position: absolute; inset: 0; background: linear-gradient(135deg, ${main}, ${dark}); clip-path: polygon(0 0, 100% 0, 100% 18%, 0 62%); }`,
-  `<div class="diag"></div>${brandMark(m, main, '#fff', 'right:30px;top:30px')}
-   <div class="big" data-w="560" style="left:40px;top:60px;color:#fff">${bigText(b.big, 104)}</div>
-   <div class="sub" style="left:42px;top:${b.big.length > 1 ? 262 : 180}px;color:${acc};width:440px">${b.sub}</div>
-   ${product(m, 230, 250, 560, 540)}
-   <div class="chips" style="left:30px;bottom:34px;flex-direction:column;align-items:flex-start">${chipRow(chips.slice(0, 2), '#fff', dark)}</div>`),
-  // 5 ticket: the product on the left, a voucher ticket on the right
-  (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
-    body { background: ${main}14; background-image: radial-gradient(${main}30 2px, transparent 2px); background-size: 28px 28px; }
-    .ticket { position: absolute; right: 30px; top: 150px; width: 300px; height: 420px; border-radius: 24px; background: linear-gradient(180deg, ${main}, ${dark}); box-shadow: 0 16px 34px ${dark}55;
-      -webkit-mask: radial-gradient(circle 22px at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 22px at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat; }
-    .cutline { position: absolute; right: 52px; top: 360px; width: 256px; border-top: 4px dashed ${acc}; }`,
-  `${product(m, 10, 120, 520, 600)}<div class="ticket"></div><div class="cutline"></div>
-   <div class="big" data-w="300" style="right:30px;top:${b.big.length > 1 ? 190 : 225}px;width:300px;text-align:center;color:#fff">${bigText(b.big, b.big.join('').length > 10 ? 58 : 76)}</div>
-   <div class="sub" style="right:50px;top:384px;width:260px;text-align:center;color:${acc};font-size:24px">${b.sub}</div>
-   ${brandMark(m, '#fff', main)}
-   <div class="chips" style="left:30px;right:30px;bottom:34px;justify-content:center">${chipRow(chips, dark, '#fff')}</div>`),
-  // 6 frame: a thick colour frame, the benefit in the bottom bar
-  (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
-    body { background: ${main}; }
-    .in { position: absolute; left: 24px; top: 24px; right: 24px; bottom: 170px; border-radius: 26px; background: radial-gradient(circle at 50% 45%, #fff, ${acc}40); }`,
-  `<div class="in"></div>${product(m, 90, 70, 620, 540)}
-   <div class="big" data-w="450" style="left:36px;bottom:38px;color:#fff;display:flex;gap:16px;align-items:baseline">${b.big.map((l) => `<div style="font-size:${b.big.join('').length > 12 ? 72 : 96}px">${l}</div>`).join('')}</div>
-   <div class="chips" style="right:30px;bottom:44px;flex-direction:column;align-items:flex-end">${chipRow(chips.slice(0, 2), dark, acc, 20)}</div>
-   ${brandMark(m, '#fff', dark, 'left:44px;top:44px')}`),
-  // 7 luxe: a dark gradient, gold benefit, the product with a glow
-  (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
-    body { background: radial-gradient(circle at 62% 55%, ${main} 0%, ${dark} 55%, #0b0b0f 100%); }
-    .glow { position: absolute; left: 260px; top: 200px; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, ${acc}66, transparent 65%); }`,
-  `<div class="glow"></div>${product(m, 250, 190, 530, 560)}
-   <div class="big" data-w="440" style="left:40px;top:${b.big.length > 1 ? 70 : 100}px;color:${acc}">${bigText(b.big, 92)}</div>
-   <div class="sub" style="left:42px;top:${b.big.length > 1 ? 250 : 200}px;color:#fff;width:300px;font-weight:500">${b.sub}</div>
-   <div class="chips" style="left:30px;bottom:34px;flex-direction:column;align-items:flex-start">${chipRow(chips, acc, '#ffffff14')}</div>
-   ${brandMark(m, acc, 'transparent', `right:30px;top:30px;border:2px solid ${acc}`)}`),
-  // 8 circle: a pastel field, a big colour circle carrying the product, the benefit at the top left
-  (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
-    body { background: linear-gradient(180deg, ${acc}66, #fff); }
-    .circle { position: absolute; right: -90px; bottom: -110px; width: 680px; height: 680px; border-radius: 50%; background: linear-gradient(135deg, ${main}, ${dark}); }`,
-  `<div class="circle"></div>${product(m, 230, 210, 550, 560)}
-   <div class="big" data-w="540" style="left:40px;top:${b.big.length > 1 ? 50 : 70}px;color:${dark}">${bigText(b.big, 100)}</div>
-   <div class="sub" style="left:42px;top:${b.big.length > 1 ? 250 : 175}px;color:${dark};width:400px">${b.sub}</div>
-   <div class="chips" style="left:30px;bottom:34px;flex-direction:column;align-items:flex-start">${chipRow(chips.slice(0, 2), '#fff', dark)}</div>
-   ${brandMark(m, '#fff', main, 'right:30px;top:30px')}`),
+  // 0 band: the product large in the light field, a bottom band with the benefit
+  {
+    product: [80, 90, 640, 520], text: [[0, 640, 800, 160], [24, 24, 300, 52]],
+    draw: (m, [main, dark, acc], b) => page(800, 800, `${COMMON}
+      body { background: radial-gradient(circle at 50% 40%, #fff 0%, ${main}1f 75%); }
+      .band { position: absolute; left: 0; right: 0; bottom: 0; height: 160px; background: linear-gradient(90deg, ${dark}, ${main}); }`,
+    `${product(m, 80, 90, 640, 520)}<div class="band"></div>${brandMark(m, '#fff', main, 'left:24px;top:24px')}
+     <div class="big" data-w="740" style="left:30px;top:658px;color:#fff;font-size:76px">${one(b.big)}</div>
+     <div class="sub" data-w="740" style="left:32px;top:744px;color:${acc};font-size:26px"><div>${b.sub}</div></div>`),
+  },
+  // 1 header: a slim colour header with the benefit, the product below it
+  {
+    product: [90, 175, 620, 600], text: [[0, 0, 800, 150]],
+    draw: (m, [main, dark, acc], b) => page(800, 800, `${COMMON}
+      body { background: linear-gradient(180deg, #fff 30%, ${main}18); }
+      .head { position: absolute; left: 0; right: 0; top: 0; height: 150px; background: linear-gradient(120deg, ${main}, ${dark}); border-radius: 0 0 40px 40px; }`,
+    `<div class="head"></div>
+     <div class="big" data-w="540" style="left:32px;top:24px;color:#fff;font-size:70px">${one(b.big)}</div>
+     <div class="sub" data-w="540" style="left:34px;top:102px;color:${acc};font-size:24px"><div>${b.sub}</div></div>
+     ${brandMark(m, main, '#fff', 'right:28px;top:48px')}
+     ${product(m, 90, 175, 620, 600)}`),
+  },
+  // 2 sticker: a full colour field, a light disc behind the product, the benefit on a starburst in the corner
+  {
+    product: [215, 170, 570, 600], text: [[10, 10, 200, 200], [520, 24, 256, 52]],
+    draw: (m, [main, dark, acc], b) => page(800, 800, `${COMMON}
+      body { background: radial-gradient(circle at 65% 62%, ${main}, ${dark} 85%); }
+      .disc { position: absolute; left: 200px; top: 180px; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #ffffffcc 55%, #ffffff00 72%); }`,
+    `<div class="disc"></div>${product(m, 215, 170, 570, 600)}
+     <div class="burst" style="position:absolute;left:16px;top:16px;width:188px;height:188px;background:${acc};transform:rotate(-8deg)"></div>
+     <div class="big" data-w="140" style="left:40px;top:${b.big.length > 1 ? 72 : 92}px;width:140px;text-align:center;color:${dark};transform:rotate(-8deg)">${bigText(b.big, 38)}</div>
+     ${brandMark(m, dark, '#fff', 'right:24px;top:24px')}`),
+  },
+  // 3 frame: a thick colour frame, the product in the white window, the benefit in the bottom bar
+  {
+    product: [130, 104, 540, 500], text: [[0, 624, 800, 176], [44, 44, 250, 50]],
+    draw: (m, [main, dark, acc], b, chips) => page(800, 800, `${COMMON}
+      body { background: ${main}; }
+      .in { position: absolute; left: 24px; top: 24px; right: 24px; height: 600px; border-radius: 26px; background: radial-gradient(circle at 50% 45%, #fff, ${acc}40); }`,
+    `<div class="in"></div>${product(m, 130, 104, 540, 500)}
+     <div class="big" data-w="470" style="left:36px;top:660px;color:#fff;font-size:68px">${one(b.big)}</div>
+     <div class="chips" style="right:30px;top:654px;flex-direction:column;align-items:flex-end">${chipRow(chips.slice(0, 2), dark, acc, 20)}</div>
+     ${brandMark(m, '#fff', dark, 'left:44px;top:44px')}`),
+  },
+  // 4 luxe: a dark gradient, the product with a glow, the benefit in gold under it
+  {
+    product: [150, 90, 500, 520], text: [[0, 620, 800, 180], [24, 24, 240, 50]],
+    draw: (m, [main, dark, acc], b) => page(800, 800, `${COMMON}
+      body { background: radial-gradient(circle at 50% 42%, ${main} 0%, ${dark} 55%, #0b0b0f 100%); }
+      .glow { position: absolute; left: 140px; top: 80px; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, ${acc}55, transparent 65%); }`,
+    `<div class="glow"></div>${product(m, 150, 90, 500, 520)}
+     <div class="big" data-w="720" style="left:40px;top:640px;color:${acc};font-size:72px">${one(b.big)}</div>
+     <div class="sub" data-w="720" style="left:42px;top:730px;color:#fff;font-weight:500"><div>${b.sub}</div></div>
+     ${brandMark(m, acc, 'transparent', `left:24px;top:24px;border:2px solid ${acc}`)}`),
+  },
+  // 5 ticket: the product on the left, a small voucher ticket on the right
+  {
+    product: [16, 120, 530, 600], text: [[566, 180, 214, 300], [24, 24, 260, 52]],
+    draw: (m, [main, dark, acc], b) => page(800, 800, `${COMMON}
+      body { background: ${main}14; background-image: radial-gradient(${main}30 2px, transparent 2px); background-size: 28px 28px; }
+      .ticket { position: absolute; left: 566px; top: 180px; width: 214px; height: 300px; border-radius: 22px; background: linear-gradient(180deg, ${main}, ${dark}); box-shadow: 0 16px 34px ${dark}55;
+        -webkit-mask: radial-gradient(circle 18px at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 18px at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat; }
+      .cutline { position: absolute; left: 590px; top: 330px; width: 166px; border-top: 4px dashed ${acc}; }`,
+    `${product(m, 16, 120, 530, 600)}<div class="ticket"></div><div class="cutline"></div>
+     <div class="big" data-w="190" style="left:578px;top:${b.big.length > 1 ? 206 : 236}px;width:190px;text-align:center;color:#fff">${bigText(b.big, 50)}</div>
+     <div class="sub" data-w="180" style="left:583px;top:350px;width:180px;text-align:center;color:${acc};font-size:20px;white-space:normal">${b.sub}</div>
+     ${brandMark(m, '#fff', main, 'left:24px;top:24px')}`),
+  },
 ];
+// The rule of L205, checked on the declared zones: no text over the product, text at most a quarter of the image
+for (const [i, t] of TEMPLATES.entries()) {
+  const [px, py, pw, ph] = t.product;
+  const area = t.text.reduce((s, [, , w, h]) => s + w * h, 0);
+  if (area > 0.25 * 800 * 800) throw new Error(`template ${i}: text covers ${Math.round(area / 6400)} % of the cover`);
+  for (const [x, y, w, h] of t.text)
+    if (x < px + pw && px < x + w && y < py + ph && py < y + h) throw new Error(`template ${i}: text zone ${[x, y, w, h]} overlaps the product`);
+}
 
 const perTop = new Map();
 const usage = new Array(TEMPLATES.length).fill(0);
@@ -241,7 +238,7 @@ for (const m of covered) {
     .slice(0, 3);
   // Colour: the industry's own on its first cover, then the shared palettes in turn (a row of covers never looks alike)
   const pal = n % 3 === 0 ? TOP[top] ?? PALETTES[0] : PALETTES[(industries.indexOf(top) + n * 3) % PALETTES.length];
-  add(`cover-p${pad(m.key)}`, 800, 800, TEMPLATES[t](m, pal, b, chips));
+  add(`cover-p${pad(m.key)}`, 800, 800, TEMPLATES[t].draw(m, pal, b, chips));
 }
 
 // ============================== 2. home banners ==============================
@@ -286,6 +283,10 @@ const HEROES = [
   { name: 'hero-4', pal: 'red', rib: ['SIÊU SALE', '10.10'], title: ['Siêu sale 10.10', 'deal lớn nhất tháng'], num: ['Giảm', '12%'],
     tickets: [['Mã', 'SALE12'], ['Tối đa', '₫100K'], ['Freeship', '₫30K']], items: [[6, 560, 30, 90, 180, -5], [124, 630, 20, 90, 190, 6], [186, 690, 120, 100, 100, -8], [176, 520, 140, 90, 90, 4]],
     sticker: [470, 26, 90, 12, '#ffd23f', '#b71c1c', '<div><div style="font-size:24px">10.10</div><div style="font-size:11px">SIÊU SALE</div></div>'], note: 'Mã SALE12 giảm 12% tối đa ₫100.000 cho đơn từ ₫500.000.' },
+  // The 11.11 slide (#218): on the home page only while that sale runs (MarketingSeeder.SeedElevenElevenAsync)
+  { name: 'hero-7', pal: 'pink', rib: ['SIÊU SALE', '11.11'], title: ['Siêu sale 11.11', 'sale lớn nhất năm'], num: ['Giảm', '12%'],
+    tickets: [['Mã', 'SALE12'], ['Tối đa', '₫100K'], ['Freeship', '₫30K']], items: [[8, 560, 18, 100, 200, -4], [78, 620, 100, 170, 120, 6], [123, 700, 20, 80, 150, 8], [106, 520, 140, 90, 90, -6]],
+    sticker: [470, 26, 90, 12, '#fff176', '#ad1457', '<div><div style="font-size:24px">11.11</div><div style="font-size:11px">SIÊU SALE</div></div>'], note: 'Mã SALE12 giảm 12% tối đa ₫100.000 cho đơn từ ₫500.000.' },
   { name: 'hero-5', pal: 'blue', rib: ['SHOPHUB', 'MALL'], title: ['Công nghệ chính hãng', 'trả hàng 15 ngày'], num: ['Đổi trả<br>trong', '15 NGÀY'],
     tickets: [['Hàng', 'Chính hãng'], ['Freeship', '₫30K']], items: [[78, 540, 30, 190, 140, -4], [101, 680, 100, 100, 110, 8], [123, 640, 10, 80, 150, 6], [159, 520, 150, 100, 80, -6]],
     sticker: [455, 24, 88, -8, '#ffd23f', '#0b2e86', '<div><div style="font-size:11px">CHÍNH</div><div style="font-size:20px">HÃNG</div></div>'], note: 'Cam kết của ShopHub Mall: hàng chính hãng, trả hàng trong 15 ngày.' },
@@ -404,6 +405,34 @@ add('frame-1010', 800, 800, page(800, 800, `
   .side { text-align: right; font-weight: 700; font-size: 26px; line-height: 1.1; }
   .edge { position: absolute; inset: 0; border: 10px solid #ff5722; border-bottom: 0; }`,
   `<div class="edge"></div><div class="band"><div class="big"><span>10.10</span> SIÊU SALE</div><div class="side">ShopHub<br>Giá sốc</div></div>`), 1, true);
+
+// ============================== campaign 11.11 (#218): event banner, popup, product frame ==============================
+// Ready ahead: MarketingSeeder.SeedElevenElevenAsync schedules them for 08/11 – 12/11 (Vietnam time), nothing shows before
+const elevenEleven = (w, h, layout) => page(w, h, `${BANNER_CSS}
+  body { background: radial-gradient(circle at 75% 30%, #ff5fa2, #c2189b 45%, #5e0b52 100%); color: #fff; }
+  .rays { position: absolute; inset: 0; background: repeating-conic-gradient(from 0deg at 75% 40%, rgba(255,255,255,.07) 0 6deg, transparent 6deg 18deg); }
+  .h1 { position: absolute; font-weight: 800; letter-spacing: -.03em; line-height: .95; text-shadow: 0 6px 0 rgba(0,0,0,.18); }
+  .y { color: #fff176; }
+  .cta { position: absolute; background: #fff; color: #ad1457; font-weight: 800; border-radius: 99px; }`, layout);
+add('event-1111', 1440, 480, elevenEleven(1440, 480, `<div class="rays"></div>
+  <div class="h1" style="left:80px;top:80px;font-size:104px">SIÊU SALE <span class="y">11.11</span></div>
+  <div style="position:absolute;left:84px;top:214px;font-size:32px;font-weight:600">Mã giảm đến ₫100.000 · Freeship đến ₫30.000</div>
+  <div class="cta" style="left:84px;top:290px;padding:16px 36px;font-size:30px">Săn deal ngay</div>
+  ${items([[8, 1010, 40, 150, 300], [78, 1170, 60, 250, 180], [106, 990, 270, 180, 170], [123, 1220, 260, 110, 200]])}
+  ${sticker(1290, 330, 120, 12, '#fff176', '#ad1457', '<div><div style="font-size:15px">FLASH SALE</div><div style="font-size:30px">-50%</div></div>')}`));
+add('popup-1111', 720, 720, elevenEleven(720, 720, `<div class="rays"></div>
+  <div class="h1" style="left:0;right:0;top:56px;text-align:center;font-size:96px">SIÊU SALE</div>
+  <div class="h1 y" style="left:0;right:0;top:150px;text-align:center;font-size:120px">11.11</div>
+  ${items([[8, 80, 300, 160, 290], [78, 250, 380, 230, 170], [123, 500, 320, 140, 260]])}
+  <div class="cta" style="left:150px;right:150px;top:612px;padding:16px 0;text-align:center;font-size:30px">Mã giảm đến ₫100.000</div>`));
+add('frame-1111', 800, 800, page(800, 800, `
+  body { background: transparent; }
+  .band { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: linear-gradient(90deg, #ad1457, #ff5fa2); display: flex; align-items: center; justify-content: space-between; padding: 0 30px; color: #fff; }
+  .big { font-size: 60px; font-weight: 800; letter-spacing: -.02em; }
+  .big span { color: #fff176; }
+  .side { text-align: right; font-weight: 700; font-size: 26px; line-height: 1.1; }
+  .edge { position: absolute; inset: 0; border: 10px solid #ff5fa2; border-bottom: 0; }`,
+  `<div class="edge"></div><div class="band"><div class="big"><span>11.11</span> SIÊU SALE</div><div class="side">ShopHub<br>Giá sốc</div></div>`), 1, true);
 
 // ============================== render ==============================
 // ART_ONLY=<regex>: render only the matching images (a quick look while designing; art-png is still emptied first)

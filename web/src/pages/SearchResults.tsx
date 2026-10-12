@@ -23,7 +23,7 @@ const SORTS: { key: ProductSort; label: string }[] = [
 
 const FACET_LIMIT = 8;
 const SORT_KEYS = new Set<string>(['Relevance', 'Newest', 'BestSelling', 'PriceAsc', 'PriceDesc']);
-const FILTER_KEYS = ['categoryId', 'provinces', 'brands', 'minPrice', 'maxPrice', 'minRating', 'mall', 'preferred', 'inStock', 'condition', 'attrs',
+const FILTER_KEYS = ['categoryId', 'provinces', 'brands', 'shops', 'minPrice', 'maxPrice', 'minRating', 'mall', 'preferred', 'inStock', 'condition', 'attrs',
   'carriers', 'freeship', 'voucher', 'cod'];
 
 const num = (v: string | null): number | undefined => (v && /^\d+$/.test(v) ? Number(v) : undefined);
@@ -36,6 +36,7 @@ function readParams(sp: URLSearchParams, categoryId?: string): SearchParams {
     categoryId: categoryId ?? sp.get('categoryId') ?? undefined,
     provinces: sp.getAll('provinces'),
     brands: sp.getAll('brands'),
+    shops: sp.getAll('shops'),
     minPrice: num(sp.get('minPrice')),
     maxPrice: num(sp.get('maxPrice')),
     minRating: num(sp.get('minRating')),
@@ -64,6 +65,7 @@ export function activeFilters(sp: URLSearchParams, facets: SearchFacets | undefi
   if (withCategory && categoryId) chips.push({ key: 'categoryId', label: label(facets?.categories, categoryId) });
   for (const v of sp.getAll('provinces')) chips.push({ key: 'provinces', value: v, label: label(facets?.provinces, v) });
   for (const v of sp.getAll('brands')) chips.push({ key: 'brands', value: v, label: brandNames[v] ?? label(facets?.brands, v) });
+  for (const v of sp.getAll('shops')) chips.push({ key: 'shops', value: v, label: label(facets?.shops, v) });
   const min = num(sp.get('minPrice'));
   const max = num(sp.get('maxPrice'));
   if (min !== undefined || max !== undefined) {
@@ -297,12 +299,13 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
               </div>
             )}
             {category.children.length > 0 && (
+              // Horizontal chips — a photo of a real item, then the name — wrapping across the width (G-VIS round 5, #220: four
+              // round pictures left the row empty on the right); every chip has a photo (L208: the API leaves out empty ones)
               <div className="category-children" data-testid="category-children" role="list" aria-label="Danh mục con">
-                {category.children.map((c) => (
-                  // A round picture over the name, like "Danh mục" on the home page (G5-B)
-                  <Link key={c.id} to={`/danh-muc/${c.slug}`} className="category-child" role="listitem">
+                {category.children.filter((c) => c.imageUrl).map((c) => (
+                  <Link key={c.id} to={`/danh-muc/${c.slug}`} className="category-child" role="listitem" data-testid="category-child">
                     <span className="category-child-img" aria-hidden>
-                      {c.imageUrl ? <img src={sizedImage(c.imageUrl, 200)} alt="" loading="lazy" onError={handleImgError} /> : c.name.charAt(0)}
+                      <img src={sizedImage(c.imageUrl!, 200)} alt="" loading="lazy" onError={handleImgError} />
                     </span>
                     <span className="category-child-name">{c.name}</span>
                   </Link>
@@ -342,6 +345,10 @@ const SearchView = ({ category }: { category?: CategoryPage }) => {
           )}
           {facets && (
             <FacetList title="Thương hiệu" values={facets.brands} selected={params.brands ?? []} onToggle={(v) => toggleMulti('brands', v)} testId="brands" />
+          )}
+          {/* Shop (L208): the shops selling the results, a Mall shop's house brand ("BeautyPro") among them — not under Thương hiệu */}
+          {facets && (facets.shops?.length ?? 0) > 0 && (
+            <FacetList title="Shop" values={facets.shops!} selected={params.shops ?? []} onToggle={(v) => toggleMulti('shops', v)} testId="shops" />
           )}
 
           <FilterGroup title="Khoảng giá">

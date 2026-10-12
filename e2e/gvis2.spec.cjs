@@ -4,7 +4,8 @@ const { test, expect } = require('@playwright/test');
 const { BASE, api } = require('./helpers.cjs');
 
 const guest = { storageState: { cookies: [], origins: [] } };
-const amounts = (text) => (text.match(/[\d.]+(?=₫)/g) || []).map((n) => Number(n.replace(/\./g, '')));
+// The page writes a plain "đ" after the digits (L207); the screen-reader label keeps "₫"
+const amounts = (text) => (text.match(/[\d.]+(?=[₫đ])/g) || []).map((n) => Number(n.replace(/\./g, '')));
 
 test.describe('G-VIS vòng 2', () => {
   test('Giá gạch luôn cao hơn giá bán — quét 50 sản phẩm ngẫu nhiên (L181)', async ({ browser, request }) => {

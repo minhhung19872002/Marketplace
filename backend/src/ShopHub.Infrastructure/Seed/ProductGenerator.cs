@@ -18,7 +18,8 @@ namespace ShopHub.Infrastructure.Seed;
 /// one shop wording that fits the industry), its own price, discount and stock. Deterministic (fixed random seed);
 /// products go through the same domain rules as a seller's (SetVariants, attribute checks, submit → approve).
 /// </summary>
-public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage, IImageProcessor images, IClock clock, ILogger<ProductGenerator> logger)
+public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage, IImageProcessor images, IClock clock, IOutbox outbox,
+    ILogger<ProductGenerator> logger)
 {
     private const int MinGallery = 4;
 
@@ -51,6 +52,57 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
     /// <summary>The promotional cover of a model ("p007-ad.webp"): big text printed on the photo.</summary>
     public static bool IsAdCover(string file) => Path.GetFileNameWithoutExtension(file).EndsWith("-ad", StringComparison.Ordinal);
 
+    /// <summary>
+    /// Version of the designed ad covers: raised whenever art-html.mjs redraws them, so the new pictures get new storage keys
+    /// (no cache serves the old ones) and <see cref="RefreshAdCoversAsync"/> moves a database seeded before onto them.
+    /// 2 = G-VIS round 5 (L205): the benefit text never over the product, at most a quarter of the picture.
+    /// </summary>
+    public const int AdCoverVersion = 2;
+
+    /// <summary>Storage key of a model's ad cover ("p007-ad" → "product/seed/p007-v2-ad"); the URL still ends in "-ad_…".</summary>
+    public static string AdCoverKey(string name) => $"product/seed/{name[..^"-ad".Length]}-v{AdCoverVersion}-ad";
+
+    private static readonly System.Text.RegularExpressions.Regex SeedCoverUrl = new(@"/product/seed/p(?<key>\d{3})(?:-v(?<v>\d+))?-ad_");
+
+    /// <summary>
+    /// Moves sample listings still showing an older drawing of their model's ad cover onto the current one (L205): uploads
+    /// the cover once per model under <see cref="AdCoverKey"/> and points the listings' media at it, then queues them for
+    /// search (the index holds the card picture). Covers a seller uploaded are not seed URLs and are never touched. Runs at
+    /// every start; nothing to do once every seed cover is current.
+    /// </summary>
+    public async Task RefreshAdCoversAsync(CancellationToken ct)
+    {
+        var rows = await db.ProductMedia.AsNoTracking().Where(m => m.Type == MediaType.Image && m.Url.Contains("/product/seed/p") && m.Url.Contains("-ad_"))
+            .Select(m => new { m.Id, m.ProductId, m.Url }).ToListAsync(ct);
+        var stale = rows.Select(r => (Row: r, Match: SeedCoverUrl.Match(r.Url)))
+            .Where(x => x.Match.Success && (x.Match.Groups["v"].Success ? int.Parse(x.Match.Groups["v"].Value) : 1) < AdCoverVersion).ToList();
+        if (stale.Count == 0) return;
+        var owner = await db.Shops.AsNoTracking().OrderBy(s => s.Name).Select(s => s.OwnerId).FirstAsync(ct);
+        var now = clock.UtcNow;
+        var products = new List<Guid>();
+        foreach (var model in stale.GroupBy(x => x.Match.Groups["key"].Value))
+        {
+            var name = $"p{model.Key}-ad";
+            if (typeof(ProductGenerator).Assembly.GetManifestResourceInfo($"{Resource}ProductImages.{name}.webp") is null) continue;
+            var key = AdCoverKey(name);
+            var processed = images.Process(await ReadBytesAsync($"ProductImages.{name}.webp", ct), ImageSizes.Public);
+            foreach (var v in processed.Variants)
+                await storage.PutAsync(Buckets.Products, ImageSizes.Key(key, v.MaxSide), v.WebP, "image/webp", ct);
+            var asset = new MediaAsset(owner, MediaKind.Image, "product", Buckets.Products, key, "image/webp",
+                processed.Variants.Sum(v => (long)v.WebP.Length), processed.Width, processed.Height, null, now);
+            db.MediaAssets.Add(asset);
+            await db.SaveChangesAsync(ct);
+            var url = storage.PublicUrl(Buckets.Products, ImageSizes.Key(key, ImageSizes.Large));
+            var ids = model.Select(x => x.Row.Id).ToList();
+            await db.ProductMedia.Where(m => ids.Contains(m.Id)).ExecuteUpdateAsync(u => u.SetProperty(m => m.Url, url).SetProperty(m => m.AssetId, asset.Id), ct);
+            products.AddRange(model.Select(x => x.Row.ProductId));
+        }
+        foreach (var chunk in products.Distinct().Chunk(200))
+            outbox.Enqueue(Application.SystemConfig.OutboxTypes.SearchSyncProducts, new Application.SystemConfig.SearchSyncProductsPayload(chunk));
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("SEED ad covers redrawn (v{Version}): {Media} pictures of {Products} listings", AdCoverVersion, stale.Count, products.Distinct().Count());
+    }
+
     /// <summary>One stored photo of a model: a promotional cover, an original photo, or a close-up cut from one.</summary>
     public readonly record struct Shot(Guid Asset, string Url, bool Cover, bool CloseUp = false);
 
@@ -69,6 +121,16 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
     }
 
     public const int Target = 1000;
+
+    /// <summary>Share (%) of a model's further listings named with a shop wording after " - " (L209).</summary>
+    public const int WordingPercent = 25;
+
+    /// <summary>
+    /// Whether the <paramref name="copy"/>-th listing of a model takes the model's own name: the first always, about three in
+    /// four of the others — so about one listing in five carries a shop wording ("- Chính hãng"), like real listings (G-VIS
+    /// round 5, L209: seven in ten did). A retry (the shop already uses the name) always takes a wording.
+    /// </summary>
+    public static bool PlainName(int copy, int attempt, Random rng) => attempt == 0 && (copy == 0 || rng.Next(100) >= WordingPercent);
 
     private const string Resource = "ShopHub.Infrastructure.Seed.Data.";
 
@@ -148,7 +210,7 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
                 var bytes = await ReadBytesAsync($"ProductImages.{file}", ct);
                 var cover = IsAdCover(file);
                 if (!cover) firstPlain ??= bytes;
-                await StoreAsync($"product/seed/{name}", bytes, cover);
+                await StoreAsync(cover ? AdCoverKey(name) : $"product/seed/{name}", bytes, cover);
             }
             // A gallery of at least 4 pictures (G-VIS round 2): close-ups of the first plain photo fill the gap
             if (firstPlain is not null)
@@ -192,6 +254,12 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
             if (sellers.Count == 0) sellers = shops;
             var malls = sellers.Where(s => s.Type == ShopType.Mall).ToList();
             var shop = copy == 0 && malls.Count > 0 ? malls[rng.Next(malls.Count)] : sellers[rng.Next(sellers.Count)];
+            // A listing under the item's own name goes to a shop that does not list the item yet, when there is one: a shop
+            // listing one item twice needs a wording to tell them apart (L209)
+            var plainFirst = PlainName(copy, 0, rng);
+            var ownName = SeedText.ListingName(model.Name, null);
+            if (plainFirst && taken.Contains((shop.Id, ownName)) && sellers.Where(s => !taken.Contains((s.Id, ownName))).ToList() is { Count: > 0 } free)
+                shop = free[rng.Next(free.Count)];
 
             var wordings = Wordings.GetValueOrDefault(top) ?? [];
             string name;
@@ -199,7 +267,8 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
             var attempt = 0;
             do
             {
-                var wording = copy == 0 && attempt == 0 || wordings.Length == 0 ? null : wordings[rng.Next(wordings.Length)];
+                var plain = attempt == 0 && plainFirst;
+                var wording = plain || wordings.Length == 0 ? null : wordings[rng.Next(wordings.Length)];
                 used = wording?.StartsWith('*') == true;
                 // Sentence case (L202): the model's and the wording's Title Case stay keys of the seed data only
                 name = SeedText.ListingName(model.Name, wording?.TrimStart('*'));

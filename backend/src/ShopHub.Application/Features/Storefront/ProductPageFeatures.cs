@@ -415,12 +415,13 @@ public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : I
             .Where(s => s.Type == ShopType.Mall && (s.Status == ShopStatus.Active || s.Status == ShopStatus.Vacation))
             .OrderByDescending(s => s.ProductCount).ThenByDescending(s => s.FollowerCount).ThenBy(s => s.Name).ThenBy(s => s.Id)
             .Take(Math.Clamp(request.Take, 1, 30))
-            // The tile's photo (G-VIS round 3, L195): the best seller that has a designed ad cover (pNNN-ad of the sample
-            // data — a square that fills the tile and reads as the brand's), that cover itself; else the best seller's photo
+            // The tile's photo: the best seller among the products that have a designed ad cover (pNNN-ad of the sample data:
+            // the shop's showcase items rather than a grater or an ice tray, G-VIS round 3, L195) — but its plain photo, which
+            // fills the tile; the cover's text does not read at tile size (G-VIS round 5, L204). No such product: the best seller
             .Select(s => new MallShopDto(s.Id, s.Name, s.Slug, s.LogoUrl,
                 db.Products.Where(p => p.ShopId == s.Id && p.Status == ProductStatus.Active)
                     .OrderByDescending(p => p.Media.Any(m => m.Type == MediaType.Image && m.Url.Contains("-ad_"))).ThenByDescending(p => p.SoldCount).ThenBy(p => p.Id)
-                    .SelectMany(p => p.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.Url.Contains("-ad_") ? 0 : 1).ThenBy(m => m.SortOrder)
+                    .SelectMany(p => p.Media.Where(m => m.Type == MediaType.Image).OrderBy(m => m.Url.Contains("-ad_") ? 1 : 0).ThenBy(m => m.SortOrder)
                         .Select(m => m.Url).Take(1))
                     .FirstOrDefault(),
                 s.ProductCount,
@@ -428,6 +429,18 @@ public sealed class MallShopsHandler(IApplicationDbContext db, IClock clock) : I
                     .SelectMany(p => p.Skus.Where(k => k.IsActive && k.OriginalPrice > k.Price))
                     .Max(k => (int?)((k.OriginalPrice - k.Price) * 100 / k.OriginalPrice)) ?? 0) { WordmarkUrl = s.WordmarkUrl })
             .ToListAsync(ct);
+}
+
+/// <summary>
+/// The house brands of the Mall shops ("BeautyPro" of "Mall BeautyPro", L197 / L208): the shop itself rather than a product
+/// brand — shown with the shops (Shop chính hãng, the Shop filter), never under Thương hiệu.
+/// </summary>
+public static class HouseBrands
+{
+    public static async Task<HashSet<string>> NamesAsync(IApplicationDbContext db, CancellationToken ct) =>
+        (await db.Shops.AsNoTracking().Where(s => s.Type == ShopType.Mall).Select(s => s.Name).ToListAsync(ct))
+        .SelectMany(n => new[] { n, n.StartsWith("Mall ", StringComparison.Ordinal) ? n["Mall ".Length..] : n })
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 }
 
 public record CategoryPageDto(CategoryCrumbDto Category, IReadOnlyList<CategoryCrumbDto> Breadcrumb, IReadOnlyList<CategoryChildDto> Children,
@@ -464,8 +477,10 @@ public sealed class GetCategoryBySlugHandler(IApplicationDbContext db, IClock cl
         var banners = await db.Banners.AsNoTracking()
             .Where(b => b.IsActive && b.Position == Domain.Promo.BannerPosition.Category && b.StartAt <= now && b.EndAt > now
                         && b.CategoryId != null && lineage.Contains(b.CategoryId.Value))
-            .OrderBy(b => b.SortOrder).ThenByDescending(b => b.StartAt).ThenBy(b => b.Id).Take(5)
+            .OrderBy(b => b.SortOrder).ThenByDescending(b => b.StartAt).ThenBy(b => b.Id).Take(10)
             .Select(b => new Marketing.PublicBannerDto(b.Id, b.Title, b.ImageUrl, b.Link)).ToListAsync(ct);
+        var shows = await Marketing.CampaignBanners.GateAsync(db, now, ct);
+        banners = banners.Where(b => shows(b.Link)).Take(5).ToList();
 
         // Thương hiệu nổi bật: brands with the most sales among the visible products of the subtree
         var tree = await db.Categories.AsNoTracking().Where(c => c.IsActive).Select(c => new { c.Id, c.ParentId }).ToListAsync(ct);
@@ -497,6 +512,9 @@ public sealed class GetCategoryBySlugHandler(IApplicationDbContext db, IClock cl
                         .Select(m => m.Url).Take(1))
                     .FirstOrDefaultAsync(ct);
             }
+            // Every chip shows a real item (G-VIS round 5, L208): a sub-category with nothing on sale has no photo and no
+            // results — "Chăm sóc da" drew a letter "C" and led to an empty page. It shows again once products are listed
+            if (image is null) continue;
             children.Add(new CategoryChildDto(c.Id, c.Name, c.Slug, image));
         }
         var brands = await (from p in ProductCards.Visible(db).AsNoTracking()
@@ -507,9 +525,7 @@ public sealed class GetCategoryBySlugHandler(IApplicationDbContext db, IClock cl
         var brandIds = brands.Select(b => b.BrandId).ToList();
         var brandRows = await db.Brands.AsNoTracking().Where(b => brandIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id, ct);
         // A Mall shop's house brand ("BeautyPro" of "Mall BeautyPro") is the shop itself: it goes in the shop row, not here
-        var mallNames = await db.Shops.AsNoTracking().Where(s => s.Type == Domain.Shops.ShopType.Mall).Select(s => s.Name).ToListAsync(ct);
-        var houseBrands = mallNames.SelectMany(n => new[] { n, n.StartsWith("Mall ", StringComparison.Ordinal) ? n["Mall ".Length..] : n })
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var houseBrands = await HouseBrands.NamesAsync(db, ct);
         var featured = brands.Where(b => brandRows.ContainsKey(b.BrandId) && !houseBrands.Contains(brandRows[b.BrandId].Name)).Take(12).Select(b =>
         {
             var r = brandRows[b.BrandId];

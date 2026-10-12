@@ -538,3 +538,39 @@
     height: 96px;
   }
 }
+
+/* G-VIS round 5 (L204): the photo fills the tile's whole width. Beside the banner the two brand rows are as tall as the
+   banner, and the photo takes what the logo pill and the offer line leave; without the banner it is a square. The photo
+   is the best seller's plain photo (an ad cover's text does not read at this size). */
+.mall-brand {
+  padding: 0 0 12px;
+  overflow: hidden;
+}
+
+.mall-brand-photo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  margin: 0;
+  border-radius: 0;
+}
+
+.mall-brand-photo > img:first-child {
+  display: block;
+  object-fit: cover;
+}
+
+@container mall (min-width: 940px) {
+  .mall-brand-photo {
+    flex: 1 1 0;
+    min-height: 120px;
+    aspect-ratio: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .mall-brand-photo {
+    width: 100%;
+    height: auto;
+  }
+}

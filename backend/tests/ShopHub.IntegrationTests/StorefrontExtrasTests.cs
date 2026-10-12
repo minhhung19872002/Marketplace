@@ -90,7 +90,8 @@ public class StorefrontExtrasTests(ApiFactory factory)
                 p.SetInfo(p.CategoryId, brand.Id, p.Name, p.Slug, p.Description, p.Condition, p.WeightG, p.LengthMm, p.WidthMm, p.HeightMm, false, 0);
             }
             var now = DateTimeOffset.UtcNow;
-            db.Banners.Add(new Banner(BannerPosition.Category, $"Tuần lễ đèn {store.Marker}", "https://example.invalid/b.webp", "/su-kien/den",
+            // A search link: a link to a campaign page shows only while that campaign runs (L206), and "/su-kien/den" has none
+            db.Banners.Add(new Banner(BannerPosition.Category, $"Tuần lễ đèn {store.Marker}", "https://example.invalid/b.webp", "/tim-kiem?q=den",
                 now.AddMinutes(-5), now.AddDays(1), 0, leaf.ParentId, now));
             db.Banners.Add(new Banner(BannerPosition.Category, $"Hết hạn {store.Marker}", "https://example.invalid/c.webp", "/", now.AddDays(-3),
                 now.AddDays(-1), 0, leaf.Id, now.AddDays(-3)));
@@ -138,6 +139,53 @@ public class StorefrontExtrasTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_card_with_an_ad_cover_says_its_picture_has_text_and_carries_the_plain_photo()
+    {
+        // G-VIS round 5 (L203): covers got the campaign strip over their own text, and a grid could not swap one for a photo
+        var store = await factory.CreateStoreAsync("79", products: [new("Đèn Bìa Chữ", "Đèn Bàn", 100_000, 10, "Việt Nam"), new("Đèn Ảnh Thường", "Đèn Bàn", 90_000, 10, "Việt Nam")]);
+        var (covered, plain) = (store.Products["Đèn Bìa Chữ"], store.Products["Đèn Ảnh Thường"]);
+        var marker = store.Marker.ToLowerInvariant();
+        await factory.WithDbAsync(async db =>
+        {
+            db.ProductMedia.RemoveRange(await db.ProductMedia.Where(m => m.ProductId == covered).ToListAsync());
+            db.ProductMedia.Add(new ProductMedia(covered, MediaType.Image, null, $"https://example.invalid/{marker}-v2-ad_1200.webp", 0, null));
+            db.ProductMedia.Add(new ProductMedia(covered, MediaType.Image, null, $"https://example.invalid/{marker}-0_1200.webp", 1, null));
+            await db.SaveChangesAsync();
+        });
+
+        using var scope = factory.Services.CreateScope();
+        var pricing = scope.ServiceProvider.GetRequiredService<ShopHub.Application.Features.Storefront.CardPricing>();
+        ShopHub.Application.Abstractions.ProductCardDto Card(Guid id, string url) => new(id, "x", "x", url, 1, 1, 1, 0, 0, 0, 0, true, store.ShopId, "s", false, false, null);
+        var cards = await pricing.ApplyAsync([Card(covered, $"https://example.invalid/{marker}-v2-ad_1200.webp"), Card(plain, "https://example.invalid/a.webp")], CancellationToken.None);
+        cards[0].ImageHasText.Should().BeTrue();
+        cards[0].PhotoUrl.Should().Be($"https://example.invalid/{marker}-0_1200.webp");
+        cards[1].ImageHasText.Should().BeFalse();
+        cards[1].PhotoUrl.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Every_sub_category_chip_shows_a_photo_and_one_with_nothing_on_sale_is_left_out()
+    {
+        // G-VIS round 5 (L208): "Chăm sóc da" had no product on sale — its chip drew a letter "C" and led to an empty page
+        var store = await factory.CreateStoreAsync("79", products: [new("Đèn Chip Có Hàng", "Đèn Bàn", 100_000, 10, "Việt Nam")]);
+        var (parentSlug, empty) = await factory.WithDbAsync(async db =>
+        {
+            var leaf = await db.Categories.SingleAsync(c => c.Name == "Đèn bàn" && c.Level == 3);
+            var parent = await db.Categories.SingleAsync(c => c.Id == leaf.ParentId);
+            var empty = new Category(parent.Id, 3, $"Rỗng {store.Marker}", $"rong-{store.Marker.ToLowerInvariant()}", null, 99, 0);
+            db.Categories.Add(empty);
+            await db.SaveChangesAsync();
+            return (parent.Slug, empty.Name);
+        });
+
+        var page = await GetAsync(factory.CreateClient(), $"/api/categories/by-slug/{parentSlug}");
+        var chips = page.GetProperty("children").EnumerateArray().ToList();
+        chips.Should().Contain(c => c.Str("name") == "Đèn bàn");
+        chips.Should().NotContain(c => c.Str("name") == empty, "danh mục con chưa có hàng thì không có ảnh và không có kết quả");
+        chips.Should().OnlyContain(c => c.GetProperty("imageUrl").ValueKind == System.Text.Json.JsonValueKind.String);
+    }
+
+    [Fact]
     public async Task A_sub_category_chip_shows_a_photo_of_the_best_seller_below_it_never_an_ad_cover()
     {
         var store = await factory.CreateStoreAsync("79", products: [new("Đèn Chip Ảnh", "Đèn Bàn", 100_000, 10, "Việt Nam")]);
@@ -161,7 +209,7 @@ public class StorefrontExtrasTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task A_mall_tile_shows_a_best_seller_with_an_ad_cover_rather_than_a_plain_photo()
+    public async Task A_mall_tile_shows_the_plain_photo_of_a_best_seller_that_has_an_ad_cover()
     {
         // G-VIS round 3 (L195): the tile's photo was the plain photo of the very best seller — a grater, an ice tray, a
         // plain phone case. A best seller with a designed cover reads as a brand tile; the plain best seller is the fallback
@@ -184,7 +232,8 @@ public class StorefrontExtrasTests(ApiFactory factory)
 
         using var scope = factory.Services.CreateScope();
         var tiles = await scope.ServiceProvider.GetRequiredService<MediatR.ISender>().Send(new ShopHub.Application.Features.Storefront.MallShopsQuery(30));
-        tiles.Single(t => t.Id == store.ShopId).CoverImageUrl.Should().Be($"https://example.invalid/{marker}-lamp-ad_1200.webp");
+        // G-VIS round 5 (L204): that product's plain photo — the cover's text did not read at tile size
+        tiles.Single(t => t.Id == store.ShopId).CoverImageUrl.Should().Be($"https://example.invalid/{marker}-lamp-0_1200.webp");
     }
 
     [Fact]

@@ -26,7 +26,7 @@ internal sealed class FacetLabeler(ShopHubDbContext db)
     public async Task<ProductSearchFacets> LabelAsync(
         Dictionary<string, int> categories, Dictionary<string, int> provinces, Dictionary<string, int> brands, Dictionary<int, int> ratingFloors,
         int mall, int preferred, Dictionary<string, int> conditions, Dictionary<string, Dictionary<string, int>> attributes, CancellationToken ct,
-        Dictionary<string, int>? carrierCounts = null, int freeship = 0, int withVoucher = 0, int cod = 0)
+        Dictionary<string, int>? carrierCounts = null, int freeship = 0, int withVoucher = 0, int cod = 0, Dictionary<string, int>? shopCounts = null)
     {
         var carrierNames = await db.Carriers.AsNoTracking().ToDictionaryAsync(c => c.Code, c => c.Name, ct);
         var categoryIds = categories.Keys.Select(Guid.Parse).ToList();
@@ -37,7 +37,12 @@ internal sealed class FacetLabeler(ShopHubDbContext db)
         var provinceCodes = provinces.Keys.ToList();
         var provinceNames = await db.AdminDivisions.AsNoTracking().Where(d => provinceCodes.Contains(d.Code)).ToDictionaryAsync(d => d.Code, d => d.Name, ct);
         var brandIds = brands.Keys.Select(Guid.Parse).ToList();
-        var brandNames = await db.Brands.AsNoTracking().Where(b => brandIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id.ToString(), b => b.Name, ct);
+        // A Mall shop's house brand ("BeautyPro" of "Mall BeautyPro") is the shop itself: it filters under Shop, not Thương hiệu (L208)
+        var houseBrands = await HouseBrands.NamesAsync(db, ct);
+        var brandNames = (await db.Brands.AsNoTracking().Where(b => brandIds.Contains(b.Id)).Select(b => new { b.Id, b.Name }).ToListAsync(ct))
+            .Where(b => !houseBrands.Contains(b.Name)).ToDictionary(b => b.Id.ToString(), b => b.Name);
+        var shopIds = (shopCounts ?? []).Keys.Select(Guid.Parse).ToList();
+        var shopNames = await db.Shops.AsNoTracking().Where(s => shopIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id.ToString(), s => s.Name, ct);
 
         static List<FacetValue> Sorted(IEnumerable<FacetValue> v) => v.Where(f => f.Count > 0).OrderByDescending(f => f.Count).ThenBy(f => f.Label).ToList();
 
@@ -60,7 +65,8 @@ internal sealed class FacetLabeler(ShopHubDbContext db)
             {
                 new FacetValue("freeship", "Freeship+", freeship), new FacetValue("voucher", "Có voucher của shop", withVoucher),
                 new FacetValue("cod", "Thanh toán khi nhận hàng", cod),
-            }.Where(f => f.Count > 0).ToList());
+            }.Where(f => f.Count > 0).ToList(),
+            Sorted((shopCounts ?? []).Where(kv => shopNames.ContainsKey(kv.Key)).Select(kv => new FacetValue(kv.Key, shopNames[kv.Key], kv.Value))));
     }
 }
 
@@ -71,7 +77,7 @@ internal sealed class FacetLabeler(ShopHubDbContext db)
 public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
 {
     private static readonly string[] Facets =
-        ["categoryIds", "provinceCode", "brandId", "ratingFloor", "isMall", "isPreferred", "condition", "attributes", "carriers", "freeship", "hasVoucher", "cod"];
+        ["categoryIds", "provinceCode", "brandId", "ratingFloor", "isMall", "isPreferred", "condition", "attributes", "carriers", "freeship", "hasVoucher", "cod", "shopId"];
 
     public async Task<ProductSearchResult> SearchAsync(ProductSearchRequest r, CancellationToken ct)
     {
@@ -117,7 +123,8 @@ public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
         var facets = await new FacetLabeler(db).LabelAsync(Facet("categoryIds"), Facet("provinceCode"), Facet("brandId"),
             Facet("ratingFloor").ToDictionary(kv => int.Parse(kv.Key), kv => kv.Value),
             Facet("isMall").GetValueOrDefault("true"), Facet("isPreferred").GetValueOrDefault("true"), Facet("condition"), attributes, ct,
-            Facet("carriers"), Facet("freeship").GetValueOrDefault("true"), Facet("hasVoucher").GetValueOrDefault("true"), Facet("cod").GetValueOrDefault("true"));
+            Facet("carriers"), Facet("freeship").GetValueOrDefault("true"), Facet("hasVoucher").GetValueOrDefault("true"), Facet("cod").GetValueOrDefault("true"),
+            Facet("shopId"));
 
         return new ProductSearchResult(items, res["totalHits"]?.GetValue<int>() ?? items.Count, r.Page, r.PageSize, facets, "meilisearch");
     }
@@ -128,6 +135,7 @@ public sealed class MeiliProductSearch(MeiliClient meili, ShopHubDbContext db)
         var filter = new List<object>();
         if (r.CategoryId is { } c) filter.Add($"categoryIds = {Q(c.ToString())}");
         if (r.ShopId is { } s) filter.Add($"shopId = {Q(s.ToString())}");
+        if (r.ShopIds is { Count: > 0 } shops) filter.Add($"shopId IN [{string.Join(", ", shops.Select(x => Q(x.ToString())))}]");
         if (r.ProvinceCodes.Count > 0) filter.Add($"provinceCode IN [{string.Join(", ", r.ProvinceCodes.Select(Q))}]");
         if (r.BrandIds.Count > 0) filter.Add($"brandId IN [{string.Join(", ", r.BrandIds.Select(b => Q(b.ToString())))}]");
         // A product matches a price range when any of its SKUs can be in it
@@ -234,9 +242,11 @@ public sealed class PostgresProductSearch(ShopHubDbContext db, IClock clock)
                                                    && (p.CarrierCodes.Count == 0 || p.CarrierCodes.Contains(code)), ct);
             if (n > 0) carrierCounts[code] = n;
         }
+        var shopCounts = await filtered.GroupBy(p => p.ShopId).Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key.ToString(), x => x.Count, ct);
         var facets = await new FacetLabeler(db).LabelAsync(categories, provinces, brands, ratings, mall, preferred, conditions, attributes, ct,
             carrierCounts, await filtered.CountAsync(Freeship(db), ct), await filtered.CountAsync(WithVoucher(db, clock.UtcNow), ct),
-            await filtered.CountAsync(Cod(db), ct));
+            await filtered.CountAsync(Cod(db), ct), shopCounts);
         return new ProductSearchResult(page.Items.Select(ProductCards.ToDto).ToList(), page.TotalCount, r.Page, r.PageSize, facets, "postgres");
     }
 
@@ -299,6 +309,7 @@ public sealed class PostgresProductSearch(ShopHubDbContext db, IClock clock)
             q = q.Where(p => subtree.Contains(p.CategoryId));
         }
         if (r.ShopId is { } shopId) q = q.Where(p => p.ShopId == shopId);
+        if (r.ShopIds is { Count: > 0 } shopIds) q = q.Where(p => shopIds.Contains(p.ShopId));
         if (r.ProvinceCodes.Count > 0)
             q = q.Where(p => db.ShopWarehouses.Any(w => w.ShopId == p.ShopId && r.ProvinceCodes.Contains(w.ProvinceCode)
                 && (db.Shops.Any(s => s.Id == p.ShopId && s.MultiWarehouse) && p.WarehouseId != null && db.ShopWarehouses.Any(x => x.Id == p.WarehouseId && x.ShopId == p.ShopId) ? w.Id == p.WarehouseId : w.IsPickupDefault)));

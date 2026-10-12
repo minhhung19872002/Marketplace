@@ -42,6 +42,7 @@ public sealed class CatalogSeeder(
         await SeedShopsAsync(seed, ct);
         await SeedStaffAsync(ct);
         await generator.GenerateAsync(seed.Shops.ToDictionary(s => s.Name, s => (IReadOnlyList<string>)s.Sells), ct);
+        await generator.RefreshAdCoversAsync(ct);
         await SeedFollowersAsync(ct);
     }
 

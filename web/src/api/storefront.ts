@@ -29,6 +29,7 @@ export function searchQueryString(p: SearchParams): string {
   set('shopId', p.shopId);
   p.provinces?.forEach((v) => qs.append('provinces', v));
   p.brands?.forEach((v) => qs.append('brands', v));
+  p.shops?.forEach((v) => qs.append('shops', v));
   set('minPrice', p.minPrice);
   set('maxPrice', p.maxPrice);
   set('minRating', p.minRating);

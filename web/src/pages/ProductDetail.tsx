@@ -31,9 +31,14 @@ import './ProductDetail.css';
 import { usePageTitle } from '../lib/pageTitle';
 import { toast } from '../lib/toast';
 import { Check, Zap, Store, Heart, ShoppingCart, X } from 'lucide-react';
-import { Badge, Section, Stars } from '../components/ui';
+import { Badge, PriceText, Section, Stars } from '../components/ui';
+import { mixCovers } from '../lib/covers';
 
 const priceRange = formatPriceRange;
+
+/** The small tag that starts an offer row: the programme's kind in two or three words; the full wording is its tooltip. */
+export const offerTag = (type: string, text: string): string =>
+  type === 'AddOn' ? 'Mua kèm' : type === 'Combo' ? 'Combo' : type === 'Gift' ? 'Quà tặng' : text.split(/\s+/).slice(0, 3).join(' ');
 
 /** SKUs still possible with the current selection (null = not chosen yet). */
 const matching = (skus: PublicSku[], picked: (string | null)[]) =>
@@ -191,14 +196,14 @@ const ProductView = ({ product }: { product: ProductPage }) => {
     <div className="product-detail-price-box">
       {sku && skuDeal ? (
         <>
-          <span className="price-original">{formatPrice(Math.max(sku.originalPrice, sku.price))}</span>
-          <span className="price-current" data-testid="pd-price">{formatPrice(skuDeal.price)}</span>
+          <PriceText className="price-original" text={formatPrice(Math.max(sku.originalPrice, sku.price))} />
+          <PriceText className="price-current" testId="pd-price" text={formatPrice(skuDeal.price)} />
           <span className="price-discount">{skuDeal.label}</span>
         </>
       ) : sku ? (
         <>
-          {sku.originalPrice > sku.price && <span className="price-original">{formatPrice(sku.originalPrice)}</span>}
-          <span className="price-current" data-testid="pd-price">{formatPrice(sku.price)}</span>
+          {sku.originalPrice > sku.price && <PriceText className="price-original" text={formatPrice(sku.originalPrice)} />}
+          <PriceText className="price-current" testId="pd-price" text={formatPrice(sku.price)} />
           {sku.originalPrice > sku.price && (
             <span className="price-discount">{Math.floor(((sku.originalPrice - sku.price) * 100) / sku.originalPrice)}% GIẢM</span>
           )}
@@ -206,14 +211,14 @@ const ProductView = ({ product }: { product: ProductPage }) => {
       ) : dealPrices.some((d, i) => d < product.skus[i].price) ? (
         <>
           {/* A deal on a middle SKU leaves the range unchanged: nothing to strike then */}
-          {struckDeal && <span className="price-original">{struckDeal}</span>}
-          <span className="price-current" data-testid="pd-price">{priceRange(Math.min(...dealPrices), Math.max(...dealPrices))}</span>
+          {struckDeal && <PriceText className="price-original" text={struckDeal} />}
+          <PriceText className="price-current" testId="pd-price" text={priceRange(Math.min(...dealPrices), Math.max(...dealPrices))} />
           <span className="price-discount">{flash ? 'Flash Sale' : 'Giảm giá'}</span>
         </>
       ) : (
         <>
-          {struckList && <span className="price-original">{struckList}</span>}
-          <span className="price-current" data-testid="pd-price">{priceRange(product.minPrice, product.maxPrice)}</span>
+          {struckList && <PriceText className="price-original" text={struckList} />}
+          <PriceText className="price-current" testId="pd-price" text={priceRange(product.minPrice, product.maxPrice)} />
           {struckList && product.discountPercent > 0 && <span className="price-discount">{product.discountPercent}% GIẢM</span>}
         </>
       )}
@@ -353,18 +358,22 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                 <span className="pd-offers">
                   {deals.data!.offers.map((o) => (
                     <span key={o.promotionId} className="pd-offer-block">
-                      <span className="pd-offer">{o.text}</span>
+                      {/* G-VIS round 5 (#219): one row per item — small tag, photo, name, price, "Thêm" — instead of loose boxes.
+                          The tag carries the offer's full wording as its tooltip; an offer without items keeps its tag alone */}
+                      {(o.items ?? []).length === 0 && <span className="pd-offer" title={o.text}>{o.text}</span>}
                       {/* L142: the items of the offer — add-ons go to the cart at their deal price, combo products open their page */}
                       {(o.items ?? []).map((it) => (
                         <span key={`${o.promotionId}-${it.skuId ?? it.productId}`} className="pd-offer-item" data-testid="pd-offer-item">
+                          <span className="pd-offer" title={o.text}>{offerTag(o.type, o.text)}</span>
                           {it.imageUrl && <img src={it.imageUrl} alt="" onError={handleImgError} />}
-                          <Link to={`/san-pham/${it.productId}`} className="pd-offer-name">{it.name}{it.variant ? ` (${it.variant})` : ''}</Link>
+                          <Link to={`/san-pham/${it.productId}`} className="pd-offer-name" title={it.name}>{it.name}{it.variant ? ` (${it.variant})` : ''}</Link>
                           <span className="pd-offer-price">
-                            {o.type === 'Gift' ? 'Quà tặng' : formatPrice(it.price)}
-                            {it.basePrice > it.price && <s>{formatPrice(it.basePrice)}</s>}
+                            {o.type === 'Gift' ? 'Quà tặng' : <PriceText text={formatPrice(it.price)} />}
+                            {it.basePrice > it.price && <s><PriceText text={formatPrice(it.basePrice)} /></s>}
                           </span>
                           {o.type === 'AddOn' && it.skuId && (
-                            <button type="button" className="pd-offer-add" data-testid="pd-offer-add" onClick={() => void addOffer(it.skuId!)}>Thêm vào giỏ</button>
+                            <button type="button" className="pd-offer-add" data-testid="pd-offer-add" onClick={() => void addOffer(it.skuId!)}
+                              aria-label={`Thêm ${it.name} vào giỏ`}>Thêm</button>
                           )}
                         </span>
                       ))}
@@ -554,7 +563,7 @@ const Related = ({ id, shopSlug }: { id: string; shopSlug: string }) => {
       {(shop.data?.length ?? 0) > 0 && (
         <Section title="Các sản phẩm khác của shop" more={{ to: `/shop/${shopSlug}` }} testId="shop-other-products">
           <div className="pd-related-row">
-            <Carousel label="Các sản phẩm khác của shop">{shop.data!.map((p) => <ProductCard key={p.id} product={p} />)}</Carousel>
+            <Carousel label="Các sản phẩm khác của shop">{mixCovers(shop.data!).map((p) => <ProductCard key={p.id} product={p} />)}</Carousel>
           </div>
         </Section>
       )}

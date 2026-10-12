@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import './HomePage.css';
 import '../components/ProductGrid.css';
 import { useHomeTitle } from '../lib/pageTitle';
+import { mixCovers } from '../lib/covers';
 
 const PAGE_SIZE = 24;
 // "Sản phẩm đã xem": shown from 3 products; a full row of the carousel holds 6
@@ -46,9 +47,9 @@ const RecentlyViewed = ({ isLoggedIn }: { isLoggedIn: boolean }) => {
       <div className="home-row">
         {items.length < ROW
           ? <div className="home-viewed-few" style={{ '--viewed-count': items.length } as CSSProperties} data-testid="viewed-few">
-              {items.map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}
+              {mixCovers(items).map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}
             </div>
-          : <Carousel label="Sản phẩm đã xem">{items.map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}</Carousel>}
+          : <Carousel label="Sản phẩm đã xem">{mixCovers(items).map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}</Carousel>}
       </div>
     </Section>
   );
@@ -92,7 +93,7 @@ const HomePage = () => {
             <QueryState query={recommendations} loading={<ProductGridSkeleton count={12} />}>
               {(d) => (
                 <div className="product-grid" data-testid="daily-grid">
-                  {d.pages.flatMap((p) => p.items).map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}
+                  {mixCovers(d.pages.flatMap((p) => p.items)).map((p) => <ProductCard key={p.id} product={p} variant="compact" />)}
                 </div>
               )}
             </QueryState>

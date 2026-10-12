@@ -120,4 +120,36 @@ public class SearchServiceFacetsTests(ApiFactory factory)
             res.Items.Single().ProvinceName.Should().Be("Hồ Chí Minh", res.Engine);
         }
     }
+    [Fact]
+    public async Task A_mall_shops_house_brand_filters_under_shop_not_under_brand_on_both_engines()
+    {
+        // G-VIS round 5 (L208): "BeautyPro" — the house brand of the Mall shop — sat in the Thương hiệu group of the filters
+        var word = $"Z{Guid.NewGuid():N}"[..9];
+        var mall = await factory.CreateStoreAsync("79", true, [new($"Kem {word} Nhà", "Đèn Bàn", 100_000, 10, "Việt Nam"), new($"Kem {word} Hai", "Đèn Bàn", 90_000, 10, "Việt Nam")]);
+        var other = await factory.CreateStoreAsync("01", products: [new($"Kem {word} Khác", "Đèn Bàn", 80_000, 10, "Việt Nam")]);
+        var house = await factory.WithDbAsync(async db =>
+        {
+            var b = new Domain.Catalog.Brand(mall.Marker, $"house-{mall.Marker.ToLowerInvariant()}", null, true);
+            db.Brands.Add(b);
+            // The shop is "Shop <marker>": named like its Mall shop the way the seed names them ("Mall BeautyPro" → "BeautyPro")
+            await db.Shops.Where(x => x.Id == mall.ShopId).ExecuteUpdateAsync(u => u.SetProperty(x => x.Name, $"Mall {mall.Marker}"));
+            foreach (var p in await db.Products.Where(p => p.ShopId == mall.ShopId).ToListAsync())
+                p.SetInfo(p.CategoryId, b.Id, p.Name, p.Slug, p.Description, p.Condition, p.WeightG, p.LengthMm, p.WidthMm, p.HeightMm, false, 0);
+            db.OutboxMessages.Add(new Domain.SystemConfig.OutboxMessage(Application.SystemConfig.OutboxTypes.SearchSyncProducts,
+                System.Text.Json.JsonSerializer.Serialize(new { productIds = mall.Products.Values }), DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+            return b.Id;
+        });
+        await DispatchAllAsync();
+
+        foreach (var res in await BothAsync(Request(word)))
+        {
+            res.Facets.Brands.Select(b => b.Value).Should().NotContain(house.ToString(), $"{res.Engine}: thương hiệu riêng của shop Mall là shop");
+            var shops = res.Facets.Shops!.ToDictionary(f => f.Value, f => f.Count);
+            shops.GetValueOrDefault(mall.ShopId.ToString()).Should().Be(2, res.Engine);
+            shops.GetValueOrDefault(other.ShopId.ToString()).Should().Be(1, res.Engine);
+        }
+        foreach (var res in await BothAsync(Request(word) with { ShopIds = [mall.ShopId] }))
+            res.Items.Select(i => i.ShopId).Should().OnlyContain(id => id == mall.ShopId, res.Engine).And.HaveCount(2);
+    }
 }

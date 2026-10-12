@@ -51,7 +51,8 @@ const ProductCard = ({ product, showFrame = false, variant = 'compact' }: { prod
   const detailed = variant === 'detailed';
   const showOriginal = detailed && product.originalPrice > product.minPrice;
   const price = priceParts(product.minPrice);
-  const strip = !showFrame && !!product.campaignName;
+  // A photo with text printed on it (ad cover) gets no strip on top of its own text (G-VIS round 5, L203)
+  const strip = !showFrame && !!product.campaignName && !product.imageHasText;
 
   const handleHeart = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();

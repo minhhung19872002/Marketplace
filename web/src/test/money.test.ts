@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPrice, formatSold, priceParts, struckPrice } from '../lib/money';
+import { formatPrice, formatSold, priceParts, priceTextParts, struckPrice } from '../lib/money';
 
 describe('formatSold', () => {
   it('writes sold counts the Vietnamese way', () => {
@@ -14,8 +14,14 @@ describe('formatSold', () => {
     expect(formatPrice(0)).toBe('0₫');
   });
 
-  it('splits a price into sign and digits', () => {
-    expect(priceParts(1_250_000)).toEqual({ currency: '₫', amount: '1.250.000' });
+  // L207: the "₫" sign has a bar under it that read as a link underline at price size — shown prices write a plain "đ"
+  it('splits a price into digits and a plain "đ"', () => {
+    expect(priceParts(1_250_000)).toEqual({ currency: 'đ', amount: '1.250.000' });
+  });
+
+  it('cuts a formatted price or range into digits and plain "đ" signs', () => {
+    expect(priceTextParts('158.000₫')).toEqual([{ text: '158.000', currency: false }, { text: 'đ', currency: true }]);
+    expect(priceTextParts('79.000₫ - 99.000₫').map((p) => p.text).join('')).toBe('79.000đ - 99.000đ');
   });
 });
 

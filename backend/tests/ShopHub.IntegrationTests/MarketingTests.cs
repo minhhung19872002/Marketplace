@@ -479,7 +479,8 @@ public class MarketingTests(ApiFactory factory)
         var title = $"Banner thử {Guid.NewGuid():N}"[..20];
         var saved = await admin.PostAsJsonAsync("/api/admin/marketing/banners", new
         {
-            position = "HomeMain", title, imageUrl = "https://cdn.example/banner.webp", link = "/su-kien/sieu-sale",
+            // Not a campaign link: one shows only while its campaign runs (L206, CampaignScheduleTests)
+            position = "HomeMain", title, imageUrl = "https://cdn.example/banner.webp", link = "/flash-sale",
             startAt = DateTimeOffset.UtcNow.AddMinutes(-1), endAt = DateTimeOffset.UtcNow.AddDays(1), sortOrder = 1, isActive = true,
         });
         saved.StatusCode.Should().Be(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());

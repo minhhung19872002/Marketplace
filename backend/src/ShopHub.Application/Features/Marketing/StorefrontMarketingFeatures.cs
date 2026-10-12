@@ -196,6 +196,28 @@ public record HomeBannersDto(IReadOnlyList<PublicBannerDto> Main, IReadOnlyList<
 
 public record HomeBannersQuery : IRequest<HomeBannersDto>;
 
+/// <summary>
+/// A banner that leads to a campaign page (/su-kien/{slug}) shows only while that campaign runs (L206): the 10.10 popup was
+/// scheduled for a year and would have announced the sale long after it ended. Its own schedule still applies on top.
+/// A link to a campaign that does not exist (deleted) is hidden too — it would open a 404.
+/// </summary>
+public static class CampaignBanners
+{
+    private const string Prefix = "/su-kien/";
+
+    /// <summary>"/su-kien/sieu-sale-10-10?tab=1" → "sieu-sale-10-10"; null for any other link.</summary>
+    public static string? SlugOf(string link) =>
+        link.StartsWith(Prefix, StringComparison.Ordinal) ? link[Prefix.Length..].Split('?', '#', '/')[0] : null;
+
+    /// <summary>Whether a banner's link may show now: not a campaign link, or a link to a campaign running now.</summary>
+    public static async Task<Func<string, bool>> GateAsync(IApplicationDbContext db, DateTimeOffset now, CancellationToken ct)
+    {
+        var running = (await db.Campaigns.AsNoTracking().Where(c => c.IsActive && c.StartAt <= now && c.EndAt > now).Select(c => c.Slug).ToListAsync(ct))
+            .ToHashSet(StringComparer.Ordinal);
+        return link => SlugOf(link) is not { } slug || running.Contains(slug);
+    }
+}
+
 public sealed class HomeBannersHandler(IApplicationDbContext db, ISystemParameters parameters, IClock clock) : IRequestHandler<HomeBannersQuery, HomeBannersDto>
 {
     public async Task<HomeBannersDto> Handle(HomeBannersQuery request, CancellationToken ct)
@@ -203,7 +225,8 @@ public sealed class HomeBannersHandler(IApplicationDbContext db, ISystemParamete
         var now = clock.UtcNow;
         var rows = await db.Banners.AsNoTracking().Where(b => b.IsActive && b.StartAt <= now && b.EndAt > now && b.Position != BannerPosition.Category)
             .OrderBy(b => b.SortOrder).ThenByDescending(b => b.StartAt).ToListAsync(ct);
-        List<PublicBannerDto> Of(BannerPosition p) => rows.Where(b => b.Position == p).Select(b => new PublicBannerDto(b.Id, b.Title, b.ImageUrl, b.Link) { HasTextInImage = b.HasTextInImage }).ToList();
+        var shows = await CampaignBanners.GateAsync(db, now, ct);
+        List<PublicBannerDto> Of(BannerPosition p) => rows.Where(b => b.Position == p && shows(b.Link)).Select(b => new PublicBannerDto(b.Id, b.Title, b.ImageUrl, b.Link) { HasTextInImage = b.HasTextInImage }).ToList();
         var pinned = (await parameters.GetStringAsync(ParameterKeys.SearchPinnedKeywords, ct))
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(10).ToList();
         return new HomeBannersDto(Of(BannerPosition.HomeMain), Of(BannerPosition.HomeSide).Take(2).ToList(), Of(BannerPosition.Shortcut).Take(10).ToList(),

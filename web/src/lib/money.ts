@@ -10,7 +10,16 @@ export const formatSold = (sold: number): string => {
 };
 
 /** A price split for display: the digits, then the ₫ sign smaller after them (cards, Flash Sale). */
-export const priceParts = (value: number): { currency: string; amount: string } => ({ currency: '₫', amount: value.toLocaleString('vi-VN') });
+/**
+ * The digits and the currency of a price as large prices show it: a plain small "đ" after the digits — the "₫" sign has a
+ * bar under it that read as a link underline at price size (G-VIS round 5, L207). Labels for screen readers keep formatPrice.
+ */
+export const priceParts = (value: number): { currency: string; amount: string } => ({ currency: 'đ', amount: value.toLocaleString('vi-VN') });
+
+/** A formatted price or range ("79.000₫ - 99.000₫") cut into digits and currency signs, for PriceText. */
+export const priceTextParts = (text: string): { text: string; currency: boolean }[] =>
+  text.split('₫').flatMap((part, i, all) => (i < all.length - 1 ? [{ text: part, currency: false }, { text: 'đ', currency: true }] : part ? [{ text: part, currency: false }] : []))
+    .filter((p) => p.currency || p.text);
 
 /** Plain count with Vietnamese thousands separators (1.234). */
 export const formatCount = (value: number): string => value.toLocaleString('vi-VN');

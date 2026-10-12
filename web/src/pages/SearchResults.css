@@ -435,6 +435,67 @@
   }
 }
 
+/* G-VIS round 5 (#220): sub-categories as horizontal chips — a photo of a real item, then the name — wrapping across the
+   width, so four of them no longer leave the row empty on the right; on a phone one row that slides sideways */
+.category-children {
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+}
+
+.category-child {
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: 8px;
+  max-width: 260px;
+  padding: 4px 14px 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--sh-radius-pill);
+  font-size: 14px;
+  text-align: left;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.category-child-img {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  background: var(--sh-surface);
+}
+
+.category-child-name {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.category-child:hover {
+  border-color: var(--sh-primary);
+}
+
+.category-child:hover .category-child-img {
+  transform: none;
+}
+
+@media (max-width: 767px) {
+  .category-children {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .category-child {
+    flex-basis: auto;
+  }
+
+  .category-child-img {
+    width: 34px;
+    height: 34px;
+  }
+}
+
 .category-banners {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

@@ -72,6 +72,10 @@ export interface ProductCard {
   // elsewhere a small chip with the campaign's name (G3 B3)
   frameUrl?: string | null;
   campaignName?: string | null;
+  // The photo is an ad cover with text on it: no campaign strip over it; photoUrl is the plain photo a grid shows instead
+  // once it holds its share of covers (G-VIS round 5, L203)
+  imageHasText?: boolean;
+  photoUrl?: string | null;
 }
 
 // ---------- search ----------
@@ -84,6 +88,8 @@ export interface SearchParams {
   shopId?: string;
   provinces?: string[];
   brands?: string[];
+  // Shop filter group (G-VIS round 5, L208)
+  shops?: string[];
   minPrice?: number;
   maxPrice?: number;
   minRating?: number;
@@ -119,6 +125,8 @@ export interface SearchFacets {
   carriers: FacetValue[] | null;
   // "freeship", "voucher", "cod"
   services: FacetValue[] | null;
+  // The shops selling the results — a Mall shop's house brand is here, not under brands (L208)
+  shops?: FacetValue[] | null;
 }
 
 export interface SearchResult extends PagedResult<ProductCard> {

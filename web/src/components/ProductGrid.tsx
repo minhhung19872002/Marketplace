@@ -1,6 +1,7 @@
 import ProductCard from './ProductCard';
 import { EmptyState, ProductGridSkeleton } from './ui';
 import type { ProductCard as Card } from '../types';
+import { mixCovers } from '../lib/covers';
 import './ProductGrid.css';
 
 interface ProductGridProps {
@@ -27,7 +28,7 @@ const ProductGrid = ({ title = 'Gợi ý hôm nay', products, loading = false, e
       <div className="product-grid-empty"><EmptyState title={emptyText} /></div>
     ) : (
       <div className="product-grid">
-        {products.map((p) => (
+        {mixCovers(products).map((p) => (
           <ProductCard key={p.id} product={p} showFrame={showFrames} variant={variant} />
         ))}
       </div>

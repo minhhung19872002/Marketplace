@@ -31,7 +31,9 @@ public record ProductSearchRequest(
     IReadOnlyList<string>? CarrierCodes = null,
     bool FreeshipOnly = false,
     bool WithVoucherOnly = false,
-    bool CodOnly = false);
+    bool CodOnly = false,
+    // Shop (any of): the "Shop" filter group of the search / category page (G-VIS round 5, L208)
+    IReadOnlyList<Guid>? ShopIds = null);
 
 public record ProductCardDto(
     Guid Id,
@@ -59,7 +61,11 @@ public record ProductCardDto(
     // Campaign frame over the photo when the product takes part in a running campaign that has one — drawn only on the
     // campaign's own page; every other grid shows a small chip with CampaignName instead (G3 B3)
     string? FrameUrl = null,
-    string? CampaignName = null);
+    string? CampaignName = null,
+    // The photo is an ad cover with text printed on it (G-VIS round 5, L203): no campaign strip over it; PhotoUrl is the
+    // product's first plain photo, which a grid shows instead when it already holds its share of covers
+    bool ImageHasText = false,
+    string? PhotoUrl = null);
 
 public record FacetValue(string Value, string Label, int Count);
 
@@ -73,7 +79,10 @@ public record ProductSearchFacets(
     IReadOnlyDictionary<string, IReadOnlyList<FacetValue>> Attributes,
     IReadOnlyList<FacetValue>? Carriers = null,
     // "freeship", "voucher", "cod"
-    IReadOnlyList<FacetValue>? Services = null);
+    IReadOnlyList<FacetValue>? Services = null,
+    // The shops selling the results (G-VIS round 5, L208): a filter group of its own — a Mall shop's house brand ("BeautyPro")
+    // is the shop, not a product brand, and no longer shows under Thương hiệu
+    IReadOnlyList<FacetValue>? Shops = null);
 
 /// <param name="Engine">"meilisearch" or "postgres" (fallback while the search engine is down).</param>
 public record ProductSearchResult(

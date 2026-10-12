@@ -818,3 +818,114 @@ button.checkout-address-manage {
     margin: 0;
   }
 }
+
+/* ---- G-VIS round 4 ---- */
+/* The page name lives in the slim header (#217); the heading stays for screen readers */
+.checkout-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Shop name + the column names, on the grid of the lines below */
+.checkout-shop-head {
+  display: grid;
+  grid-template-columns: 50% 17% 15% 18%;
+  align-items: center;
+  padding-bottom: 10px;
+  color: var(--sh-text-muted);
+  font-size: 14px;
+}
+
+.checkout-shop-head .checkout-shop-name {
+  padding-bottom: 0;
+  color: var(--sh-text-strong);
+}
+
+.checkout-product-name {
+  -webkit-line-clamp: 2;
+  line-height: 1.4;
+}
+
+/* Message on the left, carrier on the right on wide screens, as on the reference marketplace */
+@media (min-width: 1024px) {
+  .checkout-shop-options {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: start;
+    gap: 12px 24px;
+  }
+
+  .checkout-shop-options > .checkout-voucher {
+    grid-column: 1 / -1;
+  }
+}
+
+.checkout-carrier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checkout-carrier-current {
+  cursor: default;
+}
+
+.checkout-carrier-change {
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--sh-info);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.checkout-carrier-change:hover {
+  text-decoration: underline;
+}
+
+/* Phones (L200): the photo and the name take the whole row, the price and "x1" go under the name */
+@media (max-width: 768px) {
+  .checkout-shop-head {
+    display: block;
+  }
+
+  .checkout-shop-head > span {
+    display: none;
+  }
+
+  .checkout-product {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 8px;
+  }
+
+  .checkout-product .cp-col-product {
+    grid-column: 1 / -1;
+    align-items: flex-start;
+    min-width: 0;
+  }
+
+  .checkout-product .cp-col-product > div {
+    min-width: 0;
+  }
+
+  .checkout-product .cp-col-price {
+    padding-left: 58px;
+    text-align: left;
+  }
+
+  .checkout-product .cp-col-qty {
+    text-align: right;
+    color: var(--sh-text-muted);
+  }
+
+  .checkout-product .cp-col-total {
+    display: none;
+  }
+}

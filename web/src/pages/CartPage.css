@@ -300,6 +300,15 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* The shop's box: the size of the lines' boxes and in their column (L199) */
+.cart-shop-head > input[type='checkbox'] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0 11px;
+  cursor: pointer;
+}
+
 .cart-shop-name {
   font-weight: 600;
 }
@@ -518,6 +527,10 @@
   .cart-shop-head {
     flex-wrap: wrap;
     padding: 12px;
+  }
+
+  .cart-shop-head > input[type='checkbox'] {
+    margin: 0 5px;
   }
 
   .cart-item {

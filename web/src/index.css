@@ -169,6 +169,12 @@ button {
   cursor: pointer;
 }
 
+/* Every check box and radio wears the brand colour, never the browser's blue (L199) */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--sh-primary);
+}
+
 img {
   max-width: 100%;
   display: block;

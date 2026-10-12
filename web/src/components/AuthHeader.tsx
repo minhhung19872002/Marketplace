@@ -5,10 +5,12 @@ import DemoNotice from './DemoNotice';
 import { usePageTitle } from '../lib/pageTitle';
 import './AuthHeader.css';
 
-// The sign-in pages and the name each shows beside the logo (and in the browser tab)
-const TITLES: Record<string, string> = { '/dang-nhap': 'Đăng nhập', '/dang-ky': 'Đăng ký', '/quen-mat-khau': 'Đặt lại mật khẩu' };
+// The sign-in pages and the checkout (#217), and the name each shows beside the logo (and in the browser tab)
+const TITLES: Record<string, string> = {
+  '/dang-nhap': 'Đăng nhập', '/dang-ky': 'Đăng ký', '/quen-mat-khau': 'Đặt lại mật khẩu', '/thanh-toan': 'Thanh toán',
+};
 
-/** Slim header of the sign-in pages (G5-B), as on the reference marketplace: the logo, the page name, help. */
+/** Slim header of the sign-in pages (G5-B) and the checkout, as on the reference marketplace: the logo, the page name, help. */
 const AuthHeader = ({ title }: { title: string }) => {
   usePageTitle(title);
   return (

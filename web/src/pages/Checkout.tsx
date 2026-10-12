@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { checkoutApi, type CheckoutRequest, type PaymentMethod, type PaymentOption } from '../api/commerce';
+import { checkoutApi, type CheckoutRequest, type PaymentMethod, type ShippingOption, type PaymentOption } from '../api/commerce';
 import VoucherPicker from '../components/VoucherPicker';
 import QueryState from '../components/QueryState';
 import { useShopVouchers } from '../stores/shopVouchers';
@@ -37,6 +37,8 @@ const Checkout = () => {
   const [adding, setAdding] = useState(false);
   const [picking, setPicking] = useState(false);
   const [carriers, setCarriers] = useState<Record<string, string>>({});
+  // One carrier line per shop; "Thay đổi" opens the list of that shop (#216)
+  const [carrierOpen, setCarrierOpen] = useState<Record<string, boolean>>({});
   // Shared with the cart (E6): a shop voucher picked there is the one used here, and the other way round
   const shopVouchers = useShopVouchers((st) => st.codes);
   const setShopVoucher = useShopVouchers((st) => st.set);
@@ -177,8 +179,14 @@ const Checkout = () => {
 
             {quote.shops.map((shop) => (
               <div key={shop.shopId} className="checkout-box" data-testid="checkout-shop">
-                <div className="checkout-shop-name">
-                  {shop.isMall && <Badge tone="mall">Mall</Badge>} <Store size={16} aria-hidden /> {shop.shopName}
+                {/* The shop, then the column names of its lines on wide screens (G-VIS round 4) */}
+                <div className="checkout-shop-head">
+                  <div className="checkout-shop-name">
+                    {shop.isMall && <Badge tone="mall">Mall</Badge>} <Store size={16} aria-hidden /> {shop.shopName}
+                  </div>
+                  <span className="cp-col-price">Đơn giá</span>
+                  <span className="cp-col-qty">Số lượng</span>
+                  <span className="cp-col-total">Thành tiền</span>
                 </div>
                 {shop.lines.map((it) => (
                   <div key={it.skuId} className="checkout-product" data-testid="checkout-item">
@@ -239,17 +247,18 @@ const Checkout = () => {
                       aria-label={`Lời nhắn cho ${shop.shopName}`}
                     />
                   </label>
-                  <div className="checkout-carriers" role="radiogroup" aria-label={`Đơn vị vận chuyển của ${shop.shopName}`}>
-                    <span className="checkout-carriers-title"><Truck size={16} aria-hidden /> Đơn vị vận chuyển</span>
-                    {shop.shippingOptions.map((o) => (
-                      <label key={o.code} className={`checkout-carrier ${shop.carrierCode === o.code ? 'active' : ''}`} data-testid="carrier-option">
-                        <input type="radio" name={`carrier-${shop.shopId}`} checked={shop.carrierCode === o.code}
-                          onChange={() => setCarriers({ ...carriers, [shop.shopId]: o.code })} />
-                        <span className="checkout-carrier-name"><strong>{o.name}</strong> Nhận dự kiến {formatDate(`${o.expectedDate}T12:00:00+07:00`)}</span>
-                        <span className="checkout-carrier-fee">{formatPrice(o.fee)}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <CarrierChoice
+                    shopId={shop.shopId}
+                    shopName={shop.shopName}
+                    options={shop.shippingOptions}
+                    value={shop.carrierCode}
+                    open={carrierOpen[shop.shopId] ?? false}
+                    onOpen={() => setCarrierOpen({ ...carrierOpen, [shop.shopId]: true })}
+                    onPick={(code) => {
+                      setCarriers({ ...carriers, [shop.shopId]: code });
+                      setCarrierOpen({ ...carrierOpen, [shop.shopId]: false });
+                    }}
+                  />
                 </div>
                 <div className="checkout-shop-total">
                   Tổng số tiền ({shop.lines.reduce((s, l) => s + l.quantity, 0)} sản phẩm): <strong>{formatPrice(shop.total)}</strong>
@@ -341,6 +350,43 @@ const Checkout = () => {
           </aside>
         </div>
       </div>
+    </div>
+  );
+};
+
+/** A shop's carrier as on the reference marketplace (#216): the chosen one on a line with "Thay đổi", the list only while changing. */
+const CarrierChoice = ({ shopId, shopName, options, value, open, onOpen, onPick }: {
+  shopId: string; shopName: string; options: ShippingOption[]; value: string | null; open: boolean; onOpen: () => void; onPick: (code: string) => void;
+}) => {
+  const current = options.find((o) => o.code === value);
+  const eta = (o: ShippingOption) => `Nhận dự kiến ${formatDate(`${o.expectedDate}T12:00:00+07:00`)}`;
+  return (
+    <div className="checkout-carriers">
+      {/* "Thay đổi" on the title line: the chosen carrier keeps its whole row, even on a phone */}
+      <span className="checkout-carriers-title">
+        <Truck size={16} aria-hidden /> Đơn vị vận chuyển
+        {current && !open && options.length > 1 && (
+          <button type="button" className="checkout-carrier-change" onClick={onOpen} data-testid="carrier-change"
+            aria-label={`Thay đổi đơn vị vận chuyển của ${shopName}`}>Thay đổi</button>
+        )}
+      </span>
+      {current && !open ? (
+        <div className="checkout-carrier checkout-carrier-current active" data-testid="carrier-current">
+          <span className="checkout-carrier-name"><strong>{current.name}</strong> {eta(current)}</span>
+          <span className="checkout-carrier-fee">{formatPrice(current.fee)}</span>
+        </div>
+      ) : (
+        <div className="checkout-carrier-list" role="radiogroup" aria-label={`Đơn vị vận chuyển của ${shopName}`}>
+          {options.map((o) => (
+            <label key={o.code} className={`checkout-carrier ${value === o.code ? 'active' : ''}`} data-testid="carrier-option">
+              <input type="radio" name={`carrier-${shopId}`} checked={value === o.code} onChange={() => onPick(o.code)}
+                onClick={() => { if (value === o.code) onPick(o.code); }} />
+              <span className="checkout-carrier-name"><strong>{o.name}</strong> {eta(o)}</span>
+              <span className="checkout-carrier-fee">{formatPrice(o.fee)}</span>
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

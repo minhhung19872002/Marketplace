@@ -1,6 +1,7 @@
 .checkout-voucher {
   display: flex;
-  flex-wrap: wrap;
+  /* The title and its "n mã dùng được ›" share one line at any width; a long title wraps inside itself (L201) */
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -12,6 +13,15 @@
   align-items: center;
   gap: 6px;
   font-weight: 500;
+}
+
+.checkout-voucher-title {
+  min-width: 0;
+}
+
+.checkout-voucher .voucher-trigger {
+  flex: none;
+  white-space: nowrap;
 }
 
 .checkout-voucher-title svg {

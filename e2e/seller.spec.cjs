@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
+const { newPhone, latestOtp } = require('./helpers.cjs');
 
 // Seller Center + admin moderation on the full stack. Needs the gateway URL and an admin account that can review
 // shops and products (never committed): SH_E2E_ADMIN_USER / SH_E2E_ADMIN_PASSWORD.
@@ -9,8 +10,8 @@ const ADMIN_USER = process.env.SH_E2E_ADMIN_USER;
 const ADMIN_PASSWORD = process.env.SH_E2E_ADMIN_PASSWORD;
 const SAMPLE_PNG = path.join(__dirname, 'fixtures', 'sample.png');
 
-let phoneSeq = (Date.now() + 9000) % 100000000;
-const newPhone = () => `09${String(++phoneSeq % 100000000).padStart(8, '0')}`;
+// Suffix of names this run creates
+const phoneSeq = (Date.now() + 9000) % 100000000;
 
 async function api(request, method, url, { token, data, multipart } = {}) {
   const res = await request.fetch(`${BASE}/api${url}`, {
@@ -28,12 +29,7 @@ async function registerUser(request) {
   const phone = newPhone();
   const password = 'Matkhau123';
   await api(request, 'POST', '/auth/otp/send', { data: { target: phone, purpose: 'Register' } });
-  let code = null;
-  for (let i = 0; i < 40 && !code; i++) {
-    const sms = await api(request, 'GET', `/dev/sms?to=${phone}`);
-    code = sms[0]?.content.match(/\b\d{6}\b/)?.[0] ?? null;
-    if (!code) await new Promise((r) => setTimeout(r, 500));
-  }
+  const code = await latestOtp(request, phone);
   const { ticket } = await api(request, 'POST', '/auth/otp/verify', { data: { target: phone, purpose: 'Register', code } });
   const login = await api(request, 'POST', '/auth/register', {
     data: { target: phone, ticket, password, fullName: 'Người Bán E2E', acceptTerms: true },

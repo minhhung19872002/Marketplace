@@ -606,7 +606,7 @@ Gateway chuyển máy thu thập (User-Agent: Googlebot, Bingbot, Cốc Cốc, F
 
 ## Chỉ môi trường phát triển
 
-| GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development |
+| GET | `/api/dev/sms?to={SĐT}` | Hộp thư của nhà cung cấp SMS giả lập (20 tin mới nhất) — 404 ngoài Development, trừ site trình diễn khi gửi tiêu đề `X-E2E-Key` đúng `SH_E2E_OTP_KEY` và số thuộc dải `099…` (quyết định #224) |
 |---|---|---|
 
 ## API cho ứng dụng di động

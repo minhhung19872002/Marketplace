@@ -32,6 +32,8 @@ public sealed class ShopHubSettings
 
     // "simulated" (default) writes SMS to sys.simulated_sms; a real provider plugs in behind ISmsSender
     public required string SmsProvider { get; init; }
+    // SH_E2E_OTP_KEY: lets the e2e suite read OTPs of its own numbers on a demo site (E2eOtpAccess, decision #224)
+    public string? E2eOtpKey { get; init; }
 
     // Sample accounts/data for demo (on by default; set SH_SEED_SAMPLE=false for a clean production DB)
     public bool SeedSampleData { get; init; }
@@ -96,6 +98,7 @@ public sealed class ShopHubSettings
             SmtpPort = int.TryParse(config["SH_SMTP_PORT"], out var smtpPort) ? smtpPort : 18125,
             SmtpFrom = config["SH_SMTP_FROM"] ?? "ShopHub <no-reply@shophub.local>",
             SmsProvider = config["SH_SMS_PROVIDER"] ?? "simulated",
+            E2eOtpKey = string.IsNullOrWhiteSpace(config["SH_E2E_OTP_KEY"]) ? null : config["SH_E2E_OTP_KEY"],
             SeedSampleData = !string.Equals(config["SH_SEED_SAMPLE"], "false", StringComparison.OrdinalIgnoreCase),
             DemoSalesBoost = !string.Equals(config["SH_DEMO_SALES_BOOST"], "false", StringComparison.OrdinalIgnoreCase),
             PaymentSimulated = string.Equals(config["SH_PAYMENT_SIMULATED"], "true", StringComparison.OrdinalIgnoreCase),

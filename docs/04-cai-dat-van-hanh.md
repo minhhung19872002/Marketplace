@@ -99,6 +99,7 @@ có tài khoản tự chạy và ghi kết quả.
 | GHTK | `SH_GHTK_TOKEN`, `SH_GHTK_WEBHOOK_TOKEN` | `SH_GHTK_CLIENT_SOURCE`, `SH_GHTK_ENDPOINT` |
 | Push FCM | `SH_FCM_SERVICE_ACCOUNT` (JSON / base64 / đường dẫn tệp) | `SH_FCM_API_BASE` |
 | SMS eSMS | `SH_SMS_PROVIDER=esms`, `SH_ESMS_API_KEY`, `SH_ESMS_SECRET_KEY`, `SH_ESMS_BRANDNAME` | `SH_ESMS_SMS_TYPE` (mặc định 2), `SH_ESMS_ENDPOINT` |
+| OTP cho e2e trên site trình diễn | `SH_E2E_OTP_KEY` (≥ 24 ký tự, `openssl rand -hex 24`) — chỉ có tác dụng khi SMS giả lập và `SITE.MODE=demo`; bộ e2e gửi cùng giá trị qua biến `SH_E2E_OTP_KEY` (quyết định #224) | — |
 | Chia sẻ Zalo | tham số hệ thống `SITE.ZALO_OA_ID` (mã Official Account) | — |
 
 **2. URL khai với nhà cung cấp**
@@ -250,7 +251,7 @@ chỉ mục `ix_products_best_selling`, output cache Redis cho các GET công kh
 | Serilog không ghi được (sink lỗi) | đặt `SH_SERILOG_SELFLOG=/app/logs/serilog-self.log` rồi khởi động lại API |
 | Việc nền (Hangfire) | `/api/admin/jobs` (quyền `SYS.JOB.VIEW`) |
 | Tin outbox kẹt | `SELECT type, attempts, last_error FROM sys.outbox_messages WHERE processed_at IS NULL;` |
-| SMS giả lập | `GET /api/dev/sms?to=09…` (chỉ Development) |
+| SMS giả lập | `GET /api/dev/sms?to=09…` (Development; site trình diễn chỉ với khoá `SH_E2E_OTP_KEY` và số `099…`, quyết định #224) |
 | Realtime không nhận tin | DevTools → Network → WS `/hubs/realtime` (101); `redis-cli PUBSUB CHANNELS 'shophub:signalr*'` |
 | Cổng / hãng thật không phản hồi | log `VNPay … call failed` / `GHN call … failed`; `SELECT provider, result, count(*) FROM sales.payment_webhook_events GROUP BY 1, 2;` |
 

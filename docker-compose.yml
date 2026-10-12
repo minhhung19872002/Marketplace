@@ -146,6 +146,8 @@ services:
       # First-run admin password chosen by the operator (CI: a GitHub secret); empty = generated and printed once
       SH_SEED_ADMIN_PASSWORD: ${SH_SEED_ADMIN_PASSWORD:-}
       SH_DEMO_SALES_BOOST: ${SH_DEMO_SALES_BOOST:-true}
+      # Lets the e2e suite read the OTPs of its own 099… numbers on a demo site (X-E2E-Key, decision #224); empty = off
+      SH_E2E_OTP_KEY: ${SH_E2E_OTP_KEY:-}
       # Anonymous catalogue reads cached in Redis (seconds). Off on the dev stack so e2e always reads fresh data
       SH_OUTPUT_CACHE_SECONDS: ${SH_OUTPUT_CACHE_SECONDS:-0}
       # Real gateways / carriers (Phase 11): each one is on only when its keys are set in .env

@@ -1,22 +1,15 @@
 const { test, expect } = require('@playwright/test');
+const { newPhone, latestOtp } = require('./helpers.cjs');
 
 // Admin console checks — need the full stack behind the gateway (/admin/ + /api/)
 const BASE = process.env.SH_E2E_BASE_URL;
-
-let phoneSeq = (Date.now() + 5000) % 100000000;
-const newPhone = () => `09${String(++phoneSeq % 100000000).padStart(8, '0')}`;
 
 async function registerBuyer(request) {
   const phone = newPhone();
   const password = 'Matkhau123';
   const sent = await request.post(`${BASE}/api/auth/otp/send`, { data: { target: phone, purpose: 'Register' } });
   if (!sent.ok()) throw new Error(`Gửi OTP thất bại: ${await sent.text()}`);
-  let code = null;
-  for (let i = 0; i < 40 && !code; i++) {
-    const body = await (await request.get(`${BASE}/api/dev/sms?to=${phone}`)).json();
-    code = body.data?.[0]?.content.match(/\b\d{6}\b/)?.[0] ?? null;
-    if (!code) await new Promise((r) => setTimeout(r, 500));
-  }
+  const code = await latestOtp(request, phone);
   const verify = await (await request.post(`${BASE}/api/auth/otp/verify`, { data: { target: phone, purpose: 'Register', code } })).json();
   const res = await request.post(`${BASE}/api/auth/register`, {
     data: { target: phone, ticket: verify.data.ticket, password, fullName: 'Người Mua Thử', acceptTerms: true },

@@ -4,12 +4,15 @@ const { expect } = require('@playwright/test');
 const BASE = process.env.SH_E2E_BASE_URL || 'http://localhost:5173';
 
 // Random VN mobile number: parallel workers load this module separately, so a shared counter would collide
-const newPhone = () => `09${String(require('node:crypto').randomInt(0, 100_000_000)).padStart(8, '0')}`;
+// Numbers of the e2e suite: 099 + 7 digits. On a demo site the OTP inbox answers only these, and only with the suite's
+// own key SH_E2E_OTP_KEY (decision #224); the local stack (Development) answers any number.
+const newPhone = () => `099${String(require('node:crypto').randomInt(0, 10_000_000)).padStart(7, '0')}`;
+const OTP_HEADERS = process.env.SH_E2E_OTP_KEY ? { 'X-E2E-Key': process.env.SH_E2E_OTP_KEY } : {};
 
-// Newest OTP texted by the simulated SMS provider (dev-only inbox)
+// Newest OTP texted by the simulated SMS provider
 async function latestOtp(request, phone) {
   for (let i = 0; i < 40; i++) {
-    const res = await request.get(`${BASE}/api/dev/sms?to=${phone}`);
+    const res = await request.get(`${BASE}/api/dev/sms?to=${phone}`, { headers: OTP_HEADERS });
     const body = await res.json();
     const text = body.data?.[0]?.content;
     const code = text && text.match(/\b\d{6}\b/);

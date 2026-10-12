@@ -10,6 +10,9 @@ cd e2e && SH_E2E_BASE_URL=http://localhost:18000 SH_E2E_ADMIN_USER=… SH_E2E_AD
 
 (gateway e2e nên nâng giới hạn: `SH_GATEWAY_RATE=100r/s SH_GATEWAY_BURST=200`, mọi trình duyệt cùng một IP.)
 
+Chạy trên site trình diễn (VM, môi trường Production): thêm `SH_E2E_OTP_KEY=…` (cùng giá trị trong `.env` của máy chủ) để các kịch bản
+đăng ký bằng OTP đọc được mã của số `099…` (quyết định #224). Trên site `live` hay khi dùng SMS thật, hộp SMS luôn 404.
+
 Lần chạy gần nhất: **2026-10-07, bản cài mới** (Phase 14 H — project Docker riêng, CSDL / MinIO / Meilisearch / Redis
 **trắng**, dữ liệu gieo lúc nạp: 1.000 sản phẩm, 606 đơn, 800 đánh giá; xong thì gỡ đúng các volume ấy):
 Playwright **77 kịch bản, 77 đạt** (lần đầu 67 đạt + 2 chập chờn + 8 hỏng: 8 do helper e2e chỉ tìm sản phẩm trên trang

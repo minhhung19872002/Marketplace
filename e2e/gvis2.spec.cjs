@@ -129,10 +129,10 @@ test.describe('G-VIS vòng 2', () => {
     const card = (await api(request, '/search/products?q=bomber&pageSize=6')).items[0];
     const product = await api(request, `/products/${card.id}`);
     expect(product.media.filter((m) => m.type === 'Image').length).toBeGreaterThanOrEqual(4);
-    const colour = product.tiers.find((t) => t.name === 'Màu Sắc');
-    expect(colour, 'tầng Màu Sắc').toBeTruthy();
+    const colour = product.tiers.find((t) => t.name === 'Màu sắc');
+    expect(colour, 'tầng Màu sắc').toBeTruthy();
     await page.goto(`${BASE}/san-pham/${card.id}`);
-    const chip = page.locator('.pd-variants[aria-label="Màu Sắc"] [data-testid="variant-option"]').first();
+    const chip = page.locator('.pd-variants[aria-label="Màu sắc"] [data-testid="variant-option"]').first();
     await expect(chip.locator('img.pd-variant-img')).toBeVisible();
     // A single colour is chosen already: only the size is left to pick
     await expect(chip).toHaveAttribute('aria-pressed', 'true');

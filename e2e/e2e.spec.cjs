@@ -316,7 +316,7 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('.cart-empty-btn', { hasText: 'Mua sắm ngay' })).toBeVisible();
   });
 
-  test('Tìm "dien thoai" (không dấu) ra "Điện Thoại…"', async ({ page }) => {
+  test('Tìm "dien thoai" (không dấu) ra "Điện thoại…"', async ({ page }) => {
     await page.goto(BASE);
     await page.waitForLoadState('networkidle');
     await page.locator('.header-search-input').fill('dien thoai');
@@ -327,8 +327,8 @@ test.describe('ShopHub Marketplace', () => {
     await expect(page.locator('[data-testid="product-card"]').first()).toBeVisible();
     const names = await page.locator('[data-testid="product-card-name"]').allTextContents();
     expect(names.length).toBeGreaterThan(0);
-    // Name matches rank first; accessories of "Điện Thoại & Phụ Kiện" follow (category-name match)
-    for (const name of names.slice(0, 5)) expect(name).toContain('Điện Thoại');
+    // Name matches rank first (sentence case since L202); accessories of "Điện thoại & phụ kiện" follow (category-name match)
+    for (const name of names.slice(0, 5)) expect(name).toContain('Điện thoại');
   });
 
   test('Số trên facet khớp số kết quả khi bấm lọc', async ({ page }) => {

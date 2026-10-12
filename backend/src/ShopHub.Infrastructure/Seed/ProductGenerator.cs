@@ -35,6 +35,19 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
     /// <summary>The colour a product name says, the leftmost one with a second colour right after it ("Đỏ Đen"); null if none.</summary>
     public static string? ColourOf(string name) => ColourWord.Match(name) is { Success: true } m ? m.Value : null;
 
+    public sealed record TierName(string Name, IReadOnlyList<string> Options);
+
+    /// <summary>
+    /// The variant tiers of a model as written to the database, in sentence case (L202): a "Màu sắc" tier with the colour its
+    /// name says when the model comes in sizes (G-VIS round 2), then its own tier ("Kích Cỡ" → "Kích cỡ", "Xanh Navy" → "Xanh navy").
+    /// </summary>
+    public static (TierName? Colour, TierName Main) TierNames(string modelName, string tier, IReadOnlyList<string> options)
+    {
+        var colour = tier is "Kích Cỡ" or "Size" ? ColourOf(modelName) : null;
+        return (colour is null ? null : new TierName("Màu sắc", [SeedText.SentenceCase(colour)]),
+            new TierName(SeedText.SentenceCase(tier), options.Select(SeedText.SentenceCase).ToList()));
+    }
+
     /// <summary>The promotional cover of a model ("p007-ad.webp"): big text printed on the photo.</summary>
     public static bool IsAdCover(string file) => Path.GetFileNameWithoutExtension(file).EndsWith("-ad", StringComparison.Ordinal);
 
@@ -188,7 +201,8 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
             {
                 var wording = copy == 0 && attempt == 0 || wordings.Length == 0 ? null : wordings[rng.Next(wordings.Length)];
                 used = wording?.StartsWith('*') == true;
-                name = wording is null ? model.Name : $"{model.Name} - {wording.TrimStart('*')}";
+                // Sentence case (L202): the model's and the wording's Title Case stay keys of the seed data only
+                name = SeedText.ListingName(model.Name, wording?.TrimStart('*'));
                 if (name.Length > Product.MaxNameLength) name = name[..Product.MaxNameLength].TrimEnd();
                 attempt++;
             } while (taken.Contains((shop.Id, name)) && attempt < 12);
@@ -237,17 +251,19 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
             var skus = new List<SkuSpec>();
             if (model.Variant is { } variant)
             {
-                // Clothes and shoes named after their colour get a "Màu Sắc" chip with the photo next to the sizes (G-VIS round 2)
-                var colour = variant.Tier is "Kích Cỡ" or "Size" ? ColourOf(model.Name) : null;
+                // Clothes and shoes named after their colour get a "Màu sắc" chip with the photo next to the sizes (G-VIS round 2)
+                var (colourTier, mainTier) = TierNames(model.Name, variant.Tier, variant.Options.Select(o => o.Name).ToList());
+                var colour = colourTier?.Options[0];
                 var swatch = shots.FirstOrDefault(p => !p.Cover).Url;
-                if (colour is not null) tiers.Add(new TierSpec("Màu Sắc", [new OptionSpec(colour, swatch)]));
-                tiers.Add(new TierSpec(variant.Tier, variant.Options.Select(o => new OptionSpec(o.Name, null)).ToList()));
-                foreach (var o in variant.Options)
+                if (colourTier is not null) tiers.Add(new TierSpec(colourTier.Name, [new OptionSpec(colour!, swatch)]));
+                tiers.Add(new TierSpec(mainTier.Name, mainTier.Options.Select(o => new OptionSpec(o, null)).ToList()));
+                for (var i = 0; i < variant.Options.Count; i++)
                 {
+                    var o = variant.Options[i];
                     var p = o.Delta is { } delta ? RoundPrice(price + delta) : RoundPrice(price * 2 * 95 / 100);
                     skus.Add(colour is null
-                        ? new SkuSpec(o.Name, null, null, p, Original(p), soldOut ? 0 : Stock(), null, true)
-                        : new SkuSpec(colour, o.Name, null, p, Original(p), soldOut ? 0 : Stock(), null, true));
+                        ? new SkuSpec(mainTier.Options[i], null, null, p, Original(p), soldOut ? 0 : Stock(), null, true)
+                        : new SkuSpec(colour, mainTier.Options[i], null, p, Original(p), soldOut ? 0 : Stock(), null, true));
                 }
             }
             else
@@ -282,12 +298,12 @@ public sealed class ProductGenerator(ShopHubDbContext db, IObjectStorage storage
     {
         var lines = new List<string>
         {
-            $"<p><strong>{m.Name}</strong> — {(used ? "hàng đã qua sử dụng, ngoại hình đẹp, đã kiểm tra kỹ trước khi giao" : "hàng mới, đóng gói nguyên vẹn")}.</p>",
+            $"<p><strong>{SeedText.ProductName(m.Name)}</strong> — {(used ? "hàng đã qua sử dụng, ngoại hình đẹp, đã kiểm tra kỹ trước khi giao" : "hàng mới, đóng gói nguyên vẹn")}.</p>",
             "<ul>",
         };
         foreach (var (k, v) in m.Attributes) lines.Add($"<li>{k}: {string.Join(", ", v)}{(k is "Khối lượng" ? " g" : k is "Hạn sử dụng" ? " ngày" : "")}</li>");
         lines.Add($"<li>Xuất xứ: {m.Origin}</li>");
-        if (m.Variant is { } v2) lines.Add($"<li>{v2.Tier}: {string.Join(" / ", v2.Options.Select(o => o.Name))}</li>");
+        if (m.Variant is { } v2) lines.Add($"<li>{SeedText.SentenceCase(v2.Tier)}: {string.Join(" / ", v2.Options.Select(o => SeedText.SentenceCase(o.Name)))}</li>");
         lines.Add("</ul>");
         lines.Add(top switch
         {

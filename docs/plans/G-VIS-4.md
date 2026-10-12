@@ -13,7 +13,7 @@ Hai mục "còn tồn" của vòng 3. Ảnh trước / sau ở `.ui-review/vis4/
 | 3 | Dòng voucher: tiêu đề và "n mã dùng được ›" chung một hàng | L201 | `8e0784e` | e2e `gvis4.spec` "Dòng voucher…" |
 | 4 | Vận chuyển: một dòng đơn vị đã chọn, "Thay đổi" mở danh sách; lời nhắn bên trái, vận chuyển bên phải; hàng tên cột mỗi shop | #216 | `8e0784e` | e2e `gvis4.spec` "Vận chuyển…" |
 | 5 | Header gọn cho trang thanh toán (logo, "Thanh toán", trợ giúp) | #217 | `8e0784e` | e2e `gvis4.spec` "Trang thanh toán dùng header gọn…" |
-| 6 | Tên sản phẩm, cụm shop thêm vào, tầng / lựa chọn phân loại, dòng đầu mô tả viết hoa đầu câu; giữ thương hiệu, dòng máy, địa danh | L202 | (commit kế) | `SeedProductNameTests`, `SentenceCaseProductNamesMigrationTests`; migration `SentenceCaseProductNames` |
+| 6 | Tên sản phẩm, cụm shop thêm vào, tầng / lựa chọn phân loại, dòng đầu mô tả viết hoa đầu câu; giữ thương hiệu, dòng máy, địa danh | L202 | `e351969` | `SeedProductNameTests`, `SentenceCaseProductNamesMigrationTests`; migration `SentenceCaseProductNames` |
 
 ## Bảng chấm điểm so với Shopee
 

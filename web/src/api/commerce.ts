@@ -31,6 +31,8 @@ export interface CartShop {
   isMall: boolean;
   onVacation: boolean;
   lines: CartLine[];
+  // The platform free-shipping code this shop's lines can use (#221)
+  shippingOffer?: { code: string; discount: number; minOrder: number } | null;
 }
 
 export interface Cart {
@@ -39,6 +41,9 @@ export interface Cart {
   totalQuantity: number;
   selectedQuantity: number;
   selectedSubtotal: number;
+  // The buyer's ShopHub Xu and how many the ticked lines could take (#221)
+  coinBalance?: number;
+  coinUsable?: number;
 }
 
 export const cartApi = {

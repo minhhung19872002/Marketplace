@@ -78,6 +78,11 @@
     --sh-fab-offset: 64px;
   }
 
+  /* The cart's bar carries ShopHub Xu on a row above the total (#221) */
+  :root:has(.cart-footer-coins) {
+    --sh-fab-offset: 100px;
+  }
+
   /* The page's last row can always scroll clear of the floating buttons */
   main {
     padding-bottom: 72px;

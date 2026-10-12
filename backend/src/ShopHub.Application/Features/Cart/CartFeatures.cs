@@ -32,12 +32,21 @@ public record CartLineDto(
     // "Flash Sale" / "Giảm giá" when a price programme gives the price above (add-on deals and combos show at checkout)
     string? PriceLabel = null);
 
-public record CartShopDto(Guid ShopId, string ShopName, string ShopSlug, bool IsMall, bool OnVacation, IReadOnlyList<CartLineDto> Lines);
+// ShippingOffer: the platform free-shipping code this shop's lines can use — "Giảm ₫30.000 phí vận chuyển đơn tối thiểu ₫0"
+// under the shop's block (G-VIS round 5, #221); null when none applies
+public record CartShopDto(Guid ShopId, string ShopName, string ShopSlug, bool IsMall, bool OnVacation, IReadOnlyList<CartLineDto> Lines,
+    CartShippingOfferDto? ShippingOffer = null);
 
-public record CartDto(IReadOnlyList<CartShopDto> Shops, int LineCount, int TotalQuantity, int SelectedQuantity, long SelectedSubtotal);
+public record CartShippingOfferDto(string Code, long Discount, long MinOrder);
+
+// Coins (#221): the buyer's ShopHub Xu and how many the ticked lines could take (≤ COIN.MAX_PERCENT of their value; the
+// checkout settles the exact figure after vouchers) — the cart's total bar offers them with a switch
+public record CartDto(IReadOnlyList<CartShopDto> Shops, int LineCount, int TotalQuantity, int SelectedQuantity, long SelectedSubtotal,
+    long CoinBalance = 0, long CoinUsable = 0);
 
 /// <summary>Loads / creates carts and turns them into the validated view (stock, price, availability per line).</summary>
-public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook prices, PurchaseLimits purchaseLimits, IClock clock)
+public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook prices, PurchaseLimits purchaseLimits, IClock clock,
+    Checkout.VoucherEvaluator vouchers, Checkout.CoinWallet coins, ISystemParameters parameters)
 {
     public async Task<Domain.Sales.Cart?> FindAsync(CartOwner owner, CancellationToken ct)
     {
@@ -64,19 +73,59 @@ public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook pric
         var cart = await FindAsync(owner, ct);
         if (cart is null || cart.Items.Count == 0) return new CartDto([], 0, 0, 0, 0);
         var lines = await LinesAsync(owner.UserId, cart.Items, ct);
+        var freeship = await FreeshipCodesAsync(owner.UserId, ct);
         var shops = lines.GroupBy(l => l.Shop.Id)
             .Select(g => new CartShopDto(g.Key, g.First().Shop.Name, g.First().Shop.Slug, g.First().Shop.Type == ShopType.Mall,
                 g.First().Shop.Status == ShopStatus.Vacation,
-                g.OrderByDescending(l => l.Item.AddedAt).ThenBy(l => l.Item.SkuId).Select(l => l.Dto).ToList()))
+                g.OrderByDescending(l => l.Item.AddedAt).ThenBy(l => l.Item.SkuId).Select(l => l.Dto).ToList(),
+                ShippingOfferOf(freeship, g.ToList())))
             // Most recently touched shop first, like the buyer site
             .OrderByDescending(s => lines.Where(l => l.Shop.Id == s.ShopId).Max(l => l.Item.AddedAt))
             .ToList();
         var selected = lines.Where(l => l.Dto.IsSelected && l.Dto.CanBuy).ToList();
-        return new CartDto(shops, lines.Count, lines.Sum(l => l.Dto.Quantity), selected.Sum(l => l.Dto.Quantity),
-            selected.Sum(l => l.Dto.Price * l.Dto.Quantity));
+        var subtotal = selected.Sum(l => l.Dto.Price * l.Dto.Quantity);
+        long balance = 0, usable = 0;
+        if (owner.UserId is { } userId)
+        {
+            balance = await coins.BalanceAsync(userId, ct);
+            // The same cap as PricingEngine, on the ticked lines before vouchers
+            usable = Math.Max(0, Math.Min(balance, (long)((Int128)subtotal * await parameters.GetIntAsync(ParameterKeys.CoinMaxPercentBp, ct) / 10_000)));
+        }
+        return new CartDto(shops, lines.Count, lines.Sum(l => l.Dto.Quantity), selected.Sum(l => l.Dto.Quantity), subtotal, balance, usable);
     }
 
-    public sealed record LineView(CartItem Item, Shop Shop, CartLineDto Dto);
+    /// <summary>
+    /// The public platform free-shipping codes running now that this buyer may still use (quota, own uses, audience — the
+    /// checkout's rules); for a guest, those open to everyone.
+    /// </summary>
+    private async Task<List<Domain.Promo.Voucher>> FreeshipCodesAsync(Guid? userId, CancellationToken ct)
+    {
+        var now = clock.UtcNow;
+        var running = await db.Vouchers.AsNoTracking()
+            .Where(v => v.Owner == Domain.Promo.VoucherOwner.Platform && v.Type == Domain.Promo.VoucherType.FreeShipping && v.IsPublic && v.IsActive
+                        && v.StartAt <= now && v.EndAt > now)
+            .OrderBy(v => v.Id).Take(20).ToListAsync(ct);
+        var usable = new List<Domain.Promo.Voucher>();
+        foreach (var v in running)
+            if (userId is { } id ? await vouchers.ProblemAsync(v, id, ct) is null
+                : v.Audience == Domain.Promo.VoucherAudience.Everyone && (v.TotalQuota is not { } q || v.UsedCount < q))
+                usable.Add(v);
+        return usable;
+    }
+
+    /// <summary>The largest free-shipping discount a code gives this shop's lines (Freeship+ codes only to Freeship+ shops).</summary>
+    private static CartShippingOfferDto? ShippingOfferOf(List<Domain.Promo.Voucher> codes, List<LineView> shopLines)
+    {
+        var shop = shopLines[0].Shop;
+        var pricing = shopLines.Select(l => new Checkout.PricingLine(l.Dto.SkuId, l.Dto.ProductId, l.CategoryId, shop.Id, l.Dto.Price, l.Dto.Quantity,
+            shop.FreeshipXtraSince is not null, shop.VoucherXtraSince is not null)).ToList();
+        return codes.Select(v => (Voucher: v, Discount: v.MaxDiscount ?? v.DiscountValue))
+            .Where(x => x.Discount > 0 && pricing.Any(Checkout.PricingVoucher.From(x.Voucher).Covers))
+            .OrderByDescending(x => x.Discount).ThenBy(x => x.Voucher.MinOrder).ThenBy(x => x.Voucher.Code)
+            .Select(x => new CartShippingOfferDto(x.Voucher.Code, x.Discount, x.Voucher.MinOrder)).FirstOrDefault();
+    }
+
+    public sealed record LineView(CartItem Item, Shop Shop, CartLineDto Dto, Guid CategoryId);
 
     private async Task<List<LineView>> LinesAsync(Guid? userId, IReadOnlyCollection<CartItem> items, CancellationToken ct)
     {
@@ -91,6 +140,7 @@ public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook pric
                               p.Id,
                               p.Name,
                               p.Status,
+                              p.CategoryId,
                               Shop = sh,
                               Option1 = db.VariantOptions.Where(o => o.Id == s.Option1Id).Select(o => o.Value).FirstOrDefault(),
                               Option2 = db.VariantOptions.Where(o => o.Id == s.Option2Id).Select(o => o.Value).FirstOrDefault(),
@@ -121,7 +171,8 @@ public sealed class CartStore(IApplicationDbContext db, Marketing.PriceBook pric
             var label = price?.Kind switch { null => null, Domain.Promo.PriceProgramKind.Discount => "Giảm giá", _ => "Flash Sale" };
             result.Add(new LineView(item, r.Shop, new CartLineDto(item.SkuId, r.Id, r.Name, r.OptionImage ?? r.Image,
                 variant.Length == 0 ? null : variant, unit, Math.Max(r.Sku.OriginalPrice, r.Sku.Price),
-                item.PriceAtAdd != unit ? item.PriceAtAdd : null, item.Quantity, available, item.IsSelected, problem is null, problem, item.AddedAt, label)));
+                item.PriceAtAdd != unit ? item.PriceAtAdd : null, item.Quantity, available, item.IsSelected, problem is null, problem, item.AddedAt, label),
+                r.CategoryId));
         }
         return result;
     }

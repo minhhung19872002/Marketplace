@@ -33,7 +33,7 @@ test.describe('G3 — trang người mua', () => {
     await expect(page.locator('[data-testid="user-menu"]')).toBeAttached();
   });
 
-  test('Giỏ ở 375 px: thanh tổng dính đáy một hàng, nút Chat nổi nằm trên thanh (A1, C2)', async ({ browser, request }) => {
+  test('Giỏ ở 375 px: thanh tổng dính đáy, tổng tiền và nút mua một hàng, nút Chat nổi nằm trên thanh (A1, C2)', async ({ browser, request }) => {
     const buyer = await registerViaApi(request, 'Người Mua Giỏ Điện Thoại');
     await addAddressViaApi(request, buyer);
     const token = (await apiLogin(request, buyer.phone, buyer.password)).accessToken;
@@ -60,7 +60,9 @@ test.describe('G3 — trang người mua', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
     const bar = await page.locator('.cart-footer').boundingBox();
     expect(bar.y + bar.height).toBeCloseTo(812, 0);
-    expect(bar.height).toBeLessThanOrEqual(64);
+    // The total and "Mua hàng" on one row; ShopHub Xu on a row above them since G-VIS round 5 (#221)
+    expect(bar.height).toBeLessThanOrEqual(100);
+    expect((await page.locator('.cart-summary').boundingBox()).height).toBeLessThanOrEqual(48);
     await expect(page.getByTestId('checkout')).toHaveText(/Mua hàng \(4\)/);
     const chat = await page.getByTestId('chat-launcher').boundingBox();
     expect(chat.y + chat.height).toBeLessThanOrEqual(bar.y);

@@ -7,18 +7,19 @@ import { storefrontApi } from '../api/storefront';
 import { ApiError } from '../api/http';
 import { checkoutApi, type CartLine, type CheckoutRequest } from '../api/commerce';
 import { struckPrice } from '../lib/cart';
-import { formatPrice } from '../lib/money';
+import { formatCount, formatPrice } from '../lib/money';
 import { handleImgError, sizedImage } from '../lib/image';
 import { productPath } from '../lib/urls';
 import ProductGrid from '../components/ProductGrid';
 import VoucherPicker from '../components/VoucherPicker';
 import QueryState from '../components/QueryState';
 import { useShopVouchers } from '../stores/shopVouchers';
+import { useCoinChoice } from '../stores/coinChoice';
 import { ConfirmButton } from '../components/ConfirmDialog';
 import './CartPage.css';
-import { ShoppingCart, ChevronDown, Store } from 'lucide-react';
+import { ShoppingCart, ChevronDown, Coins, Store, Truck } from 'lucide-react';
 import { ChatNowButton } from '../components/chat/Chat';
-import { Badge, EmptyState, Section } from '../components/ui';
+import { Badge, EmptyState, Section, Switch } from '../components/ui';
 import { EmptyCartArt } from '../components/ui/Illustration';
 import { usePageTitle } from '../lib/pageTitle';
 
@@ -92,6 +93,9 @@ const CartPage = () => {
   const [error, setError] = useState('');
   // Voucher của shop theo từng khối (II.6, E6): the same choice the checkout uses; the server prices it on the ticked lines
   const codes = useShopVouchers((st) => st.codes);
+  const useCoins = useCoinChoice((st) => st.useCoins);
+  const setUseCoins = useCoinChoice((st) => st.setUseCoins);
+  const coinUsable = cart.coinUsable ?? 0;
   const setCode = useShopVouchers((st) => st.set);
   const ticked = cart.shops.flatMap((s) => s.lines.filter((l) => l.isSelected).map((l) => `${l.skuId}:${l.quantity}`)).join(',');
   const quoteRequest: CheckoutRequest = {
@@ -257,6 +261,14 @@ const CartPage = () => {
                 code={codes[shop.shopId] ?? null}
                 onChange={(code) => setCode(shop.shopId, code)}
               />
+              {/* The platform free-shipping code this shop's lines can use (#221), from the server */}
+              {shop.shippingOffer && (
+                <div className="cart-shop-ship" data-testid="cart-shop-ship">
+                  <Truck size={18} aria-hidden className="cart-shop-ship-icon" />
+                  <span>Giảm {formatPrice(shop.shippingOffer.discount)} phí vận chuyển đơn tối thiểu {formatPrice(shop.shippingOffer.minOrder)}</span>
+                  <Link to="/tai-khoan/voucher" className="cart-shop-ship-more">Tìm hiểu thêm</Link>
+                </div>
+              )}
             </div>
           );
         })}
@@ -268,9 +280,19 @@ const CartPage = () => {
             <ConfirmButton className="cart-clear" message={`Xoá ${selected.length} sản phẩm đã chọn khỏi giỏ hàng?`} confirmLabel="Xoá"
               onConfirm={() => run(() => remove(selected.map((l) => l.skuId)))} disabled={selected.length === 0} testId="cart-clear">Xóa</ConfirmButton>
           </div>
+          {/* ShopHub Xu (#221): the buyer's coins, how many the ticked lines can take; the checkout settles the exact figure */}
+          <div className="cart-footer-coins" data-testid="cart-coins">
+            <Coins size={18} aria-hidden className="cart-footer-coins-icon" />
+            <span className="cart-footer-coins-name">ShopHub Xu</span>
+            <span className="cart-footer-coins-note">
+              {!isLoggedIn ? 'Đăng nhập để dùng xu' : coinUsable > 0 ? `Dùng ${formatCount(coinUsable)} xu` : (cart.coinBalance ?? 0) > 0 ? 'Chọn sản phẩm để dùng xu' : 'Bạn chưa có xu'}
+            </span>
+            <Switch checked={useCoins && coinUsable > 0} onChange={setUseCoins} disabled={coinUsable === 0} label="Dùng ShopHub Xu" data-testid="cart-use-coins" />
+            <span className="cart-footer-coins-amount">{useCoins && coinUsable > 0 ? `−${formatPrice(coinUsable)}` : formatPrice(0)}</span>
+          </div>
           <div className="cart-summary">
             <span className="cart-summary-label">Tổng thanh toán ({cart.selectedQuantity} sản phẩm):</span>
-            <span className="cart-summary-total" data-testid="cart-total">{formatPrice(cart.selectedSubtotal)}</span>
+            <span className="cart-summary-total" data-testid="cart-total">{formatPrice(cart.selectedSubtotal - (useCoins ? coinUsable : 0))}</span>
             <button className="cart-checkout" onClick={checkout} disabled={selected.length === 0} data-testid="checkout">
               Mua hàng{cart.selectedQuantity > 0 ? ` (${cart.selectedQuantity})` : ''}
             </button>

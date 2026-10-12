@@ -20,6 +20,7 @@ import { Banknote, Check, Coins, CreditCard, Gift, MapPin, QrCode, Store, Truck,
 import { Badge } from '../components/ui';
 import '../components/VoucherPicker.css';
 import { usePageTitle } from '../lib/pageTitle';
+import { useCoinChoice } from '../stores/coinChoice';
 
 const METHOD_ICONS: Partial<Record<PaymentMethod, LucideIcon>> = { Cod: Banknote, Wallet, Simulated: QrCode, VnPay: QrCode, MoMo: Wallet, ZaloPay: Wallet };
 
@@ -45,7 +46,9 @@ const Checkout = () => {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [platformCode, setPlatformCode] = useState<string | null>(null);
   const [freeshipCode, setFreeshipCode] = useState<string | null>(null);
-  const [useCoins, setUseCoins] = useState(false);
+  // The cart's total bar sets it too (#221)
+  const useCoins = useCoinChoice((st) => st.useCoins);
+  const setUseCoins = useCoinChoice((st) => st.setUseCoins);
   const [method, setMethod] = useState<PaymentMethod>('Cod');
   const [option, setOption] = useState<PaymentOption>('Default');
   const [walletPin, setWalletPin] = useState('');
@@ -315,10 +318,10 @@ const Checkout = () => {
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Summary on the right on wide screens; on phones it follows the page and "Đặt hàng" sticks to the bottom */}
-          <aside className="checkout-box checkout-summary" data-testid="checkout-summary" aria-label="Tóm tắt đơn hàng">
+          {/* The totals close the page under the payment method, figures to the right, like the reference marketplace
+              (G-VIS round 5, #222); on phones "Đặt hàng" and the total stick to the bottom of the screen */}
+          <section className="checkout-box checkout-summary" data-testid="checkout-summary" aria-label="Tóm tắt đơn hàng">
             <h2 className="checkout-box-title">Chi tiết thanh toán</h2>
             <div className="checkout-summary-row"><span>Tổng tiền hàng ({itemCount} sản phẩm)</span><span>{formatPrice(quote.subtotal)}</span></div>
             <div className="checkout-summary-row"><span>Tổng tiền phí vận chuyển</span><span>{formatPrice(quote.shippingFee)}</span></div>
@@ -340,14 +343,17 @@ const Checkout = () => {
                   onChange={(e) => setWalletPin(e.target.value.replace(/\D/g, ''))} data-testid="wallet-pin" />
               </label>
             )}
-            <p className="checkout-terms">Nhấn "Đặt hàng" đồng nghĩa với việc bạn đồng ý tuân theo <Link to="/trang/dieu-khoan-su-dung">Điều khoản ShopHub</Link>.</p>
-            <div className="checkout-place-bar">
-              <span className="checkout-place-bar-total">Tổng: <strong>{formatPrice(quote.grandTotal)}</strong></span>
-              <button type="button" className="checkout-place" onClick={place} disabled={placeDisabled} data-testid="place-order">
-                {placing ? 'Đang đặt hàng…' : 'Đặt hàng'}
-              </button>
+            <div className="checkout-summary-foot">
+              <p className="checkout-terms">Nhấn "Đặt hàng" đồng nghĩa với việc bạn đồng ý tuân theo <Link to="/trang/dieu-khoan-su-dung">Điều khoản ShopHub</Link>.</p>
+              <div className="checkout-place-bar">
+                <span className="checkout-place-bar-total">Tổng: <strong>{formatPrice(quote.grandTotal)}</strong></span>
+                <button type="button" className="checkout-place" onClick={place} disabled={placeDisabled} data-testid="place-order">
+                  {placing ? 'Đang đặt hàng…' : 'Đặt hàng'}
+                </button>
+              </div>
             </div>
-          </aside>
+          </section>
+          </div>
         </div>
       </div>
     </div>

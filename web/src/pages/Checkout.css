@@ -929,3 +929,61 @@ button.checkout-address-manage {
     display: none;
   }
 }
+
+/* ---- G-VIS round 5 (#222): one column; the totals close the page under the payment method, the figures in a block on
+   the right, then the terms on the left and "Đặt hàng" on the right — the reference marketplace's checkout ---- */
+.checkout-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.checkout-summary {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin-top: 12px;
+}
+
+.checkout-summary .checkout-box-title,
+.checkout-summary-row,
+.checkout-summary-saving,
+.checkout-wallet-pin {
+  width: min(100%, 440px);
+  margin-left: auto;
+}
+
+.checkout-summary-row span:last-child {
+  min-width: 140px;
+  text-align: right;
+}
+
+.checkout-summary-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+.checkout-summary-foot .checkout-terms {
+  margin: 0;
+}
+
+@media (min-width: 1024px) {
+  .checkout-summary .checkout-place {
+    width: 210px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .checkout-summary {
+    padding-bottom: 80px;
+  }
+
+  .checkout-summary-foot {
+    border-top: 0;
+  }
+}

@@ -103,6 +103,13 @@ export async function apiCommand<T = null>(path: string, options: RequestOptions
 let refreshing: Promise<boolean> | null = null;
 
 /**
+ * Tabs of web / seller / admin share the refresh cookie: one rotation at a time across all of them (the lock is per
+ * origin), so a tab never sends a cookie another tab is rotating (L212). Without the Web Locks API it just runs.
+ */
+const withRefreshLock = <T>(run: () => Promise<T>): Promise<T> =>
+  typeof navigator !== 'undefined' && navigator.locks ? navigator.locks.request('sh-auth-refresh', run) : run();
+
+/**
  * Rotate the refresh cookie for a new access token. Concurrent callers share one request — two parallel
  * rotations of the same token would look like token theft to the server and end the session.
  */
@@ -111,7 +118,7 @@ export function refreshSession(): Promise<boolean> {
     try {
       // Never signed in here (or the session has expired): nothing to rotate, no request
       if (!mayHaveSession()) throw new Error('no session');
-      const result = await apiRequest<AuthResult>('/auth/refresh', { method: 'POST', body: {}, auth: false });
+      const result = await withRefreshLock(() => apiRequest<AuthResult>('/auth/refresh', { method: 'POST', body: {}, auth: false }));
       useAuthStore.getState().setSession(result);
       return true;
     } catch (e) {

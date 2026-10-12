@@ -37,6 +37,9 @@ public class RefreshToken : Entity
 public static class RevokeReasons
 {
     public const string Rotated = "ROTATED";
+    // Issued by a rotation whose answer the browser lost, then replaced within the reuse grace: it never reached the
+    // browser, so showing it later is always a stolen copy (decision #223)
+    public const string Superseded = "SUPERSEDED";
     public const string Logout = "LOGOUT";
     public const string ReuseDetected = "REUSE_DETECTED";
     public const string PasswordChanged = "PASSWORD_CHANGED";

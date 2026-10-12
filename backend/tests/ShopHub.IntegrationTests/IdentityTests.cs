@@ -5,6 +5,8 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ShopHub.Application.Abstractions;
+using ShopHub.Application.Identity;
+using ShopHub.Application.SystemConfig;
 using ShopHub.Application.Security;
 using ShopHub.Domain.Iam;
 using ShopHub.IntegrationTests.Infrastructure;
@@ -164,16 +166,20 @@ public class IdentityTests(ApiFactory factory)
 
     // ---------- Sessions ----------
 
+    private Task<HttpResponseMessage> RefreshAsync(string token) => Anon.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = token });
+
     [Fact]
     public async Task Refresh_rotates_and_a_replayed_token_kills_the_whole_session()
     {
         var user = await factory.CreateUserAsync();
 
-        var first = await Anon.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = user.RefreshToken });
+        var first = await RefreshAsync(user.RefreshToken);
         var rotated = (await first.ReadEnvelopeAsync<LoginData>()).Data!;
-        var replay = await Anon.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = user.RefreshToken });
-        var newTokenAfterReplay = await Anon.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = rotated.RefreshToken });
-        var accessAfterReplay = await factory.Authorized(rotated.AccessToken).GetAsync("/api/account/me");
+        // The successor has been used: whoever shows the first token now holds a stolen copy
+        var next = (await (await RefreshAsync(rotated.RefreshToken)).ReadEnvelopeAsync<LoginData>()).Data!;
+        var replay = await RefreshAsync(user.RefreshToken);
+        var newTokenAfterReplay = await RefreshAsync(next.RefreshToken);
+        var accessAfterReplay = await factory.Authorized(next.AccessToken).GetAsync("/api/account/me");
 
         first.StatusCode.Should().Be(HttpStatusCode.OK);
         rotated.RefreshToken.Should().NotBe(user.RefreshToken);
@@ -184,15 +190,104 @@ public class IdentityTests(ApiFactory factory)
             .Should().BeTrue();
     }
 
+    // L212 / #223: a reload mid-refresh — the server rotated, the browser never got the answer and shows the old token
     [Fact]
-    public async Task Parallel_refresh_of_one_token_succeeds_once()
+    public async Task A_token_whose_answer_was_lost_refreshes_once_within_the_grace()
+    {
+        var user = await factory.CreateUserAsync();
+        var lost = (await (await RefreshAsync(user.RefreshToken)).ReadEnvelopeAsync<LoginData>()).Data!;
+
+        var retry = await RefreshAsync(user.RefreshToken);
+        var fresh = (await retry.ReadEnvelopeAsync<LoginData>()).Data!;
+        var me = await factory.Authorized(fresh.AccessToken).GetAsync("/api/account/me");
+        var lostAfter = await RefreshAsync(lost.RefreshToken);
+
+        retry.StatusCode.Should().Be(HttpStatusCode.OK, "token kế tiếp chưa được dùng: trình duyệt chỉ mất câu trả lời");
+        me.StatusCode.Should().Be(HttpStatusCode.OK);
+        lostAfter.StatusCode.Should().Be(HttpStatusCode.Unauthorized, "token bị mất đã được thay, không còn dùng được");
+        (await RefreshAsync(fresh.RefreshToken)).StatusCode.Should().Be(HttpStatusCode.Unauthorized,
+            "ai đó dùng token bị mất → coi là dùng lại, thu hồi cả chuỗi");
+    }
+
+    [Fact]
+    public async Task The_grace_ends_after_its_seconds()
+    {
+        var user = await factory.CreateUserAsync();
+        var lost = (await (await RefreshAsync(user.RefreshToken)).ReadEnvelopeAsync<LoginData>()).Data!;
+        // Rotated a minute ago (default grace 15 s)
+        await factory.WithDbAsync(db => db.RefreshTokens.Where(t => t.UserId == user.Id && t.RevokeReason == RevokeReasons.Rotated)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, DateTimeOffset.UtcNow.AddMinutes(-1))));
+
+        (await RefreshAsync(user.RefreshToken)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await RefreshAsync(lost.RefreshToken)).StatusCode.Should().Be(HttpStatusCode.Unauthorized, "hết ân hạn → thu hồi cả chuỗi");
+    }
+
+    /// <summary>Parameters that cut the caller's request off when the new refresh token is about to be issued.</summary>
+    private sealed class CancelOnIssue(ISystemParameters inner, CancellationTokenSource cts) : ISystemParameters
+    {
+        public Task<string> GetStringAsync(string key, CancellationToken ct = default) => inner.GetStringAsync(key, ct);
+        public Task<bool> GetBoolAsync(string key, CancellationToken ct = default) => inner.GetBoolAsync(key, ct);
+        public void Invalidate(string? key = null) => inner.Invalidate(key);
+
+        public Task<long> GetIntAsync(string key, CancellationToken ct = default)
+        {
+            if (key == ParameterKeys.AuthRefreshTokenDays) cts.Cancel();
+            return inner.GetIntAsync(key, CancellationToken.None);
+        }
+    }
+
+    // L213: the browser went away (reload) after the old token was retired — the rotation still issues and links the
+    // successor, so the browser's next refresh with the old token is recognised by the grace
+    [Fact]
+    public async Task A_rotation_cut_off_after_retiring_the_old_token_still_links_its_successor()
+    {
+        var user = await factory.CreateUserAsync();
+        using (var scope = factory.Services.CreateScope())
+        {
+            using var cts = new CancellationTokenSource();
+            var sp = scope.ServiceProvider;
+            var sessions = ActivatorUtilities.CreateInstance<SessionService>(sp, new CancelOnIssue(sp.GetRequiredService<ISystemParameters>(), cts));
+            try { await sessions.RotateAsync(user.RefreshToken, null, cts.Token); }
+            catch (OperationCanceledException) { /* the bug: the rotation stopped half way */ }
+        }
+
+        (await factory.WithDbAsync(db => db.RefreshTokens.CountAsync(t => t.UserId == user.Id && t.RevokeReason == RevokeReasons.Rotated && t.ReplacedById != null)))
+            .Should().Be(1, "token cũ đã nghỉ phải trỏ tới token kế tiếp");
+        (await RefreshAsync(user.RefreshToken)).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    // The seller centre signs in with its own device name; its refreshes send none (the browser's user agent is used)
+    [Fact]
+    public async Task The_grace_applies_when_the_sign_in_named_the_device()
+    {
+        var user = await factory.CreateUserAsync();
+        var named = (await (await Anon.PostAsJsonAsync("/api/auth/login",
+            new { identifier = user.Phone, password = ApiFactory.DefaultPassword, device = "Kênh Người Bán" })).ReadEnvelopeAsync<LoginData>()).Data!;
+        await RefreshAsync(named.RefreshToken);
+        (await RefreshAsync(named.RefreshToken)).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task The_grace_needs_the_same_device()
+    {
+        var user = await factory.CreateUserAsync();
+        await RefreshAsync(user.RefreshToken);
+        var elsewhere = await Anon.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = user.RefreshToken, device = "Máy lạ" });
+        elsewhere.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    // Tabs refreshing together: some may fail, but the family never has two live tokens
+    [Fact]
+    public async Task Parallel_refresh_of_one_token_never_leaves_two_live_tokens()
     {
         var user = await factory.CreateUserAsync();
 
         var results = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ =>
             factory.CreateClient().PostAsJsonAsync("/api/auth/refresh", new { refreshToken = user.RefreshToken })));
 
-        results.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        results.Count(r => r.StatusCode == HttpStatusCode.OK).Should().BeGreaterThanOrEqualTo(1);
+        (await factory.WithDbAsync(db => db.RefreshTokens.CountAsync(t => t.UserId == user.Id && t.RevokedAt == null)))
+            .Should().Be(1);
     }
 
     [Fact]

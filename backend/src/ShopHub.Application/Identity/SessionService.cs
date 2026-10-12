@@ -31,7 +31,9 @@ public sealed class SessionService(
 
     /// <summary>
     /// Rotate a refresh token. The old token is retired with a conditional UPDATE: if it was already retired
-    /// (stolen copy, or a parallel replay) the whole family is revoked and the caller must sign in again.
+    /// (stolen copy, or a parallel replay) the whole family is revoked and the caller must sign in again — except
+    /// within the reuse grace (decision #223): a token rotated a few seconds ago whose successor was never used is a
+    /// browser that lost the answer (reload mid-request, L212), so the unused successor is retired in its place.
     /// </summary>
     public async Task<AuthResult> RotateAsync(string refreshToken, string? device, CancellationToken ct)
     {
@@ -48,10 +50,20 @@ public sealed class SessionService(
 
         if (retired == 0)
         {
-            if (token.RevokeReason == RevokeReasons.Rotated)
-                await RevokeFamilyAsync(token.UserId, token.FamilyId, RevokeReasons.ReuseDetected, ct);
-            throw Unauthenticated();
+            if (token.RevokeReason is not (RevokeReasons.Rotated or RevokeReasons.Superseded)) throw Unauthenticated();
+            var successor = token.RevokeReason == RevokeReasons.Rotated ? await RetireUnusedSuccessorAsync(token, device, now, ct) : null;
+            if (successor is null)
+            {
+                // Not cancellable: a thief must not dodge the revocation by dropping the connection
+                await RevokeFamilyAsync(token.UserId, token.FamilyId, RevokeReasons.ReuseDetected, CancellationToken.None);
+                throw Unauthenticated();
+            }
+            token = successor;
         }
+
+        // The old token is retired: finish the rotation even if the browser goes away now (reload mid-request). A
+        // cancelled insert or link would leave a retired token with no successor, which the grace cannot recognise (L213)
+        ct = CancellationToken.None;
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == token.UserId, ct);
         if (user is null || user.Status != UserStatus.Active)
@@ -64,6 +76,29 @@ public sealed class SessionService(
         await db.RefreshTokens.Where(t => t.Id == token.Id)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.ReplacedById, newId), ct);
         return result;
+    }
+
+    /// <summary>
+    /// The reuse grace: <paramref name="token"/> was rotated at most AUTH.REFRESH_REUSE_GRACE_SECONDS ago, its successor
+    /// is still unused (the live head of the family) and was issued to the same device as the caller — the rotation whose
+    /// answer was lost (the sign-in may have named the device differently, so the old token's own device is not compared). Retires that successor with the same
+    /// conditional UPDATE as a rotation (only one caller wins) and returns it, so the caller rotates from it. Null when
+    /// any condition fails — a real reuse.
+    /// </summary>
+    private async Task<RefreshToken?> RetireUnusedSuccessorAsync(RefreshToken token, string? device, DateTimeOffset now, CancellationToken ct)
+    {
+        var graceSeconds = await parameters.GetIntAsync(ParameterKeys.AuthRefreshReuseGraceSeconds, ct);
+        if (graceSeconds <= 0 || token.ReplacedById is not { } successorId || token.RevokedAt is not { } rotatedAt
+            || now - rotatedAt > TimeSpan.FromSeconds(graceSeconds)) return null;
+        var successor = await db.RefreshTokens.AsNoTracking().FirstOrDefaultAsync(t => t.Id == successorId, ct);
+        if (successor is null) return null;
+        if (device is not null && successor.Device is not null && Truncate(device, 200) != successor.Device) return null;
+        var retired = await db.RefreshTokens
+            .Where(t => t.Id == successorId && t.RevokedAt == null && t.ExpiresAt > now)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(t => t.RevokedAt, now)
+                .SetProperty(t => t.RevokeReason, RevokeReasons.Superseded), ct);
+        return retired == 1 ? successor : null;
     }
 
     public async Task RevokeFamilyAsync(Guid userId, Guid familyId, string reason, CancellationToken ct)

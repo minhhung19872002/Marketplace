@@ -22,6 +22,7 @@ public static class ParameterKeys
 
     public const string AuthAccessTokenMinutes = "AUTH.ACCESS_TOKEN_MINUTES";
     public const string AuthRefreshTokenDays = "AUTH.REFRESH_TOKEN_DAYS";
+    public const string AuthRefreshReuseGraceSeconds = "AUTH.REFRESH_REUSE_GRACE_SECONDS";
     public const string AuthMaxFailedLogin = "AUTH.MAX_FAILED_LOGIN";
     public const string AuthLockoutMinutes = "AUTH.LOCKOUT_MINUTES";
     public const string AuthOtpTtlSeconds = "AUTH.OTP_TTL_SECONDS";
@@ -201,6 +202,9 @@ public static class ParameterCatalog
             "Hạn access token (phút)", "Thời gian sống của access token."),
         new(ParameterKeys.AuthRefreshTokenDays, "30", ParameterDataType.Int, ParameterGroups.Auth,
             "Hạn refresh token (ngày)", "Sau số ngày này không dùng, phiên đăng nhập hết hạn."),
+        new(ParameterKeys.AuthRefreshReuseGraceSeconds, "15", ParameterDataType.Int, ParameterGroups.Auth,
+            "Ân hạn dùng lại refresh token (giây)",
+            "Token vừa xoay vòng trong số giây này, cùng thiết bị, mà token kế tiếp chưa được dùng (trình duyệt mất câu trả lời khi tải lại trang) thì vẫn được làm mới thay vì thu hồi cả phiên. 0 = tắt."),
         new(ParameterKeys.AuthMaxFailedLogin, "5", ParameterDataType.Int, ParameterGroups.Auth,
             "Số lần đăng nhập sai tối đa", "Sai liên tiếp số lần này thì tài khoản bị khoá tạm."),
         new(ParameterKeys.AuthLockoutMinutes, "15", ParameterDataType.Int, ParameterGroups.Auth,

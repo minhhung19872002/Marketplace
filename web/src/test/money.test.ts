@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPrice, formatSold, priceParts, priceTextParts, struckPrice } from '../lib/money';
+import { formatPrice, formatSold, priceParts, priceTextParts, soldLine, struckPrice } from '../lib/money';
 
 describe('formatSold', () => {
   it('writes sold counts the Vietnamese way', () => {
@@ -39,5 +39,13 @@ describe('struckPrice (L181)', () => {
   it('strikes a higher original, single or range', () => {
     expect(struckPrice(79_000, 79_000, 99_000, 99_000)).toBe('99.000₫');
     expect(struckPrice(459_000, 479_000, 459_000, 520_000)).toBe('459.000₫ - 520.000₫');
+  });
+
+  // L210: nothing sold yet prints no sold line at all
+  it('has no sold line while nothing has sold', () => {
+    expect(soldLine(0)).toBeNull();
+    expect(soldLine(0, true)).toBeNull();
+    expect(soldLine(1)).toBe('1 đã bán');
+    expect(soldLine(1234, true)).toBe('Đã bán 1,2k');
   });
 });

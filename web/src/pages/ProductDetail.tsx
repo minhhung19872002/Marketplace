@@ -21,7 +21,7 @@ import ReportProduct from '../components/ReportProduct';
 import Carousel from '../components/ui/Carousel';
 import { ChatNowButton, ChatStats } from '../components/chat/Chat';
 import { clockSkew, marketingApi } from '../api/marketing';
-import { formatPrice, formatPriceRange, formatSold, struckPrice } from '../lib/money';
+import { formatPrice, formatPriceRange, formatSold, soldLine, struckPrice } from '../lib/money';
 import { formatDate, formatSince } from '../lib/datetime';
 import { handleImgError, imageOrPlaceholder, imageSrcSet, sizedImage } from '../lib/image';
 import { isColourTier, swatchOf } from '../lib/swatch';
@@ -337,7 +337,8 @@ const ProductView = ({ product }: { product: ProductPage }) => {
                   ) : (
                     <li className="stat-count">Chưa có đánh giá</li>
                   )}
-                  <li className="stat-sold">{formatSold(product.soldCount)} đã bán</li>
+                  {/* Nothing sold yet: no "0 đã bán" (G-VIS round 6, L210) */}
+                  {product.soldCount > 0 && <li className="stat-sold" data-testid="pd-sold">{soldLine(product.soldCount)}</li>}
                 </ul>
               </div>
               <span className="stat-report"><ReportProduct productId={product.id} /></span>

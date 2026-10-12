@@ -348,3 +348,9 @@
     font-size: 15px;
   }
 }
+
+/* G-VIS round 6 (L210): a card with no sold line and no stars keeps the meta row a full text line tall (16.8 px), so it is
+   as tall as its neighbours */
+.product-card-meta {
+  min-height: 17px;
+}

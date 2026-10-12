@@ -99,7 +99,8 @@ const MallBrands = () => {
           {/* The grid always ends full: the last cell leads to every official store */}
           {Math.min(shops.length, 8) % 4 !== 0 && (
             <Link to="/tim-kiem?mall=true" className="mall-brand mall-brand--all" data-testid="mall-brand-all">
-              <span className="mall-brand-all-icon"><ChevronRight size={28} aria-hidden /></span>
+              {/* The arrow sits in a frame the size of the other tiles' photos, so both rows line up (G-VIS round 6, L211) */}
+              <span className="mall-brand-photo mall-brand-photo--all"><span className="mall-brand-all-icon"><ChevronRight size={28} aria-hidden /></span></span>
               <span className="mall-brand-pill"><span className="mall-brand-name">Xem tất cả thương hiệu</span></span>
               <span className="mall-brand-offer">{shops.length} shop chính hãng</span>
             </Link>

@@ -574,3 +574,32 @@
     height: auto;
   }
 }
+
+/* G-VIS round 6 (L211): a 10 px gap between the tiles in both directions — light photo backgrounds ran into each other —
+   and every photo in the same framed box, so both rows have the same photo ratio and height. The "Xem tất cả" tile puts its
+   arrow in a frame of that size. */
+.mall-brands-grid {
+  gap: 10px;
+}
+
+.mall-brand {
+  justify-content: flex-start;
+}
+
+.mall-brand-photo {
+  overflow: hidden;
+  border-radius: var(--sh-radius-sm);
+  background: var(--sh-surface-sunken);
+}
+
+.mall-brand-photo--all {
+  display: grid;
+  place-items: center;
+  background: var(--sh-danger-soft);
+}
+
+.mall-brand--all .mall-brand-all-icon {
+  width: 64px;
+  height: 64px;
+  background: var(--sh-surface);
+}

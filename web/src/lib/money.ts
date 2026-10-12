@@ -9,6 +9,13 @@ export const formatSold = (sold: number): string => {
   return String(sold);
 };
 
+/**
+ * The sold line of a card or the product page: "1,2k đã bán" (trailing) or "Đã bán 1,2k" (leading); nothing while
+ * nothing has sold — the reference marketplace never prints "0 đã bán" (G-VIS round 6, L210).
+ */
+export const soldLine = (sold: number, lead = false): string | null =>
+  sold > 0 ? (lead ? `Đã bán ${formatSold(sold)}` : `${formatSold(sold)} đã bán`) : null;
+
 /** A price split for display: the digits, then the ₫ sign smaller after them (cards, Flash Sale). */
 /**
  * The digits and the currency of a price as large prices show it: a plain small "đ" after the digits — the "₫" sign has a

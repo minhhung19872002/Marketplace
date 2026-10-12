@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react';
 import type { ProductCard as Card } from '../types';
 import { Link } from 'react-router-dom';
 import { Heart, MapPin, Zap } from 'lucide-react';
-import { formatPrice, formatSold, priceParts } from '../lib/money';
+import { formatPrice, priceParts, soldLine } from '../lib/money';
 import { handleImgError, imageOrPlaceholder, imageSrcSet } from '../lib/image';
 import { useWishlist } from '../context/WishlistContext';
 import { Stars } from './ui';
@@ -40,7 +40,8 @@ export const ShopBadge = ({ isMall, isPreferred, className = '' }: { isMall: boo
 /**
  * Product tile of every grid (G-VIS, reference-marketplace density). Square photo filling the frame with the "-xx%" tag
  * top-right and the campaign strip at its bottom; under it the Mall / Yêu thích badge inline before a 2-line 14 px name,
- * orange-outline tags, then the price (digits, small ₫ after) left and "x đã bán" right on one row.
+ * orange-outline tags, then the price (digits, small ₫ after) left and "x đã bán" right on one row — the sold line is left
+ * out while nothing has sold (G-VIS round 6, L210); the row keeps its height from the price.
  * `variant="detailed"` (search / category results) adds the struck list price, the stars and the ship-from province.
  * Hover: orange border, 1 px lift, "Tìm sản phẩm tương tự" below (a sibling link — links cannot nest).
  */
@@ -51,6 +52,8 @@ const ProductCard = ({ product, showFrame = false, variant = 'compact' }: { prod
   const detailed = variant === 'detailed';
   const showOriginal = detailed && product.originalPrice > product.minPrice;
   const price = priceParts(product.minPrice);
+  const sold = soldLine(product.soldCount);
+  const soldLead = soldLine(product.soldCount, true);
   // A photo with text printed on it (ad cover) gets no strip on top of its own text (G-VIS round 5, L203)
   const strip = !showFrame && !!product.campaignName && !product.imageHasText;
 
@@ -97,7 +100,7 @@ const ProductCard = ({ product, showFrame = false, variant = 'compact' }: { prod
               <span className="product-card-currency" aria-hidden>{price.currency}</span>
             </span>
             {showOriginal && <span className="product-card-original price">{formatPrice(product.originalPrice)}</span>}
-            {!detailed && <span className="product-card-sold">{formatSold(product.soldCount)} đã bán</span>}
+            {!detailed && sold && <span className="product-card-sold" data-testid="product-card-sold">{sold}</span>}
           </div>
 
           {detailed && (
@@ -105,7 +108,7 @@ const ProductCard = ({ product, showFrame = false, variant = 'compact' }: { prod
               <div className="product-card-meta">
                 {/* No rating yet: only the sold count — "Chưa có đánh giá" was cut to "Chưa có …" on narrow tiles (G4-A2) */}
                 {product.ratingCount > 0 && <Stars value={product.ratingAvg} size={11} />}
-                <span className="product-card-sold">Đã bán {formatSold(product.soldCount)}</span>
+                {soldLead && <span className="product-card-sold" data-testid="product-card-sold">{soldLead}</span>}
               </div>
               <div className="product-card-location">
                 {product.provinceName && <><MapPin size={11} aria-hidden /> {product.provinceName}</>}

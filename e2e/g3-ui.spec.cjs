@@ -60,8 +60,8 @@ test.describe('G3 — trang người mua', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
     const bar = await page.locator('.cart-footer').boundingBox();
     expect(bar.y + bar.height).toBeCloseTo(812, 0);
-    // The total and "Mua hàng" on one row; ShopHub Xu on a row above them since G-VIS round 5 (#221)
-    expect(bar.height).toBeLessThanOrEqual(100);
+    // The total and "Mua hàng" on one row; ShopHub Xu (#221) and ShopHub Voucher (G8 C, #225) on two rows above them
+    expect(bar.height).toBeLessThanOrEqual(140);
     expect((await page.locator('.cart-summary').boundingBox()).height).toBeLessThanOrEqual(48);
     await expect(page.getByTestId('checkout')).toHaveText(/Mua hàng \(4\)/);
     const chat = await page.getByTestId('chat-launcher').boundingBox();

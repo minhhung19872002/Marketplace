@@ -290,7 +290,9 @@ public sealed class OrderSampleSeeder(IServiceProvider services, ShopHubSettings
         await using (var scope = services.CreateAsyncScope())
         using (SystemClock.TravelTo(at))
         {
-            var photo = await SendAsync(scope, buyerId, new UploadMediaCommand(EvidencePhoto(rng), MediaPurpose.Evidence), ct);
+            // A home photo of the very product (G8 D: a flat colour square read as a broken image), the square only as a fallback
+            var bytes = (await BuyerPhotosAsync(item, 1, rng, ct)).FirstOrDefault() ?? EvidencePhoto(rng);
+            var photo = await SendAsync(scope, buyerId, new UploadMediaCommand(bytes, MediaPurpose.Evidence), ct);
             request = await SendAsync(scope, buyerId, new CreateReturnCommand(order.Code, ReturnType.RefundOnly, ReturnReason.Damaged,
                 "Sản phẩm bị móp méo khi nhận, hộp rách một góc.", [new ReturnLineInput(item, 1)], [photo.Id]), ct);
         }

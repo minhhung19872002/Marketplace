@@ -66,6 +66,27 @@
   pointer-events: auto;
 }
 
+/* Phones, scrolling down (G8 D): the buttons slide off the right edge, never over a price or a card's buttons; an open
+   chat window stays */
+.fab-stack .chat-launcher,
+.fab-stack .back-to-top {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.fab-stack.is-tucked .chat-launcher,
+.fab-stack.is-tucked .back-to-top {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(calc(100% + 24px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab-stack .chat-launcher,
+  .fab-stack .back-to-top {
+    transition: none;
+  }
+}
+
 /* A page with a bar stuck to the bottom of the screen lifts the floating buttons above it (G3 C2, C4) */
 @media (max-width: 1023px) {
   :root:has(.checkout-place-bar) {

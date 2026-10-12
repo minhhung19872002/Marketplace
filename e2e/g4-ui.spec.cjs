@@ -8,6 +8,14 @@ const { BASE, api, findProduct, withTiers } = require('./helpers.cjs');
 const WIDTHS = [390, 800, 1024, 1440];
 const guest = { storageState: { cookies: [], origins: [] } };
 
+// A seeded campaign page that is still open: 10.10 until 12/10, then 11.11 (a page ends with its sale)
+async function openCampaign(request) {
+  for (const slug of ['sieu-sale-10-10', 'sieu-sale-11-11']) {
+    if ((await request.get(`${BASE}/api/campaigns/${slug}`)).ok()) return `/su-kien/${slug}`;
+  }
+  throw new Error('dữ liệu mẫu không còn chiến dịch nào đang mở');
+}
+
 test.describe('G4 — trang người mua', () => {
   test('Không trang công khai nào cuộn ngang ở 390 / 800 / 1024 / 1440 px (A1)', async ({ browser, request }) => {
     test.setTimeout(240_000);
@@ -15,7 +23,7 @@ test.describe('G4 — trang người mua', () => {
     const tree = await api(request, '/categories');
     const category = tree.find((c) => c.isVisible !== false);
     const paths = ['/', `/danh-muc/${category.slug}`, '/tim-kiem?q=ao', `/san-pham/${product.id}`, `/shop/${product.shop.slug}`,
-      '/flash-sale', '/su-kien/sieu-sale-10-10', '/gio-hang', '/tro-giup', '/trang/dieu-khoan-su-dung'];
+      '/flash-sale', await openCampaign(request), '/gio-hang', '/tro-giup', '/trang/dieu-khoan-su-dung'];
     const overflow = [];
     for (const width of WIDTHS) {
       const context = await browser.newContext({ ...guest, viewport: { width, height: 900 }, isMobile: width < 500, hasTouch: width < 500 });
@@ -34,7 +42,7 @@ test.describe('G4 — trang người mua', () => {
   test('Flash Sale, sự kiện, danh mục đang cập nhật: nội dung cách mép trái như các trang khác (A3)', async ({ browser, request }) => {
     const hidden = (await api(request, '/categories')).find((c) => c.isVisible === false);
     const page = await (await browser.newContext({ ...guest, viewport: { width: 1024, height: 900 } })).newPage();
-    for (const path of ['/flash-sale', '/su-kien/sieu-sale-10-10']) {
+    for (const path of ['/flash-sale', await openCampaign(request)]) {
       await page.goto(`${BASE}${path}`);
       const box = await page.locator('h1').first().boundingBox();
       expect(box.x, path).toBeGreaterThanOrEqual(12);

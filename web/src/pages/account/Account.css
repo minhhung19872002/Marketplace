@@ -130,6 +130,35 @@
   font-size: 14px;
 }
 
+/* A form whose labels sit above their fields (return request, G8 D) */
+.account-form--stacked {
+  gap: 8px;
+}
+
+.account-form--stacked .account-label {
+  margin-top: 8px;
+  color: var(--sh-text-strong);
+  font-weight: 500;
+  text-align: left;
+}
+
+.account-form--stacked .account-label:first-child {
+  margin-top: 0;
+}
+
+.return-qty {
+  width: 72px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--sh-radius-sm);
+  text-align: center;
+}
+
+.return-estimate {
+  margin: 16px 0 12px;
+}
+
 .account-input {
   width: 100%;
   border: 1px solid rgba(0, 0, 0, 0.14);
@@ -867,13 +896,16 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1;
+  /* Beside the member card when there is room, under it on phones — never squeezed into a column (G8 D) */
+  flex: 1 1 300px;
+  min-width: 0;
 }
 
+/* The seven days always on one row */
 .checkin-days {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
-  flex-wrap: wrap;
 }
 
 .checkin-day {
@@ -882,8 +914,19 @@
   align-items: center;
   border: 1px solid #eee;
   border-radius: 4px;
-  padding: 6px 8px;
-  min-width: 56px;
+  padding: 6px 2px;
+  min-width: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* "Ngày 7" on one line in a seventh of a phone's width */
+.checkin-day small {
+  font-size: 11px;
+}
+
+.member-card {
+  flex: 1 1 220px;
 }
 
 .checkin-day.done {

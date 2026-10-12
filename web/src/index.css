@@ -169,6 +169,13 @@ button {
   cursor: pointer;
 }
 
+/* Form fields speak the page's font too — a textarea fell back to the browser's monospace (G8 D) */
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 /* Every check box and radio wears the brand colour, never the browser's blue (L199) */
 input[type='checkbox'],
 input[type='radio'] {

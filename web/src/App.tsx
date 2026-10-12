@@ -7,6 +7,7 @@ import ScrollToTop from './components/ScrollToTop'
 import BackToTop from './components/BackToTop'
 import { ChatProvider, ChatWidget } from './components/chat/Chat'
 import Toaster from './components/Toaster'
+import FabStack from './components/FabStack'
 import './App.css'
 
 // Lazy load pages - Code Splitting
@@ -121,10 +122,10 @@ function App() {
               <Footer />
               <Toaster />
               {/* One floating stack bottom-right (P0-6): back-to-top above chat, never on top of each other */}
-              <div className="fab-stack">
+              <FabStack>
                 <BackToTop />
                 <ChatWidget />
-              </div>
+              </FabStack>
             </div>
           </ChatProvider>
           </Router>

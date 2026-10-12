@@ -149,6 +149,15 @@
 }
 
 /* value then label in the DOM, shown "Label: value" */
+/* Tablets: beside the 400px card the column is too narrow for two "Đánh giá: 4.9 (1,2k đánh giá)" (G8 D: 1px of
+   sideways scroll at 800px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .shop-stats {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
 .shop-stats > div {
   display: flex;
   flex-direction: row-reverse;

@@ -207,10 +207,11 @@ export const ReturnFormPage = () => {
           </span>
           <input type="number" min={0} max={l.returnable} value={quantities[l.orderItemId] ?? 0} disabled={l.returnable === 0}
             onChange={(e) => setQuantities({ ...quantities, [l.orderItemId]: Math.max(0, Math.min(l.returnable, Number(e.target.value) || 0)) })}
-            aria-label={`Số lượng trả ${l.name}`} data-testid="return-qty" />
+            aria-label={`Số lượng trả ${l.name}`} className="return-qty" data-testid="return-qty" />
         </div>
       ))}
-      <div className="account-form">
+      {/* Labels above their fields, left-aligned (G8 D) — the grid rows of the profile put them in a column of their own */}
+      <div className="account-form account-form--stacked">
         <label className="account-label">Hình thức</label>
         <div className="account-radios">
           <label className="account-radio"><input type="radio" checked={type === 'RefundOnly'} onChange={() => setType('RefundOnly')} /> Chỉ hoàn tiền</label>
@@ -226,7 +227,7 @@ export const ReturnFormPage = () => {
         <label className="account-label">Bằng chứng (ảnh / video)</label>
         <MediaPicker purpose="evidence" value={evidence} onChange={setEvidence} max={10} testId="return-evidence" />
       </div>
-      <p>Số tiền hoàn dự kiến: <strong data-testid="return-estimate">{formatPrice(estimate)}</strong> (đúng phần bạn đã trả sau giảm giá)</p>
+      <p className="return-estimate">Số tiền hoàn dự kiến: <strong data-testid="return-estimate">{formatPrice(estimate)}</strong> (đúng phần bạn đã trả sau giảm giá)</p>
       {error && <div className="account-error" role="alert">{error}</div>}
       <button className="account-btn" disabled={lines.length === 0} onClick={submit} data-testid="return-submit">Gửi yêu cầu</button>
     </div>

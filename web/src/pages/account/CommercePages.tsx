@@ -382,7 +382,8 @@ export const VouchersPage = () => {
     <div className="account-card" data-testid="vouchers-page">
       <h2 className="account-title">Ví voucher</h2>
       {message && <div className="account-message" role="status">{message}</div>}
-      <div className="account-tabs">
+      {/* One row at any width, scrolled sideways on phones like the order tabs (G8 D) */}
+      <div className="account-tabs account-tabs--scroll">
         {WALLET_TABS.map((t) => (
           <button key={t.key} className={`account-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
         ))}

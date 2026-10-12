@@ -32,7 +32,9 @@ test.describe('Trang chi tiết sản phẩm', () => {
     await page.waitForURL(`${BASE}/thanh-toan`);
     await expect(page.getByTestId('checkout-item')).toHaveCount(1);
     await expect(page.getByTestId('checkout-item')).toContainText(second.name);
-    // The other line is still in the cart, just not ticked
+    // The other line is still in the cart, just not ticked (the checkout's slim header has no cart icon, #217)
+    await page.goto(`${BASE}/gio-hang`);
+    await expect(page.getByTestId('cart-item')).toHaveCount(2);
     await expect(page.locator('.header-cart .header-cart-badge')).toHaveText('2');
   });
 });

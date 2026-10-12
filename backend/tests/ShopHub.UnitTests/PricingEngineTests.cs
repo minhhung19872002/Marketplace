@@ -36,6 +36,8 @@ public class PricingEngineTests
             s.GrandTotal.Should().Be(s.Lines.Sum(l => l.Payable) + s.ShippingFee - s.ShippingDiscount);
         }
         r.GrandTotal.Should().Be(r.Subtotal - r.ShopDiscount + r.ShippingFee - r.ShippingDiscount - r.PlatformDiscount - r.CoinUsed);
+        // The cart's total bar (G8 C): what the lines cost after every discount and coin, shipping left out
+        r.ItemsTotal.Should().Be(r.Shops.Sum(s => s.Lines.Sum(l => l.Payable)));
     }
 
     [Fact]

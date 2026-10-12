@@ -17,6 +17,7 @@ import { useShopVouchers } from '../stores/shopVouchers';
 import { useCoinChoice } from '../stores/coinChoice';
 import { ConfirmButton } from '../components/ConfirmDialog';
 import './CartPage.css';
+import { usePlatformVoucher } from '../stores/platformVoucher';
 import { ShoppingCart, ChevronDown, Coins, Store, Truck } from 'lucide-react';
 import { ChatNowButton } from '../components/chat/Chat';
 import { Badge, EmptyState, Section, Switch } from '../components/ui';
@@ -97,18 +98,21 @@ const CartPage = () => {
   const setUseCoins = useCoinChoice((st) => st.setUseCoins);
   const coinUsable = cart.coinUsable ?? 0;
   const setCode = useShopVouchers((st) => st.set);
+  // ShopHub Voucher (G8 C): picked on the total bar, carried to the checkout
+  const platformCode = usePlatformVoucher((st) => st.code);
+  const setPlatformCode = usePlatformVoucher((st) => st.setCode);
   const ticked = cart.shops.flatMap((s) => s.lines.filter((l) => l.isSelected).map((l) => `${l.skuId}:${l.quantity}`)).join(',');
   const quoteRequest: CheckoutRequest = {
     addressId: null,
     shops: cart.shops.map((s) => ({ shopId: s.shopId, carrierCode: null, voucherCode: codes[s.shopId] ?? null })),
-    platformVoucherCode: null,
+    platformVoucherCode: platformCode,
     freeshipVoucherCode: null,
-    useCoins: false,
+    useCoins,
     paymentMethod: 'Cod',
     paymentOption: 'Default',
   };
   const quote = useQuery({
-    queryKey: ['cart-quote', ticked, codes],
+    queryKey: ['cart-quote', ticked, codes, platformCode, useCoins],
     queryFn: () => checkoutApi.quote(quoteRequest),
     enabled: isLoggedIn && ticked.length > 0,
     placeholderData: keepPreviousData,
@@ -150,6 +154,11 @@ const CartPage = () => {
 
   const allSelected = lines.every((l) => l.isSelected);
   const selected = lines.filter((l) => l.isSelected);
+  // Priced by the server on the ticked lines (vouchers and coins included, shipping left for the checkout); a guest's
+  // cart has no vouchers or coins, so its total is the ticked lines
+  const priced = isLoggedIn && selected.length > 0 ? quote.data : undefined;
+  const coinsOff = priced ? priced.coinUsed : 0;
+  const total = priced ? priced.itemsTotal : cart.selectedSubtotal;
   const blocked = selected.filter((l) => !l.canBuy);
 
   const checkout = () => {
@@ -280,19 +289,34 @@ const CartPage = () => {
             <ConfirmButton className="cart-clear" message={`Xoá ${selected.length} sản phẩm đã chọn khỏi giỏ hàng?`} confirmLabel="Xoá"
               onConfirm={() => run(() => remove(selected.map((l) => l.skuId)))} disabled={selected.length === 0} testId="cart-clear">Xóa</ConfirmButton>
           </div>
+          {/* ShopHub Voucher (G8 C): the platform's codes for the ticked lines, the same choice as the checkout's */}
+          <div className="cart-footer-voucher" data-testid="cart-platform-voucher">
+            {!isLoggedIn ? (
+              <span className="cart-footer-voucher-note">
+                <Link to="/dang-nhap" state={{ from: '/gio-hang' }}>Đăng nhập</Link> để dùng ShopHub Voucher
+              </span>
+            ) : !priced ? (
+              <span className="cart-footer-voucher-note">ShopHub Voucher · chọn sản phẩm để dùng mã</span>
+            ) : (
+              <VoucherPicker title="ShopHub Voucher" options={priced.platformVouchers} value={platformCode} onChange={setPlatformCode} testId="cart-platform-voucher-picker" />
+            )}
+            <span className="cart-footer-coins-amount" data-testid="cart-platform-discount">
+              {priced && priced.platformDiscount > 0 ? `−${formatPrice(priced.platformDiscount)}` : formatPrice(0)}
+            </span>
+          </div>
           {/* ShopHub Xu (#221): the buyer's coins, how many the ticked lines can take; the checkout settles the exact figure */}
           <div className="cart-footer-coins" data-testid="cart-coins">
             <Coins size={18} aria-hidden className="cart-footer-coins-icon" />
             <span className="cart-footer-coins-name">ShopHub Xu</span>
             <span className="cart-footer-coins-note">
-              {!isLoggedIn ? 'Đăng nhập để dùng xu' : coinUsable > 0 ? `Dùng ${formatCount(coinUsable)} xu` : (cart.coinBalance ?? 0) > 0 ? 'Chọn sản phẩm để dùng xu' : 'Bạn chưa có xu'}
+              {!isLoggedIn ? 'Đăng nhập để dùng xu' : coinUsable > 0 ? `Dùng ${formatCount(priced?.coins.applied ? coinsOff : coinUsable)} xu` : (cart.coinBalance ?? 0) > 0 ? 'Chọn sản phẩm để dùng xu' : 'Bạn chưa có xu'}
             </span>
             <Switch checked={useCoins && coinUsable > 0} onChange={setUseCoins} disabled={coinUsable === 0} label="Dùng ShopHub Xu" data-testid="cart-use-coins" />
-            <span className="cart-footer-coins-amount">{useCoins && coinUsable > 0 ? `−${formatPrice(coinUsable)}` : formatPrice(0)}</span>
+            <span className="cart-footer-coins-amount">{useCoins && coinUsable > 0 ? `−${formatPrice(priced?.coins.applied ? coinsOff : coinUsable)}` : formatPrice(0)}</span>
           </div>
           <div className="cart-summary">
             <span className="cart-summary-label">Tổng thanh toán ({cart.selectedQuantity} sản phẩm):</span>
-            <span className="cart-summary-total" data-testid="cart-total">{formatPrice(cart.selectedSubtotal - (useCoins ? coinUsable : 0))}</span>
+            <span className="cart-summary-total" data-testid="cart-total">{formatPrice(total)}</span>
             <button className="cart-checkout" onClick={checkout} disabled={selected.length === 0} data-testid="checkout">
               Mua hàng{cart.selectedQuantity > 0 ? ` (${cart.selectedQuantity})` : ''}
             </button>

@@ -21,6 +21,7 @@ import { Badge } from '../components/ui';
 import '../components/VoucherPicker.css';
 import { usePageTitle } from '../lib/pageTitle';
 import { useCoinChoice } from '../stores/coinChoice';
+import { usePlatformVoucher } from '../stores/platformVoucher';
 
 const METHOD_ICONS: Partial<Record<PaymentMethod, LucideIcon>> = { Cod: Banknote, Wallet, Simulated: QrCode, VnPay: QrCode, MoMo: Wallet, ZaloPay: Wallet };
 
@@ -44,7 +45,9 @@ const Checkout = () => {
   const shopVouchers = useShopVouchers((st) => st.codes);
   const setShopVoucher = useShopVouchers((st) => st.set);
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [platformCode, setPlatformCode] = useState<string | null>(null);
+  // Shared with the cart's total bar (G8 C)
+  const platformCode = usePlatformVoucher((st) => st.code);
+  const setPlatformCode = usePlatformVoucher((st) => st.setCode);
   const [freeshipCode, setFreeshipCode] = useState<string | null>(null);
   // The cart's total bar sets it too (#221)
   const useCoins = useCoinChoice((st) => st.useCoins);
@@ -324,8 +327,8 @@ const Checkout = () => {
           <section className="checkout-box checkout-summary" data-testid="checkout-summary" aria-label="Tóm tắt đơn hàng">
             <h2 className="checkout-box-title">Chi tiết thanh toán</h2>
             <div className="checkout-summary-row"><span>Tổng tiền hàng ({itemCount} sản phẩm)</span><span>{formatPrice(quote.subtotal)}</span></div>
-            <div className="checkout-summary-row"><span>Tổng tiền phí vận chuyển</span><span>{formatPrice(quote.shippingFee)}</span></div>
-            {quote.shippingDiscount > 0 && <div className="checkout-summary-row"><span>Giảm giá phí vận chuyển</span><span>−{formatPrice(quote.shippingDiscount)}</span></div>}
+            <div className="checkout-summary-row"><span>Tổng tiền phí vận chuyển</span><span data-testid="checkout-shipping-fee">{formatPrice(quote.shippingFee)}</span></div>
+            {quote.shippingDiscount > 0 && <div className="checkout-summary-row"><span>Giảm giá phí vận chuyển</span><span data-testid="checkout-shipping-discount">−{formatPrice(quote.shippingDiscount)}</span></div>}
             {quote.comboDiscount > 0 && <div className="checkout-summary-row"><span>Ưu đãi combo</span><span>−{formatPrice(quote.comboDiscount)}</span></div>}
             {quote.shopDiscount > 0 && <div className="checkout-summary-row"><span>Voucher của shop</span><span>−{formatPrice(quote.shopDiscount)}</span></div>}
             {quote.platformDiscount > 0 && <div className="checkout-summary-row"><span>ShopHub Voucher</span><span>−{formatPrice(quote.platformDiscount)}</span></div>}

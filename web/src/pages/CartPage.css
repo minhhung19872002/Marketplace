@@ -685,7 +685,41 @@
   color: var(--sh-text-muted);
 }
 
+/* ShopHub Voucher (G8 C): a row above the coins */
+.cart-footer-voucher {
+  display: flex;
+  flex: 1 0 100%;
+  order: -2;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+  font-size: 14px;
+}
+
+.cart-footer-voucher .checkout-voucher {
+  gap: 16px;
+  margin-bottom: 0;
+}
+
+.cart-footer-voucher-note {
+  color: var(--sh-text-muted);
+}
+
 @media (max-width: 767px) {
+  .cart-footer-voucher {
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 6px;
+    font-size: 13px;
+  }
+
+  .cart-footer-voucher .checkout-voucher {
+    flex: 1;
+    justify-content: space-between;
+  }
+
   .cart-shop-ship {
     padding: 10px 12px;
     font-size: 13px;
@@ -706,8 +740,8 @@
     min-width: 0;
   }
 
-  /* The fixed bar is a row taller with the coins: the page ends above it */
+  /* The fixed bar is two rows taller with the voucher and the coins: the page ends above it */
   .cart-page {
-    padding-bottom: 136px;
+    padding-bottom: 176px;
   }
 }

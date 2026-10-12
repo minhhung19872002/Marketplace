@@ -83,7 +83,8 @@ public record CheckoutQuoteDto(
     IReadOnlyList<string> Problems,
     bool CanPlace,
     long ComboDiscount = 0,
-    PaymentOption PaymentOption = PaymentOption.Default);
+    PaymentOption PaymentOption = PaymentOption.Default,
+    long ItemsTotal = 0);
 
 /// <summary>Everything needed to place the orders exactly as quoted.</summary>
 public sealed record CheckoutPlan(
@@ -422,7 +423,8 @@ public sealed class CheckoutBuilder(
             methods, request.PaymentMethod,
             pricing?.Subtotal ?? 0, pricing?.ShopDiscount ?? 0, pricing?.ShippingFee ?? 0, pricing?.ShippingDiscount ?? 0,
             pricing?.PlatformDiscount ?? 0, pricing?.CoinUsed ?? 0, grand, pricing?.CoinCashback ?? 0,
-            problems.Distinct().ToList(), problems.Count == 0 && pricing is not null, pricing?.ComboDiscount ?? 0, request.PaymentOption);
+            problems.Distinct().ToList(), problems.Count == 0 && pricing is not null, pricing?.ComboDiscount ?? 0, request.PaymentOption,
+            pricing?.ItemsTotal ?? 0);
 
         var planLines = buyable.ToDictionary(l => l.Sku.Id, l => new PlanLine(l.Sku.Id, l.Product.Id, l.Shop.Id, l.Product.CategoryId, l.Product.Name,
             l.Variant, l.Image, UnitPrice(l), Math.Max(l.Sku.OriginalPrice, l.Sku.Price), l.Item.Quantity, offers.Prices.GetValueOrDefault(l.Sku.Id)));

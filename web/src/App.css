@@ -78,9 +78,9 @@
     --sh-fab-offset: 64px;
   }
 
-  /* The cart's bar carries ShopHub Xu on a row above the total (#221) */
+  /* The cart's bar carries ShopHub Voucher (G8 C) and ShopHub Xu (#221) on two rows above the total */
   :root:has(.cart-footer-coins) {
-    --sh-fab-offset: 100px;
+    --sh-fab-offset: 140px;
   }
 
   /* The page's last row can always scroll clear of the floating buttons */

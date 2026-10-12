@@ -64,11 +64,13 @@ test.describe('G-VIS vòng 5', () => {
       await expect(tiles.first().locator('img').first()).toBeVisible();
       const sizes = await tiles.evaluateAll((els) => els.map((el) => {
         const img = el.querySelector('.mall-brand-photo img');
-        return { tile: el.getBoundingClientRect().width, photo: img.getBoundingClientRect().width, src: img.getAttribute('src') };
+        return { tile: el.getBoundingClientRect().width, photo: img.getBoundingClientRect().width, src: img.getAttribute('src'), fit: getComputedStyle(img).objectFit };
       }));
       for (const s of sizes) {
         expect(s.photo, `${width}px`).toBeGreaterThanOrEqual(s.tile * 0.95);
         expect(isCover(s.src), s.src).toBe(false);
+        // G8 C: the tile is wider than the square photo — the product shows whole, never cut by "cover"
+        expect(s.fit, s.src).toBe('contain');
       }
       await context.close();
     }

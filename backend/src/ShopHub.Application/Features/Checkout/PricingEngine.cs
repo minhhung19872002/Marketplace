@@ -86,6 +86,8 @@ public record PricingResult(
     public long ShippingDiscount => Shops.Sum(s => s.ShippingDiscount);
     public long PlatformDiscount => Shops.Sum(s => s.PlatformDiscount);
     public long GrandTotal => Shops.Sum(s => s.GrandTotal);
+    // What the goods cost after every discount and coin, before shipping: the cart's "Tổng thanh toán" (G8 C)
+    public long ItemsTotal => Math.Max(0, GrandTotal - ShippingFee + ShippingDiscount);
 }
 
 /// <summary>

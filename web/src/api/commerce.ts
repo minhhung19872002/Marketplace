@@ -187,6 +187,8 @@ export interface CheckoutQuote {
   problems: string[];
   canPlace: boolean;
   comboDiscount: number;
+  // Goods after every discount and coin, before shipping: the cart's total (G8 C)
+  itemsTotal: number;
 }
 
 export type OrderStatus =

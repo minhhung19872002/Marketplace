@@ -89,6 +89,8 @@ const MallBrands = () => {
               {/* G-VIS: product photo, the brand logo in a grey-bordered pill, the offer line in red */}
               <span className="mall-brand-photo">
                 <img src={imageOrPlaceholder(s.coverImageUrl)} srcSet={imageSrcSet(s.coverImageUrl)} sizes="200px" alt="" loading="lazy" width={200} height={200} onError={handleImgError} />
+                {/* The whole product shows (contain); a copy magnified on its plain corner fills the rest of the frame (G8 C) */}
+                <img className="mall-brand-photo-fill" src={imageOrPlaceholder(s.coverImageUrl)} alt="" aria-hidden loading="lazy" onError={handleImgError} />
               </span>
               <span className="mall-brand-pill">
                 <ShopWordmark name={s.name} wordmarkUrl={s.wordmarkUrl} height={36} className="mall-brand-wordmark" />

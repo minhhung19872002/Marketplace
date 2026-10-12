@@ -603,3 +603,24 @@
   height: 64px;
   background: var(--sh-surface);
 }
+
+/* G8 C: the tile is wider than the square photo beside the banner, and "cover" cut the product's top and bottom off.
+   The photo is contained whole; behind it a copy magnified on its top-left corner (the photo's plain background) fills
+   the frame in that colour, so no band shows at the sides. */
+.mall-brand-photo > img:first-child {
+  position: relative;
+  z-index: 1;
+  object-fit: contain;
+}
+
+.mall-brand-photo-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left top;
+  filter: blur(4px);
+  transform: scale(40);
+  transform-origin: left top;
+}

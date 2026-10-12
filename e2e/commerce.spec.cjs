@@ -76,21 +76,37 @@ test.describe('Giỏ hàng & thanh toán', () => {
     await addToCartInBrowser(page, b.product.id);
     await page.goto(`${BASE}/gio-hang`);
     await expect(page.locator('[data-testid="cart-shop"]')).toHaveCount(2);
+
+    // G8 C: shop voucher on the first shop block, the platform's SHOPHUB50 and xu on the total bar — all in the cart
+    const cartShop = page.locator('[data-testid="cart-shop"]').filter({ hasText: a.product.shop.name });
+    await pickVoucher(cartShop, 'cart-voucher', a.voucher.code);
+    await pickVoucher(page, 'cart-platform-voucher-picker', 'SHOPHUB50');
+    await expect(page.getByTestId('cart-platform-discount')).toHaveText(`−${vnd(50000)}`);
+    const pricedWithCoins = page.waitForResponse((r) => r.url().includes('/api/checkout/quote') && r.request().postDataJSON()?.useCoins === true);
+    await page.getByTestId('cart-use-coins').click();
+    const cartQuote = (await (await pricedWithCoins).json()).data;
+    // The cart's total is the server's: goods after both vouchers and xu, shipping left for the checkout
+    expect(cartQuote.coinUsed).toBe(20000);
+    expect(cartQuote.itemsTotal).toBe(cartQuote.subtotal - cartQuote.shopDiscount - cartQuote.platformDiscount - cartQuote.coinUsed);
+    await expect(page.getByTestId('cart-total')).toHaveText(vnd(cartQuote.itemsTotal));
+
     await page.locator('[data-testid="checkout"]').click();
     await page.waitForURL(/\/thanh-toan/);
     await expect(page.locator('[data-testid="checkout-shop"]')).toHaveCount(2);
 
-    // Shop voucher for the first shop block, the platform's SHOPHUB50, and xu
+    // The checkout carries every choice made in the cart
     const firstShop = page.locator('[data-testid="checkout-shop"]').filter({ hasText: a.product.shop.name });
-    await pickVoucher(firstShop, 'shop-voucher', a.voucher.code);
-    await expect(firstShop.locator('.checkout-shop-total')).not.toHaveText(/^$/);
-    await pickVoucher(page, 'platform-voucher', 'SHOPHUB50');
-    await page.locator('[data-testid="use-coins"]').check();
+    await expect(firstShop.getByTestId('shop-voucher-value')).toContainText(a.voucher.code);
+    await expect(page.getByTestId('platform-voucher-value')).toContainText('SHOPHUB50');
+    await expect(page.locator('[data-testid="use-coins"]')).toBeChecked();
     await expect(page.locator('[data-testid="checkout-summary"]')).toContainText('Voucher của shop');
     await expect(page.locator('[data-testid="checkout-summary"]')).toContainText('ShopHub Voucher');
     await expect(page.locator('[data-testid="checkout-summary"]')).toContainText('ShopHub Xu');
     await expect(page.locator('[data-testid="place-order"]')).toBeEnabled();
     const shown = money(await page.locator('[data-testid="checkout-total"]').textContent());
+    const shippingNet = money(await page.getByTestId('checkout-shipping-fee').textContent())
+      - ((await page.getByTestId('checkout-shipping-discount').count()) ? money(await page.getByTestId('checkout-shipping-discount').textContent()) : 0);
+    expect(shown - shippingNet).toBe(cartQuote.itemsTotal);
 
     await page.locator('[data-testid="place-order"]').click();
     await page.waitForURL(/\/dat-hang-thanh-cong\?checkout=/);
